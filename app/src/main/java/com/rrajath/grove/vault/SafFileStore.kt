@@ -67,12 +67,25 @@ class SafFileStore(
         val treeDocUri = DocumentsContract.buildDocumentUriUsingTree(
             treeUri, DocumentsContract.getTreeDocumentId(treeUri)
         )
-        val created = DocumentsContract.createDocument(resolver, treeDocUri, "text/plain", name)
-            ?: return@withContext false
-        // Some providers mangle the display name (e.g. append .txt) — track actual id.
+        // "text/plain" makes providers append .txt to names without that
+        // extension ("test.org" → "test.org.txt"). Octet-stream has no mapped
+        // extension, so the name is kept as-is on stock providers.
+        var created = DocumentsContract.createDocument(
+            resolver, treeDocUri, "application/octet-stream", name,
+        ) ?: return@withContext false
+        // Belt and braces: if the provider still mangled the name, rename back.
+        val actualName = displayNameOf(created)
+        if (actualName != null && actualName != name) {
+            DocumentsContract.renameDocument(resolver, created, name)?.let { created = it }
+        }
         docIds[name] = DocumentsContract.getDocumentId(created)
         true
     }
+
+    private fun displayNameOf(uri: Uri): String? =
+        resolver.query(
+            uri, arrayOf(DocumentsContract.Document.COLUMN_DISPLAY_NAME), null, null, null,
+        )?.use { cursor -> if (cursor.moveToFirst()) cursor.getString(0) else null }
 
     override suspend fun rename(oldName: String, newName: String): Boolean =
         withContext(Dispatchers.IO) {
