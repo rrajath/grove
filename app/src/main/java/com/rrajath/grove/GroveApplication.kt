@@ -2,6 +2,7 @@ package com.rrajath.grove
 
 import android.app.Application
 import android.net.Uri
+import com.rrajath.grove.capture.TemplatesRepository
 import com.rrajath.grove.settings.SettingsRepository
 import com.rrajath.grove.vault.SafFileStore
 import com.rrajath.grove.vault.Vault
@@ -20,6 +21,8 @@ class GroveApplication : Application() {
     val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     val settingsRepository: SettingsRepository by lazy { SettingsRepository(this) }
+
+    val templatesRepository: TemplatesRepository by lazy { TemplatesRepository(this) }
 
     /** The active vault, swapping whenever the configured tree URI changes. */
     val vault: StateFlow<Vault?> by lazy {

@@ -21,12 +21,7 @@ import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
 
 // Placeholder screens for routes whose real implementations land in later
-// milestones (capture: M3, conflict: M4, search: M6).
-
-@Composable
-fun CaptureScreen(templateId: String?, onBack: () -> Unit) {
-    PlaceholderScreen(title = "Capture", subtitle = "Capture templates arrive in M3", onBack = onBack)
-}
+// milestones (conflict: M4, search: M6).
 
 @Composable
 fun SearchScreen(onBack: () -> Unit) {

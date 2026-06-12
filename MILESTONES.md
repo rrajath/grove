@@ -37,13 +37,15 @@ Plan reference: PRD in `prd-android-orgmode-app.md`, design spec in `design/READ
 - [x] Read mode: rendered headings/body, inline markup, links; tables as plain mono text
 - [x] Verified: 67 unit tests green, assembleDebug green, committed
 
-## M3 — Capture (priority feature #1)
+## M3 — Capture (priority feature #1) ✅
 
-- [ ] Placeholder expansion (`%t %T %u %U %date %time %day %year %month %cursor %? %^{prompt} %clipboard %shared_text %shared_url`)
-- [ ] Target locations: top/bottom of file, under heading (name or CUSTOM_ID), after last entry, datetree (date & datetime)
-- [ ] Capture picker bottom sheet + capture editor + Save
-- [ ] Built-in default templates (Journal Entry, Quick Note, TODO)
-- [ ] Settings → Templates management
+- [x] Placeholder expansion (`%t %T %u %U %date %time %day %year %month %cursor %? %^{prompt} %clipboard %shared_text %shared_url`)
+- [x] Target locations: top/bottom of file, under heading (name or CUSTOM_ID, first/last child), datetree (date & datetime)
+- [x] Capture picker bottom sheet + capture editor (prompt dialog, datetree breadcrumb, cursor at %cursor) + Save creates target file if missing
+- [x] Built-in default templates (Journal Entry, Quick Note, TODO)
+- [x] Settings → Templates management (edit/reorder/delete + template editor screen)
+- [x] Verified: 97 unit tests green, assembleDebug green, committed
+- Note: template editor target-file field is free text in v1; notebook picker dropdown deferred to polish (M7)
 
 ## M4 — Sync engine (priority feature #2) + Room index
 

@@ -16,6 +16,10 @@ object Routes {
     const val SEARCH = "search"
     const val CONFLICT = "conflict/{notebookId}"
     const val SETTINGS = "settings"
+    const val TEMPLATE_EDIT = "template/{templateId}"
+
+    /** Sentinel templateId that opens the editor in create mode. */
+    const val NEW_TEMPLATE_ID = "new"
 
     fun encode(id: String): String = URLEncoder.encode(id, "UTF-8")
 
@@ -24,4 +28,5 @@ object Routes {
     fun capture(templateId: String? = null) =
         if (templateId == null) CAPTURE else "capture/${encode(templateId)}"
     fun conflict(notebookId: String) = "conflict/${encode(notebookId)}"
+    fun templateEdit(templateId: String) = "template/${encode(templateId)}"
 }

@@ -3,8 +3,10 @@ package com.rrajath.grove.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -18,6 +20,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -25,6 +29,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.rrajath.grove.capture.CaptureTemplate
+import com.rrajath.grove.ui.capture.TemplatesViewModel
 import com.rrajath.grove.settings.FontSizePreference
 import com.rrajath.grove.settings.GroveSettings
 import com.rrajath.grove.settings.NoteOpenMode
@@ -43,8 +50,11 @@ fun SettingsScreen(
     onSetTheme: (ThemePreference) -> Unit,
     onSetFontSize: (FontSizePreference) -> Unit,
     onSetNoteOpenMode: (NoteOpenMode) -> Unit,
+    onEditTemplate: (String?) -> Unit,
+    templatesViewModel: TemplatesViewModel = viewModel(factory = TemplatesViewModel.Factory),
 ) {
     val c = MaterialTheme.grove
+    val templates by templatesViewModel.templates.collectAsState()
     Scaffold(
         containerColor = c.bg,
         topBar = {
@@ -107,7 +117,18 @@ fun SettingsScreen(
 
             SectionLabel("CAPTURE TEMPLATES")
             SettingsGroup {
-                PlaceholderRow("Template management arrives with Capture (M3)")
+                templates.forEachIndexed { i, template ->
+                    if (i > 0) RowDivider()
+                    TemplateSettingsRow(
+                        template = template,
+                        onEdit = { onEditTemplate(template.id) },
+                        onMoveUp = if (i > 0) ({ templatesViewModel.move(template.id, -1) }) else null,
+                        onMoveDown = if (i < templates.lastIndex) ({ templatesViewModel.move(template.id, +1) }) else null,
+                        onDelete = { templatesViewModel.delete(template.id) },
+                    )
+                }
+                if (templates.isNotEmpty()) RowDivider()
+                SettingsRow(label = "＋ New template", onClick = { onEditTemplate(null) }) {}
             }
 
             SectionLabel("SYNC")
@@ -183,6 +204,58 @@ private fun SettingsRow(
             modifier = Modifier.weight(1f),
         )
         trailing()
+    }
+}
+
+@Composable
+private fun TemplateSettingsRow(
+    template: CaptureTemplate,
+    onEdit: () -> Unit,
+    onMoveUp: (() -> Unit)?,
+    onMoveDown: (() -> Unit)?,
+    onDelete: () -> Unit,
+) {
+    val c = MaterialTheme.grove
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onEdit)
+            .padding(horizontal = 15.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(template.icon, fontFamily = PlexMono, fontSize = 15.sp, color = c.accent)
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                template.name,
+                fontFamily = PlexSans, fontWeight = FontWeight.Medium,
+                fontSize = 14.5.sp, color = c.ink,
+            )
+            Text(
+                "${template.targetFile} · ${template.location.describe()}",
+                fontFamily = PlexMono, fontSize = 12.sp, color = c.ink2,
+            )
+        }
+        SmallAction("↑", enabled = onMoveUp != null) { onMoveUp?.invoke() }
+        SmallAction("↓", enabled = onMoveDown != null) { onMoveDown?.invoke() }
+        SmallAction("✕", enabled = true, onClick = onDelete)
+    }
+}
+
+@Composable
+private fun SmallAction(glyph: String, enabled: Boolean, onClick: () -> Unit) {
+    val c = MaterialTheme.grove
+    Box(
+        Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = 8.dp, vertical = 6.dp),
+    ) {
+        Text(
+            glyph,
+            fontFamily = PlexMono, fontSize = 13.sp,
+            color = if (enabled) c.ink2 else c.line2,
+        )
     }
 }
 

@@ -19,8 +19,10 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.rrajath.grove.settings.GroveSettings
+import com.rrajath.grove.ui.capture.CaptureEditorScreen
+import com.rrajath.grove.ui.capture.CapturePickerSheet
+import com.rrajath.grove.ui.capture.TemplateEditScreen
 import com.rrajath.grove.ui.nav.Routes
-import com.rrajath.grove.ui.screens.CaptureScreen
 import com.rrajath.grove.ui.screens.ConflictScreen
 import com.rrajath.grove.ui.screens.GroveDrawerContent
 import com.rrajath.grove.ui.screens.NotebooksScreen
@@ -120,11 +122,30 @@ private fun GroveNavigation(settings: GroveSettings, viewModel: AppViewModel) {
                 }
             }
             composable(Routes.CAPTURE) {
-                CaptureScreen(templateId = null, onBack = { navController.popBackStack() })
+                CapturePickerSheet(
+                    onDismiss = { navController.popBackStack() },
+                    onPickTemplate = { template ->
+                        navController.navigate(Routes.capture(template.id)) {
+                            popUpTo(Routes.CAPTURE) { inclusive = true }
+                        }
+                    },
+                    onManage = {
+                        navController.navigate(Routes.SETTINGS) {
+                            popUpTo(Routes.CAPTURE) { inclusive = true }
+                        }
+                    },
+                )
             }
             composable(Routes.CAPTURE_TEMPLATE) { entry ->
-                CaptureScreen(
-                    templateId = entry.arguments?.getString("templateId"),
+                CaptureEditorScreen(
+                    templateId = entry.arguments?.getString("templateId").orEmpty(),
+                    onClose = { navController.popBackStack() },
+                    onSaved = { navController.popBackStack() },
+                )
+            }
+            composable(Routes.TEMPLATE_EDIT) { entry ->
+                TemplateEditScreen(
+                    templateId = entry.arguments?.getString("templateId").orEmpty(),
                     onBack = { navController.popBackStack() },
                 )
             }
@@ -144,6 +165,9 @@ private fun GroveNavigation(settings: GroveSettings, viewModel: AppViewModel) {
                     onSetTheme = viewModel::setTheme,
                     onSetFontSize = viewModel::setFontSize,
                     onSetNoteOpenMode = viewModel::setDefaultNoteOpenMode,
+                    onEditTemplate = { id ->
+                        navController.navigate(Routes.templateEdit(id ?: Routes.NEW_TEMPLATE_ID))
+                    },
                 )
             }
         }
