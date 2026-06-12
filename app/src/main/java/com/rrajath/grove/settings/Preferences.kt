@@ -24,6 +24,18 @@ enum class FontSizePreference(val storageKey: String, val scale: Float) {
     }
 }
 
+enum class SyncMode(val storageKey: String, val label: String) {
+    MANUAL("manual", "Manual only"),
+    ON_OPEN_CLOSE("on_open_close", "On open / close"),
+    PERIODIC("periodic", "Periodic"),
+    CONTINUOUS("continuous", "Continuous");
+
+    companion object {
+        fun fromStorage(value: String?): SyncMode =
+            entries.firstOrNull { it.storageKey == value } ?: ON_OPEN_CLOSE
+    }
+}
+
 enum class NoteOpenMode(val storageKey: String) {
     READ("read"),
     EDIT("edit");

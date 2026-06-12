@@ -31,6 +31,7 @@ import com.rrajath.grove.ui.screens.OutlineScreen
 import com.rrajath.grove.ui.screens.ReadNoteScreen
 import com.rrajath.grove.ui.screens.SearchScreen
 import com.rrajath.grove.ui.screens.SettingsScreen
+import com.rrajath.grove.ui.screens.SyncLogScreen
 import com.rrajath.grove.ui.vault.NoteRef
 import com.rrajath.grove.ui.theme.GroveTheme
 import com.rrajath.grove.ui.theme.grove
@@ -98,6 +99,7 @@ private fun GroveNavigation(settings: GroveSettings, viewModel: AppViewModel) {
                     onOpenSearch = { navController.navigate(Routes.SEARCH) },
                     onOpenCapture = { navController.navigate(Routes.CAPTURE) },
                     onOpenNotebook = { id -> navController.navigate(Routes.outline(id)) },
+                    onOpenConflict = { id -> navController.navigate(Routes.conflict(id)) },
                 )
             }
             composable(Routes.OUTLINE) { entry ->
@@ -149,6 +151,9 @@ private fun GroveNavigation(settings: GroveSettings, viewModel: AppViewModel) {
                     onBack = { navController.popBackStack() },
                 )
             }
+            composable(Routes.SYNC_LOG) {
+                SyncLogScreen(onBack = { navController.popBackStack() })
+            }
             composable(Routes.SEARCH) {
                 SearchScreen(onBack = { navController.popBackStack() })
             }
@@ -168,6 +173,9 @@ private fun GroveNavigation(settings: GroveSettings, viewModel: AppViewModel) {
                     onEditTemplate = { id ->
                         navController.navigate(Routes.templateEdit(id ?: Routes.NEW_TEMPLATE_ID))
                     },
+                    onSetSyncMode = viewModel::setSyncMode,
+                    onSetPeriodicMinutes = viewModel::setPeriodicSyncMinutes,
+                    onOpenSyncLog = { navController.navigate(Routes.SYNC_LOG) },
                 )
             }
         }

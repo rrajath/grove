@@ -47,14 +47,17 @@ Plan reference: PRD in `prd-android-orgmode-app.md`, design spec in `design/READ
 - [x] Verified: 97 unit tests green, assembleDebug green, committed
 - Note: template editor target-file field is free text in v1; notebook picker dropdown deferred to polish (M7)
 
-## M4 — Sync engine (priority feature #2) + Room index
+## M4 — Sync engine (priority feature #2) + Room index ✅
 
-- [ ] `SyncBackend` interface + `LocalDirectoryBackend` (v2 backends slot in here)
-- [ ] `SyncEngine` state machine + `ChangeDetector` (mtime/size snapshots)
-- [ ] Auto-sync modes: manual / on open-close / periodic (WorkManager) / foreground polling
-- [ ] Room index (notebooks, notes, revisions) — rebuildable cache
-- [ ] Conflict picker (keep phone / laptop / both → CONFLICT heading) + notification + badges
-- [ ] Force Load / Force Save; rename/delete-to-trash; sync log
+- [x] `SyncEngine` state machine (Idle→Checking→Pulling→Done/Error) over the `FileStore` abstraction — v2 remote backends implement the same interface
+- [x] Revision diffing (mtime:size) detects external/Syncthing changes; `.orgzlyignore` honored in the index
+- [x] Auto-sync modes: manual / on open-close (ProcessLifecycleOwner) / periodic (WorkManager, ≥15 min) / continuous (foreground 10s polling)
+- [x] Room index (notebooks, notes incl. tags/planning/IDs, sync log) — rebuildable cache, destructive migration
+- [x] Syncthing `.sync-conflict-*` detection → badge + notification + conflict picker (keep current / keep copy / keep both → demoted under `* CONFLICT` heading)
+- [x] Force reload, rename, delete-to-trash (`name.org.trash` rename), sync log screen
+- [x] Resolved the KSP/AGP9 risk: built-in Kotlin is 2.2.10 → catalog bumped, KSP 2.2.10-2.0.2, `android.disallowKotlinSourceSets=false`
+- [x] Verified: 112 unit tests green, assembleDebug green, committed
+- Notes: trash = `.trash` rename (flat SAF vault, still synced/recoverable) instead of a trash folder; Force Save deferred to M5 where an in-app dirty buffer first exists; conflict notification posts only if POST_NOTIFICATIONS already granted (permission prompt comes with M7 notification work)
 
 ## M5 — Full editor
 

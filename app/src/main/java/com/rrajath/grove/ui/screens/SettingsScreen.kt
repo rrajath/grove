@@ -35,6 +35,7 @@ import com.rrajath.grove.ui.capture.TemplatesViewModel
 import com.rrajath.grove.settings.FontSizePreference
 import com.rrajath.grove.settings.GroveSettings
 import com.rrajath.grove.settings.NoteOpenMode
+import com.rrajath.grove.settings.SyncMode
 import com.rrajath.grove.settings.ThemePreference
 import com.rrajath.grove.ui.components.GroveTopBar
 import com.rrajath.grove.ui.components.SegmentedControl
@@ -51,6 +52,9 @@ fun SettingsScreen(
     onSetFontSize: (FontSizePreference) -> Unit,
     onSetNoteOpenMode: (NoteOpenMode) -> Unit,
     onEditTemplate: (String?) -> Unit,
+    onSetSyncMode: (SyncMode) -> Unit,
+    onSetPeriodicMinutes: (Int) -> Unit,
+    onOpenSyncLog: () -> Unit,
     templatesViewModel: TemplatesViewModel = viewModel(factory = TemplatesViewModel.Factory),
 ) {
     val c = MaterialTheme.grove
@@ -133,7 +137,59 @@ fun SettingsScreen(
 
             SectionLabel("SYNC")
             SettingsGroup {
-                PlaceholderRow("Repositories and auto-sync arrive with Sync (M4)")
+                SettingsRow(label = "Folder") {
+                    Text(
+                        settings.vaultTreeUri?.let { uriDisplayName(it) } ?: "not set",
+                        fontFamily = PlexMono, fontSize = 12.sp, color = c.ink2,
+                    )
+                }
+                RowDivider()
+                Column(Modifier.padding(horizontal = 15.dp, vertical = 10.dp)) {
+                    Text(
+                        "Auto-sync",
+                        fontFamily = PlexSans, fontWeight = FontWeight.Medium,
+                        fontSize = 14.5.sp, color = c.ink,
+                        modifier = Modifier.padding(bottom = 8.dp),
+                    )
+                    SyncMode.entries.forEach { mode ->
+                        val active = settings.syncMode == mode
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(9.dp))
+                                .background(if (active) c.accentSoft else c.surface)
+                                .clickable { onSetSyncMode(mode) }
+                                .padding(horizontal = 12.dp, vertical = 9.dp),
+                        ) {
+                            Text(
+                                mode.label,
+                                fontFamily = PlexSans,
+                                fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal,
+                                fontSize = 13.5.sp,
+                                color = if (active) c.accent else c.ink,
+                            )
+                        }
+                    }
+                }
+                if (settings.syncMode == SyncMode.PERIODIC) {
+                    RowDivider()
+                    SettingsRow(label = "Interval") {
+                        SegmentedControl(
+                            options = listOf("15m", "30m", "60m"),
+                            selectedIndex = when (settings.periodicSyncMinutes) {
+                                15 -> 0
+                                60 -> 2
+                                else -> 1
+                            },
+                            onSelect = { onSetPeriodicMinutes(listOf(15, 30, 60)[it]) },
+                            modifier = Modifier.width(180.dp),
+                        )
+                    }
+                }
+                RowDivider()
+                SettingsRow(label = "View sync log", onClick = onOpenSyncLog) {
+                    Text("›", fontFamily = PlexMono, fontSize = 14.sp, color = c.ink2)
+                }
             }
 
             SectionLabel("NOTES")
@@ -257,6 +313,12 @@ private fun SmallAction(glyph: String, enabled: Boolean, onClick: () -> Unit) {
             color = if (enabled) c.ink2 else c.line2,
         )
     }
+}
+
+/** Friendly folder name from a SAF tree URI ("content://…/tree/primary%3Aorg" → "org"). */
+private fun uriDisplayName(uri: String): String {
+    val last = java.net.URLDecoder.decode(uri.substringAfterLast("/"), "UTF-8")
+    return last.substringAfterLast(':').ifEmpty { last }
 }
 
 @Composable

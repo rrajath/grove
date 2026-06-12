@@ -21,16 +21,11 @@ import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
 
 // Placeholder screens for routes whose real implementations land in later
-// milestones (conflict: M4, search: M6).
+// milestones (search: M6).
 
 @Composable
 fun SearchScreen(onBack: () -> Unit) {
     PlaceholderScreen(title = "Search", subtitle = "Full-text search arrives in M6", onBack = onBack)
-}
-
-@Composable
-fun ConflictScreen(notebookId: String, onBack: () -> Unit) {
-    PlaceholderScreen(title = "Resolve conflict", subtitle = "Conflict picker arrives in M4", onBack = onBack)
 }
 
 @Composable

@@ -17,6 +17,7 @@ object Routes {
     const val CONFLICT = "conflict/{notebookId}"
     const val SETTINGS = "settings"
     const val TEMPLATE_EDIT = "template/{templateId}"
+    const val SYNC_LOG = "settings/synclog"
 
     /** Sentinel templateId that opens the editor in create mode. */
     const val NEW_TEMPLATE_ID = "new"

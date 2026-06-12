@@ -9,6 +9,7 @@ import com.rrajath.grove.settings.FontSizePreference
 import com.rrajath.grove.settings.GroveSettings
 import com.rrajath.grove.settings.NoteOpenMode
 import com.rrajath.grove.settings.SettingsRepository
+import com.rrajath.grove.settings.SyncMode
 import com.rrajath.grove.settings.ThemePreference
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -37,6 +38,12 @@ class AppViewModel(private val settingsRepository: SettingsRepository) : ViewMod
 
     fun setVaultTreeUri(uri: String) =
         viewModelScope.launch { settingsRepository.setVaultTreeUri(uri) }
+
+    fun setSyncMode(mode: SyncMode) =
+        viewModelScope.launch { settingsRepository.setSyncMode(mode) }
+
+    fun setPeriodicSyncMinutes(minutes: Int) =
+        viewModelScope.launch { settingsRepository.setPeriodicSyncMinutes(minutes) }
 
     companion object {
         val Factory = object : ViewModelProvider.Factory {

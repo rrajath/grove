@@ -4,9 +4,11 @@ import android.content.Intent
 import android.text.format.DateUtils
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -21,6 +23,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -40,28 +44,32 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.rrajath.grove.ui.theme.GroveColors
+import com.rrajath.grove.sync.SyncState
 import com.rrajath.grove.ui.components.GroveTopBar
+import com.rrajath.grove.ui.components.Pill
+import com.rrajath.grove.ui.theme.GroveColors
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
+import com.rrajath.grove.ui.vault.NotebookItem
 import com.rrajath.grove.ui.vault.NotebooksUiState
 import com.rrajath.grove.ui.vault.NotebooksViewModel
-import com.rrajath.grove.vault.Notebook
 
-/** Notebook list home screen (design spec §2), backed by the real vault. */
+/** Notebook list home screen (design spec §2), driven by the sync index. */
 @Composable
 fun NotebooksScreen(
     onOpenDrawer: () -> Unit,
     onOpenSearch: () -> Unit,
     onOpenCapture: () -> Unit,
     onOpenNotebook: (String) -> Unit,
+    onOpenConflict: (String) -> Unit,
     viewModel: NotebooksViewModel = viewModel(factory = NotebooksViewModel.Factory),
 ) {
     val c = MaterialTheme.grove
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
     var showCreateDialog by remember { mutableStateOf(false) }
+    var renameTarget by remember { mutableStateOf<String?>(null) }
 
     val folderPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocumentTree()
@@ -91,6 +99,7 @@ fun NotebooksScreen(
                 actions = {
                     if (state is NotebooksUiState.Loaded) {
                         IconGlyph("＋", onClick = { showCreateDialog = true })
+                        IconGlyph("↻", onClick = { viewModel.requestSync() })
                     }
                     IconGlyph("⌕", onClick = onOpenSearch)
                 },
@@ -122,44 +131,73 @@ fun NotebooksScreen(
                 .padding(padding)
                 .padding(horizontal = 14.dp),
         ) {
-            SyncStatusStrip(state)
             when (val s = state) {
-                is NotebooksUiState.NoVault -> NoVaultState(onChooseFolder = { folderPicker.launch(null) })
-                is NotebooksUiState.Loading -> {}
-                is NotebooksUiState.Error -> CenterMessage("⚠", s.message)
-                is NotebooksUiState.Loaded ->
+                is NotebooksUiState.NoVault ->
+                    NoVaultState(onChooseFolder = { folderPicker.launch(null) })
+
+                is NotebooksUiState.Loaded -> {
+                    SyncStatusStrip(s, onConflictTap = { name -> onOpenConflict(name) })
                     if (s.notebooks.isEmpty()) {
                         CenterMessage("✦", "No .org files here yet", "Capture a note or create a notebook with ＋")
                     } else {
                         LazyColumn(Modifier.fillMaxSize()) {
                             items(s.notebooks, key = { it.fileName }) { nb ->
-                                NotebookRow(nb, onClick = { onOpenNotebook(nb.fileName) })
+                                NotebookRow(
+                                    notebook = nb,
+                                    onClick = { onOpenNotebook(nb.fileName) },
+                                    onOpenConflict = { onOpenConflict(nb.fileName) },
+                                    onRename = { renameTarget = nb.fileName },
+                                    onDelete = { viewModel.trashNotebook(nb.fileName) },
+                                    onForceReload = { viewModel.forceReload(nb.fileName) },
+                                )
                             }
                         }
                     }
+                }
             }
         }
     }
 
     if (showCreateDialog) {
-        CreateNotebookDialog(
+        NameDialog(
+            title = "New notebook",
+            initial = "",
+            confirmLabel = "Create",
             onDismiss = { showCreateDialog = false },
-            onCreate = { name ->
+            onConfirm = { name ->
                 viewModel.createNotebook(name)
                 showCreateDialog = false
+            },
+        )
+    }
+    renameTarget?.let { target ->
+        NameDialog(
+            title = "Rename $target",
+            initial = target,
+            confirmLabel = "Rename",
+            onDismiss = { renameTarget = null },
+            onConfirm = { name ->
+                viewModel.renameNotebook(target, name)
+                renameTarget = null
             },
         )
     }
 }
 
 @Composable
-private fun SyncStatusStrip(state: NotebooksUiState) {
+private fun SyncStatusStrip(state: NotebooksUiState.Loaded, onConflictTap: (String) -> Unit) {
     val c = MaterialTheme.grove
-    val (glyph, glyphColor, text) = when (state) {
-        is NotebooksUiState.Loaded -> Triple("✓", c.green, "Local folder · ${state.notebooks.size} notebooks")
-        is NotebooksUiState.NoVault -> Triple("○", c.ink3, "Sync not set up yet")
-        is NotebooksUiState.Loading -> Triple("↻", c.blue, "Reading folder…")
-        is NotebooksUiState.Error -> Triple("✗", c.red, "Folder error")
+    val conflicts = state.notebooks.filter { it.hasConflict }
+    val (glyph, glyphColor, text) = when (val sync = state.syncState) {
+        is SyncState.Checking -> Triple("↻", c.blue, "Checking…")
+        is SyncState.Pulling -> Triple("↻", c.blue, "Syncing ${sync.fileName}…")
+        is SyncState.Error -> Triple("✗", c.red, sync.message)
+        else -> {
+            val ago = state.lastSyncAt
+                ?.let { DateUtils.getRelativeTimeSpanString(it).toString() }
+                ?: "not yet"
+            Triple("✓", c.green, "Synced $ago · Local folder")
+        }
     }
     Row(
         Modifier
@@ -172,11 +210,21 @@ private fun SyncStatusStrip(state: NotebooksUiState) {
     ) {
         Text(glyph, fontFamily = PlexMono, fontSize = 13.sp, color = glyphColor)
         Spacer(Modifier.width(8.dp))
-        Text(text, fontFamily = PlexSans, fontSize = 12.5.sp, color = c.ink2)
+        Text(
+            text,
+            fontFamily = PlexSans, fontSize = 12.5.sp, color = c.ink2,
+            modifier = Modifier.weight(1f),
+        )
+        if (conflicts.isNotEmpty()) {
+            Pill(
+                "${conflicts.size} conflict${if (conflicts.size > 1) "s" else ""}",
+                fg = c.amber, bg = c.amberSoft,
+                onClick = { onConflictTap(conflicts.first().fileName) },
+            )
+        }
     }
 }
 
-// Notebook icon tiles cycle through the design-spec glyph/color pairs by name hash.
 private val GLYPHS = listOf("✦", "✶", "✸", "✺", "❋", "✷")
 
 private fun notebookStyle(c: GroveColors, name: String): Triple<String, androidx.compose.ui.graphics.Color, androidx.compose.ui.graphics.Color> {
@@ -191,41 +239,81 @@ private fun notebookStyle(c: GroveColors, name: String): Triple<String, androidx
     return Triple(GLYPHS[hash % GLYPHS.size], fg, bg)
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun NotebookRow(notebook: Notebook, onClick: () -> Unit) {
+private fun NotebookRow(
+    notebook: NotebookItem,
+    onClick: () -> Unit,
+    onOpenConflict: () -> Unit,
+    onRename: () -> Unit,
+    onDelete: () -> Unit,
+    onForceReload: () -> Unit,
+) {
     val c = MaterialTheme.grove
     val (glyph, fg, bg) = remember(notebook.fileName, c) { notebookStyle(c, notebook.fileName) }
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 8.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(
+    var menuOpen by remember { mutableStateOf(false) }
+
+    Box {
+        Row(
             Modifier
-                .size(42.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(bg),
-            contentAlignment = Alignment.Center,
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(14.dp))
+                .combinedClickable(onClick = onClick, onLongClick = { menuOpen = true })
+                .padding(horizontal = 8.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(glyph, fontFamily = PlexMono, fontWeight = FontWeight.SemiBold, fontSize = 17.sp, color = fg)
+            Box(
+                Modifier
+                    .size(42.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(bg),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(glyph, fontFamily = PlexMono, fontWeight = FontWeight.SemiBold, fontSize = 17.sp, color = fg)
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    notebook.fileName,
+                    fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
+                    fontSize = 15.sp, color = c.ink,
+                )
+                val ago = DateUtils.getRelativeTimeSpanString(notebook.lastModified)
+                Text(
+                    "${notebook.noteCount} notes · $ago",
+                    fontFamily = PlexSans, fontSize = 12.5.sp, color = c.ink2,
+                )
+            }
+            if (notebook.hasConflict) {
+                Pill("Conflict", fg = c.amber, bg = c.amberSoft, onClick = onOpenConflict)
+            } else {
+                Text("✓", fontFamily = PlexMono, fontSize = 13.sp, color = c.green)
+            }
         }
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
-            Text(
-                notebook.fileName,
-                fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
-                fontSize = 15.sp, color = c.ink,
+        DropdownMenu(
+            expanded = menuOpen,
+            onDismissRequest = { menuOpen = false },
+            containerColor = c.surface,
+        ) {
+            DropdownMenuItem(
+                text = { Text("Rename", fontFamily = PlexSans, color = c.ink) },
+                onClick = { menuOpen = false; onRename() },
             )
-            val ago = DateUtils.getRelativeTimeSpanString(notebook.lastModified)
-            Text(
-                "${notebook.noteCount} notes · $ago",
-                fontFamily = PlexSans, fontSize = 12.5.sp, color = c.ink2,
+            DropdownMenuItem(
+                text = { Text("Force reload", fontFamily = PlexSans, color = c.ink) },
+                onClick = { menuOpen = false; onForceReload() },
+            )
+            if (notebook.hasConflict) {
+                DropdownMenuItem(
+                    text = { Text("Resolve conflict", fontFamily = PlexSans, color = c.amber) },
+                    onClick = { menuOpen = false; onOpenConflict() },
+                )
+            }
+            DropdownMenuItem(
+                text = { Text("Delete (to trash)", fontFamily = PlexSans, color = c.red) },
+                onClick = { menuOpen = false; onDelete() },
             )
         }
-        Text("›", fontFamily = PlexMono, fontSize = 16.sp, color = c.ink3)
     }
 }
 
@@ -283,13 +371,19 @@ private fun CenterMessage(glyph: String, title: String, subtitle: String? = null
 }
 
 @Composable
-private fun CreateNotebookDialog(onDismiss: () -> Unit, onCreate: (String) -> Unit) {
+private fun NameDialog(
+    title: String,
+    initial: String,
+    confirmLabel: String,
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit,
+) {
     val c = MaterialTheme.grove
-    var name by remember { mutableStateOf("") }
+    var name by remember { mutableStateOf(initial) }
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = c.surface,
-        title = { Text("New notebook", fontFamily = PlexSans, fontWeight = FontWeight.SemiBold, color = c.ink) },
+        title = { Text(title, fontFamily = PlexSans, fontWeight = FontWeight.SemiBold, color = c.ink) },
         text = {
             OutlinedTextField(
                 value = name,
@@ -300,9 +394,9 @@ private fun CreateNotebookDialog(onDismiss: () -> Unit, onCreate: (String) -> Un
         },
         confirmButton = {
             TextButton(
-                onClick = { if (name.isNotBlank()) onCreate(name) },
+                onClick = { if (name.isNotBlank()) onConfirm(name) },
                 enabled = name.isNotBlank(),
-            ) { Text("Create", color = c.accent, fontWeight = FontWeight.SemiBold) }
+            ) { Text(confirmLabel, color = c.accent, fontWeight = FontWeight.SemiBold) }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) { Text("Cancel", color = c.ink2) }

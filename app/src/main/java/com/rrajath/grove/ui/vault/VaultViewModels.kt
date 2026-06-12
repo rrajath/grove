@@ -7,46 +7,59 @@ import androidx.lifecycle.viewmodel.CreationExtras
 import com.rrajath.grove.GroveApplication
 import com.rrajath.grove.org.OrgDocument
 import com.rrajath.grove.org.OrgHeadline
-import com.rrajath.grove.vault.Notebook
-import com.rrajath.grove.vault.Vault
+import com.rrajath.grove.sync.SyncState
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+
+data class NotebookItem(
+    val fileName: String,
+    val noteCount: Int,
+    val lastModified: Long,
+    val hasConflict: Boolean,
+)
 
 sealed class NotebooksUiState {
     data object NoVault : NotebooksUiState()
-    data object Loading : NotebooksUiState()
-    data class Loaded(val notebooks: List<Notebook>) : NotebooksUiState()
-    data class Error(val message: String) : NotebooksUiState()
+    data class Loaded(
+        val notebooks: List<NotebookItem>,
+        val syncState: SyncState,
+        val lastSyncAt: Long?,
+    ) : NotebooksUiState()
 }
 
 class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
 
-    private val _state = MutableStateFlow<NotebooksUiState>(NotebooksUiState.Loading)
-    val state: StateFlow<NotebooksUiState> = _state
-
-    init {
-        viewModelScope.launch {
-            app.vault.collect { refresh(it) }
-        }
-    }
-
-    fun refresh() = refresh(app.vault.value)
-
-    private fun refresh(vault: Vault?) {
+    val state: StateFlow<NotebooksUiState> = combine(
+        app.vault,
+        app.database.indexDao().notebooksFlow(),
+        app.syncManager.state,
+        app.syncManager.lastResult,
+    ) { vault, notebooks, syncState, lastResult ->
         if (vault == null) {
-            _state.value = NotebooksUiState.NoVault
-            return
+            NotebooksUiState.NoVault
+        } else {
+            NotebooksUiState.Loaded(
+                notebooks = notebooks
+                    .map {
+                        NotebookItem(
+                            fileName = it.fileName,
+                            noteCount = it.noteCount,
+                            lastModified = it.lastModified,
+                            hasConflict = it.conflictFileName != null,
+                        )
+                    }
+                    .sortedBy { it.fileName.lowercase() },
+                syncState = syncState,
+                lastSyncAt = lastResult?.completedAt,
+            )
         }
-        viewModelScope.launch {
-            _state.value = NotebooksUiState.Loading
-            _state.value = try {
-                NotebooksUiState.Loaded(vault.notebooks().sortedBy { it.fileName.lowercase() })
-            } catch (e: Exception) {
-                NotebooksUiState.Error(e.message ?: "Could not read folder")
-            }
-        }
-    }
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, NotebooksUiState.NoVault)
+
+    fun requestSync() = app.syncManager.requestSync("manual")
 
     fun saveVaultUri(uri: String) {
         viewModelScope.launch {
@@ -59,8 +72,30 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
         val vault = app.vault.value ?: return
         viewModelScope.launch {
             vault.createNotebook(name.trim())
-            refresh()
+            app.syncManager.requestSync("notebook created")
         }
+    }
+
+    fun renameNotebook(oldName: String, newName: String) {
+        val vault = app.vault.value ?: return
+        viewModelScope.launch {
+            vault.renameNotebook(oldName, newName.trim())
+            app.database.indexDao().removeNotebook(oldName)
+            app.syncManager.requestSync("notebook renamed")
+        }
+    }
+
+    fun trashNotebook(name: String) {
+        val vault = app.vault.value ?: return
+        viewModelScope.launch {
+            vault.trashNotebook(name)
+            app.database.indexDao().removeNotebook(name)
+            app.syncManager.requestSync("notebook deleted")
+        }
+    }
+
+    fun forceReload(name: String) {
+        viewModelScope.launch { app.syncManager.forceReload(name) }
     }
 
     companion object {
@@ -101,7 +136,7 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
     }
 }
 
-/** Note identity until the Room index lands in M4: "fileName@headlineLineIndex". */
+/** Note identity until cross-file ids land in search (M6): "fileName@headlineLineIndex". */
 data class NoteRef(val fileName: String, val lineIndex: Int) {
     fun encode(): String = "$fileName@$lineIndex"
 
@@ -118,7 +153,7 @@ data class NoteRef(val fileName: String, val lineIndex: Int) {
 fun OrgDocument.headlineAtLine(lineIndex: Int): OrgHeadline? =
     headlines.firstOrNull { it.lineIndex == lineIndex }
 
-private fun <T : ViewModel> factory(create: (GroveApplication) -> T) =
+internal fun <T : ViewModel> factory(create: (GroveApplication) -> T) =
     object : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <V : ViewModel> create(modelClass: Class<V>, extras: CreationExtras): V {

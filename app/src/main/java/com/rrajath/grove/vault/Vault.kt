@@ -32,7 +32,11 @@ class Vault(
             ?.let { IgnoreRules(store.read(it.name)) }
             ?: IgnoreRules("")
         return entries
-            .filter { it.name.endsWith(".org") && !ignore.isIgnored(it.name) }
+            .filter {
+                it.name.endsWith(".org") &&
+                        !it.name.contains(".sync-conflict-") &&
+                        !ignore.isIgnored(it.name)
+            }
             .map { entry ->
                 val doc = document(entry)
                 Notebook(entry.name, doc.headlines.size, entry.lastModified)
@@ -49,6 +53,23 @@ class Vault(
         val fileName = if (name.endsWith(".org")) name else "$name.org"
         if (store.exists(fileName)) return false
         return store.create(fileName)
+    }
+
+    suspend fun renameNotebook(oldName: String, newName: String): Boolean {
+        val target = if (newName.endsWith(".org")) newName else "$newName.org"
+        val ok = store.rename(oldName, target)
+        if (ok) cache.keys.removeAll { it.name == oldName }
+        return ok
+    }
+
+    /**
+     * Soft delete: rename to `<name>.trash` so the file no longer lists as a
+     * notebook but stays in the synced folder, recoverable from any device.
+     */
+    suspend fun trashNotebook(name: String): Boolean {
+        val ok = store.rename(name, "$name.trash")
+        if (ok) cache.keys.removeAll { it.name == name }
+        return ok
     }
 
     suspend fun save(fileName: String, content: String) {

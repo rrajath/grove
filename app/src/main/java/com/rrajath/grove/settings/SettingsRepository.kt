@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
@@ -19,6 +20,8 @@ data class GroveSettings(
     val onboardingDone: Boolean = false,
     /** Persisted SAF tree URI of the sync folder; null until the user picks one. */
     val vaultTreeUri: String? = null,
+    val syncMode: SyncMode = SyncMode.ON_OPEN_CLOSE,
+    val periodicSyncMinutes: Int = 30,
 )
 
 class SettingsRepository(private val context: Context) {
@@ -29,6 +32,8 @@ class SettingsRepository(private val context: Context) {
         val noteOpenMode = stringPreferencesKey("note_open_mode")
         val onboardingDone = booleanPreferencesKey("onboarding_done")
         val vaultTreeUri = stringPreferencesKey("vault_tree_uri")
+        val syncMode = stringPreferencesKey("sync_mode")
+        val periodicSyncMinutes = intPreferencesKey("periodic_sync_minutes")
     }
 
     val settings: Flow<GroveSettings> = context.settingsDataStore.data.map { prefs ->
@@ -38,6 +43,8 @@ class SettingsRepository(private val context: Context) {
             defaultNoteOpenMode = NoteOpenMode.fromStorage(prefs[Keys.noteOpenMode]),
             onboardingDone = prefs[Keys.onboardingDone] ?: false,
             vaultTreeUri = prefs[Keys.vaultTreeUri],
+            syncMode = SyncMode.fromStorage(prefs[Keys.syncMode]),
+            periodicSyncMinutes = prefs[Keys.periodicSyncMinutes] ?: 30,
         )
     }
 
@@ -59,5 +66,13 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setVaultTreeUri(uri: String) {
         context.settingsDataStore.edit { it[Keys.vaultTreeUri] = uri }
+    }
+
+    suspend fun setSyncMode(mode: SyncMode) {
+        context.settingsDataStore.edit { it[Keys.syncMode] = mode.storageKey }
+    }
+
+    suspend fun setPeriodicSyncMinutes(minutes: Int) {
+        context.settingsDataStore.edit { it[Keys.periodicSyncMinutes] = minutes }
     }
 }
