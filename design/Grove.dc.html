@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Serif:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { margin: 0; }
+  [data-grove] {
+    --phone-scale:0.86;
+    --bg:#f3ede1; --surface:#fbf8f1; --surface-2:#ece4d5; --surface-3:#e3d9c6;
+    --ink:#2a251f; --ink-2:#6c6356; --ink-3:#9c9384;
+    --line:#e3dbcb; --line-2:#d3c9b6;
+    --accent:#8a5a2b; --accent-ink:#fffaf2; --accent-soft:rgba(138,90,43,0.12);
+    --green:#4f7a3a; --green-soft:rgba(79,122,58,0.14);
+    --amber:#a9761d; --amber-soft:rgba(169,118,29,0.16);
+    --red:#a5462f; --red-soft:rgba(165,70,47,0.13);
+    --blue:#3f6f86; --blue-soft:rgba(63,111,134,0.13);
+    --syn-star:#4f7a3a; --syn-todo:#a9761d; --syn-done:#4f7a3a; --syn-kw:#7d7466;
+    --syn-ts:#3f6f86; --syn-tag:#8a5a2b; --syn-link:#3f6f86; --syn-prop:#a39a89;
+    --shadow:0 2px 10px rgba(60,45,25,0.10), 0 1px 2px rgba(60,45,25,0.06);
+    --canvas:#e6dcc8; --canvas-2:#ddd0b7;
+    --tile-light:#f0e7d6; --tile-dark:#332518;
+  }
+  [data-grove][data-theme="dark"] {
+    --bg:#16130e; --surface:#201c15; --surface-2:#2a251b; --surface-3:#352f23;
+    --ink:#ece4d5; --ink-2:#b4a98f; --ink-3:#7c7460;
+    --line:#322c20; --line-2:#433a2b;
+    --accent:#cb9d62; --accent-ink:#1a160d; --accent-soft:rgba(203,157,98,0.18);
+    --green:#8fb46a; --green-soft:rgba(143,180,106,0.17);
+    --amber:#d7a64f; --amber-soft:rgba(215,166,79,0.17);
+    --red:#d2856a; --red-soft:rgba(210,133,106,0.16);
+    --blue:#7fb0c4; --blue-soft:rgba(127,176,196,0.16);
+    --syn-star:#8fb46a; --syn-todo:#d7a64f; --syn-done:#8fb46a; --syn-kw:#b4a98f;
+    --syn-ts:#7fb0c4; --syn-tag:#cb9d62; --syn-link:#7fb0c4; --syn-prop:#7c7460;
+    --shadow:0 6px 22px rgba(0,0,0,0.45), 0 1px 3px rgba(0,0,0,0.35);
+    --canvas:#100d09; --canvas-2:#080604;
+    --tile-light:#f0e7d6; --tile-dark:#2c2016;
+  }
+  @keyframes groveScrim { from { opacity:0; } to { opacity:1; } }
+  @keyframes groveDrawer { from { transform:translateX(-100%); } to { transform:translateX(0); } }
+  @keyframes groveSheet { from { transform:translateY(100%); } to { transform:translateY(0); } }
+  @keyframes groveFade { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+  ::-webkit-scrollbar { width:0; height:0; }
+</style>
+</helmet>
+
+<div data-grove data-theme="{{ theme }}" style="min-height:100vh; background:var(--canvas); font-family:'IBM Plex Sans',system-ui,sans-serif; color:var(--ink); padding:34px 20px 64px; display:flex; flex-direction:column; align-items:center; gap:26px;">
+
+  <!-- ============ TOP BAR ============ -->
+  <div style="width:100%; max-width:1180px; display:flex; align-items:center; justify-content:space-between; gap:20px; flex-wrap:wrap;">
+    <div style="display:flex; align-items:center; gap:13px;">
+      <div style="width:34px; height:34px; border-radius:9px; background:var(--accent-soft); border:1px solid var(--line); position:relative; display:grid; place-items:center;">
+        <div style="position:relative; width:18px; height:18px;">
+          <div style="position:absolute; inset:0; margin:auto; width:3.4px; height:18px; border-radius:2px; background:var(--accent);"></div>
+          <div style="position:absolute; inset:0; margin:auto; width:3.4px; height:18px; border-radius:2px; background:var(--accent); transform:rotate(60deg);"></div>
+          <div style="position:absolute; inset:0; margin:auto; width:3.4px; height:18px; border-radius:2px; background:var(--accent); transform:rotate(120deg);"></div>
+        </div>
+      </div>
+      <div style="display:flex; flex-direction:column; line-height:1.1;">
+        <span style="font-size:18px; font-weight:600; letter-spacing:-0.01em;">Grove</span>
+        <span style="font-size:11.5px; color:var(--ink-2);">Android · org-mode notes — interactive mockup</span>
+      </div>
+    </div>
+    <div style="display:flex; align-items:center; gap:6px; background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:4px;">
+      <div onClick="{{ setLight }}" style="{{ segLightStyle }}">Light</div>
+      <div onClick="{{ setDark }}" style="{{ segDarkStyle }}">Dark</div>
+    </div>
+  </div>
+
+  <!-- ============ JUMP NAV ============ -->
+  <div style="width:100%; max-width:1180px; display:flex; flex-wrap:wrap; gap:7px; align-items:center;">
+    <span style="font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:var(--ink-3); margin-right:4px;">Jump to</span>
+    <div onClick="{{ goOnboarding }}" style="{{ chipOnboarding }}">Onboarding</div>
+    <div onClick="{{ goHome }}" style="{{ chipHome }}">Notebooks</div>
+    <div onClick="{{ goOutline }}" style="{{ chipOutline }}">Outline</div>
+    <div onClick="{{ goRead }}" style="{{ chipRead }}">Read mode</div>
+    <div onClick="{{ goEditor }}" style="{{ chipEditor }}">Editor</div>
+    <div onClick="{{ goCapturePicker }}" style="{{ chipCapture }}">Capture</div>
+    <div onClick="{{ goSearch }}" style="{{ chipSearch }}">Search</div>
+    <div onClick="{{ goConflict }}" style="{{ chipConflict }}">Conflict</div>
+    <div onClick="{{ goSettings }}" style="{{ chipSettings }}">Settings</div>
+  </div>
+
+  <!-- ============ PHONE ============ -->
+  <div style="width:100%; display:flex; justify-content:center; height:calc(832px * var(--phone-scale, 0.86));">
+  <div style="transform:scale(var(--phone-scale, 0.86)); transform-origin:top center;">
+  <div style="width:384px; height:832px; background:var(--bg); border-radius:32px; border:1px solid var(--line); box-shadow:var(--shadow); position:relative; overflow:hidden; display:flex; flex-direction:column;">
+
+    <!-- status bar (persistent) -->
+    <div style="height:30px; flex:0 0 30px; display:flex; align-items:center; justify-content:space-between; padding:0 20px; font-family:'IBM Plex Mono',monospace; font-size:12px; font-weight:500; color:var(--ink); z-index:6; position:relative;">
+      <span>{{ clock }}</span>
+      <div style="display:flex; align-items:center; gap:7px;">
+        <div style="display:flex; align-items:flex-end; gap:1.5px; height:9px;">
+          <div style="width:2.5px; height:4px; background:var(--ink); border-radius:1px;"></div>
+          <div style="width:2.5px; height:6px; background:var(--ink); border-radius:1px;"></div>
+          <div style="width:2.5px; height:8px; background:var(--ink); border-radius:1px;"></div>
+          <div style="width:2.5px; height:9px; background:var(--ink-3); border-radius:1px;"></div>
+        </div>
+        <div style="width:15px; height:9px; border:1.4px solid var(--ink); border-radius:2.5px; position:relative; display:flex; align-items:center; padding:1px;">
+          <div style="width:72%; height:100%; background:var(--ink); border-radius:1px;"></div>
+          <div style="position:absolute; right:-3px; top:2.5px; width:1.6px; height:3px; background:var(--ink); border-radius:1px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- screen area -->
+    <div style="flex:1; position:relative; overflow:hidden;">
+
+      <!-- ========== ONBOARDING ========== -->
+      <sc-if value="{{ isOnboarding }}" hint-placeholder-val="{{ true }}">
+        <div style="position:absolute; inset:0; display:flex; flex-direction:column; overflow-y:auto; padding:26px 26px 30px;">
+          <div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:18px; padding-top:24px;">
+            <div style="width:74px; height:74px; border-radius:20px; background:var(--accent-soft); border:1px solid var(--line); display:grid; place-items:center;">
+              <div style="position:relative; width:40px; height:40px;">
+                <div style="position:absolute; inset:0; margin:auto; width:7px; height:40px; border-radius:4px; background:var(--accent);"></div>
+                <div style="position:absolute; inset:0; margin:auto; width:7px; height:40px; border-radius:4px; background:var(--accent); transform:rotate(60deg);"></div>
+                <div style="position:absolute; inset:0; margin:auto; width:7px; height:40px; border-radius:4px; background:var(--accent); transform:rotate(120deg);"></div>
+              </div>
+            </div>
+            <div>
+              <div style="font-size:30px; font-weight:600; letter-spacing:-0.02em;">Grove</div>
+              <div style="font-size:15px; color:var(--ink-2); margin-top:5px; max-width:240px; line-height:1.45;">Plain-text notes that sync themselves. Your <span style="font-family:'IBM Plex Mono',monospace; color:var(--accent);">.org</span> files, on your phone.</div>
+            </div>
+          </div>
+
+          <div style="background:var(--surface); border:1px solid var(--line); border-radius:18px; padding:18px; box-shadow:var(--shadow);">
+            <div style="display:flex; align-items:center; gap:9px; margin-bottom:14px;">
+              <div style="font-size:11px; font-weight:600; letter-spacing:0.04em; text-transform:uppercase; color:var(--green); background:var(--green-soft); padding:4px 9px; border-radius:20px;">Recommended</div>
+              <span style="font-size:15px; font-weight:600;">Sync with Syncthing</span>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:13px;">
+              <div style="display:flex; gap:12px; align-items:flex-start;">
+                <div style="flex:0 0 22px; height:22px; border-radius:50%; background:var(--accent-soft); color:var(--accent); font-size:12px; font-weight:600; display:grid; place-items:center;">1</div>
+                <span style="font-size:13.5px; color:var(--ink-2); line-height:1.5;">Install Syncthing on your phone and laptop — free, open-source, peer-to-peer.</span>
+              </div>
+              <div style="display:flex; gap:12px; align-items:flex-start;">
+                <div style="flex:0 0 22px; height:22px; border-radius:50%; background:var(--accent-soft); color:var(--accent); font-size:12px; font-weight:600; display:grid; place-items:center;">2</div>
+                <span style="font-size:13.5px; color:var(--ink-2); line-height:1.5;">Pair the two devices once and share an org folder between them.</span>
+              </div>
+              <div style="display:flex; gap:12px; align-items:flex-start;">
+                <div style="flex:0 0 22px; height:22px; border-radius:50%; background:var(--accent-soft); color:var(--accent); font-size:12px; font-weight:600; display:grid; place-items:center;">3</div>
+                <span style="font-size:13.5px; color:var(--ink-2); line-height:1.5;">Point Grove at that folder. Edits flow both ways, automatically.</span>
+              </div>
+            </div>
+            <div style="margin-top:16px; height:104px; border-radius:12px; border:1px dashed var(--line-2); background:repeating-linear-gradient(135deg,var(--surface-2),var(--surface-2) 9px,transparent 9px,transparent 18px); display:flex; align-items:center; justify-content:center; gap:16px; color:var(--ink-3); font-family:'IBM Plex Mono',monospace; font-size:11px;">
+              <span>phone</span>
+              <span style="font-family:'IBM Plex Sans'; font-size:18px; color:var(--ink-3);">⇄</span>
+              <span>laptop</span>
+            </div>
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:10px; margin-top:18px;">
+            <div onClick="{{ goHome }}" style="height:50px; border-radius:14px; background:var(--accent); color:var(--accent-ink); font-size:15px; font-weight:600; display:grid; place-items:center; cursor:pointer;" style-active="opacity:.9;">Choose a local folder</div>
+            <div onClick="{{ goHome }}" style="height:46px; border-radius:14px; background:transparent; color:var(--ink-2); font-size:14px; font-weight:500; display:grid; place-items:center; cursor:pointer;" style-hover="background:var(--surface-2);">I'll set this up later</div>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- ========== NOTEBOOKS (HOME) ========== -->
+      <sc-if value="{{ isHome }}" hint-placeholder-val="{{ true }}">
+        <div data-screen-label="Notebooks" style="position:absolute; inset:0; display:flex; flex-direction:column;">
+          <!-- app bar -->
+          <div style="height:56px; flex:0 0 56px; display:flex; align-items:center; padding:0 6px 0 8px; gap:2px;">
+            <div onClick="{{ openDrawer }}" style="width:40px; height:40px; display:grid; place-items:center; border-radius:50%; cursor:pointer;" style-hover="background:var(--surface-2);">
+              <div style="width:18px; display:flex; flex-direction:column; gap:3.5px;">
+                <div style="height:2px; background:var(--ink); border-radius:2px;"></div>
+                <div style="height:2px; background:var(--ink); border-radius:2px;"></div>
+                <div style="height:2px; background:var(--ink); border-radius:2px;"></div>
+              </div>
+            </div>
+            <span style="font-size:19px; font-weight:600; letter-spacing:-0.01em; margin-left:6px; flex:1;">Notebooks</span>
+            <div onClick="{{ goSearch }}" style="width:40px; height:40px; display:grid; place-items:center; border-radius:50%; cursor:pointer;" style-hover="background:var(--surface-2);">
+              <div style="width:14px; height:14px; border:1.8px solid var(--ink); border-radius:50%; position:relative;">
+                <div style="position:absolute; right:-5px; bottom:-4px; width:6px; height:1.8px; background:var(--ink); border-radius:2px; transform:rotate(45deg);"></div>
+              </div>
+            </div>
+            <div onClick="{{ goConflict }}" style="width:40px; height:40px; display:grid; place-items:center; border-radius:50%; cursor:pointer; position:relative;" style-hover="background:var(--surface-2);">
+              <span style="font-size:18px; color:var(--green); font-weight:700;">↻</span>
+            </div>
+            <div style="width:40px; height:40px; display:grid; place-items:center; border-radius:50%; cursor:pointer; color:var(--ink); font-size:20px;" style-hover="background:var(--surface-2);">⋮</div>
+          </div>
+
+          <!-- sync status strip -->
+          <div onClick="{{ goConflict }}" style="margin:0 16px 6px; padding:9px 13px; border-radius:11px; background:var(--surface); border:1px solid var(--line); display:flex; align-items:center; gap:9px; cursor:pointer;">
+            <span style="color:var(--green); font-size:13px;">✓</span>
+            <span style="font-size:12.5px; color:var(--ink-2); flex:1;">Synced 2 min ago · Local folder · On open/close</span>
+            <span style="font-size:11px; color:var(--amber); font-weight:600; background:var(--amber-soft); padding:3px 8px; border-radius:20px;">1 conflict</span>
+          </div>
+
+          <!-- notebook list -->
+          <div style="flex:1; overflow-y:auto; padding:6px 12px 110px;">
+
+            <div onClick="{{ goOutline }}" style="display:flex; align-items:center; gap:13px; padding:13px 12px; border-radius:14px; cursor:pointer;" style-hover="background:var(--surface);">
+              <div style="flex:0 0 42px; height:42px; border-radius:12px; background:var(--green-soft); display:grid; place-items:center; font-family:'IBM Plex Mono',monospace; font-weight:600; color:var(--green); font-size:17px;">✦</div>
+              <div style="flex:1; min-width:0;">
+                <div style="font-size:15px; font-weight:600; display:flex; align-items:center; gap:8px;">travel.org</div>
+                <div style="font-size:12.5px; color:var(--ink-2); margin-top:2px;">18 notes · 2h ago</div>
+              </div>
+              <div style="display:flex; align-items:center; gap:4px; color:var(--green); font-size:12px;"><span>✓</span></div>
+            </div>
+
+            <div onClick="{{ goRead }}" style="display:flex; align-items:center; gap:13px; padding:13px 12px; border-radius:14px; cursor:pointer;" style-hover="background:var(--surface);">
+              <div style="flex:0 0 42px; height:42px; border-radius:12px; background:var(--accent-soft); display:grid; place-items:center; font-family:'IBM Plex Mono',monospace; font-weight:600; color:var(--accent); font-size:17px;">✶</div>
+              <div style="flex:1; min-width:0;">
+                <div style="font-size:15px; font-weight:600;">journal.org</div>
+                <div style="font-size:12.5px; color:var(--ink-2); margin-top:2px;">231 notes · just now</div>
+              </div>
+              <span style="font-size:11px; color:var(--amber); font-weight:600; background:var(--amber-soft); padding:3px 8px; border-radius:20px;">Modified</span>
+            </div>
+
+            <div onClick="{{ goConflict }}" style="display:flex; align-items:center; gap:13px; padding:13px 12px; border-radius:14px; cursor:pointer;" style-hover="background:var(--surface);">
+              <div style="flex:0 0 42px; height:42px; border-radius:12px; background:var(--blue-soft); display:grid; place-items:center; font-family:'IBM Plex Mono',monospace; font-weight:600; color:var(--blue); font-size:17px;">✸</div>
+              <div style="flex:1; min-width:0;">
+                <div style="font-size:15px; font-weight:600;">ideas.org</div>
+                <div style="font-size:12.5px; color:var(--ink-2); margin-top:2px;">47 notes · 1d ago</div>
+              </div>
+              <span style="font-size:11px; color:var(--amber); font-weight:600; background:var(--amber-soft); padding:3px 8px; border-radius:20px; display:flex; align-items:center; gap:5px;"><span style="width:6px; height:6px; border-radius:50%; background:var(--amber);"></span>Conflict</span>
+            </div>
+
+            <div onClick="{{ goRead }}" style="display:flex; align-items:center; gap:13px; padding:13px 12px; border-radius:14px; cursor:pointer;" style-hover="background:var(--surface);">
+              <div style="flex:0 0 42px; height:42px; border-radius:12px; background:var(--red-soft); display:grid; place-items:center; font-family:'IBM Plex Mono',monospace; font-weight:600; color:var(--red); font-size:17px;">✺</div>
+              <div style="flex:1; min-width:0;">
+                <div style="font-size:15px; font-weight:600;">recipes.org</div>
+                <div style="font-size:12.5px; color:var(--ink-2); margin-top:2px;">64 notes · 3d ago</div>
+              </div>
+              <span style="color:var(--green); font-size:12px;">✓</span>
+            </div>
+
+            <div onClick="{{ goSearch }}" style="display:flex; align-items:center; gap:13px; padding:13px 12px; border-radius:14px; cursor:pointer;" style-hover="background:var(--surface);">
+              <div style="flex:0 0 42px; height:42px; border-radius:12px; background:var(--green-soft); display:grid; place-items:center; font-family:'IBM Plex Mono',monospace; font-weight:600; color:var(--green); font-size:17px;">❋</div>
+              <div style="flex:1; min-width:0;">
+                <div style="font-size:15px; font-weight:600;">reading.org</div>
+                <div style="font-size:12.5px; color:var(--ink-2); margin-top:2px;">112 notes · 5d ago</div>
+              </div>
+              <span style="color:var(--green); font-size:12px;">✓</span>
+            </div>
+
+            <div onClick="{{ goCapturePicker }}" style="display:flex; align-items:center; gap:13px; padding:13px 12px; border-radius:14px; cursor:pointer;" style-hover="background:var(--surface);">
+              <div style="flex:0 0 42px; height:42px; border-radius:12px; background:var(--accent-soft); display:grid; place-items:center; font-family:'IBM Plex Mono',monospace; font-weight:600; color:var(--accent); font-size:17px;">✷</div>
+              <div style="flex:1; min-width:0;">
+                <div style="font-size:15px; font-weight:600;">inbox.org</div>
+                <div style="font-size:12.5px; color:var(--ink-2); margin-top:2px;">9 notes · 6h ago</div>
+              </div>
+              <span style="color:var(--green); font-size:12px;">✓</span>
+            </div>
+
+          </div>
+
+          <!-- FAB -->
+          <div onClick="{{ goCapturePicker }}" style="position:absolute; right:18px; bottom:22px; height:54px; padding:0 20px 0 18px; border-radius:17px; background:var(--accent); color:var(--accent-ink); display:flex; align-items:center; gap:9px; box-shadow:0 6px 18px rgba(138,90,43,0.4); cursor:pointer; font-weight:600; font-size:15px;" style-active="opacity:.92;">
+            <span style="font-size:21px; line-height:1; margin-top:-2px;">+</span>
+            <span>Capture</span>
+          </div>
+
+          <!-- drawer -->
+          <sc-if value="{{ drawerOpen }}" hint-placeholder-val="{{ false }}">
+            <div style="position:absolute; inset:0; z-index:10;">
+              <div onClick="{{ closeDrawer }}" style="position:absolute; inset:0; background:rgba(20,14,6,0.42); animation:groveScrim .2s ease;"></div>
+              <div style="position:absolute; top:0; left:0; bottom:0; width:300px; background:var(--surface); box-shadow:6px 0 26px rgba(0,0,0,0.22); animation:groveDrawer .24s cubic-bezier(.2,.8,.2,1); display:flex; flex-direction:column; padding:0 0 14px;">
+                <div style="padding:24px 22px 18px; border-bottom:1px solid var(--line);">
+                  <div style="width:42px; height:42px; border-radius:12px; background:var(--accent-soft); display:grid; place-items:center; margin-bottom:11px;">
+                    <div style="position:relative; width:22px; height:22px;">
+                      <div style="position:absolute; inset:0; margin:auto; width:4px; height:22px; border-radius:2px; background:var(--accent);"></div>
+                      <div style="position:absolute; inset:0; margin:auto; width:4px; height:22px; border-radius:2px; background:var(--accent); transform:rotate(60deg);"></div>
+                      <div style="position:absolute; inset:0; margin:auto; width:4px; height:22px; border-radius:2px; background:var(--accent); transform:rotate(120deg);"></div>
+                    </div>
+                  </div>
+                  <div style="font-size:18px; font-weight:600;">Grove</div>
+                  <div style="font-size:12px; color:var(--ink-2); margin-top:2px; font-family:'IBM Plex Mono',monospace;">~/org · 461 notes</div>
+                </div>
+                <div style="flex:1; overflow-y:auto; padding:10px 12px;">
+                  <div onClick="{{ goSearch }}" style="display:flex; align-items:center; gap:13px; padding:11px 13px; border-radius:11px; cursor:pointer; font-size:14.5px;" style-hover="background:var(--surface-2);"><span style="width:20px; text-align:center; color:var(--ink-2);">≡</span> All Notes</div>
+                  <div onClick="{{ closeDrawer }}" style="display:flex; align-items:center; gap:13px; padding:11px 13px; border-radius:11px; cursor:pointer; font-size:14.5px; font-weight:600; background:var(--accent-soft); color:var(--accent);"><span style="width:20px; text-align:center;">✦</span> Notebooks</div>
+                  <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.07em; color:var(--ink-3); padding:14px 13px 7px;">Searches</div>
+                  <div onClick="{{ goSearch }}" style="display:flex; align-items:center; gap:13px; padding:11px 13px; border-radius:11px; cursor:pointer; font-size:14.5px;" style-hover="background:var(--surface-2);"><span style="width:20px; text-align:center; color:var(--ink-2);">⌖</span> Scheduled Today</div>
+                  <div onClick="{{ goSearch }}" style="display:flex; align-items:center; gap:13px; padding:11px 13px; border-radius:11px; cursor:pointer; font-size:14.5px;" style-hover="background:var(--surface-2);"><span style="width:20px; text-align:center; color:var(--ink-2);">⌖</span> All TODO</div>
+                  <div onClick="{{ goSearch }}" style="display:flex; align-items:center; gap:13px; padding:11px 13px; border-radius:11px; cursor:pointer; font-size:14.5px;" style-hover="background:var(--surface-2);"><span style="width:20px; text-align:center; color:var(--ink-2);">⌖</span> This Week</div>
+                  <div style="height:1px; background:var(--line); margin:11px 13px;"></div>
+                  <div onClick="{{ goSearch }}" style="display:flex; align-items:center; gap:13px; padding:11px 13px; border-radius:11px; cursor:pointer; font-size:14.5px;" style-hover="background:var(--surface-2);"><span style="width:20px; text-align:center; color:var(--ink-2);">▤</span> Agenda</div>
+                  <div onClick="{{ goSettings }}" style="display:flex; align-items:center; gap:13px; padding:11px 13px; border-radius:11px; cursor:pointer; font-size:14.5px;" style-hover="background:var(--surface-2);"><span style="width:20px; text-align:center; color:var(--ink-2);">⚙</span> Settings</div>
+                </div>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+      </sc-if>
+
+      <!-- ========== OUTLINE ========== -->
+      <sc-if value="{{ isOutline }}" hint-placeholder-val="{{ true }}">
+        <div data-screen-label="Outline travel.org" style="position:absolute; inset:0; display:flex; flex-direction:column;">
+          <div style="height:56px; flex:0 0 56px; display:flex; align-items:center; padding:0 6px 0 4px; gap:2px; border-bottom:1px solid var(--line);">
+            <div onClick="{{ goHome }}" style="width:40px; height:40px; display:grid; place-items:center; border-radius:50%; cursor:pointer; font-size:21px; color:var(--ink);" style-hover="background:var(--surface-2);">←</div>
+            <div style="flex:1; margin-left:4px; display:flex; flex-direction:column; line-height:1.15;">
+              <span style="font-size:17px; font-weight:600; font-family:'IBM Plex Mono',monospace;">travel.org</span>
+              <span style="font-size:11.5px; color:var(--ink-2);">18 notes · synced ✓</span>
+            </div>
+            <div onClick="{{ goSearch }}" style="width:40px; height:40px; display:grid; place-items:center; border-radius:50%; cursor:pointer;" style-hover="background:var(--surface-2);">
+              <div style="width:14px; height:14px; border:1.8px solid var(--ink); border-radius:50%; position:relative;"><div style="position:absolute; right:-5px; bottom:-4px; width:6px; height:1.8px; background:var(--ink); border-radius:2px; transform:rotate(45deg);"></div></div>
+            </div>
+            <div style="width:40px; height:40px; display:grid; place-items:center; border-radius:50%; cursor:pointer; font-size:20px;" style-hover="background:var(--surface-2);">⋮</div>
+          </div>
+
+          <div style="flex:1; overflow-y:auto; padding:8px 4px 110px;">
+            <!-- node: Japan (expanded) -->
+            <div onClick="{{ goRead }}" style="display:flex; align-items:flex-start; gap:8px; padding:11px 14px 11px 12px; cursor:pointer; border-radius:10px;" style-hover="background:var(--surface);">
+              <span style="color:var(--ink-3); font-size:12px; margin-top:3px; width:12px;">▾</span>
+              <span style="font-family:'IBM Plex Mono',monospace; color:var(--syn-star); font-weight:600; margin-top:1px;">*</span>
+              <div style="flex:1; min-width:0;">
+                <div style="display:flex; align-items:baseline; gap:8px; flex-wrap:wrap;"><span style="font-size:15.5px; font-weight:600;">Japan — Spring 2025</span></div>
+              </div>
+              <span style="font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--syn-tag); margin-top:3px;">:trip:</span>
+            </div>
+
+            <!-- child: TODO ryokan -->
+            <div onClick="{{ goRead }}" style="display:flex; align-items:flex-start; gap:8px; padding:10px 14px 10px 12px; margin-left:22px; cursor:pointer; border-radius:10px;" style-hover="background:var(--surface);">
+              <span style="color:transparent; font-size:12px; width:12px;">·</span>
+              <span style="font-family:'IBM Plex Mono',monospace; color:var(--syn-star); font-weight:600; margin-top:1px;">**</span>
+              <div style="flex:1; min-width:0;">
+                <div style="display:flex; align-items:baseline; gap:7px; flex-wrap:wrap;">
+                  <span style="font-size:11px; font-weight:700; color:var(--amber); background:var(--amber-soft); padding:1.5px 7px; border-radius:5px; font-family:'IBM Plex Mono',monospace;">TODO</span>
+                  <span style="font-size:14.5px;">Book Kyoto ryokan</span>
+                </div>
+                <div style="margin-top:5px; display:flex; align-items:center; gap:5px;"><span style="font-size:11px; color:var(--blue); font-family:'IBM Plex Mono',monospace;">◷ Wed, Apr 9</span></div>
+              </div>
+              <span style="font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--syn-tag); margin-top:2px;">:booking:</span>
+            </div>
+
+            <!-- child: Kyoto Day 2 (folded, child count) -->
+            <div onClick="{{ goRead }}" style="display:flex; align-items:flex-start; gap:8px; padding:10px 14px 10px 12px; margin-left:22px; cursor:pointer; border-radius:10px;" style-hover="background:var(--surface);">
+              <span style="color:var(--ink-3); font-size:12px; margin-top:3px; width:12px;">▸</span>
+              <span style="font-family:'IBM Plex Mono',monospace; color:var(--syn-star); font-weight:600; margin-top:1px;">**</span>
+              <div style="flex:1; min-width:0;">
+                <div style="display:flex; align-items:baseline; gap:8px;"><span style="font-size:14.5px; font-weight:500;">Kyoto — Day 2</span><span style="font-size:11px; color:var(--ink-3);">… 3</span></div>
+              </div>
+              <span style="font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--syn-tag); margin-top:2px;">:kyoto:</span>
+            </div>
+
+            <!-- child: DONE -->
+            <div onClick="{{ goRead }}" style="display:flex; align-items:flex-start; gap:8px; padding:10px 14px 10px 12px; margin-left:22px; cursor:pointer; border-radius:10px;" style-hover="background:var(--surface);">
+              <span style="color:transparent; font-size:12px; width:12px;">·</span>
+              <span style="font-family:'IBM Plex Mono',monospace; color:var(--syn-star); font-weight:600; margin-top:1px;">**</span>
+              <div style="flex:1; min-width:0;">
+                <div style="display:flex; align-items:baseline; gap:7px;">
+                  <span style="font-size:11px; font-weight:700; color:var(--green); background:var(--green-soft); padding:1.5px 7px; border-radius:5px; font-family:'IBM Plex Mono',monospace;">DONE</span>
+                  <span style="font-size:14.5px; color:var(--ink-2); text-decoration:line-through; text-decoration-color:var(--ink-3);">Order JR Rail Pass</span>
+                </div>
+              </div>
+            </div>
+
+            <div style="height:1px; background:var(--line); margin:8px 14px;"></div>
+
+            <!-- node: Portugal (collapsed) -->
+            <div onClick="{{ goRead }}" style="display:flex; align-items:flex-start; gap:8px; padding:11px 14px 11px 12px; cursor:pointer; border-radius:10px;" style-hover="background:var(--surface);">
+              <span style="color:var(--ink-3); font-size:12px; margin-top:3px; width:12px;">▸</span>
+              <span style="font-family:'IBM Plex Mono',monospace; color:var(--syn-star); font-weight:600; margin-top:1px;">*</span>
+              <div style="flex:1; min-width:0;"><div style="display:flex; align-items:baseline; gap:8px;"><span style="font-size:15.5px; font-weight:600;">Portugal — Summer</span><span style="font-size:11px; color:var(--ink-3);">… 6</span></div></div>
+              <span style="font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--syn-tag); margin-top:3px;">:trip:</span>
+            </div>
+
+            <!-- node: Weekend trips (collapsed) -->
+            <div onClick="{{ goRead }}" style="display:flex; align-items:flex-start; gap:8px; padding:11px 14px 11px 12px; cursor:pointer; border-radius:10px;" style-hover="background:var(--surface);">
+              <span style="color:var(--ink-3); font-size:12px; margin-top:3px; width:12px;">▸</span>
+              <span style="font-family:'IBM Plex Mono',monospace; color:var(--syn-star); font-weight:600; margin-top:1px;">*</span>
+              <div style="flex:1; min-width:0;"><div style="display:flex; align-items:baseline; gap:8px;"><span style="font-size:15.5px; font-weight:600;">Weekend trips — ideas</span><span style="font-size:11px; color:var(--ink-3);">… 4</span></div></div>
+              <span style="font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--syn-tag); margin-top:3px;">:ideas:</span>
+            </div>
+
+            <!-- node: TODO passport with deadline -->
+            <div onClick="{{ goRead }}" style="display:flex; align-items:flex-start; gap:8px; padding:11px 14px 11px 12px; cursor:pointer; border-radius:10px;" style-hover="background:var(--surface);">
+              <span style="color:transparent; font-size:12px; width:12px;">·</span>
+              <span style="font-family:'IBM Plex Mono',monospace; color:var(--syn-star); font-weight:600; margin-top:1px;">*</span>
+              <div style="flex:1; min-width:0;">
+                <div style="display:flex; align-items:baseline; gap:7px; flex-wrap:wrap;">
+                  <span style="font-size:11px; font-weight:700; color:var(--amber); background:var(--amber-soft); padding:1.5px 7px; border-radius:5px; font-family:'IBM Plex Mono',monospace;">TODO</span>
+                  <span style="font-size:11px; font-weight:700; color:var(--red); font-family:'IBM Plex Mono',monospace;">[#A]</span>
+                  <span style="font-size:15px; font-weight:600;">Renew passport</span>
+                </div>
+                <div style="margin-top:5px;"><span style="font-size:11px; color:var(--red); font-family:'IBM Plex Mono',monospace; background:var(--red-soft); padding:2px 7px; border-radius:5px;">DEADLINE: Fri, Jun 27</span></div>
+              </div>
+              <span style="font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--syn-tag); margin-top:3px;">:admin:</span>
+            </div>
+          </div>
+
+          <div onClick="{{ goCaptureEditor }}" style="position:absolute; right:18px; bottom:22px; width:54px; height:54px; border-radius:18px; background:var(--accent); color:var(--accent-ink); display:grid; place-items:center; box-shadow:0 6px 18px rgba(138,90,43,0.4); cursor:pointer; font-size:26px;" style-active="opacity:.92;">+</div>
+        </div>
+      </sc-if>
+
+      <!-- ========== READ MODE ========== -->
+      <sc-if value="{{ isRead }}" hint-placeholder-val="{{ true }}">
+        <div data-screen-label="Read mode" style="position:absolute; inset:0; display:flex; flex-direction:column;">
+          <div style="height:56px; flex:0 0 56px; display:flex; align-items:center; padding:0 8px 0 4px; gap:6px; border-bottom:1px solid var(--line);">
+            <div onClick="{{ goOutline }}" style="width:40px; height:40px; display:grid; place-items:center; border-radius:50%; cursor:pointer; font-size:21px; color:var(--ink);" style-hover="background:var(--surface-2);">←</div>
+            <div style="flex:1;"></div>
+            <div style="display:flex; background:var(--surface-2); border-radius:10px; padding:3px;">
+              <div onClick="{{ goRead }}" style="{{ segReadStyle }}">Read</div>
+              <div onClick="{{ goEditor }}" style="{{ segEditStyle }}">Edit</div>
+            </div>
+            <div style="width:40px; height:40px; display:grid; place-items:center; border-radius:50%; cursor:pointer; font-size:20px;" style-hover="background:var(--surface-2);">⋮</div>
+          </div>
+
+          <div style="flex:1; overflow-y:auto; padding:24px 24px 60px;">
+            <div style="display:flex; gap:7px; margin-bottom:14px;">
+              <span style="font-size:11px; font-weight:600; color:var(--accent); background:var(--accent-soft); padding:3px 9px; border-radius:20px;">trip</span>
+              <span style="font-size:11px; font-weight:600; color:var(--accent); background:var(--accent-soft); padding:3px 9px; border-radius:20px;">kyoto</span>
+            </div>
+            <h1 style="font-family:'IBM Plex Serif',serif; font-size:25px; font-weight:600; margin:0 0 6px; letter-spacing:-0.01em; line-height:1.2;">Kyoto — Day 2</h1>
+            <div style="font-size:12.5px; color:var(--ink-3); font-family:'IBM Plex Mono',monospace; margin-bottom:20px;">Created Mon, Apr 14 2025</div>
+
+            <p style="font-family:'IBM Plex Serif',serif; font-size:16px; line-height:1.65; color:var(--ink); margin:0 0 14px;">Woke up early for <strong style="font-weight:600;">Fushimi Inari</strong> before the crowds. The <em style="font-style:italic;">senbon torii</em> path is endless — did the full loop in about two hours.</p>
+
+            <h2 style="font-family:'IBM Plex Serif',serif; font-size:19px; font-weight:600; margin:24px 0 10px;">Lunch</h2>
+            <p style="font-family:'IBM Plex Serif',serif; font-size:16px; line-height:1.65; color:var(--ink); margin:0 0 14px;">Tiny soba place near the base. Noted the name as <code style="font-family:'IBM Plex Mono',monospace; font-size:13.5px; background:var(--surface-2); padding:2px 6px; border-radius:5px; color:var(--accent);">Vermillion Cafe</code> — <a style="color:var(--syn-link); text-decoration:underline; text-decoration-color:var(--line-2); cursor:pointer;">on the map ↗</a>.</p>
+
+            <div style="background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:15px 16px; margin-top:18px;">
+              <div style="display:flex; align-items:center; gap:9px; margin-bottom:8px;">
+                <span style="font-size:11px; font-weight:700; color:var(--amber); background:var(--amber-soft); padding:2px 8px; border-radius:5px; font-family:'IBM Plex Mono',monospace;">TODO</span>
+                <span style="font-size:16px; font-weight:600; font-family:'IBM Plex Serif',serif;">Buy matcha for Mom</span>
+              </div>
+              <div style="display:flex; align-items:center; gap:6px;">
+                <span style="font-size:12.5px; color:var(--blue); font-family:'IBM Plex Mono',monospace;">◷ Scheduled · Tue, Apr 15</span>
+                <span style="font-size:11px; color:var(--accent); background:var(--accent-soft); padding:2px 8px; border-radius:20px; margin-left:auto;">shopping</span>
+              </div>
+            </div>
+
+            <ul style="font-family:'IBM Plex Serif',serif; font-size:16px; line-height:1.7; color:var(--ink); margin:18px 0 0; padding-left:20px;">
+              <li>Nishiki Market in the afternoon</li>
+              <li>Sunset at Kiyomizu-dera</li>
+              <li>Found a <a style="color:var(--syn-link); text-decoration:underline; text-decoration-color:var(--line-2); cursor:pointer;">ramen spot</a> for tomorrow</li>
+            </ul>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- ========== EDITOR (RAW ORG) ========== -->
+      <sc-if value="{{ isEditor }}" hint-placeholder-val="{{ true }}">
+        <div data-screen-label="Editor" style="position:absolute; inset:0; display:flex; flex-direction:column;">
+          <div style="height:56px; flex:0 0 56px; display:flex; align-items:center; padding:0 8px 0 4px; gap:6px; border-bottom:1px solid var(--line);">
+            <div onClick="{{ goRead }}" style="width:40px; height:40px; display:grid; place-items:center; border-radius:50%; cursor:pointer; font-size:21px; color:var(--ink);" style-hover="background:var(--surface-2);">←</div>
+            <div style="flex:1;"></div>
+            <div style="display:flex; background:var(--surface-2); border-radius:10px; padding:3px;">
+              <div onClick="{{ goRead }}" style="{{ segReadStyle }}">Read</div>
+              <div onClick="{{ goEditor }}" style="{{ segEditStyle }}">Edit</div>
+            </div>
+            <div style="width:40px; height:40px; display:grid; place-items:center; border-radius:50%; cursor:pointer; color:var(--green); font-size:18px; font-weight:700;" style-hover="background:var(--surface-2);">↻</div>
+          </div>
+
+          <div style="flex:1; overflow-y:auto; padding:18px 18px 20px; font-family:'IBM Plex Mono',monospace; font-size:13.5px; line-height:1.85;">
+            <div><span style="color:var(--syn-star); font-weight:600;">*</span> <span style="color:var(--ink); font-weight:600;">Kyoto — Day 2</span>  <span style="color:var(--syn-tag);">:trip:kyoto:</span></div>
+            <div><span style="color:var(--syn-prop);">:PROPERTIES:</span></div>
+            <div><span style="color:var(--syn-kw);">:CREATED:</span> <span style="color:var(--syn-ts);">[2025-04-14 Mon]</span></div>
+            <div><span style="color:var(--syn-kw);">:ID:</span> <span style="color:var(--syn-prop);">4f9a-kyoto-d2-91c</span></div>
+            <div><span style="color:var(--syn-prop);">:END:</span></div>
+            <div style="height:8px;"></div>
+            <div style="color:var(--ink); white-space:pre-wrap;">Woke up early for <span style="color:var(--syn-tag); font-weight:600;">*Fushimi Inari*</span> before the</div>
+            <div style="color:var(--ink); white-space:pre-wrap;">crowds. The <span style="color:var(--green); font-style:italic;">/senbon torii/</span> path is endless —</div>
+            <div style="color:var(--ink); white-space:pre-wrap;">did the full loop in ~2h.</div>
+            <div style="height:10px;"></div>
+            <div><span style="color:var(--syn-star); font-weight:600;">**</span> <span style="color:var(--ink); font-weight:600;">Lunch</span></div>
+            <div style="color:var(--ink); white-space:pre-wrap;">Tiny soba place near the base. Wrote the name:</div>
+            <div style="color:var(--ink); white-space:pre-wrap;"><span style="color:var(--accent); background:var(--surface-2); border-radius:3px;">=Vermillion Cafe=</span> — <span style="color:var(--syn-link); text-decoration:underline;">[[https://maps.example/abc][on the map]]</span>.</div>
+            <div style="height:10px;"></div>
+            <div><span style="color:var(--syn-star); font-weight:600;">**</span> <span style="color:var(--amber); font-weight:700;">TODO</span> <span style="color:var(--ink); font-weight:600;">Buy matcha for Mom</span>  <span style="color:var(--syn-tag);">:shopping:</span></div>
+            <div><span style="color:var(--syn-kw);">SCHEDULED:</span> <span style="color:var(--syn-ts);">&lt;2025-04-15 Tue&gt;</span><span style="display:inline-block; width:2px; height:16px; background:var(--accent); vertical-align:-3px; margin-left:1px; animation:groveScrim 1s steps(1) infinite alternate;"></span></div>
+          </div>
+
+          <!-- formatting toolbar -->
+          <div style="flex:0 0 48px; border-top:1px solid var(--line); background:var(--surface); display:flex; align-items:center; gap:2px; padding:0 6px; overflow-x:auto;">
+            <div style="min-width:38px; height:34px; display:grid; place-items:center; border-radius:8px; cursor:pointer; font-weight:700; font-size:15px;" style-hover="background:var(--surface-2);">B</div>
+            <div style="min-width:38px; height:34px; display:grid; place-items:center; border-radius:8px; cursor:pointer; font-style:italic; font-size:15px;" style-hover="background:var(--surface-2);">I</div>
+            <div style="min-width:38px; height:34px; display:grid; place-items:center; border-radius:8px; cursor:pointer; text-decoration:underline; font-size:15px;" style-hover="background:var(--surface-2);">U</div>
+            <div style="min-width:38px; height:34px; display:grid; place-items:center; border-radius:8px; cursor:pointer; font-family:'IBM Plex Mono'; font-size:13px;" style-hover="background:var(--surface-2);">&lt;/&gt;</div>
+            <div style="width:1px; height:22px; background:var(--line); margin:0 4px;"></div>
+            <div style="min-width:38px; height:34px; display:grid; place-items:center; border-radius:8px; cursor:pointer; color:var(--syn-link); font-size:12px; font-family:'IBM Plex Mono',monospace; font-weight:600;" style-hover="background:var(--surface-2);">[[]]</div>
+            <div style="min-width:38px; height:34px; display:grid; place-items:center; border-radius:8px; cursor:pointer; color:var(--syn-ts); font-size:15px;" style-hover="background:var(--surface-2);">◷</div>
+            <div style="min-width:38px; height:34px; display:grid; place-items:center; border-radius:8px; cursor:pointer; color:var(--syn-star); font-family:'IBM Plex Mono'; font-weight:700; font-size:15px;" style-hover="background:var(--surface-2);">*</div>
+            <div style="flex:1;"></div>
+            <div style="min-width:38px; height:34px; display:grid; place-items:center; border-radius:8px; cursor:pointer; color:var(--ink-2); font-size:18px;" style-hover="background:var(--surface-2);">⌄</div>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- ========== CAPTURE PICKER ========== -->
+      <sc-if value="{{ isCapturePicker }}" hint-placeholder-val="{{ true }}">
+        <div style="position:absolute; inset:0;">
+          <div onClick="{{ goHome }}" style="position:absolute; inset:0; background:rgba(20,14,6,0.5); animation:groveScrim .2s ease;"></div>
+          <div style="position:absolute; left:0; right:0; bottom:0; background:var(--surface); border-radius:24px 24px 0 0; padding:10px 0 26px; animation:groveSheet .26s cubic-bezier(.2,.85,.25,1); box-shadow:0 -8px 30px rgba(0,0,0,0.22);">
+            <div style="width:38px; height:4px; border-radius:3px; background:var(--line-2); margin:6px auto 14px;"></div>
+            <div style="padding:0 22px 14px; display:flex; align-items:center; justify-content:space-between;">
+              <span style="font-size:18px; font-weight:600;">Capture to…</span>
+              <span onClick="{{ goSettings }}" style="font-size:13px; color:var(--accent); font-weight:600; cursor:pointer;">Manage</span>
+            </div>
+
+            <div onClick="{{ goCaptureEditor }}" style="display:flex; align-items:center; gap:14px; padding:13px 22px; cursor:pointer;" style-hover="background:var(--surface-2);">
+              <div style="flex:0 0 44px; height:44px; border-radius:13px; background:var(--accent-soft); color:var(--accent); display:grid; place-items:center; font-size:20px; font-family:'IBM Plex Mono',monospace; font-weight:600;">✶</div>
+              <div style="flex:1; min-width:0;">
+                <div style="font-size:15.5px; font-weight:600;">Journal Entry</div>
+                <div style="font-size:12.5px; color:var(--ink-2); margin-top:2px; font-family:'IBM Plex Mono',monospace;">journal.org · datetree</div>
+              </div>
+              <span style="color:var(--ink-3); font-size:20px;">›</span>
+            </div>
+
+            <div onClick="{{ goCaptureEditor }}" style="display:flex; align-items:center; gap:14px; padding:13px 22px; cursor:pointer;" style-hover="background:var(--surface-2);">
+              <div style="flex:0 0 44px; height:44px; border-radius:13px; background:var(--green-soft); color:var(--green); display:grid; place-items:center; font-size:20px; font-family:'IBM Plex Mono',monospace; font-weight:600;">✷</div>
+              <div style="flex:1; min-width:0;">
+                <div style="font-size:15.5px; font-weight:600;">Quick Note</div>
+                <div style="font-size:12.5px; color:var(--ink-2); margin-top:2px; font-family:'IBM Plex Mono',monospace;">inbox.org · bottom of file</div>
+              </div>
+              <span style="color:var(--ink-3); font-size:20px;">›</span>
+            </div>
+
+            <div onClick="{{ goCaptureEditor }}" style="display:flex; align-items:center; gap:14px; padding:13px 22px; cursor:pointer;" style-hover="background:var(--surface-2);">
+              <div style="flex:0 0 44px; height:44px; border-radius:13px; background:var(--amber-soft); color:var(--amber); display:grid; place-items:center; font-size:18px; font-family:'IBM Plex Mono',monospace; font-weight:700;">✓</div>
+              <div style="flex:1; min-width:0;">
+                <div style="font-size:15.5px; font-weight:600;">TODO</div>
+                <div style="font-size:12.5px; color:var(--ink-2); margin-top:2px; font-family:'IBM Plex Mono',monospace;">inbox.org · prompts for title</div>
+              </div>
+              <span style="color:var(--ink-3); font-size:20px;">›</span>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- ========== CAPTURE EDITOR (datetree) ========== -->
+      <sc-if value="{{ isCaptureEditor }}" hint-placeholder-val="{{ true }}">
+        <div data-screen-label="Capture editor" style="position:absolute; inset:0; display:flex; flex-direction:column;">
+          <div style="height:56px; flex:0 0 56px; display:flex; align-items:center; padding:0 12px 0 4px; gap:6px; border-bottom:1px solid var(--line);">
+            <div onClick="{{ goHome }}" style="width:40px; height:40px; display:grid; place-items:center; border-radius:50%; cursor:pointer; font-size:22px; color:var(--ink);" style-hover="background:var(--surface-2);">×</div>
+            <span style="flex:1; margin-left:4px; font-size:17px; font-weight:600;">Journal Entry</span>
+            <div onClick="{{ goRead }}" style="height:38px; padding:0 18px; border-radius:11px; background:var(--accent); color:var(--accent-ink); font-size:14px; font-weight:600; display:grid; place-items:center; cursor:pointer;" style-active="opacity:.9;">Save</div>
+          </div>
+
+          <!-- datetree breadcrumb -->
+          <div style="padding:11px 18px; background:var(--surface); border-bottom:1px solid var(--line); display:flex; align-items:center; gap:7px; flex-wrap:wrap; font-family:'IBM Plex Mono',monospace; font-size:11.5px;">
+            <span style="color:var(--ink-3);">inserts under</span>
+            <span style="color:var(--accent); font-weight:600;">journal.org</span>
+            <span style="color:var(--ink-3);">›</span><span style="color:var(--ink-2);">2025</span>
+            <span style="color:var(--ink-3);">›</span><span style="color:var(--ink-2);">June</span>
+            <span style="color:var(--ink-3);">›</span><span style="color:var(--ink); background:var(--accent-soft); padding:1px 6px; border-radius:5px;">Jun 11 Wed</span>
+            <span style="margin-left:auto; color:var(--green); background:var(--green-soft); padding:2px 8px; border-radius:20px; font-weight:600;">auto-created</span>
+          </div>
+
+          <div style="flex:1; overflow-y:auto; padding:20px 20px; font-family:'IBM Plex Mono',monospace; font-size:14px; line-height:1.9;">
+            <div><span style="color:var(--syn-star); font-weight:600;">****</span> <span style="color:var(--syn-ts);">&lt;2025-06-11 Wed 14:32&gt;</span></div>
+            <div style="color:var(--ink); white-space:pre-wrap; min-height:1.9em;">Ferry back from the island this morning — calm<span style="display:inline-block; width:2px; height:18px; background:var(--accent); vertical-align:-4px; margin-left:1px; animation:groveScrim 1s steps(1) infinite alternate;"></span></div>
+            <div style="color:var(--ink-3); white-space:pre-wrap;">water the whole way. Want to remember the</div>
+            <div style="color:var(--ink-3); white-space:pre-wrap;">little café by the harbour.</div>
+          </div>
+
+          <div style="flex:0 0 48px; border-top:1px solid var(--line); background:var(--surface); display:flex; align-items:center; gap:2px; padding:0 8px;">
+            <span style="font-size:11.5px; color:var(--ink-2); font-family:'IBM Plex Mono',monospace;">%T expanded · %cursor here</span>
+            <div style="flex:1;"></div>
+            <div style="min-width:38px; height:34px; display:grid; place-items:center; border-radius:8px; cursor:pointer; font-weight:700; font-size:15px;" style-hover="background:var(--surface-2);">B</div>
+            <div style="min-width:38px; height:34px; display:grid; place-items:center; border-radius:8px; cursor:pointer; font-style:italic; font-size:15px;" style-hover="background:var(--surface-2);">I</div>
+            <div style="min-width:38px; height:34px; display:grid; place-items:center; border-radius:8px; cursor:pointer; color:var(--syn-ts); font-size:15px;" style-hover="background:var(--surface-2);">◷</div>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- ========== SEARCH ========== -->
+      <sc-if value="{{ isSearch }}" hint-placeholder-val="{{ true }}">
+        <div data-screen-label="Search" style="position:absolute; inset:0; display:flex; flex-direction:column;">
+          <div style="padding:8px 10px 0; display:flex; align-items:center; gap:6px;">
+            <div onClick="{{ goHome }}" style="width:40px; height:40px; display:grid; place-items:center; border-radius:50%; cursor:pointer; font-size:21px; color:var(--ink);" style-hover="background:var(--surface-2);">←</div>
+            <div style="flex:1; height:42px; background:var(--surface); border:1px solid var(--line); border-radius:13px; display:flex; align-items:center; gap:9px; padding:0 12px;">
+              <div style="width:14px; height:14px; border:1.8px solid var(--ink-3); border-radius:50%; position:relative; flex:0 0 auto;"><div style="position:absolute; right:-5px; bottom:-4px; width:6px; height:1.8px; background:var(--ink-3); border-radius:2px; transform:rotate(45deg);"></div></div>
+              <span style="flex:1; font-size:15px; color:var(--ink);">ramen</span>
+              <span style="color:var(--ink-3); font-size:17px; cursor:pointer;">×</span>
+            </div>
+          </div>
+
+          <div style="padding:11px 14px 9px; display:flex; align-items:center; gap:8px;">
+            <div onClick="{{ toggleAdvanced }}" style="{{ advChipStyle }}">⚑ Advanced</div>
+            <span style="font-size:12.5px; color:var(--ink-2);">3 results across 3 notebooks</span>
+          </div>
+
+          <sc-if value="{{ searchAdvanced }}" hint-placeholder-val="{{ false }}">
+            <div style="margin:0 14px 6px; padding:13px 14px; background:var(--surface); border:1px solid var(--line); border-radius:13px; animation:groveFade .2s ease;">
+              <div style="height:36px; background:var(--bg); border:1px solid var(--line); border-radius:9px; display:flex; align-items:center; padding:0 11px; font-family:'IBM Plex Mono',monospace; font-size:13px; color:var(--ink); margin-bottom:11px;"><span style="color:var(--syn-tag);">t.food</span>&nbsp;<span style="color:var(--syn-kw);">i.todo</span>&nbsp;<span style="color:var(--ink-3);">o.sched</span></div>
+              <div style="display:flex; flex-wrap:wrap; gap:6px;">
+                <span style="font-size:11px; font-family:'IBM Plex Mono',monospace; color:var(--ink-2); background:var(--surface-2); padding:3px 8px; border-radius:6px;">t.TAG</span>
+                <span style="font-size:11px; font-family:'IBM Plex Mono',monospace; color:var(--ink-2); background:var(--surface-2); padding:3px 8px; border-radius:6px;">i.STATE</span>
+                <span style="font-size:11px; font-family:'IBM Plex Mono',monospace; color:var(--ink-2); background:var(--surface-2); padding:3px 8px; border-radius:6px;">s.PERIOD</span>
+                <span style="font-size:11px; font-family:'IBM Plex Mono',monospace; color:var(--ink-2); background:var(--surface-2); padding:3px 8px; border-radius:6px;">b.NOTEBOOK</span>
+                <span style="font-size:11px; font-family:'IBM Plex Mono',monospace; color:var(--ink-2); background:var(--surface-2); padding:3px 8px; border-radius:6px;">p.PRIORITY</span>
+                <span style="font-size:11px; font-family:'IBM Plex Mono',monospace; color:var(--ink-2); background:var(--surface-2); padding:3px 8px; border-radius:6px;">ad.DAYS</span>
+              </div>
+            </div>
+          </sc-if>
+
+          <div style="flex:1; overflow-y:auto; padding:4px 14px 30px;">
+            <div onClick="{{ goRead }}" style="padding:13px 14px; border-radius:13px; cursor:pointer;" style-hover="background:var(--surface);">
+              <div style="display:flex; align-items:center; gap:8px; margin-bottom:5px;"><span style="font-size:15px; font-weight:600;">Best ramen in Kyoto</span></div>
+              <div style="font-size:13.5px; color:var(--ink-2); line-height:1.5;">…found a <span style="background:var(--amber-soft); color:var(--amber); font-weight:600; border-radius:3px; padding:0 2px;">ramen</span> spot for tomorrow near Pontocho…</div>
+              <div style="font-size:11.5px; color:var(--ink-3); margin-top:6px; font-family:'IBM Plex Mono',monospace;">travel.org › Kyoto — Day 2</div>
+            </div>
+            <div style="height:1px; background:var(--line); margin:2px 14px;"></div>
+            <div onClick="{{ goRead }}" style="padding:13px 14px; border-radius:13px; cursor:pointer;" style-hover="background:var(--surface);">
+              <div style="display:flex; align-items:center; gap:8px; margin-bottom:5px;"><span style="font-size:15px; font-weight:600;">Tantanmen</span><span style="font-size:10.5px; color:var(--accent); background:var(--accent-soft); padding:2px 7px; border-radius:20px;">recipe</span></div>
+              <div style="font-size:13.5px; color:var(--ink-2); line-height:1.5;">…spicy sesame <span style="background:var(--amber-soft); color:var(--amber); font-weight:600; border-radius:3px; padding:0 2px;">ramen</span> broth, ready in 30 minutes…</div>
+              <div style="font-size:11.5px; color:var(--ink-3); margin-top:6px; font-family:'IBM Plex Mono',monospace;">recipes.org › Noodles</div>
+            </div>
+            <div style="height:1px; background:var(--line); margin:2px 14px;"></div>
+            <div onClick="{{ goRead }}" style="padding:13px 14px; border-radius:13px; cursor:pointer;" style-hover="background:var(--surface);">
+              <div style="display:flex; align-items:center; gap:8px; margin-bottom:5px;"><span style="font-size:15px; font-weight:600;">The Ramen book — notes</span></div>
+              <div style="font-size:13.5px; color:var(--ink-2); line-height:1.5;">…the <span style="background:var(--amber-soft); color:var(--amber); font-weight:600; border-radius:3px; padding:0 2px;">ramen</span> chapter covers tare, broth and noodle…</div>
+              <div style="font-size:11.5px; color:var(--ink-3); margin-top:6px; font-family:'IBM Plex Mono',monospace;">reading.org › Cooking</div>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- ========== CONFLICT ========== -->
+      <sc-if value="{{ isConflict }}" hint-placeholder-val="{{ true }}">
+        <div data-screen-label="Conflict" style="position:absolute; inset:0; display:flex; flex-direction:column;">
+          <div style="height:56px; flex:0 0 56px; display:flex; align-items:center; padding:0 8px 0 4px; gap:4px; border-bottom:1px solid var(--line);">
+            <div onClick="{{ goHome }}" style="width:40px; height:40px; display:grid; place-items:center; border-radius:50%; cursor:pointer; font-size:21px; color:var(--ink);" style-hover="background:var(--surface-2);">←</div>
+            <div style="flex:1; margin-left:4px; display:flex; flex-direction:column; line-height:1.15;">
+              <span style="font-size:17px; font-weight:600;">Resolve conflict</span>
+              <span style="font-size:11.5px; color:var(--ink-2); font-family:'IBM Plex Mono',monospace;">journal.org</span>
+            </div>
+          </div>
+
+          <div style="flex:1; overflow-y:auto; padding:16px 16px 24px;">
+            <div style="background:var(--amber-soft); border:1px solid var(--amber); border-radius:13px; padding:13px 14px; display:flex; gap:11px; align-items:flex-start; margin-bottom:18px;">
+              <span style="flex:0 0 20px; width:20px; height:20px; border-radius:50%; background:var(--amber); color:var(--surface); font-size:13px; font-weight:700; display:grid; place-items:center;">!</span>
+              <span style="font-size:13px; color:var(--ink); line-height:1.5;">Both your phone and laptop changed this file since the last sync. Pick which version to keep.</span>
+            </div>
+
+            <div style="font-size:12px; text-transform:uppercase; letter-spacing:0.06em; color:var(--ink-3); margin:0 2px 8px;">On this phone · 14:02</div>
+            <div style="background:var(--surface); border:1px solid var(--line); border-radius:13px; padding:13px 14px; font-family:'IBM Plex Mono',monospace; font-size:12.5px; line-height:1.7; margin-bottom:16px;">
+              <div style="color:var(--syn-star);">**** <span style="color:var(--syn-ts);">&lt;2025-06-11 Wed 14:32&gt;</span></div>
+              <div style="background:var(--green-soft); border-radius:4px; padding:0 4px; margin:2px -4px; color:var(--ink);">+ Ferry back from the island this morning.</div>
+              <div style="color:var(--ink-2);">&nbsp;&nbsp;Calm water the whole way.</div>
+            </div>
+
+            <div style="font-size:12px; text-transform:uppercase; letter-spacing:0.06em; color:var(--ink-3); margin:0 2px 8px;">On laptop · 14:05</div>
+            <div style="background:var(--surface); border:1px solid var(--line); border-radius:13px; padding:13px 14px; font-family:'IBM Plex Mono',monospace; font-size:12.5px; line-height:1.7; margin-bottom:20px;">
+              <div style="color:var(--syn-star);">**** <span style="color:var(--syn-ts);">&lt;2025-06-11 Wed 14:32&gt;</span></div>
+              <div style="background:var(--blue-soft); border-radius:4px; padding:0 4px; margin:2px -4px; color:var(--ink);">+ Booked the harbour café for Saturday.</div>
+              <div style="color:var(--ink-2);">&nbsp;&nbsp;Calm water the whole way.</div>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:9px;">
+              <div onClick="{{ goHome }}" style="height:48px; border-radius:13px; background:var(--accent); color:var(--accent-ink); font-size:14.5px; font-weight:600; display:grid; place-items:center; cursor:pointer;" style-active="opacity:.9;">Keep both (merge under CONFLICT)</div>
+              <div style="display:flex; gap:9px;">
+                <div onClick="{{ goHome }}" style="flex:1; height:46px; border-radius:13px; background:var(--surface); border:1px solid var(--line); color:var(--ink); font-size:14px; font-weight:600; display:grid; place-items:center; cursor:pointer;" style-hover="background:var(--surface-2);">Keep phone</div>
+                <div onClick="{{ goHome }}" style="flex:1; height:46px; border-radius:13px; background:var(--surface); border:1px solid var(--line); color:var(--ink); font-size:14px; font-weight:600; display:grid; place-items:center; cursor:pointer;" style-hover="background:var(--surface-2);">Keep laptop</div>
+              </div>
+            </div>
+            <div style="font-size:11.5px; color:var(--ink-3); line-height:1.5; margin-top:14px; text-align:center;">Syncthing also keeps a <span style="font-family:'IBM Plex Mono',monospace;">.sync-conflict</span> copy as a fallback.</div>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- ========== SETTINGS ========== -->
+      <sc-if value="{{ isSettings }}" hint-placeholder-val="{{ true }}">
+        <div data-screen-label="Settings" style="position:absolute; inset:0; display:flex; flex-direction:column;">
+          <div style="height:56px; flex:0 0 56px; display:flex; align-items:center; padding:0 8px 0 4px; gap:4px; border-bottom:1px solid var(--line);">
+            <div onClick="{{ goHome }}" style="width:40px; height:40px; display:grid; place-items:center; border-radius:50%; cursor:pointer; font-size:21px; color:var(--ink);" style-hover="background:var(--surface-2);">←</div>
+            <span style="flex:1; margin-left:4px; font-size:19px; font-weight:600;">Settings</span>
+          </div>
+
+          <div style="flex:1; overflow-y:auto; padding:18px 16px 40px;">
+            <!-- APPEARANCE -->
+            <div style="font-size:12px; text-transform:uppercase; letter-spacing:0.07em; color:var(--accent); font-weight:600; margin:0 4px 10px;">Appearance</div>
+            <div style="background:var(--surface); border:1px solid var(--line); border-radius:15px; overflow:hidden; margin-bottom:24px;">
+              <div style="padding:14px 15px; border-bottom:1px solid var(--line);">
+                <div style="font-size:14.5px; font-weight:500; margin-bottom:10px;">Theme</div>
+                <div style="display:flex; background:var(--surface-2); border-radius:10px; padding:3px;">
+                  <div onClick="{{ setLight }}" style="{{ themeRowLight }}">Light</div>
+                  <div onClick="{{ setDark }}" style="{{ themeRowDark }}">Dark</div>
+                </div>
+              </div>
+              <div style="padding:14px 15px; border-bottom:1px solid var(--line);">
+                <div style="font-size:14.5px; font-weight:500; margin-bottom:10px;">Font size</div>
+                <div style="display:flex; background:var(--surface-2); border-radius:10px; padding:3px;">
+                  <div onClick="{{ setFontSmall }}" style="{{ fontSmall }}">Small</div>
+                  <div onClick="{{ setFontMedium }}" style="{{ fontMedium }}">Medium</div>
+                  <div onClick="{{ setFontLarge }}" style="{{ fontLarge }}">Large</div>
+                </div>
+              </div>
+              <div style="padding:14px 15px; display:flex; align-items:center; justify-content:space-between;">
+                <span style="font-size:14.5px; font-weight:500;">Default note mode</span>
+                <span style="font-size:13px; color:var(--ink-2); font-weight:500;">Read ›</span>
+              </div>
+            </div>
+
+            <!-- TEMPLATES -->
+            <div style="font-size:12px; text-transform:uppercase; letter-spacing:0.07em; color:var(--accent); font-weight:600; margin:0 4px 10px;">Capture templates</div>
+            <div style="background:var(--surface); border:1px solid var(--line); border-radius:15px; overflow:hidden; margin-bottom:24px;">
+              <div style="display:flex; align-items:center; gap:13px; padding:13px 15px; border-bottom:1px solid var(--line);">
+                <div style="flex:0 0 36px; height:36px; border-radius:10px; background:var(--accent-soft); color:var(--accent); display:grid; place-items:center; font-family:'IBM Plex Mono',monospace; font-weight:600;">✶</div>
+                <div style="flex:1;"><div style="font-size:14.5px; font-weight:500;">Journal Entry</div><div style="font-size:12px; color:var(--ink-2); font-family:'IBM Plex Mono',monospace;">journal.org · datetree</div></div>
+                <span style="color:var(--ink-3); font-size:18px;">⋮⋮</span>
+              </div>
+              <div style="display:flex; align-items:center; gap:13px; padding:13px 15px; border-bottom:1px solid var(--line);">
+                <div style="flex:0 0 36px; height:36px; border-radius:10px; background:var(--green-soft); color:var(--green); display:grid; place-items:center; font-family:'IBM Plex Mono',monospace; font-weight:600;">✷</div>
+                <div style="flex:1;"><div style="font-size:14.5px; font-weight:500;">Quick Note</div><div style="font-size:12px; color:var(--ink-2); font-family:'IBM Plex Mono',monospace;">inbox.org · bottom</div></div>
+                <span style="color:var(--ink-3); font-size:18px;">⋮⋮</span>
+              </div>
+              <div style="display:flex; align-items:center; gap:13px; padding:13px 15px; border-bottom:1px solid var(--line);">
+                <div style="flex:0 0 36px; height:36px; border-radius:10px; background:var(--amber-soft); color:var(--amber); display:grid; place-items:center; font-family:'IBM Plex Mono',monospace; font-weight:700;">✓</div>
+                <div style="flex:1;"><div style="font-size:14.5px; font-weight:500;">TODO</div><div style="font-size:12px; color:var(--ink-2); font-family:'IBM Plex Mono',monospace;">inbox.org · prompts</div></div>
+                <span style="color:var(--ink-3); font-size:18px;">⋮⋮</span>
+              </div>
+              <div style="padding:13px 15px; color:var(--accent); font-size:14px; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:8px;" style-hover="background:var(--surface-2);"><span style="font-size:18px;">+</span> New template</div>
+            </div>
+
+            <!-- SYNC -->
+            <div style="font-size:12px; text-transform:uppercase; letter-spacing:0.07em; color:var(--accent); font-weight:600; margin:0 4px 10px;">Sync</div>
+            <div style="background:var(--surface); border:1px solid var(--line); border-radius:15px; overflow:hidden; margin-bottom:24px;">
+              <div style="display:flex; align-items:center; gap:13px; padding:13px 15px; border-bottom:1px solid var(--line);">
+                <div style="flex:0 0 36px; height:36px; border-radius:10px; background:var(--blue-soft); color:var(--blue); display:grid; place-items:center; font-size:16px;">▣</div>
+                <div style="flex:1;"><div style="font-size:14.5px; font-weight:500;">Local folder <span style="font-size:10.5px; color:var(--green); background:var(--green-soft); padding:1.5px 7px; border-radius:20px; margin-left:4px;">default</span></div><div style="font-size:12px; color:var(--ink-2); font-family:'IBM Plex Mono',monospace;">~/org · Syncthing</div></div>
+                <span style="color:var(--green); font-size:13px;">✓</span>
+              </div>
+              <div style="padding:13px 15px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--line);">
+                <span style="font-size:14.5px; font-weight:500;">Auto-sync</span>
+                <span style="font-size:13px; color:var(--ink-2); font-weight:500;">On open/close ›</span>
+              </div>
+              <div style="padding:13px 15px; color:var(--accent); font-size:14px; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:8px;" style-hover="background:var(--surface-2);"><span style="font-size:18px;">+</span> Add repository (WebDAV, Dropbox)</div>
+            </div>
+
+            <!-- NOTES -->
+            <div style="font-size:12px; text-transform:uppercase; letter-spacing:0.07em; color:var(--accent); font-weight:600; margin:0 4px 10px;">Notes</div>
+            <div style="background:var(--surface); border:1px solid var(--line); border-radius:15px; overflow:hidden; margin-bottom:22px;">
+              <div style="padding:13px 15px; border-bottom:1px solid var(--line);">
+                <div style="font-size:14.5px; font-weight:500; margin-bottom:4px;">TODO keywords</div>
+                <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:7px;">
+                  <span style="font-size:11px; font-weight:700; color:var(--amber); background:var(--amber-soft); padding:2px 8px; border-radius:5px; font-family:'IBM Plex Mono',monospace;">TODO</span>
+                  <span style="font-size:11px; font-weight:700; color:var(--blue); background:var(--blue-soft); padding:2px 8px; border-radius:5px; font-family:'IBM Plex Mono',monospace;">IN-PROGRESS</span>
+                  <span style="font-size:11px; color:var(--ink-3); align-self:center; font-family:'IBM Plex Mono',monospace;">|</span>
+                  <span style="font-size:11px; font-weight:700; color:var(--green); background:var(--green-soft); padding:2px 8px; border-radius:5px; font-family:'IBM Plex Mono',monospace;">DONE</span>
+                  <span style="font-size:11px; font-weight:700; color:var(--ink-2); background:var(--surface-2); padding:2px 8px; border-radius:5px; font-family:'IBM Plex Mono',monospace;">CANCELLED</span>
+                </div>
+              </div>
+              <div style="padding:14px 15px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--line);">
+                <span style="font-size:14.5px; font-weight:500;">Add ID to new notes</span>
+                <div style="width:42px; height:25px; border-radius:14px; background:var(--accent); position:relative;"><div style="position:absolute; right:3px; top:3px; width:19px; height:19px; border-radius:50%; background:var(--accent-ink);"></div></div>
+              </div>
+              <div style="padding:14px 15px; display:flex; align-items:center; justify-content:space-between;">
+                <span style="font-size:14.5px; font-weight:500;">Add CREATED timestamp</span>
+                <div style="width:42px; height:25px; border-radius:14px; background:var(--accent); position:relative;"><div style="position:absolute; right:3px; top:3px; width:19px; height:19px; border-radius:50%; background:var(--accent-ink);"></div></div>
+              </div>
+            </div>
+
+            <div style="text-align:center; font-size:11.5px; color:var(--ink-3); font-family:'IBM Plex Mono',monospace;">Grove 1.0 · com.yourname.grove</div>
+          </div>
+        </div>
+      </sc-if>
+
+    </div>
+
+    <!-- gesture pill (persistent) -->
+    <div style="height:22px; flex:0 0 22px; display:grid; place-items:center; z-index:6;">
+      <div style="width:120px; height:5px; border-radius:3px; background:var(--ink-3); opacity:.55;"></div>
+    </div>
+
+  </div>
+  </div>
+  </div>
+
+  <!-- ============ APP ICON ============ -->
+  <div style="width:100%; max-width:1180px; display:flex; flex-direction:column; gap:16px; margin-top:18px;">
+    <div style="display:flex; align-items:baseline; gap:12px; flex-wrap:wrap;">
+      <span style="font-size:18px; font-weight:600;">App icon</span>
+      <span style="font-size:13px; color:var(--ink-2);">One org-mode asterisk · adaptive squircle</span>
+    </div>
+
+    <div style="display:flex; flex-wrap:wrap; gap:14px; align-items:stretch;">
+
+      <!-- big icon + scales -->
+      <div style="background:var(--surface); border:1px solid var(--line); border-radius:18px; padding:26px 30px; display:flex; align-items:center; gap:34px; flex-wrap:wrap;">
+        <div style="width:120px; height:120px; border-radius:30px; background:var(--accent-soft); border:1px solid var(--line); box-shadow:0 4px 14px rgba(60,45,25,0.16); display:grid; place-items:center; flex:0 0 auto;">
+          <div style="position:relative; width:64px; height:64px;">
+            <div style="position:absolute; inset:0; margin:auto; width:11px; height:64px; border-radius:6px; background:var(--accent);"></div>
+            <div style="position:absolute; inset:0; margin:auto; width:11px; height:64px; border-radius:6px; background:var(--accent); transform:rotate(60deg);"></div>
+            <div style="position:absolute; inset:0; margin:auto; width:11px; height:64px; border-radius:6px; background:var(--accent); transform:rotate(120deg);"></div>
+          </div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:16px;">
+          <div style="font-size:13.5px; color:var(--ink-2); max-width:230px; line-height:1.5;">The same clean asterisk used across the app — wordmark, drawer and onboarding.</div>
+          <div style="display:flex; align-items:flex-end; gap:18px;">
+            <div style="display:flex; flex-direction:column; align-items:center; gap:7px;">
+              <div style="width:56px; height:56px; border-radius:14px; background:var(--accent-soft); border:1px solid var(--line); display:grid; place-items:center;">
+                <div style="position:relative; width:30px; height:30px;">
+                  <div style="position:absolute; inset:0; margin:auto; width:5.2px; height:30px; border-radius:3px; background:var(--accent);"></div>
+                  <div style="position:absolute; inset:0; margin:auto; width:5.2px; height:30px; border-radius:3px; background:var(--accent); transform:rotate(60deg);"></div>
+                  <div style="position:absolute; inset:0; margin:auto; width:5.2px; height:30px; border-radius:3px; background:var(--accent); transform:rotate(120deg);"></div>
+                </div>
+              </div>
+              <span style="font-size:10.5px; color:var(--ink-3); font-family:'IBM Plex Mono',monospace;">56</span>
+            </div>
+            <div style="display:flex; flex-direction:column; align-items:center; gap:7px;">
+              <div style="width:40px; height:40px; border-radius:11px; background:var(--accent-soft); border:1px solid var(--line); display:grid; place-items:center;">
+                <div style="position:relative; width:21px; height:21px;">
+                  <div style="position:absolute; inset:0; margin:auto; width:3.8px; height:21px; border-radius:2px; background:var(--accent);"></div>
+                  <div style="position:absolute; inset:0; margin:auto; width:3.8px; height:21px; border-radius:2px; background:var(--accent); transform:rotate(60deg);"></div>
+                  <div style="position:absolute; inset:0; margin:auto; width:3.8px; height:21px; border-radius:2px; background:var(--accent); transform:rotate(120deg);"></div>
+                </div>
+              </div>
+              <span style="font-size:10.5px; color:var(--ink-3); font-family:'IBM Plex Mono',monospace;">40</span>
+            </div>
+            <div style="display:flex; flex-direction:column; align-items:center; gap:7px;">
+              <div style="width:28px; height:28px; border-radius:8px; background:var(--accent-soft); border:1px solid var(--line); display:grid; place-items:center;">
+                <div style="position:relative; width:15px; height:15px;">
+                  <div style="position:absolute; inset:0; margin:auto; width:2.8px; height:15px; border-radius:2px; background:var(--accent);"></div>
+                  <div style="position:absolute; inset:0; margin:auto; width:2.8px; height:15px; border-radius:2px; background:var(--accent); transform:rotate(60deg);"></div>
+                  <div style="position:absolute; inset:0; margin:auto; width:2.8px; height:15px; border-radius:2px; background:var(--accent); transform:rotate(120deg);"></div>
+                </div>
+              </div>
+              <span style="font-size:10.5px; color:var(--ink-3); font-family:'IBM Plex Mono',monospace;">28</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- launcher mock -->
+      <div style="background:var(--surface); border:1px solid var(--line); border-radius:18px; padding:26px 30px; display:flex; align-items:center; gap:30px;">
+        <div style="display:flex; flex-direction:column; align-items:center; gap:9px;">
+          <div style="width:60px; height:60px; border-radius:16px; background:var(--accent-soft); border:1px solid var(--line); display:grid; place-items:center;">
+            <div style="position:relative; width:32px; height:32px;">
+              <div style="position:absolute; inset:0; margin:auto; width:5.6px; height:32px; border-radius:3px; background:var(--accent);"></div>
+              <div style="position:absolute; inset:0; margin:auto; width:5.6px; height:32px; border-radius:3px; background:var(--accent); transform:rotate(60deg);"></div>
+              <div style="position:absolute; inset:0; margin:auto; width:5.6px; height:32px; border-radius:3px; background:var(--accent); transform:rotate(120deg);"></div>
+            </div>
+          </div>
+          <span style="font-size:12px; color:var(--ink-2); font-weight:500;">Grove</span>
+        </div>
+        <div style="font-size:12.5px; color:var(--ink-3); line-height:1.5; max-width:150px;">On the home screen, at a glance.</div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = {
+    theme: 'light',
+    screen: 'onboarding',
+    drawerOpen: false,
+    searchAdvanced: false,
+    fontSize: 'Medium',
+  };
+
+  go = (screen) => this.setState({ screen, drawerOpen: false });
+
+  componentDidMount() {
+    this.applyScale();
+    window.addEventListener('resize', this.applyScale);
+  }
+  componentWillUnmount() {
+    window.removeEventListener('resize', this.applyScale);
+  }
+  applyScale = () => {
+    const els = document.querySelectorAll('[data-grove]');
+    const avail = window.innerHeight - 210;
+    const scale = Math.max(0.5, Math.min(1, avail / 832));
+    els.forEach(el => el.style.setProperty('--phone-scale', scale.toFixed(3)));
+  };
+
+  pill(active) {
+    return 'font-size:13px; font-weight:600; padding:6px 15px; border-radius:8px; cursor:pointer; display:flex; align-items:center; gap:6px; color:'
+      + (active ? 'var(--accent-ink)' : 'var(--ink-2)') + '; background:'
+      + (active ? 'var(--accent)' : 'transparent') + ';';
+  }
+  fontPill(active) {
+    return 'flex:1; text-align:center; font-size:13px; font-weight:600; padding:7px 0; border-radius:8px; cursor:pointer; color:'
+      + (active ? 'var(--accent-ink)' : 'var(--ink-2)') + '; background:'
+      + (active ? 'var(--accent)' : 'transparent') + ';';
+  }
+
+  chip(active) {
+    return 'font-size:12.5px; padding:6px 12px; border-radius:9px; cursor:pointer; border:1px solid '
+      + (active ? 'transparent' : 'var(--line)') + '; background:'
+      + (active ? 'var(--accent)' : 'var(--surface)') + '; color:'
+      + (active ? 'var(--accent-ink)' : 'var(--ink-2)') + '; font-weight:' + (active ? '600' : '500') + ';';
+  }
+  seg(active) {
+    return 'font-size:13px; font-weight:600; padding:6px 16px; border-radius:7px; cursor:pointer; color:'
+      + (active ? 'var(--accent-ink)' : 'var(--ink-2)') + '; background:'
+      + (active ? 'var(--accent)' : 'transparent') + ';';
+  }
+
+  renderVals() {
+    const s = this.state;
+    const sc = (n) => s.screen === n;
+    return {
+      theme: s.theme,
+      clock: '9:41',
+      drawerOpen: s.drawerOpen,
+      isOnboarding: sc('onboarding'),
+      isHome: sc('notebooks'),
+      isOutline: sc('outline'),
+      isEditor: sc('editor'),
+      isRead: sc('read'),
+      isCapturePicker: sc('capturePicker'),
+      isCaptureEditor: sc('captureEditor'),
+      isSearch: sc('search'),
+      isConflict: sc('conflict'),
+      isSettings: sc('settings'),
+      setLight: () => this.setState({ theme: 'light' }),
+      setDark: () => this.setState({ theme: 'dark' }),
+      segLightStyle: this.seg(s.theme === 'light'),
+      segDarkStyle: this.seg(s.theme === 'dark'),
+      goOnboarding: () => this.go('onboarding'),
+      goHome: () => this.go('notebooks'),
+      goOutline: () => this.go('outline'),
+      goEditor: () => this.go('editor'),
+      goRead: () => this.go('read'),
+      goCapturePicker: () => this.go('capturePicker'),
+      goCaptureEditor: () => this.go('captureEditor'),
+      goSearch: () => this.go('search'),
+      goConflict: () => this.go('conflict'),
+      goSettings: () => this.go('settings'),
+      openDrawer: () => this.setState({ drawerOpen: true }),
+      closeDrawer: () => this.setState({ drawerOpen: false }),
+      chipOnboarding: this.chip(sc('onboarding')),
+      chipHome: this.chip(sc('notebooks')),
+      chipOutline: this.chip(sc('outline')),
+      chipRead: this.chip(sc('read')),
+      chipEditor: this.chip(sc('editor')),
+      chipCapture: this.chip(sc('capturePicker') || sc('captureEditor')),
+      chipSearch: this.chip(sc('search')),
+      chipConflict: this.chip(sc('conflict')),
+      chipSettings: this.chip(sc('settings')),
+      searchAdvanced: s.searchAdvanced,
+      toggleAdvanced: () => this.setState(p => ({ searchAdvanced: !p.searchAdvanced })),
+      advChipStyle: this.chip(s.searchAdvanced),
+      segReadStyle: this.pill(sc('read')),
+      segEditStyle: this.pill(sc('editor')),
+      fontSmall: this.fontPill(s.fontSize === 'Small'),
+      fontMedium: this.fontPill(s.fontSize === 'Medium'),
+      fontLarge: this.fontPill(s.fontSize === 'Large'),
+      setFontSmall: () => this.setState({ fontSize: 'Small' }),
+      setFontMedium: () => this.setState({ fontSize: 'Medium' }),
+      setFontLarge: () => this.setState({ fontSize: 'Large' }),
+      themeRowLight: this.fontPill(s.theme === 'light'),
+      themeRowDark: this.fontPill(s.theme === 'dark'),
+    };
+  }
+}
+</script>
+</body>
+</html>
