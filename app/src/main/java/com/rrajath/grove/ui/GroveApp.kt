@@ -30,6 +30,7 @@ import com.rrajath.grove.ui.screens.ConflictScreen
 import com.rrajath.grove.ui.screens.GroveDrawerContent
 import com.rrajath.grove.ui.screens.NotebooksScreen
 import com.rrajath.grove.ui.screens.OnboardingScreen
+import com.rrajath.grove.ui.screens.OutlineDisplayFlags
 import com.rrajath.grove.ui.screens.OutlineScreen
 import com.rrajath.grove.ui.screens.ReadNoteScreen
 import com.rrajath.grove.ui.search.SearchScreen
@@ -57,6 +58,13 @@ private fun GroveNavigation(settings: GroveSettings, viewModel: AppViewModel) {
     val scope = rememberCoroutineScope()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
+    val app = androidx.compose.ui.platform.LocalContext.current.applicationContext
+            as com.rrajath.grove.GroveApplication
+
+    // Shared-into-Grove content goes straight to the capture picker.
+    LaunchedEffect(Unit) {
+        if (app.pendingShare != null) navController.navigate(Routes.CAPTURE)
+    }
 
     fun closeDrawerAnd(action: () -> Unit) {
         scope.launch { drawerState.close() }
@@ -118,9 +126,20 @@ private fun GroveNavigation(settings: GroveSettings, viewModel: AppViewModel) {
                         navController.navigate(Routes.note(ref.encode(), mode))
                     },
                     onCapture = { navController.navigate(Routes.CAPTURE) },
+                    displayFlags = OutlineDisplayFlags(
+                        tags = settings.showTagsInOutline,
+                        timestamps = settings.showTimestampsInOutline,
+                        keywords = settings.showKeywordsInOutline,
+                    ),
+                    onToggleDisplay = viewModel::setOutlineToggle,
                 )
             }
-            composable(Routes.NOTE) { entry ->
+            composable(
+                Routes.NOTE,
+                deepLinks = listOf(
+                    androidx.navigation.navDeepLink { uriPattern = "grove://note/{noteId}?mode={mode}" },
+                ),
+            ) { entry ->
                 val noteId = entry.arguments?.getString("noteId").orEmpty()
                 val mode = entry.arguments?.getString("mode") ?: "read"
                 val ref = NoteRef.decode(noteId)
@@ -155,7 +174,10 @@ private fun GroveNavigation(settings: GroveSettings, viewModel: AppViewModel) {
                     )
                 }
             }
-            composable(Routes.CAPTURE) {
+            composable(
+                Routes.CAPTURE,
+                deepLinks = listOf(androidx.navigation.navDeepLink { uriPattern = "grove://capture" }),
+            ) {
                 CapturePickerSheet(
                     onDismiss = { navController.popBackStack() },
                     onPickTemplate = { template ->
@@ -216,6 +238,7 @@ private fun GroveNavigation(settings: GroveSettings, viewModel: AppViewModel) {
                     onSetDefaultPriority = viewModel::setDefaultPriority,
                     onSetAddId = viewModel::setAddIdToNewNotes,
                     onSetAddCreated = viewModel::setAddCreatedToNewNotes,
+                    onSetCaptureNotification = viewModel::setCaptureNotification,
                 )
             }
         }

@@ -81,10 +81,25 @@ Plan reference: PRD in `prd-android-orgmode-app.md`, design spec in `design/READ
 - [x] Verified: 146 unit tests green, assembleDebug green, committed
 - Note: search runs in-memory over the Room index (note bodies cached in the notes table) rather than SQLite FTS4 — simpler, fully unit-tested, fast at v1 scale (hundreds–thousands of notes); the query layer is isolated so FTS can replace candidate generation later without API changes. Tag substring matching (`t.bee` → `:beeblebrox:`) per PRD §5.6.
 
-## M7 — Zero-friction capture surfaces + polish
+## M7 — Zero-friction capture surfaces + polish ✅
 
-- [ ] Capture home-screen widget (Glance), configurable pinned template
-- [ ] Share-sheet target (text/URL; images → attachments dir)
-- [ ] Deep links `grove://note/{id}`; notification + lock-screen capture shortcuts
-- [ ] Outline drag-and-drop reorder (descopable)
-- [ ] Display toggles, sync log viewer, settings completion, design QA pass
+- [x] Capture home-screen widget (Glance 2×1) → `grove://capture` deep link; picker auto-skips when only one template exists (PRD §7.2)
+- [x] Share-sheet target for text/URLs: first URL → `%shared_url`, subject + remaining text → `%shared_text`, routed into the capture picker
+- [x] Deep links: `grove://note/{id}` and `grove://capture` (manifest + NavHost)
+- [x] Optional persistent capture notification (Settings toggle, runtime POST_NOTIFICATIONS request, silent/min-priority, ongoing)
+- [x] Outline swipe gestures: right = cycle state, left = narrow to subtree
+- [x] Outline display toggles (tags / timestamps / keywords) in the ⋮ menu, persisted
+- [x] Verified: 151 unit tests green, assembleDebug green, lintDebug clean, committed
+
+### v1 descopes (intentional)
+- Images via share sheet (attachments dir) — v1 share handles text/URLs; image attach needs SAF attachments-dir plumbing
+- Outline drag-and-drop reorder — move up/down menu + swipe gestures cover reordering; flagged descopable in the plan
+- Lock-screen capture shortcut — Android exposes no public API to register custom lock-screen shortcuts; the widget + notification cover the friction goal
+- Long-press link menu (Open / Copy / Edit) — links open on tap in read mode
+- Template editor target-file dropdown — free-text file name in v1
+
+## Backlog for v2 (per PRD)
+- WebDAV / Dropbox backends (implement `FileStore`/`SyncEngine` against remotes)
+- Structural conflict auto-merge; org table rendering in read mode
+- Calendar Provider integration, statistics cookies, Git sync, biometric lock
+- SQLite FTS swap-in for search candidate generation if vaults outgrow in-memory matching

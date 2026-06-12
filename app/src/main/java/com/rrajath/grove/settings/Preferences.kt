@@ -36,6 +36,8 @@ enum class SyncMode(val storageKey: String, val label: String) {
     }
 }
 
+enum class OutlineToggle { TAGS, TIMESTAMPS, KEYWORDS }
+
 enum class NoteOpenMode(val storageKey: String) {
     READ("read"),
     EDIT("edit");

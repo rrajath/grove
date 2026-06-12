@@ -9,6 +9,7 @@ import com.rrajath.grove.search.SavedSearch
 import com.rrajath.grove.settings.FontSizePreference
 import com.rrajath.grove.settings.GroveSettings
 import com.rrajath.grove.settings.NoteOpenMode
+import com.rrajath.grove.settings.OutlineToggle
 import com.rrajath.grove.settings.SettingsRepository
 import com.rrajath.grove.settings.SyncMode
 import com.rrajath.grove.settings.ThemePreference
@@ -68,6 +69,12 @@ class AppViewModel(private val app: GroveApplication) : ViewModel() {
 
     fun recordNotebookMode(fileName: String, mode: NoteOpenMode) =
         viewModelScope.launch { settingsRepository.setNotebookMode(fileName, mode) }
+
+    fun setCaptureNotification(enabled: Boolean) =
+        viewModelScope.launch { settingsRepository.setCaptureNotification(enabled) }
+
+    fun setOutlineToggle(toggle: OutlineToggle, enabled: Boolean) =
+        viewModelScope.launch { settingsRepository.setOutlineToggle(toggle, enabled) }
 
     companion object {
         val Factory = object : ViewModelProvider.Factory {

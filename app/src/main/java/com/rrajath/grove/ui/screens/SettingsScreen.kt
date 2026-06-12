@@ -64,6 +64,7 @@ fun SettingsScreen(
     onSetDefaultPriority: (Char?) -> Unit,
     onSetAddId: (Boolean) -> Unit,
     onSetAddCreated: (Boolean) -> Unit,
+    onSetCaptureNotification: (Boolean) -> Unit,
     templatesViewModel: TemplatesViewModel = viewModel(factory = TemplatesViewModel.Factory),
 ) {
     val c = MaterialTheme.grove
@@ -142,6 +143,17 @@ fun SettingsScreen(
                 }
                 if (templates.isNotEmpty()) RowDivider()
                 SettingsRow(label = "＋ New template", onClick = { onEditTemplate(null) }) {}
+                RowDivider()
+                val notifPermission = androidx.activity.compose.rememberLauncherForActivityResult(
+                    androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
+                ) { granted -> if (granted) onSetCaptureNotification(true) }
+                ToggleRow(
+                    label = "Capture from notification",
+                    checked = settings.captureNotification,
+                ) { enabled ->
+                    if (enabled) notifPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                    else onSetCaptureNotification(false)
+                }
             }
 
             SectionLabel("SYNC")

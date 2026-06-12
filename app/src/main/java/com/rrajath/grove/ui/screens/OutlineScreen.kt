@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rrajath.grove.org.OrgDocument
 import com.rrajath.grove.org.OrgHeadline
+import com.rrajath.grove.settings.OutlineToggle
 import com.rrajath.grove.ui.components.GroveTopBar
 import com.rrajath.grove.ui.components.Pill
 import com.rrajath.grove.ui.theme.PlexMono
@@ -44,13 +45,21 @@ import com.rrajath.grove.ui.vault.DocumentUiState
 import com.rrajath.grove.ui.vault.DocumentViewModel
 import com.rrajath.grove.ui.vault.NoteRef
 
-/** Outline view per design spec §4 — collapsible heading tree, read-only in M2. */
+data class OutlineDisplayFlags(
+    val tags: Boolean = true,
+    val timestamps: Boolean = true,
+    val keywords: Boolean = true,
+)
+
+/** Outline view per design spec §4 — collapsible heading tree with node ops. */
 @Composable
 fun OutlineScreen(
     notebookId: String,
     onBack: () -> Unit,
     onOpenNote: (NoteRef) -> Unit,
     onCapture: () -> Unit,
+    displayFlags: OutlineDisplayFlags = OutlineDisplayFlags(),
+    onToggleDisplay: (OutlineToggle, Boolean) -> Unit = { _, _ -> },
     viewModel: DocumentViewModel = viewModel(factory = DocumentViewModel.Factory),
 ) {
     val c = MaterialTheme.grove
@@ -80,6 +89,33 @@ fun OutlineScreen(
                                 "${it.document.headlines.size} notes",
                                 fontFamily = PlexSans, fontSize = 11.5.sp, color = c.ink2,
                             )
+                        }
+                    }
+                },
+                actions = {
+                    var displayMenuOpen by remember { mutableStateOf(false) }
+                    Box {
+                        IconGlyph("⋮", onClick = { displayMenuOpen = true })
+                        androidx.compose.material3.DropdownMenu(
+                            expanded = displayMenuOpen,
+                            onDismissRequest = { displayMenuOpen = false },
+                            containerColor = c.surface,
+                        ) {
+                            @Composable
+                            fun toggleItem(label: String, value: Boolean, toggle: OutlineToggle) {
+                                androidx.compose.material3.DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            (if (value) "✓ " else "   ") + label,
+                                            fontFamily = PlexSans, fontSize = 14.sp, color = c.ink,
+                                        )
+                                    },
+                                    onClick = { onToggleDisplay(toggle, !value) },
+                                )
+                            }
+                            toggleItem("Show tags", displayFlags.tags, OutlineToggle.TAGS)
+                            toggleItem("Show timestamps", displayFlags.timestamps, OutlineToggle.TIMESTAMPS)
+                            toggleItem("Show keywords", displayFlags.keywords, OutlineToggle.KEYWORDS)
                         }
                     }
                 },
@@ -152,6 +188,7 @@ fun OutlineScreen(
                                     else collapsed + h.lineIndex
                                 },
                                 onOpen = { onOpenNote(NoteRef(notebookId, h.lineIndex)) },
+                                flags = displayFlags,
                                 ops = NodeOps(
                                     onEdit = { onOpenNote(NoteRef(notebookId, h.lineIndex)) },
                                     onNewChild = { newChildFor = h },
@@ -258,6 +295,7 @@ private fun OutlineNode(
     onToggle: () -> Unit,
     onOpen: () -> Unit,
     ops: NodeOps,
+    flags: OutlineDisplayFlags = OutlineDisplayFlags(),
 ) {
     val c = MaterialTheme.grove
     val childCount = remember(doc, headline) { doc.directChildren(headline).size }
@@ -265,16 +303,42 @@ private fun OutlineNode(
     val isDone = headline.keyword != null && doc.keywords.isDone(headline.keyword)
     var menuOpen by remember { mutableStateOf(false) }
 
+    // Swipe right = cycle state, swipe left = narrow to subtree (PRD §5.3).
+    val swipeState = androidx.compose.material3.rememberSwipeToDismissBoxState(
+        confirmValueChange = { value ->
+            when (value) {
+                androidx.compose.material3.SwipeToDismissBoxValue.StartToEnd -> ops.onCycleState()
+                androidx.compose.material3.SwipeToDismissBoxValue.EndToStart -> ops.onNarrow()
+                else -> {}
+            }
+            false // always snap back; the swipe triggers an action, not a dismiss
+        },
+    )
+
     Box {
         NodeMenu(
             expanded = menuOpen,
             onDismiss = { menuOpen = false },
             ops = ops,
         )
+    androidx.compose.material3.SwipeToDismissBox(
+        state = swipeState,
+        backgroundContent = {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("↻ state", fontFamily = PlexMono, fontSize = 11.sp, color = c.amber)
+                Spacer(Modifier.weight(1f))
+                Text("narrow ◂", fontFamily = PlexMono, fontSize = 11.sp, color = c.blue)
+            }
+        },
+    ) {
     Row(
         Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(10.dp))
+            .background(c.bg)
             .combinedClickable(onClick = onOpen, onLongClick = { menuOpen = true })
             .padding(
                 start = (22 * (headline.level - 1)).dp,
@@ -309,7 +373,7 @@ private fun OutlineNode(
         Spacer(Modifier.width(7.dp))
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                headline.keyword?.let { kw ->
+                headline.keyword?.takeIf { flags.keywords }?.let { kw ->
                     val (fg, bg) = when {
                         doc.keywords.isDone(kw) -> c.green to c.greenSoft
                         kw == "IN-PROGRESS" -> c.blue to c.blueSoft
@@ -352,14 +416,14 @@ private fun OutlineNode(
                 }
             }
             // Scheduled / deadline chips
-            headline.planning.scheduled?.let { ts ->
+            headline.planning.scheduled?.takeIf { flags.timestamps }?.let { ts ->
                 Text(
                     "◷ ${ts.format()}",
                     fontFamily = PlexMono, fontSize = 11.sp, color = c.blue,
                     modifier = Modifier.padding(top = 3.dp),
                 )
             }
-            headline.planning.deadline?.let { ts ->
+            headline.planning.deadline?.takeIf { flags.timestamps }?.let { ts ->
                 Box(
                     Modifier
                         .padding(top = 3.dp)
@@ -374,13 +438,14 @@ private fun OutlineNode(
                 }
             }
         }
-        if (headline.tags.isNotEmpty()) {
+        if (flags.tags && headline.tags.isNotEmpty()) {
             Spacer(Modifier.width(6.dp))
             Text(
                 headline.tags.joinToString(":", prefix = ":", postfix = ":"),
                 fontFamily = PlexMono, fontSize = 11.sp, color = c.synTag,
             )
         }
+    }
     }
     }
 }

@@ -30,6 +30,11 @@ data class GroveSettings(
     val addCreatedToNewNotes: Boolean = true,
     /** Per-notebook last-used note mode overrides: "file.org" → "read"/"edit". */
     val notebookModes: Map<String, String> = emptyMap(),
+    val captureNotification: Boolean = false,
+    // Outline display toggles (PRD §5.3)
+    val showTagsInOutline: Boolean = true,
+    val showTimestampsInOutline: Boolean = true,
+    val showKeywordsInOutline: Boolean = true,
 ) {
     companion object {
         const val DEFAULT_TODO_KEYWORDS = "TODO IN-PROGRESS | DONE CANCELLED"
@@ -51,6 +56,10 @@ class SettingsRepository(private val context: Context) {
         val addIdToNewNotes = booleanPreferencesKey("add_id_to_new_notes")
         val addCreatedToNewNotes = booleanPreferencesKey("add_created_to_new_notes")
         val notebookModes = stringPreferencesKey("notebook_modes")
+        val captureNotification = booleanPreferencesKey("capture_notification")
+        val showTagsInOutline = booleanPreferencesKey("show_tags_in_outline")
+        val showTimestampsInOutline = booleanPreferencesKey("show_timestamps_in_outline")
+        val showKeywordsInOutline = booleanPreferencesKey("show_keywords_in_outline")
     }
 
     val settings: Flow<GroveSettings> = context.settingsDataStore.data.map { prefs ->
@@ -67,6 +76,10 @@ class SettingsRepository(private val context: Context) {
             addIdToNewNotes = prefs[Keys.addIdToNewNotes] ?: false,
             addCreatedToNewNotes = prefs[Keys.addCreatedToNewNotes] ?: true,
             notebookModes = decodeModes(prefs[Keys.notebookModes]),
+            captureNotification = prefs[Keys.captureNotification] ?: false,
+            showTagsInOutline = prefs[Keys.showTagsInOutline] ?: true,
+            showTimestampsInOutline = prefs[Keys.showTimestampsInOutline] ?: true,
+            showKeywordsInOutline = prefs[Keys.showKeywordsInOutline] ?: true,
         )
     }
 
@@ -124,6 +137,22 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setAddCreatedToNewNotes(enabled: Boolean) {
         context.settingsDataStore.edit { it[Keys.addCreatedToNewNotes] = enabled }
+    }
+
+    suspend fun setCaptureNotification(enabled: Boolean) {
+        context.settingsDataStore.edit { it[Keys.captureNotification] = enabled }
+    }
+
+    suspend fun setOutlineToggle(key: OutlineToggle, enabled: Boolean) {
+        context.settingsDataStore.edit {
+            it[
+                when (key) {
+                    OutlineToggle.TAGS -> Keys.showTagsInOutline
+                    OutlineToggle.TIMESTAMPS -> Keys.showTimestampsInOutline
+                    OutlineToggle.KEYWORDS -> Keys.showKeywordsInOutline
+                }
+            ] = enabled
+        }
     }
 
     suspend fun setNotebookMode(fileName: String, mode: NoteOpenMode) {

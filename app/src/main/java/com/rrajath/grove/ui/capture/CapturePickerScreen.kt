@@ -44,6 +44,11 @@ fun CapturePickerSheet(
     val templates by viewModel.templates.collectAsState()
     val sheetState = rememberModalBottomSheetState()
 
+    // PRD §7.2: with a single template the picker is skipped entirely.
+    androidx.compose.runtime.LaunchedEffect(templates) {
+        if (templates.size == 1) onPickTemplate(templates.first())
+    }
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,

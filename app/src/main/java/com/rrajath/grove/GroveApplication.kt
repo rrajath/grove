@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
+import com.rrajath.grove.capture.SharedPayload
 import com.rrajath.grove.capture.TemplatesRepository
 import com.rrajath.grove.data.GroveDatabase
 import com.rrajath.grove.org.OrgKeywords
@@ -12,6 +13,7 @@ import com.rrajath.grove.search.SearchRepository
 import com.rrajath.grove.settings.SettingsRepository
 import com.rrajath.grove.sync.SyncManager
 import com.rrajath.grove.vault.FileStore
+import com.rrajath.grove.widget.CaptureNotification
 import com.rrajath.grove.vault.SafFileStore
 import com.rrajath.grove.vault.Vault
 import kotlinx.coroutines.CoroutineScope
@@ -37,6 +39,10 @@ class GroveApplication : Application() {
     val templatesRepository: TemplatesRepository by lazy { TemplatesRepository(this) }
 
     val searchRepository: SearchRepository by lazy { SearchRepository(this) }
+
+    /** Content shared into the app, consumed by the next capture (PRD §10). */
+    @Volatile
+    var pendingShare: SharedPayload? = null
 
     val database: GroveDatabase by lazy { GroveDatabase.build(this) }
 
@@ -85,6 +91,16 @@ class GroveApplication : Application() {
                 .map { it.syncMode to it.periodicSyncMinutes }
                 .distinctUntilChanged()
                 .collect { (mode, minutes) -> syncManager.schedulePeriodic(mode, minutes) }
+        }
+
+        appScope.launch {
+            settingsRepository.settings
+                .map { it.captureNotification }
+                .distinctUntilChanged()
+                .collect { enabled ->
+                    if (enabled) CaptureNotification.show(this@GroveApplication)
+                    else CaptureNotification.hide(this@GroveApplication)
+                }
         }
 
         ProcessLifecycleOwner.get().lifecycle.addObserver(object : DefaultLifecycleObserver {

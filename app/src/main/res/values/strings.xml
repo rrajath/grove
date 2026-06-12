@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">Grove</string>
+    <string name="widget_description">One-tap capture into your org notes</string>
 </resources>
