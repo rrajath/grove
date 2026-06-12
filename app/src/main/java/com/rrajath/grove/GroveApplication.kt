@@ -8,6 +8,7 @@ import androidx.lifecycle.ProcessLifecycleOwner
 import com.rrajath.grove.capture.TemplatesRepository
 import com.rrajath.grove.data.GroveDatabase
 import com.rrajath.grove.org.OrgKeywords
+import com.rrajath.grove.search.SearchRepository
 import com.rrajath.grove.settings.SettingsRepository
 import com.rrajath.grove.sync.SyncManager
 import com.rrajath.grove.vault.FileStore
@@ -34,6 +35,8 @@ class GroveApplication : Application() {
     val settingsRepository: SettingsRepository by lazy { SettingsRepository(this) }
 
     val templatesRepository: TemplatesRepository by lazy { TemplatesRepository(this) }
+
+    val searchRepository: SearchRepository by lazy { SearchRepository(this) }
 
     val database: GroveDatabase by lazy { GroveDatabase.build(this) }
 

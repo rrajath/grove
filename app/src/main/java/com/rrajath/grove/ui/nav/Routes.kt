@@ -13,7 +13,7 @@ object Routes {
     const val NOTE = "note/{noteId}?mode={mode}"
     const val CAPTURE = "capture"
     const val CAPTURE_TEMPLATE = "capture/{templateId}"
-    const val SEARCH = "search"
+    const val SEARCH = "search?q={q}"
     const val CONFLICT = "conflict/{notebookId}"
     const val SETTINGS = "settings"
     const val TEMPLATE_EDIT = "template/{templateId}"
@@ -30,4 +30,6 @@ object Routes {
         if (templateId == null) CAPTURE else "capture/${encode(templateId)}"
     fun conflict(notebookId: String) = "conflict/${encode(notebookId)}"
     fun templateEdit(templateId: String) = "template/${encode(templateId)}"
+    fun search(query: String? = null) =
+        if (query.isNullOrBlank()) "search?q=" else "search?q=${encode(query)}"
 }

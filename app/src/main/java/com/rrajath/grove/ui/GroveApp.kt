@@ -32,7 +32,7 @@ import com.rrajath.grove.ui.screens.NotebooksScreen
 import com.rrajath.grove.ui.screens.OnboardingScreen
 import com.rrajath.grove.ui.screens.OutlineScreen
 import com.rrajath.grove.ui.screens.ReadNoteScreen
-import com.rrajath.grove.ui.screens.SearchScreen
+import com.rrajath.grove.ui.search.SearchScreen
 import com.rrajath.grove.ui.screens.SettingsScreen
 import com.rrajath.grove.ui.screens.SyncLogScreen
 import com.rrajath.grove.ui.vault.NoteRef
@@ -73,7 +73,9 @@ private fun GroveNavigation(settings: GroveSettings, viewModel: AppViewModel) {
             ) {
                 GroveDrawerContent(
                     currentRoute = currentRoute,
+                    savedSearches = viewModel.savedSearches.collectAsState().value,
                     onNavigate = { route -> closeDrawerAnd { navController.navigate(route) } },
+                    onDeleteSavedSearch = { viewModel.deleteSavedSearch(it.id) },
                 )
             }
         },
@@ -99,7 +101,7 @@ private fun GroveNavigation(settings: GroveSettings, viewModel: AppViewModel) {
             composable(Routes.NOTEBOOKS) {
                 NotebooksScreen(
                     onOpenDrawer = { scope.launch { drawerState.open() } },
-                    onOpenSearch = { navController.navigate(Routes.SEARCH) },
+                    onOpenSearch = { navController.navigate(Routes.search()) },
                     onOpenCapture = { navController.navigate(Routes.CAPTURE) },
                     onOpenNotebook = { id -> navController.navigate(Routes.outline(id)) },
                     onOpenConflict = { id -> navController.navigate(Routes.conflict(id)) },
@@ -184,8 +186,12 @@ private fun GroveNavigation(settings: GroveSettings, viewModel: AppViewModel) {
             composable(Routes.SYNC_LOG) {
                 SyncLogScreen(onBack = { navController.popBackStack() })
             }
-            composable(Routes.SEARCH) {
-                SearchScreen(onBack = { navController.popBackStack() })
+            composable(Routes.SEARCH) { entry ->
+                SearchScreen(
+                    initialQuery = entry.arguments?.getString("q"),
+                    onBack = { navController.popBackStack() },
+                    onOpenNote = { ref -> navController.navigate(Routes.note(ref.encode())) },
+                )
             }
             composable(Routes.CONFLICT) { entry ->
                 ConflictScreen(

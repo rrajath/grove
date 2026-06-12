@@ -71,13 +71,15 @@ Plan reference: PRD in `prd-android-orgmode-app.md`, design spec in `design/READ
 - [x] Verified: 126 unit tests green, assembleDebug green, committed
 - Note: swipe gestures (right=quick action, left=narrow) deferred to M7 polish — same operations available from the long-press menu
 
-## M6 — Search, saved searches, agenda
+## M6 — Search, saved searches, agenda ✅
 
-- [ ] Query parser for Orgzly syntax (s. d. c. cr. i. b. t. tn. p. / AND OR NOT / o. sort / ad.N / period aliases)
-- [ ] FTS4 index + snippets + ranking + 300ms debounce + history
-- [ ] Search screen with match highlighting + Advanced panel
-- [ ] Saved searches in drawer (defaults: Scheduled Today, All TODO, This Week)
-- [ ] Agenda view (day-grouped)
+- [x] Query parser for Orgzly syntax (s. d. c. cr. i. b. t. tn. p. / AND, OR, `.`-NOT / o. sort / ad.N / period aliases today·tomorrow·yesterday·now·Nd·Nw·Nm)
+- [x] Full-text matching over indexed heading+body with snippets, match highlighting, ranking (exact title > title > body, recency tiebreak), 300ms debounce, last-10 history
+- [x] Search screen per spec: inline field, Advanced chip + operator reference panel, highlighted results with breadcrumbs
+- [x] Saved searches: defaults (Scheduled Today `s.today`, All TODO `i.todo`, This Week `s.7d`), save-current-search (☆), long-press in drawer to delete
+- [x] Agenda: `ad.N` day-grouping, drawer Agenda item = `ad.7`, overdue items surface on today
+- [x] Verified: 146 unit tests green, assembleDebug green, committed
+- Note: search runs in-memory over the Room index (note bodies cached in the notes table) rather than SQLite FTS4 — simpler, fully unit-tested, fast at v1 scale (hundreds–thousands of notes); the query layer is isolated so FTS can replace candidate generation later without API changes. Tag substring matching (`t.bee` → `:beeblebrox:`) per PRD §5.6.
 
 ## M7 — Zero-friction capture surfaces + polish
 

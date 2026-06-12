@@ -45,6 +45,12 @@ data class NoteEntity(
     val orgId: String?,
     val customId: String?,
     val createdAt: String?,
+    /** Own body text (capped) for full-text search and snippets. */
+    val body: String,
+    /** Done-type keyword flag resolved at index time. */
+    val isDone: Boolean,
+    /** Mirror of the notebook's lastModified for recency ranking. */
+    val lastModified: Long,
 )
 
 @Entity(tableName = "sync_log")
@@ -71,6 +77,9 @@ interface IndexDao {
 
     @Query("SELECT DISTINCT tags FROM notes WHERE tags != ''")
     suspend fun allTagStrings(): List<String>
+
+    @Query("SELECT * FROM notes")
+    suspend fun allNotes(): List<NoteEntity>
 
     @Insert
     suspend fun insertNotes(notes: List<NoteEntity>)
@@ -129,7 +138,7 @@ interface SyncLogDao {
 
 @Database(
     entities = [NotebookEntity::class, NoteEntity::class, SyncLogEntity::class],
-    version = 1,
+    version = 2,
     exportSchema = false,
 )
 abstract class GroveDatabase : RoomDatabase() {

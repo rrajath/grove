@@ -37,6 +37,9 @@ class RoomNoteIndex(
                 orgId = h.id,
                 customId = h.customId,
                 createdAt = h.properties["CREATED"],
+                body = doc.bodyOf(h).joinToString("\n").take(MAX_BODY_CHARS),
+                isDone = h.keyword != null && doc.keywords.isDone(h.keyword),
+                lastModified = lastModified,
             )
         }
         dao.replaceNotebook(
@@ -57,5 +60,9 @@ class RoomNoteIndex(
 
     override suspend fun removeNotebook(fileName: String) {
         dao.removeNotebook(fileName)
+    }
+
+    companion object {
+        private const val MAX_BODY_CHARS = 4000
     }
 }
