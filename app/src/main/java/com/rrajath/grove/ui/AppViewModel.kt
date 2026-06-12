@@ -35,6 +35,9 @@ class AppViewModel(private val settingsRepository: SettingsRepository) : ViewMod
     fun completeOnboarding() =
         viewModelScope.launch { settingsRepository.setOnboardingDone(true) }
 
+    fun setVaultTreeUri(uri: String) =
+        viewModelScope.launch { settingsRepository.setVaultTreeUri(uri) }
+
     companion object {
         val Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")

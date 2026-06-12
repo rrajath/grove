@@ -17,6 +17,8 @@ data class GroveSettings(
     val fontSize: FontSizePreference = FontSizePreference.MEDIUM,
     val defaultNoteOpenMode: NoteOpenMode = NoteOpenMode.READ,
     val onboardingDone: Boolean = false,
+    /** Persisted SAF tree URI of the sync folder; null until the user picks one. */
+    val vaultTreeUri: String? = null,
 )
 
 class SettingsRepository(private val context: Context) {
@@ -26,6 +28,7 @@ class SettingsRepository(private val context: Context) {
         val fontSize = stringPreferencesKey("font_size")
         val noteOpenMode = stringPreferencesKey("note_open_mode")
         val onboardingDone = booleanPreferencesKey("onboarding_done")
+        val vaultTreeUri = stringPreferencesKey("vault_tree_uri")
     }
 
     val settings: Flow<GroveSettings> = context.settingsDataStore.data.map { prefs ->
@@ -34,6 +37,7 @@ class SettingsRepository(private val context: Context) {
             fontSize = FontSizePreference.fromStorage(prefs[Keys.fontSize]),
             defaultNoteOpenMode = NoteOpenMode.fromStorage(prefs[Keys.noteOpenMode]),
             onboardingDone = prefs[Keys.onboardingDone] ?: false,
+            vaultTreeUri = prefs[Keys.vaultTreeUri],
         )
     }
 
@@ -51,5 +55,9 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setOnboardingDone(done: Boolean) {
         context.settingsDataStore.edit { it[Keys.onboardingDone] = done }
+    }
+
+    suspend fun setVaultTreeUri(uri: String) {
+        context.settingsDataStore.edit { it[Keys.vaultTreeUri] = uri }
     }
 }

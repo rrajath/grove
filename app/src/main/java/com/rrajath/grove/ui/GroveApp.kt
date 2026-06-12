@@ -24,11 +24,12 @@ import com.rrajath.grove.ui.screens.CaptureScreen
 import com.rrajath.grove.ui.screens.ConflictScreen
 import com.rrajath.grove.ui.screens.GroveDrawerContent
 import com.rrajath.grove.ui.screens.NotebooksScreen
-import com.rrajath.grove.ui.screens.NoteScreen
 import com.rrajath.grove.ui.screens.OnboardingScreen
 import com.rrajath.grove.ui.screens.OutlineScreen
+import com.rrajath.grove.ui.screens.ReadNoteScreen
 import com.rrajath.grove.ui.screens.SearchScreen
 import com.rrajath.grove.ui.screens.SettingsScreen
+import com.rrajath.grove.ui.vault.NoteRef
 import com.rrajath.grove.ui.theme.GroveTheme
 import com.rrajath.grove.ui.theme.grove
 import kotlinx.coroutines.launch
@@ -86,6 +87,7 @@ private fun GroveNavigation(settings: GroveSettings, viewModel: AppViewModel) {
                             popUpTo(Routes.ONBOARDING) { inclusive = true }
                         }
                     },
+                    onFolderPicked = viewModel::setVaultTreeUri,
                 )
             }
             composable(Routes.NOTEBOOKS) {
@@ -100,14 +102,22 @@ private fun GroveNavigation(settings: GroveSettings, viewModel: AppViewModel) {
                 OutlineScreen(
                     notebookId = entry.arguments?.getString("notebookId").orEmpty(),
                     onBack = { navController.popBackStack() },
+                    onOpenNote = { ref -> navController.navigate(Routes.note(ref.encode())) },
+                    onCapture = { navController.navigate(Routes.CAPTURE) },
                 )
             }
             composable(Routes.NOTE) { entry ->
-                NoteScreen(
-                    noteId = entry.arguments?.getString("noteId").orEmpty(),
-                    mode = entry.arguments?.getString("mode") ?: "read",
-                    onBack = { navController.popBackStack() },
-                )
+                val noteId = entry.arguments?.getString("noteId").orEmpty()
+                val ref = NoteRef.decode(noteId)
+                if (ref == null) {
+                    navController.popBackStack()
+                } else {
+                    ReadNoteScreen(
+                        noteRef = ref,
+                        onBack = { navController.popBackStack() },
+                        onOpenNote = { target -> navController.navigate(Routes.note(target.encode())) },
+                    )
+                }
             }
             composable(Routes.CAPTURE) {
                 CaptureScreen(templateId = null, onBack = { navController.popBackStack() })

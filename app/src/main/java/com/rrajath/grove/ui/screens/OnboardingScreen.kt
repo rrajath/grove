@@ -1,5 +1,8 @@
 package com.rrajath.grove.ui.screens
 
+import android.content.Intent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -23,6 +26,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -33,12 +37,28 @@ import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
 
 /**
- * Onboarding per design spec §1. In M1 both CTAs just complete onboarding;
- * the real folder picker arrives with the vault work in M2.
+ * Onboarding per design spec §1. The primary CTA opens the SAF folder picker;
+ * "later" skips — the Notebooks screen offers the picker again.
  */
 @Composable
-fun OnboardingScreen(onDone: () -> Unit) {
+fun OnboardingScreen(
+    onDone: () -> Unit,
+    onFolderPicked: (String) -> Unit,
+) {
     val c = MaterialTheme.grove
+    val context = LocalContext.current
+    val folderPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocumentTree()
+    ) { uri ->
+        if (uri != null) {
+            context.contentResolver.takePersistableUriPermission(
+                uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+            )
+            onFolderPicked(uri.toString())
+            onDone()
+        }
+    }
     Column(
         Modifier
             .fillMaxSize()
@@ -98,7 +118,7 @@ fun OnboardingScreen(onDone: () -> Unit) {
                 .height(50.dp)
                 .clip(RoundedCornerShape(14.dp))
                 .background(c.accent)
-                .clickable(onClick = onDone),
+                .clickable(onClick = { folderPicker.launch(null) }),
             contentAlignment = Alignment.Center,
         ) {
             Text(

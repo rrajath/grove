@@ -1,0 +1,53 @@
+#+TITLE: Travel plans
+#+FILETAGS: :trip:
+
+Some preamble text before any heading.
+
+* Japan — Spring 2025                                    :japan:
+:PROPERTIES:
+:ID: 11111111-aaaa-bbbb-cccc-000000000001
+:CREATED: [2025-01-04 Sat]
+:END:
+Planning notes for the spring trip.
+
+** TODO Book Kyoto ryokan               :booking:
+SCHEDULED: <2025-04-09 Wed>
+Check the one with the garden view first.
+
+** Kyoto — Day 2  :kyoto:
+:PROPERTIES:
+:CUSTOM_ID: kyoto-day-2
+:END:
+Walked the Philosopher's Path. *Amazing* weather, /very/ quiet.
+
+- Ginkaku-ji temple
+- Lunch at [[https://example.com/ramen][that ramen place]]
+- =matcha= ice cream
+
+#+BEGIN_SRC sh
+echo "train times"
+#+END_SRC
+
+*** Lunch
+Try the ramen place near the station.
+
+*** Dinner reservation
+At 19:00, confirmed.
+
+*** Notes
+See [[#kyoto-day-2]] for the plan.
+
+** DONE Order JR Rail Pass
+CLOSED: [2025-03-02 Sun]
+
+* Portugal — Summer  :portugal:
+** Lisbon
+** Porto
+Stay near the river.
+
+* TODO [#A] Renew passport                            :admin:
+DEADLINE: <2025-06-27 Fri>
+Bring two photos.
+
+* Weekly review  :routine:
+SCHEDULED: <2025-04-07 Mon +1w>

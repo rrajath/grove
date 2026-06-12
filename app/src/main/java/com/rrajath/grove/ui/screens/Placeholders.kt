@@ -21,17 +21,7 @@ import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
 
 // Placeholder screens for routes whose real implementations land in later
-// milestones (outline/read: M2, capture: M3, conflict: M4, search: M6).
-
-@Composable
-fun OutlineScreen(notebookId: String, onBack: () -> Unit) {
-    PlaceholderScreen(title = notebookId, subtitle = "Outline view arrives in M2", onBack = onBack)
-}
-
-@Composable
-fun NoteScreen(noteId: String, mode: String, onBack: () -> Unit) {
-    PlaceholderScreen(title = noteId, subtitle = "Note $mode mode arrives in M2", onBack = onBack)
-}
+// milestones (capture: M3, conflict: M4, search: M6).
 
 @Composable
 fun CaptureScreen(templateId: String?, onBack: () -> Unit) {

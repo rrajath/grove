@@ -26,15 +26,16 @@ Plan reference: PRD in `prd-android-orgmode-app.md`, design spec in `design/READ
 - [x] Unit tests: route builders, preference enums
 - [x] Verified: tests + build green, committed
 
-## M2 — Org engine + vault: browse real notes
+## M2 — Org engine + vault: browse real notes ✅
 
-- [ ] Lossless org parser (`org/`): OrgDocument slice model, parser, serializer, timestamps + repeaters, inline tokenizer
-- [ ] Round-trip byte-identical tests over golden fixtures
-- [ ] `FileStore` interface + `SafFileStore` (SAF tree, "wt" writes); onboarding folder picker
-- [ ] `.orgzlyignore` support
-- [ ] Notebook list with real files; create notebook
-- [ ] Outline view (read-only): expand/collapse, chips, tags, fold counts
-- [ ] Read mode: rendered headings/body, inline markup, links; tables as plain mono text
+- [x] Lossless org parser (`org/`): OrgDocument slice model, parser, serializer, timestamps + repeaters, inline tokenizer
+- [x] Round-trip byte-identical tests over golden fixtures
+- [x] `FileStore` interface + `SafFileStore` (SAF tree, "wt" writes); onboarding folder picker
+- [x] `.orgzlyignore` support
+- [x] Notebook list with real files; create notebook
+- [x] Outline view (read-only): expand/collapse, chips, tags, fold counts
+- [x] Read mode: rendered headings/body, inline markup, links; tables as plain mono text
+- [x] Verified: 67 unit tests green, assembleDebug green, committed
 
 ## M3 — Capture (priority feature #1)
 
