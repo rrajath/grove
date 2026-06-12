@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -57,7 +58,6 @@ fun OutlineScreen(
     notebookId: String,
     onBack: () -> Unit,
     onOpenNote: (NoteRef) -> Unit,
-    onCapture: () -> Unit,
     displayFlags: OutlineDisplayFlags = OutlineDisplayFlags(),
     onToggleDisplay: (OutlineToggle, Boolean) -> Unit = { _, _ -> },
     viewModel: DocumentViewModel = viewModel(factory = DocumentViewModel.Factory),
@@ -71,6 +71,7 @@ fun OutlineScreen(
     // "Show in context": narrow the view to one subtree (swipe-left in the spec)
     var narrowedTo by remember(notebookId) { mutableStateOf<Int?>(null) }
     var newChildFor by remember { mutableStateOf<OrgHeadline?>(null) }
+    var newTopLevelOpen by remember { mutableStateOf(false) }
 
     Scaffold(
         containerColor = c.bg,
@@ -122,12 +123,13 @@ fun OutlineScreen(
             )
         },
         floatingActionButton = {
+            // PRD §5.3: FAB adds a new top-level note to this notebook.
             Box(
                 Modifier
                     .size(54.dp)
                     .clip(RoundedCornerShape(18.dp))
                     .background(c.accent)
-                    .clickable(onClick = onCapture),
+                    .clickable(onClick = { newTopLevelOpen = true }),
                 contentAlignment = Alignment.Center,
             ) {
                 Text("+", fontFamily = PlexSans, fontSize = 26.sp, color = c.accentInk)
@@ -157,6 +159,27 @@ fun OutlineScreen(
                             all.filter { it.lineIndex in subtreeLines }
                         }
                     }
+                }
+                if (doc.headlines.isEmpty()) {
+                    Box(
+                        Modifier.fillMaxSize().padding(padding),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("✶", fontFamily = PlexMono, fontSize = 28.sp, color = c.ink3)
+                            Spacer(Modifier.height(10.dp))
+                            Text(
+                                "This notebook is empty",
+                                fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
+                                fontSize = 15.sp, color = c.ink2,
+                            )
+                            Text(
+                                "Tap + to write your first note",
+                                fontFamily = PlexSans, fontSize = 13.sp, color = c.ink3,
+                            )
+                        }
+                    }
+                    return@Scaffold
                 }
                 Column(Modifier.fillMaxSize().padding(padding)) {
                     if (narrowedTo != null) {
@@ -210,12 +233,22 @@ fun OutlineScreen(
     }
 
     newChildFor?.let { parent ->
-        NewChildDialog(
-            parentTitle = parent.title,
+        NewNoteDialog(
+            title = "New note under \"${parent.title}\"",
             onDismiss = { newChildFor = null },
             onCreate = { title ->
                 viewModel.newChild(parent, title)
                 newChildFor = null
+            },
+        )
+    }
+    if (newTopLevelOpen) {
+        NewNoteDialog(
+            title = "New note",
+            onDismiss = { newTopLevelOpen = false },
+            onCreate = { title ->
+                viewModel.newTopLevelNote(title)
+                newTopLevelOpen = false
             },
         )
     }
@@ -235,34 +268,34 @@ data class NodeOps(
 )
 
 @Composable
-private fun NewChildDialog(
-    parentTitle: String,
+private fun NewNoteDialog(
+    title: String,
     onDismiss: () -> Unit,
     onCreate: (String) -> Unit,
 ) {
     val c = MaterialTheme.grove
-    var title by remember { mutableStateOf("") }
+    var text by remember { mutableStateOf("") }
     androidx.compose.material3.AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = c.surface,
         title = {
             Text(
-                "New note under \"$parentTitle\"",
+                title,
                 fontFamily = PlexSans, fontWeight = FontWeight.SemiBold, fontSize = 16.sp, color = c.ink,
             )
         },
         text = {
             androidx.compose.material3.OutlinedTextField(
-                value = title,
-                onValueChange = { title = it },
+                value = text,
+                onValueChange = { text = it },
                 singleLine = true,
                 placeholder = { Text("Heading", color = c.ink3) },
             )
         },
         confirmButton = {
             androidx.compose.material3.TextButton(
-                onClick = { if (title.isNotBlank()) onCreate(title.trim()) },
-                enabled = title.isNotBlank(),
+                onClick = { if (text.isNotBlank()) onCreate(text.trim()) },
+                enabled = text.isNotBlank(),
             ) { Text("Create", color = c.accent, fontWeight = FontWeight.SemiBold) }
         },
         dismissButton = {

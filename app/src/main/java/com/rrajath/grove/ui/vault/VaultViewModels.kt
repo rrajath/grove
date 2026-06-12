@@ -173,13 +173,24 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
 
     val hasClipboard: Boolean get() = subtreeClipboard != null
 
-    fun newChild(headline: OrgHeadline, title: String) {
+    fun newChild(headline: OrgHeadline, title: String) = newNote { doc, options ->
+        OrgMutations.newChild(doc, headline, title, options)
+    }
+
+    /** Outline FAB: add a top-level note to this notebook (PRD §5.3). */
+    fun newTopLevelNote(title: String) = newNote { doc, options ->
+        OrgMutations.newTopLevel(doc, title, options)
+    }
+
+    private fun newNote(
+        insert: (OrgDocument, OrgMutations.NewNoteOptions) -> Pair<String, Int>,
+    ) {
         val loaded = _state.value as? DocumentUiState.Loaded ?: return
         val vault = app.vault.value ?: return
         viewModelScope.launch {
             val settings = app.settingsRepository.settings.first()
-            val (newText, _) = OrgMutations.newChild(
-                loaded.document, headline, title,
+            val (newText, _) = insert(
+                loaded.document,
                 OrgMutations.NewNoteOptions(
                     id = if (settings.addIdToNewNotes) UUID.randomUUID().toString() else null,
                     createdAt = if (settings.addCreatedToNewNotes) LocalDateTime.now() else null,

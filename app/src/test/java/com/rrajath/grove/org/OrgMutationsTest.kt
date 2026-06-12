@@ -175,6 +175,25 @@ class OrgMutationsTest {
     }
 
     @Test
+    fun `newTopLevel appends at end of file`() {
+        val (text, line) = OrgMutations.newTopLevel(doc, "Brand new")
+        val redoc = OrgParser.parse(text)
+        val fresh = redoc.findByTitle("Brand new")!!
+        assertEquals(1, fresh.level)
+        assertEquals(line, fresh.lineIndex)
+        assertEquals(redoc.headlines.last().title, "Brand new")
+        assertTrue(text.startsWith(doc.text.trimEnd('\n')))
+    }
+
+    @Test
+    fun `newTopLevel into empty document has no leading blank`() {
+        val empty = OrgParser.parse("")
+        val (text, line) = OrgMutations.newTopLevel(empty, "First note")
+        assertEquals("* First note\n", text)
+        assertEquals(0, line)
+    }
+
+    @Test
     fun `headlineLine formatting`() {
         assertEquals("** TODO [#A] Title  :a:b:", OrgMutations.headlineLine(2, "TODO", 'A', "Title", listOf("a", "b")))
         assertEquals("* Title", OrgMutations.headlineLine(1, null, null, "Title", emptyList()))

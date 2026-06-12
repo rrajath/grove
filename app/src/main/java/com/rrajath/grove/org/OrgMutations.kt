@@ -123,8 +123,22 @@ object OrgMutations {
         h: OrgHeadline,
         title: String,
         options: NewNoteOptions = NewNoteOptions(),
+    ): Pair<String, Int> = insertNote(doc, doc.subtreeEndLine(h), h.level + 1, title, options)
+
+    /** Append a new top-level note at the end of the file (outline FAB, PRD §5.3). */
+    fun newTopLevel(
+        doc: OrgDocument,
+        title: String,
+        options: NewNoteOptions = NewNoteOptions(),
+    ): Pair<String, Int> = insertNote(doc, doc.lines.size, 1, title, options)
+
+    private fun insertNote(
+        doc: OrgDocument,
+        atLine: Int,
+        level: Int,
+        title: String,
+        options: NewNoteOptions,
     ): Pair<String, Int> {
-        val level = h.level + 1
         val entry = buildList {
             add(headlineLine(level, options.keyword, null, title, emptyList()))
             if (options.id != null || options.createdAt != null) {
@@ -142,9 +156,13 @@ object OrgMutations {
                 add(":END:")
             }
         }
-        val at = doc.subtreeEndLine(h)
+        // An empty document is a single empty line — replace it instead of
+        // stacking the note under a leading blank.
+        if (doc.lines.all { it.isEmpty() }) {
+            return entry.joinToString("\n") + "\n" to 0
+        }
         val lines = doc.lines.toMutableList()
-        var insertAt = at
+        var insertAt = atLine.coerceIn(0, lines.size)
         if (insertAt == lines.size && lines.isNotEmpty() && lines.last().isEmpty()) insertAt--
         lines.addAll(insertAt, entry)
         return lines.joinToString("\n") to insertAt

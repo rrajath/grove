@@ -125,7 +125,6 @@ private fun GroveNavigation(settings: GroveSettings, viewModel: AppViewModel) {
                             ?: settings.defaultNoteOpenMode.storageKey
                         navController.navigate(Routes.note(ref.encode(), mode))
                     },
-                    onCapture = { navController.navigate(Routes.CAPTURE) },
                     displayFlags = OutlineDisplayFlags(
                         tags = settings.showTagsInOutline,
                         timestamps = settings.showTimestampsInOutline,
