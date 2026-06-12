@@ -7,13 +7,17 @@ import androidx.lifecycle.viewmodel.CreationExtras
 import com.rrajath.grove.GroveApplication
 import com.rrajath.grove.org.OrgDocument
 import com.rrajath.grove.org.OrgHeadline
+import com.rrajath.grove.org.OrgMutations
 import com.rrajath.grove.sync.SyncState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.LocalDateTime
+import java.util.UUID
 
 data class NotebookItem(
     val fileName: String,
@@ -131,7 +135,84 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
         }
     }
 
+    // --- structural outline operations (PRD §5.3) ---
+
+    private fun mutate(block: (OrgDocument, OrgHeadline) -> String?): (OrgHeadline) -> Unit =
+        { headline ->
+            val loaded = _state.value as? DocumentUiState.Loaded
+            val vault = app.vault.value
+            if (loaded != null && vault != null) {
+                viewModelScope.launch {
+                    val newText = block(loaded.document, headline)
+                    if (newText != null) {
+                        vault.save(loaded.fileName, newText)
+                        app.syncManager.requestSync("outline edit")
+                        load(loaded.fileName)
+                    }
+                }
+            }
+        }
+
+    val moveUp = mutate { d, h -> OrgMutations.moveSubtree(d, h, -1) }
+    val moveDown = mutate { d, h -> OrgMutations.moveSubtree(d, h, +1) }
+    val deleteSubtree = mutate { d, h -> OrgMutations.deleteSubtree(d, h) }
+
+    val cutSubtree = mutate { d, h ->
+        subtreeClipboard = OrgMutations.subtreeText(d, h)
+        OrgMutations.deleteSubtree(d, h)
+    }
+
+    fun copySubtree(headline: OrgHeadline) {
+        val loaded = _state.value as? DocumentUiState.Loaded ?: return
+        subtreeClipboard = OrgMutations.subtreeText(loaded.document, headline)
+    }
+
+    val pasteUnder = mutate { d, h ->
+        subtreeClipboard?.let { OrgMutations.pasteUnder(d, h, it) }
+    }
+
+    val hasClipboard: Boolean get() = subtreeClipboard != null
+
+    fun newChild(headline: OrgHeadline, title: String) {
+        val loaded = _state.value as? DocumentUiState.Loaded ?: return
+        val vault = app.vault.value ?: return
+        viewModelScope.launch {
+            val settings = app.settingsRepository.settings.first()
+            val (newText, _) = OrgMutations.newChild(
+                loaded.document, headline, title,
+                OrgMutations.NewNoteOptions(
+                    id = if (settings.addIdToNewNotes) UUID.randomUUID().toString() else null,
+                    createdAt = if (settings.addCreatedToNewNotes) LocalDateTime.now() else null,
+                ),
+            )
+            vault.save(loaded.fileName, newText)
+            app.syncManager.requestSync("note added")
+            load(loaded.fileName)
+        }
+    }
+
+    /** Swipe-right quick action: cycle TODO state (repeaters advance on done). */
+    fun cycleState(headline: OrgHeadline) {
+        val loaded = _state.value as? DocumentUiState.Loaded ?: return
+        val vault = app.vault.value ?: return
+        viewModelScope.launch {
+            val keywords = loaded.document.keywords
+            val next = keywords.next(headline.keyword)
+            val newText = if (next != null && keywords.isDone(next)) {
+                OrgMutations.markDone(loaded.document, headline, next, LocalDateTime.now())
+            } else {
+                OrgMutations.setKeyword(loaded.document, headline, next)
+            }
+            vault.save(loaded.fileName, newText)
+            app.syncManager.requestSync("state cycled")
+            load(loaded.fileName)
+        }
+    }
+
     companion object {
+        /** App-level cut/copy buffer for subtrees. */
+        private var subtreeClipboard: String? = null
+
         val Factory = factory { DocumentViewModel(it) }
     }
 }

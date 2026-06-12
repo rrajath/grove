@@ -2,6 +2,7 @@ package com.rrajath.grove.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -58,6 +59,9 @@ fun OutlineScreen(
 
     // Collapsed headline line-indices (default: all expanded)
     var collapsed by remember(notebookId) { mutableStateOf(setOf<Int>()) }
+    // "Show in context": narrow the view to one subtree (swipe-left in the spec)
+    var narrowedTo by remember(notebookId) { mutableStateOf<Int?>(null) }
+    var newChildFor by remember { mutableStateOf<OrgHeadline?>(null) }
 
     Scaffold(
         containerColor = c.bg,
@@ -105,29 +109,129 @@ fun OutlineScreen(
 
             is DocumentUiState.Loaded -> {
                 val doc = s.document
-                val visible = remember(doc, collapsed) { visibleHeadlines(doc, collapsed) }
-                LazyColumn(
-                    Modifier
-                        .fillMaxSize()
-                        .padding(padding)
-                        .padding(horizontal = 10.dp),
-                ) {
-                    items(visible, key = { it.lineIndex }) { h ->
-                        OutlineNode(
-                            doc = doc,
-                            headline = h,
-                            isCollapsed = h.lineIndex in collapsed,
-                            onToggle = {
-                                collapsed = if (h.lineIndex in collapsed) collapsed - h.lineIndex
-                                else collapsed + h.lineIndex
-                            },
-                            onOpen = { onOpenNote(NoteRef(notebookId, h.lineIndex)) },
-                        )
+                val visible = remember(doc, collapsed, narrowedTo) {
+                    val all = visibleHeadlines(doc, collapsed)
+                    val narrowLine = narrowedTo
+                    if (narrowLine == null) all
+                    else {
+                        val root = doc.headlines.firstOrNull { it.lineIndex == narrowLine }
+                        if (root == null) all
+                        else {
+                            val subtreeLines = (doc.subtree(root) + root).map { it.lineIndex }.toSet()
+                            all.filter { it.lineIndex in subtreeLines }
+                        }
+                    }
+                }
+                Column(Modifier.fillMaxSize().padding(padding)) {
+                    if (narrowedTo != null) {
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .clickable { narrowedTo = null }
+                                .padding(horizontal = 14.dp, vertical = 7.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                "◂ narrowed — tap to show all",
+                                fontFamily = PlexMono, fontSize = 11.5.sp, color = c.accent,
+                            )
+                        }
+                    }
+                    LazyColumn(
+                        Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 10.dp),
+                    ) {
+                        items(visible, key = { it.lineIndex }) { h ->
+                            OutlineNode(
+                                doc = doc,
+                                headline = h,
+                                isCollapsed = h.lineIndex in collapsed,
+                                onToggle = {
+                                    collapsed = if (h.lineIndex in collapsed) collapsed - h.lineIndex
+                                    else collapsed + h.lineIndex
+                                },
+                                onOpen = { onOpenNote(NoteRef(notebookId, h.lineIndex)) },
+                                ops = NodeOps(
+                                    onEdit = { onOpenNote(NoteRef(notebookId, h.lineIndex)) },
+                                    onNewChild = { newChildFor = h },
+                                    onCycleState = { viewModel.cycleState(h) },
+                                    onMoveUp = { viewModel.moveUp(h) },
+                                    onMoveDown = { viewModel.moveDown(h) },
+                                    onCut = { viewModel.cutSubtree(h) },
+                                    onCopy = { viewModel.copySubtree(h) },
+                                    onPaste = if (viewModel.hasClipboard) ({ viewModel.pasteUnder(h) }) else null,
+                                    onNarrow = { narrowedTo = h.lineIndex },
+                                    onDelete = { viewModel.deleteSubtree(h) },
+                                ),
+                            )
+                        }
                     }
                 }
             }
         }
     }
+
+    newChildFor?.let { parent ->
+        NewChildDialog(
+            parentTitle = parent.title,
+            onDismiss = { newChildFor = null },
+            onCreate = { title ->
+                viewModel.newChild(parent, title)
+                newChildFor = null
+            },
+        )
+    }
+}
+
+data class NodeOps(
+    val onEdit: () -> Unit,
+    val onNewChild: () -> Unit,
+    val onCycleState: () -> Unit,
+    val onMoveUp: () -> Unit,
+    val onMoveDown: () -> Unit,
+    val onCut: () -> Unit,
+    val onCopy: () -> Unit,
+    val onPaste: (() -> Unit)?,
+    val onNarrow: () -> Unit,
+    val onDelete: () -> Unit,
+)
+
+@Composable
+private fun NewChildDialog(
+    parentTitle: String,
+    onDismiss: () -> Unit,
+    onCreate: (String) -> Unit,
+) {
+    val c = MaterialTheme.grove
+    var title by remember { mutableStateOf("") }
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = c.surface,
+        title = {
+            Text(
+                "New note under \"$parentTitle\"",
+                fontFamily = PlexSans, fontWeight = FontWeight.SemiBold, fontSize = 16.sp, color = c.ink,
+            )
+        },
+        text = {
+            androidx.compose.material3.OutlinedTextField(
+                value = title,
+                onValueChange = { title = it },
+                singleLine = true,
+                placeholder = { Text("Heading", color = c.ink3) },
+            )
+        },
+        confirmButton = {
+            androidx.compose.material3.TextButton(
+                onClick = { if (title.isNotBlank()) onCreate(title.trim()) },
+                enabled = title.isNotBlank(),
+            ) { Text("Create", color = c.accent, fontWeight = FontWeight.SemiBold) }
+        },
+        dismissButton = {
+            androidx.compose.material3.TextButton(onClick = onDismiss) { Text("Cancel", color = c.ink2) }
+        },
+    )
 }
 
 private fun visibleHeadlines(doc: OrgDocument, collapsed: Set<Int>): List<OrgHeadline> {
@@ -145,6 +249,7 @@ private fun visibleHeadlines(doc: OrgDocument, collapsed: Set<Int>): List<OrgHea
     return result
 }
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 private fun OutlineNode(
     doc: OrgDocument,
@@ -152,17 +257,25 @@ private fun OutlineNode(
     isCollapsed: Boolean,
     onToggle: () -> Unit,
     onOpen: () -> Unit,
+    ops: NodeOps,
 ) {
     val c = MaterialTheme.grove
     val childCount = remember(doc, headline) { doc.directChildren(headline).size }
     val hasChildren = childCount > 0
     val isDone = headline.keyword != null && doc.keywords.isDone(headline.keyword)
+    var menuOpen by remember { mutableStateOf(false) }
 
+    Box {
+        NodeMenu(
+            expanded = menuOpen,
+            onDismiss = { menuOpen = false },
+            ops = ops,
+        )
     Row(
         Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(10.dp))
-            .clickable(onClick = onOpen)
+            .combinedClickable(onClick = onOpen, onLongClick = { menuOpen = true })
             .padding(
                 start = (22 * (headline.level - 1)).dp,
                 top = 9.dp, bottom = 9.dp, end = 6.dp,
@@ -268,5 +381,34 @@ private fun OutlineNode(
                 fontFamily = PlexMono, fontSize = 11.sp, color = c.synTag,
             )
         }
+    }
+    }
+}
+
+@Composable
+private fun NodeMenu(expanded: Boolean, onDismiss: () -> Unit, ops: NodeOps) {
+    val c = MaterialTheme.grove
+    androidx.compose.material3.DropdownMenu(
+        expanded = expanded,
+        onDismissRequest = onDismiss,
+        containerColor = c.surface,
+    ) {
+        @Composable
+        fun item(label: String, color: androidx.compose.ui.graphics.Color = c.ink, action: () -> Unit) {
+            androidx.compose.material3.DropdownMenuItem(
+                text = { Text(label, fontFamily = PlexSans, fontSize = 14.sp, color = color) },
+                onClick = { onDismiss(); action() },
+            )
+        }
+        item("Edit", action = ops.onEdit)
+        item("New sub-note", action = ops.onNewChild)
+        item("Cycle state", action = ops.onCycleState)
+        item("Move up", action = ops.onMoveUp)
+        item("Move down", action = ops.onMoveDown)
+        item("Cut", action = ops.onCut)
+        item("Copy", action = ops.onCopy)
+        ops.onPaste?.let { item("Paste under", action = it) }
+        item("Show in context", action = ops.onNarrow)
+        item("Delete", color = c.red, action = ops.onDelete)
     }
 }

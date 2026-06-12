@@ -22,7 +22,19 @@ data class GroveSettings(
     val vaultTreeUri: String? = null,
     val syncMode: SyncMode = SyncMode.ON_OPEN_CLOSE,
     val periodicSyncMinutes: Int = 30,
-)
+    /** Org TODO keyword config, `|` splits done-type ("TODO IN-PROGRESS | DONE CANCELLED"). */
+    val todoKeywords: String = DEFAULT_TODO_KEYWORDS,
+    /** Default priority for the metadata sheet; null = none. */
+    val defaultPriority: Char? = null,
+    val addIdToNewNotes: Boolean = false,
+    val addCreatedToNewNotes: Boolean = true,
+    /** Per-notebook last-used note mode overrides: "file.org" → "read"/"edit". */
+    val notebookModes: Map<String, String> = emptyMap(),
+) {
+    companion object {
+        const val DEFAULT_TODO_KEYWORDS = "TODO IN-PROGRESS | DONE CANCELLED"
+    }
+}
 
 class SettingsRepository(private val context: Context) {
 
@@ -34,6 +46,11 @@ class SettingsRepository(private val context: Context) {
         val vaultTreeUri = stringPreferencesKey("vault_tree_uri")
         val syncMode = stringPreferencesKey("sync_mode")
         val periodicSyncMinutes = intPreferencesKey("periodic_sync_minutes")
+        val todoKeywords = stringPreferencesKey("todo_keywords")
+        val defaultPriority = stringPreferencesKey("default_priority")
+        val addIdToNewNotes = booleanPreferencesKey("add_id_to_new_notes")
+        val addCreatedToNewNotes = booleanPreferencesKey("add_created_to_new_notes")
+        val notebookModes = stringPreferencesKey("notebook_modes")
     }
 
     val settings: Flow<GroveSettings> = context.settingsDataStore.data.map { prefs ->
@@ -45,8 +62,22 @@ class SettingsRepository(private val context: Context) {
             vaultTreeUri = prefs[Keys.vaultTreeUri],
             syncMode = SyncMode.fromStorage(prefs[Keys.syncMode]),
             periodicSyncMinutes = prefs[Keys.periodicSyncMinutes] ?: 30,
+            todoKeywords = prefs[Keys.todoKeywords] ?: GroveSettings.DEFAULT_TODO_KEYWORDS,
+            defaultPriority = prefs[Keys.defaultPriority]?.firstOrNull(),
+            addIdToNewNotes = prefs[Keys.addIdToNewNotes] ?: false,
+            addCreatedToNewNotes = prefs[Keys.addCreatedToNewNotes] ?: true,
+            notebookModes = decodeModes(prefs[Keys.notebookModes]),
         )
     }
+
+    private fun decodeModes(raw: String?): Map<String, String> =
+        raw?.split(';')
+            ?.mapNotNull { entry ->
+                val eq = entry.lastIndexOf('=')
+                if (eq <= 0) null else entry.substring(0, eq) to entry.substring(eq + 1)
+            }
+            ?.toMap()
+            ?: emptyMap()
 
     suspend fun setTheme(theme: ThemePreference) {
         context.settingsDataStore.edit { it[Keys.theme] = theme.storageKey }
@@ -74,5 +105,32 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setPeriodicSyncMinutes(minutes: Int) {
         context.settingsDataStore.edit { it[Keys.periodicSyncMinutes] = minutes }
+    }
+
+    suspend fun setTodoKeywords(config: String) {
+        context.settingsDataStore.edit { it[Keys.todoKeywords] = config }
+    }
+
+    suspend fun setDefaultPriority(priority: Char?) {
+        context.settingsDataStore.edit {
+            if (priority == null) it.remove(Keys.defaultPriority)
+            else it[Keys.defaultPriority] = priority.toString()
+        }
+    }
+
+    suspend fun setAddIdToNewNotes(enabled: Boolean) {
+        context.settingsDataStore.edit { it[Keys.addIdToNewNotes] = enabled }
+    }
+
+    suspend fun setAddCreatedToNewNotes(enabled: Boolean) {
+        context.settingsDataStore.edit { it[Keys.addCreatedToNewNotes] = enabled }
+    }
+
+    suspend fun setNotebookMode(fileName: String, mode: NoteOpenMode) {
+        context.settingsDataStore.edit { prefs ->
+            val current = decodeModes(prefs[Keys.notebookModes]).toMutableMap()
+            current[fileName] = mode.storageKey
+            prefs[Keys.notebookModes] = current.entries.joinToString(";") { "${it.key}=${it.value}" }
+        }
     }
 }

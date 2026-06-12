@@ -43,6 +43,7 @@ class SyncManager(
     private val context: Context,
     private val scope: CoroutineScope,
     private val database: GroveDatabase,
+    private val keywords: () -> com.rrajath.grove.org.OrgKeywords = { com.rrajath.grove.org.OrgKeywords.DEFAULT },
 ) {
     private val mutex = Mutex()
     private var engine: SyncEngine? = null
@@ -61,7 +62,7 @@ class SyncManager(
         this.store = store
         stateJob?.cancel()
         engine = store?.let {
-            SyncEngine(it, RoomNoteIndex(database.indexDao())) { System.currentTimeMillis() }
+            SyncEngine(it, RoomNoteIndex(database.indexDao(), keywords)) { System.currentTimeMillis() }
         }
         engine?.let { e ->
             stateJob = scope.launch { e.state.collect { _state.value = it } }

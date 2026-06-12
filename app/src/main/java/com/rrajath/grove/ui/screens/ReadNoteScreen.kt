@@ -69,10 +69,23 @@ fun ReadNoteScreen(
     noteRef: NoteRef,
     onBack: () -> Unit,
     onOpenNote: (NoteRef) -> Unit,
+    onEdit: () -> Unit,
     viewModel: DocumentViewModel = viewModel(factory = DocumentViewModel.Factory),
 ) {
     val c = MaterialTheme.grove
     val state by viewModel.state.collectAsState()
+    // Reload whenever the screen comes back to the foreground (e.g. returning
+    // from the editor) so saved edits show immediately.
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    androidx.compose.runtime.DisposableEffect(lifecycleOwner, noteRef.fileName) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                viewModel.load(noteRef.fileName)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
     LaunchedEffect(noteRef.fileName) { viewModel.load(noteRef.fileName) }
 
     Scaffold(
@@ -85,7 +98,7 @@ fun ReadNoteScreen(
                     SegmentedControl(
                         options = listOf("Read", "Edit"),
                         selectedIndex = 0,
-                        onSelect = { /* Edit mode arrives in M5 */ },
+                        onSelect = { if (it == 1) onEdit() },
                         modifier = Modifier.width(140.dp),
                     )
                 },

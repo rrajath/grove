@@ -8,6 +8,7 @@ import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
@@ -19,7 +20,9 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.rrajath.grove.settings.GroveSettings
+import com.rrajath.grove.settings.NoteOpenMode
 import com.rrajath.grove.ui.capture.CaptureEditorScreen
+import com.rrajath.grove.ui.editor.EditNoteScreen
 import com.rrajath.grove.ui.capture.CapturePickerSheet
 import com.rrajath.grove.ui.capture.TemplateEditScreen
 import com.rrajath.grove.ui.nav.Routes
@@ -106,20 +109,47 @@ private fun GroveNavigation(settings: GroveSettings, viewModel: AppViewModel) {
                 OutlineScreen(
                     notebookId = entry.arguments?.getString("notebookId").orEmpty(),
                     onBack = { navController.popBackStack() },
-                    onOpenNote = { ref -> navController.navigate(Routes.note(ref.encode())) },
+                    onOpenNote = { ref ->
+                        // Default mode: per-notebook memory, then the global setting.
+                        val mode = settings.notebookModes[ref.fileName]
+                            ?: settings.defaultNoteOpenMode.storageKey
+                        navController.navigate(Routes.note(ref.encode(), mode))
+                    },
                     onCapture = { navController.navigate(Routes.CAPTURE) },
                 )
             }
             composable(Routes.NOTE) { entry ->
                 val noteId = entry.arguments?.getString("noteId").orEmpty()
+                val mode = entry.arguments?.getString("mode") ?: "read"
                 val ref = NoteRef.decode(noteId)
                 if (ref == null) {
                     navController.popBackStack()
+                } else if (mode == "edit") {
+                    LaunchedEffect(ref.fileName) {
+                        viewModel.recordNotebookMode(ref.fileName, NoteOpenMode.EDIT)
+                    }
+                    EditNoteScreen(
+                        noteRef = ref,
+                        onBack = { navController.popBackStack() },
+                        onSwitchToRead = {
+                            navController.navigate(Routes.note(ref.encode(), "read")) {
+                                popUpTo(Routes.NOTE) { inclusive = true }
+                            }
+                        },
+                    )
                 } else {
+                    LaunchedEffect(ref.fileName) {
+                        viewModel.recordNotebookMode(ref.fileName, NoteOpenMode.READ)
+                    }
                     ReadNoteScreen(
                         noteRef = ref,
                         onBack = { navController.popBackStack() },
                         onOpenNote = { target -> navController.navigate(Routes.note(target.encode())) },
+                        onEdit = {
+                            navController.navigate(Routes.note(ref.encode(), "edit")) {
+                                popUpTo(Routes.NOTE) { inclusive = true }
+                            }
+                        },
                     )
                 }
             }
@@ -176,6 +206,10 @@ private fun GroveNavigation(settings: GroveSettings, viewModel: AppViewModel) {
                     onSetSyncMode = viewModel::setSyncMode,
                     onSetPeriodicMinutes = viewModel::setPeriodicSyncMinutes,
                     onOpenSyncLog = { navController.navigate(Routes.SYNC_LOG) },
+                    onSetTodoKeywords = viewModel::setTodoKeywords,
+                    onSetDefaultPriority = viewModel::setDefaultPriority,
+                    onSetAddId = viewModel::setAddIdToNewNotes,
+                    onSetAddCreated = viewModel::setAddCreatedToNewNotes,
                 )
             }
         }

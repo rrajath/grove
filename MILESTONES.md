@@ -59,14 +59,17 @@ Plan reference: PRD in `prd-android-orgmode-app.md`, design spec in `design/READ
 - [x] Verified: 112 unit tests green, assembleDebug green, committed
 - Notes: trash = `.trash` rename (flat SAF vault, still synced/recoverable) instead of a trash folder; Force Save deferred to M5 where an in-app dirty buffer first exists; conflict notification posts only if POST_NOTIFICATIONS already granted (permission prompt comes with M7 notification work)
 
-## M5 — Full editor
+## M5 — Full editor ✅
 
-- [ ] Raw editor with syntax highlighting (VisualTransformation) + formatting toolbar
-- [ ] Metadata sheet: state / priority / tags / SCHEDULED / DEADLINE with org-valid timestamps
-- [ ] Autosave on navigate-away; tag & keyword autocomplete
-- [ ] Repeater advancement on DONE (`+`, `++`, `.+`)
-- [ ] Outline structural ops: new sub-note, move, cut/copy/paste, delete, swipe actions
-- [ ] Settings → Notes group
+- [x] Raw subtree editor with line-based syntax highlighting (`OrgVisualTransformation`, identity offsets) + toolbar (B/I/U/code/link/timestamp/heading/keyboard-dismiss)
+- [x] Metadata sheet: state chips / priority / tags with autocomplete from the index / SCHEDULED / DEADLINE date pickers emitting org timestamps
+- [x] Autosave on navigate-away with stale-file guard (file changed on disk → Overwrite = Force Save, or Reload)
+- [x] Repeater advancement on DONE (`+`, `++`, `.+`); non-repeating tasks get keyword + CLOSED stamp
+- [x] Outline ops via long-press menu: edit, new sub-note (honors ID/CREATED settings), cycle state, move up/down, cut/copy/paste-under (releveled), show-in-context narrowing, delete
+- [x] Settings → Notes group: TODO keywords config (re-indexes), default priority, Add ID, Add CREATED
+- [x] Read↔Edit toggle with per-notebook last-mode memory; default-mode setting honored
+- [x] Verified: 126 unit tests green, assembleDebug green, committed
+- Note: swipe gestures (right=quick action, left=narrow) deferred to M7 polish — same operations available from the long-press menu
 
 ## M6 — Search, saved searches, agenda
 

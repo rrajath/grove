@@ -7,6 +7,7 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
 import com.rrajath.grove.capture.TemplatesRepository
 import com.rrajath.grove.data.GroveDatabase
+import com.rrajath.grove.org.OrgKeywords
 import com.rrajath.grove.settings.SettingsRepository
 import com.rrajath.grove.sync.SyncManager
 import com.rrajath.grove.vault.FileStore
@@ -17,7 +18,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -34,7 +37,18 @@ class GroveApplication : Application() {
 
     val database: GroveDatabase by lazy { GroveDatabase.build(this) }
 
-    val syncManager: SyncManager by lazy { SyncManager(this, appScope, database) }
+    /** Current TODO keyword config; parser consumers read this. */
+    val keywords: StateFlow<OrgKeywords> by lazy {
+        settingsRepository.settings
+            .map { it.todoKeywords }
+            .distinctUntilChanged()
+            .map { OrgKeywords.parse(it) }
+            .stateIn(appScope, SharingStarted.Eagerly, OrgKeywords.DEFAULT)
+    }
+
+    val syncManager: SyncManager by lazy {
+        SyncManager(this, appScope, database) { keywords.value }
+    }
 
     /** The active vault file store, swapping whenever the configured tree URI changes. */
     val fileStore: StateFlow<FileStore?> by lazy {
@@ -46,8 +60,7 @@ class GroveApplication : Application() {
     }
 
     val vault: StateFlow<Vault?> by lazy {
-        fileStore
-            .map { store -> store?.let { Vault(it) } }
+        combine(fileStore, keywords) { store, kw -> store?.let { Vault(it, kw) } }
             .stateIn(appScope, SharingStarted.Eagerly, null)
     }
 
@@ -56,6 +69,13 @@ class GroveApplication : Application() {
 
         appScope.launch {
             fileStore.collect { syncManager.attach(it) }
+        }
+        appScope.launch {
+            // Keyword config changes how files parse — rebuild the index.
+            keywords.drop(1).collect {
+                database.indexDao().clearAll()
+                syncManager.requestSync("keyword config changed")
+            }
         }
         appScope.launch {
             settingsRepository.settings

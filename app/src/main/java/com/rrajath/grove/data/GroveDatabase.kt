@@ -100,6 +100,19 @@ interface IndexDao {
         deleteNotebook(fileName)
         deleteNotes(fileName)
     }
+
+    @Query("DELETE FROM notebooks")
+    suspend fun clearNotebooks()
+
+    @Query("DELETE FROM notes")
+    suspend fun clearNotes()
+
+    /** Wipe the whole index (rebuilt on next sync — it's only a cache). */
+    @Transaction
+    suspend fun clearAll() {
+        clearNotebooks()
+        clearNotes()
+    }
 }
 
 @Dao

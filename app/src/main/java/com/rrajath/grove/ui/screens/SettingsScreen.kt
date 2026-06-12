@@ -18,13 +18,18 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -55,6 +60,10 @@ fun SettingsScreen(
     onSetSyncMode: (SyncMode) -> Unit,
     onSetPeriodicMinutes: (Int) -> Unit,
     onOpenSyncLog: () -> Unit,
+    onSetTodoKeywords: (String) -> Unit,
+    onSetDefaultPriority: (Char?) -> Unit,
+    onSetAddId: (Boolean) -> Unit,
+    onSetAddCreated: (Boolean) -> Unit,
     templatesViewModel: TemplatesViewModel = viewModel(factory = TemplatesViewModel.Factory),
 ) {
     val c = MaterialTheme.grove
@@ -194,7 +203,63 @@ fun SettingsScreen(
 
             SectionLabel("NOTES")
             SettingsGroup {
-                PlaceholderRow("TODO keywords and note options arrive with the editor (M5)")
+                Column(Modifier.padding(horizontal = 15.dp, vertical = 10.dp)) {
+                    Text(
+                        "TODO keywords",
+                        fontFamily = PlexSans, fontWeight = FontWeight.Medium,
+                        fontSize = 14.5.sp, color = c.ink,
+                    )
+                    Text(
+                        "Keywords after | are done-type",
+                        fontFamily = PlexSans, fontSize = 12.sp, color = c.ink3,
+                        modifier = Modifier.padding(bottom = 6.dp),
+                    )
+                    var keywordsText by remember(settings.todoKeywords) {
+                        mutableStateOf(settings.todoKeywords)
+                    }
+                    OutlinedTextField(
+                        value = keywordsText,
+                        onValueChange = { keywordsText = it },
+                        singleLine = true,
+                        textStyle = TextStyle(fontFamily = PlexMono, fontSize = 13.sp),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    if (keywordsText != settings.todoKeywords) {
+                        Text(
+                            "Apply (re-indexes all notebooks)",
+                            fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
+                            fontSize = 13.sp, color = c.accent,
+                            modifier = Modifier
+                                .padding(top = 6.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { onSetTodoKeywords(keywordsText) }
+                                .padding(6.dp),
+                        )
+                    }
+                }
+                RowDivider()
+                SettingsRow(label = "Default priority") {
+                    SegmentedControl(
+                        options = listOf("None", "A", "B", "C"),
+                        selectedIndex = when (settings.defaultPriority) {
+                            'A' -> 1; 'B' -> 2; 'C' -> 3; else -> 0
+                        },
+                        onSelect = { onSetDefaultPriority(listOf(null, 'A', 'B', 'C')[it]) },
+                        modifier = Modifier.width(200.dp),
+                    )
+                }
+                RowDivider()
+                ToggleRow(
+                    label = "Add ID to new notes",
+                    checked = settings.addIdToNewNotes,
+                    onToggle = onSetAddId,
+                )
+                RowDivider()
+                ToggleRow(
+                    label = "Add CREATED timestamp",
+                    checked = settings.addCreatedToNewNotes,
+                    onToggle = onSetAddCreated,
+                )
             }
 
             Text(
@@ -311,6 +376,35 @@ private fun SmallAction(glyph: String, enabled: Boolean, onClick: () -> Unit) {
             glyph,
             fontFamily = PlexMono, fontSize = 13.sp,
             color = if (enabled) c.ink2 else c.line2,
+        )
+    }
+}
+
+@Composable
+private fun ToggleRow(label: String, checked: Boolean, onToggle: (Boolean) -> Unit) {
+    val c = MaterialTheme.grove
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clickable { onToggle(!checked) }
+            .padding(horizontal = 15.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            label,
+            fontFamily = PlexSans, fontWeight = FontWeight.Medium,
+            fontSize = 14.5.sp, color = c.ink,
+            modifier = Modifier.weight(1f),
+        )
+        androidx.compose.material3.Switch(
+            checked = checked,
+            onCheckedChange = onToggle,
+            colors = androidx.compose.material3.SwitchDefaults.colors(
+                checkedTrackColor = c.accent,
+                checkedThumbColor = c.accentInk,
+                uncheckedTrackColor = c.surface3,
+                uncheckedThumbColor = c.surface,
+            ),
         )
     }
 }

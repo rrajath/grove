@@ -43,6 +43,11 @@ class Vault(
             }
     }
 
+    /** Current revision marker ("mtime:size") of a file, or null if missing. */
+    suspend fun revision(fileName: String): String? =
+        store.list().firstOrNull { it.name == fileName }
+            ?.let { "${it.lastModified}:${it.size}" }
+
     suspend fun open(fileName: String): OrgDocument? {
         val entry = store.list().firstOrNull { it.name == fileName } ?: return null
         return document(entry)

@@ -45,6 +45,21 @@ class AppViewModel(private val settingsRepository: SettingsRepository) : ViewMod
     fun setPeriodicSyncMinutes(minutes: Int) =
         viewModelScope.launch { settingsRepository.setPeriodicSyncMinutes(minutes) }
 
+    fun setTodoKeywords(config: String) =
+        viewModelScope.launch { settingsRepository.setTodoKeywords(config) }
+
+    fun setDefaultPriority(priority: Char?) =
+        viewModelScope.launch { settingsRepository.setDefaultPriority(priority) }
+
+    fun setAddIdToNewNotes(enabled: Boolean) =
+        viewModelScope.launch { settingsRepository.setAddIdToNewNotes(enabled) }
+
+    fun setAddCreatedToNewNotes(enabled: Boolean) =
+        viewModelScope.launch { settingsRepository.setAddCreatedToNewNotes(enabled) }
+
+    fun recordNotebookMode(fileName: String, mode: NoteOpenMode) =
+        viewModelScope.launch { settingsRepository.setNotebookMode(fileName, mode) }
+
     companion object {
         val Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")

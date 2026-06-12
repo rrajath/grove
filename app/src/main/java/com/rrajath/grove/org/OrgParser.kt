@@ -98,6 +98,10 @@ class OrgDocument(
         return lines.subList(h.bodyStart, end)
     }
 
+    /** Exclusive end line of [h]'s entire subtree (own content + descendants). */
+    fun subtreeEndLine(h: OrgHeadline): Int =
+        (subtree(h).lastOrNull() ?: h).contentEnd
+
     fun findById(id: String): OrgHeadline? = headlines.firstOrNull { it.id == id }
     fun findByCustomId(customId: String): OrgHeadline? =
         headlines.firstOrNull { it.customId == customId }
