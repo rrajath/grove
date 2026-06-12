@@ -14,8 +14,8 @@ sealed class OrgBlock {
 
 object BlockParser {
 
-    private val UNORDERED = Regex("""^(\s*)[-+]\s+(?:\[([ Xx-])]\s+)?(.*)$""")
-    private val ORDERED = Regex("""^(\s*)\d+[.)]\s+(?:\[([ Xx-])]\s+)?(.*)$""")
+    private val UNORDERED = Regex("""^(\s*)[-+]\s+(?:\[([ Xx-])\]\s+)?(.*)$""")
+    private val ORDERED = Regex("""^(\s*)\d+[.)]\s+(?:\[([ Xx-])\]\s+)?(.*)$""")
     private val BEGIN_SRC = Regex("""^\s*#\+(?i:BEGIN_SRC)\s*(\S*)""")
     private val END_SRC = Regex("""^\s*#\+(?i:END_SRC)\s*$""")
     private val BEGIN_EXAMPLE = Regex("""^\s*#\+(?i:BEGIN_EXAMPLE)""")

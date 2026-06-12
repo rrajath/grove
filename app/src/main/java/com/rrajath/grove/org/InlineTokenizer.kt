@@ -24,8 +24,8 @@ data class InlineToken(
  */
 object InlineTokenizer {
 
-    // [[target][label]] or [[target]]
-    private val LINK = Regex("""\[\[([^\[\]]+)](?:\[([^\[\]]+)])?]""")
+    // [[target][label]] or [[target]] — brackets escaped for Android's stricter ICU engine
+    private val LINK = Regex("""\[\[([^\[\]]+)\](?:\[([^\[\]]+)\])?\]""")
 
     // Bare URLs and other schemes org recognizes unbracketed
     private val BARE_URL = Regex("""(?:https?://|mailto:|tel:|sms:|geo:|file:)[^\s\[\]<>]+""")

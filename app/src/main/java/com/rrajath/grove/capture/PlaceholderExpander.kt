@@ -24,7 +24,9 @@ data class ExpandedTemplate(
 /** Expands org-capture style placeholders (PRD §7.3). */
 object PlaceholderExpander {
 
-    private val PROMPT = Regex("""%\^\{([^}]*)}""")
+    // Closing brace must be escaped: Android's ICU regex engine rejects a bare
+    // `}` outside a character class (the JVM engine used in unit tests allows it).
+    private val PROMPT = Regex("""%\^\{([^}]*)\}""")
 
     /** Prompts the UI must collect (in order, deduplicated) before expanding. */
     fun prompts(template: String): List<String> =
