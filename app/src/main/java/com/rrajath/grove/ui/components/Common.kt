@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -91,7 +92,11 @@ fun SegmentedControl(
     }
 }
 
-/** 56dp app bar row per design spec: leading slot, title block, trailing actions. */
+/**
+ * 56dp app bar row per design spec: leading slot, title block, trailing actions.
+ * Consumes the status-bar inset itself — Scaffold does not pad the topBar slot,
+ * so without this the bar sits under the status bar in edge-to-edge mode.
+ */
 @Composable
 fun GroveTopBar(
     modifier: Modifier = Modifier,
@@ -102,6 +107,7 @@ fun GroveTopBar(
     Row(
         modifier
             .fillMaxWidth()
+            .statusBarsPadding()
             .height(56.dp)
             .padding(horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
