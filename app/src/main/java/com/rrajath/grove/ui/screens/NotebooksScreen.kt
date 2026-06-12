@@ -70,6 +70,7 @@ fun NotebooksScreen(
     val context = LocalContext.current
     var showCreateDialog by remember { mutableStateOf(false) }
     var renameTarget by remember { mutableStateOf<String?>(null) }
+    var iconTarget by remember { mutableStateOf<NotebookItem?>(null) }
 
     val folderPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocumentTree()
@@ -147,6 +148,7 @@ fun NotebooksScreen(
                                     onClick = { onOpenNotebook(nb.fileName) },
                                     onOpenConflict = { onOpenConflict(nb.fileName) },
                                     onRename = { renameTarget = nb.fileName },
+                                    onChangeIcon = { iconTarget = nb },
                                     onDelete = { viewModel.trashNotebook(nb.fileName) },
                                     onForceReload = { viewModel.forceReload(nb.fileName) },
                                 )
@@ -182,6 +184,67 @@ fun NotebooksScreen(
             },
         )
     }
+    iconTarget?.let { target ->
+        IconPickerDialog(
+            notebook = target,
+            onDismiss = { iconTarget = null },
+            onPick = { glyph ->
+                viewModel.setNotebookIcon(target.fileName, glyph)
+                iconTarget = null
+            },
+        )
+    }
+}
+
+@Composable
+private fun IconPickerDialog(
+    notebook: NotebookItem,
+    onDismiss: () -> Unit,
+    onPick: (String) -> Unit,
+) {
+    val c = MaterialTheme.grove
+    val current = notebookStyle(c, notebook.fileName, notebook.icon).first
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = c.surface,
+        title = {
+            Text(
+                "Icon for ${notebook.fileName}",
+                fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
+                fontSize = 16.sp, color = c.ink,
+            )
+        },
+        text = {
+            Row {
+                GLYPHS.forEach { glyph ->
+                    Box(
+                        Modifier
+                            .padding(end = 6.dp)
+                            .size(38.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(if (glyph == current) c.accentSoft else c.surface2)
+                            .border(
+                                1.dp,
+                                if (glyph == current) c.accent else c.line,
+                                RoundedCornerShape(12.dp),
+                            )
+                            .clickable { onPick(glyph) },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            glyph,
+                            fontFamily = PlexMono, fontWeight = FontWeight.SemiBold,
+                            fontSize = 17.sp, color = if (glyph == current) c.accent else c.ink2,
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel", color = c.ink2) }
+        },
+    )
 }
 
 @Composable
@@ -227,7 +290,11 @@ private fun SyncStatusStrip(state: NotebooksUiState.Loaded, onConflictTap: (Stri
 
 private val GLYPHS = listOf("✦", "✶", "✸", "✺", "❋", "✷")
 
-private fun notebookStyle(c: GroveColors, name: String): Triple<String, androidx.compose.ui.graphics.Color, androidx.compose.ui.graphics.Color> {
+private fun notebookStyle(
+    c: GroveColors,
+    name: String,
+    iconOverride: String? = null,
+): Triple<String, androidx.compose.ui.graphics.Color, androidx.compose.ui.graphics.Color> {
     val palettes = listOf(
         c.green to c.greenSoft,
         c.accent to c.accentSoft,
@@ -236,7 +303,7 @@ private fun notebookStyle(c: GroveColors, name: String): Triple<String, androidx
     )
     val hash = name.hashCode().let { if (it == Int.MIN_VALUE) 0 else kotlin.math.abs(it) }
     val (fg, bg) = palettes[hash % palettes.size]
-    return Triple(GLYPHS[hash % GLYPHS.size], fg, bg)
+    return Triple(iconOverride ?: GLYPHS[hash % GLYPHS.size], fg, bg)
 }
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -246,11 +313,14 @@ private fun NotebookRow(
     onClick: () -> Unit,
     onOpenConflict: () -> Unit,
     onRename: () -> Unit,
+    onChangeIcon: () -> Unit,
     onDelete: () -> Unit,
     onForceReload: () -> Unit,
 ) {
     val c = MaterialTheme.grove
-    val (glyph, fg, bg) = remember(notebook.fileName, c) { notebookStyle(c, notebook.fileName) }
+    val (glyph, fg, bg) = remember(notebook.fileName, notebook.icon, c) {
+        notebookStyle(c, notebook.fileName, notebook.icon)
+    }
     var menuOpen by remember { mutableStateOf(false) }
 
     Box {
@@ -298,6 +368,10 @@ private fun NotebookRow(
             DropdownMenuItem(
                 text = { Text("Rename", fontFamily = PlexSans, color = c.ink) },
                 onClick = { menuOpen = false; onRename() },
+            )
+            DropdownMenuItem(
+                text = { Text("Change icon", fontFamily = PlexSans, color = c.ink) },
+                onClick = { menuOpen = false; onChangeIcon() },
             )
             DropdownMenuItem(
                 text = { Text("Force reload", fontFamily = PlexSans, color = c.ink) },

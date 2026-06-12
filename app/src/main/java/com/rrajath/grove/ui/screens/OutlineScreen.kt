@@ -42,6 +42,7 @@ import com.rrajath.grove.ui.components.Pill
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
+import com.rrajath.grove.ui.theme.starColor
 import com.rrajath.grove.ui.vault.DocumentUiState
 import com.rrajath.grove.ui.vault.DocumentViewModel
 import com.rrajath.grove.ui.vault.NoteRef
@@ -87,13 +88,29 @@ fun OutlineScreen(
                         )
                         (state as? DocumentUiState.Loaded)?.let {
                             Text(
-                                "${it.document.headlines.size} notes",
+                                "${it.document.headlines.count { h -> h.level == 1 }} notes",
                                 fontFamily = PlexSans, fontSize = 11.5.sp, color = c.ink2,
                             )
                         }
                     }
                 },
                 actions = {
+                    (state as? DocumentUiState.Loaded)?.let { loaded ->
+                        val foldable = remember(loaded.document) {
+                            loaded.document.headlines
+                                .filter { loaded.document.directChildren(it).isNotEmpty() }
+                                .map { it.lineIndex }
+                                .toSet()
+                        }
+                        if (foldable.isNotEmpty()) {
+                            // Mirrors the per-row carets: ▸▸ = all folded (tap to
+                            // expand all), ▾▾ = expanded (tap to collapse all).
+                            val allCollapsed = collapsed.containsAll(foldable)
+                            IconGlyph(if (allCollapsed) "▸▸" else "▾▾", onClick = {
+                                collapsed = if (allCollapsed) emptySet() else foldable
+                            })
+                        }
+                    }
                     var displayMenuOpen by remember { mutableStateOf(false) }
                     Box {
                         IconGlyph("⋮", onClick = { displayMenuOpen = true })
@@ -401,7 +418,7 @@ private fun OutlineNode(
         Text(
             "*".repeat(headline.level),
             fontFamily = PlexMono, fontWeight = FontWeight.SemiBold,
-            fontSize = 13.sp, color = c.synStar,
+            fontSize = 13.sp, color = c.starColor(headline.level),
         )
         Spacer(Modifier.width(7.dp))
         Column(Modifier.weight(1f)) {
@@ -447,6 +464,24 @@ private fun OutlineNode(
                     Spacer(Modifier.width(6.dp))
                     Text("… $childCount", fontFamily = PlexMono, fontSize = 11.sp, color = c.ink3)
                 }
+            }
+            // Body preview: first lines of the note's own text
+            val preview = remember(doc, headline) {
+                doc.bodyOf(headline)
+                    .map { it.trim() }
+                    .filter { it.isNotEmpty() }
+                    .take(3)
+                    .joinToString(" ")
+                    .take(200)
+            }
+            if (preview.isNotEmpty()) {
+                Text(
+                    preview,
+                    fontFamily = PlexSans, fontSize = 12.5.sp, color = c.ink3,
+                    maxLines = 2,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
             }
             // Scheduled / deadline chips
             headline.planning.scheduled?.takeIf { flags.timestamps }?.let { ts ->

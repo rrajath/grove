@@ -138,7 +138,9 @@ interface SyncLogDao {
 
 @Database(
     entities = [NotebookEntity::class, NoteEntity::class, SyncLogEntity::class],
-    version = 2,
+    // v3: noteCount semantics changed to top-level headings only; destructive
+    // migration drops the index so the next sync rebuilds the counts.
+    version = 3,
     exportSchema = false,
 )
 abstract class GroveDatabase : RoomDatabase() {

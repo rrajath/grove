@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.rrajath.grove.org.LineEditing
 import com.rrajath.grove.org.OrgTimestamp
 import com.rrajath.grove.ui.components.GroveTopBar
 import com.rrajath.grove.ui.components.SegmentedControl
@@ -92,6 +93,16 @@ fun EditNoteScreen(
         viewModel.onBufferChange(newValue.text)
     }
 
+    fun onTextChange(newValue: TextFieldValue) {
+        val continued = LineEditing.continueListOnEnter(
+            value.text, newValue.text, newValue.selection.start,
+        )
+        applyEdit(
+            if (continued != null) TextFieldValue(continued.text, TextRange(continued.cursor))
+            else newValue
+        )
+    }
+
     Scaffold(
         containerColor = c.bg,
         topBar = {
@@ -132,7 +143,7 @@ fun EditNoteScreen(
             }
             BasicTextField(
                 value = value,
-                onValueChange = ::applyEdit,
+                onValueChange = ::onTextChange,
                 visualTransformation = transformation,
                 textStyle = TextStyle(
                     fontFamily = PlexMono, fontSize = 13.5.sp,
@@ -148,6 +159,10 @@ fun EditNoteScreen(
             EditorToolbar(
                 onWrap = { marker -> applyEdit(wrapSelection(value, marker)) },
                 onInsert = { snippet -> applyEdit(insertAtCursor(value, snippet)) },
+                onHeading = {
+                    val edit = LineEditing.insertHeadingStar(value.text, value.selection.start)
+                    applyEdit(TextFieldValue(edit.text, TextRange(edit.cursor)))
+                },
                 onDismissKeyboard = { keyboard?.hide() },
             )
         }
@@ -204,6 +219,7 @@ private fun StaleFileBanner(onOverwrite: () -> Unit, onReload: () -> Unit) {
 private fun EditorToolbar(
     onWrap: (Char) -> Unit,
     onInsert: (String) -> Unit,
+    onHeading: () -> Unit,
     onDismissKeyboard: () -> Unit,
 ) {
     val c = MaterialTheme.grove
@@ -225,7 +241,7 @@ private fun EditorToolbar(
             val now = LocalDateTime.now()
             onInsert(OrgTimestamp(now.toLocalDate(), time = now.toLocalTime().withSecond(0).withNano(0)).format())
         }
-        ToolButton("*", c.synStar, bold = true) { onInsert("\n* ") }
+        ToolButton("*", c.synStar, bold = true) { onHeading() }
         Spacer(Modifier.weight(1f))
         ToolButton("⌄", c.ink2) { onDismissKeyboard() }
     }

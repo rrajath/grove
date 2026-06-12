@@ -19,13 +19,26 @@ class VaultTest {
 
     @Test
     fun `lists only org files`() = runTest {
-        tmp.newFile("a.org").writeText("* One\n* Two")
-        tmp.newFile("b.org").writeText("* Single")
+        tmp.newFile("a.org").writeText("* One\n** Sub\n*** Deeper\n* Two")
+        tmp.newFile("b.org").writeText("* Single\n** Child")
         tmp.newFile("readme.txt").writeText("not org")
 
         val notebooks = vault().notebooks()
         assertEquals(listOf("a.org", "b.org"), notebooks.map { it.fileName })
+        // Only top-level headings count as notes; subheadings belong to them.
         assertEquals(listOf(2, 1), notebooks.map { it.noteCount })
+    }
+
+    @Test
+    fun `trashNotebook hides the file and survives an existing trash copy`() = runTest {
+        tmp.newFile("n.org").writeText("* Note")
+        tmp.newFile("n.org.trash").writeText("* Older deleted copy")
+
+        val v = vault()
+        assertTrue(v.trashNotebook("n.org"))
+        assertEquals(emptyList<String>(), v.notebooks().map { it.fileName })
+        assertTrue(tmp.root.resolve("n.org.trash-2").exists())
+        assertEquals("* Older deleted copy", tmp.root.resolve("n.org.trash").readText())
     }
 
     @Test

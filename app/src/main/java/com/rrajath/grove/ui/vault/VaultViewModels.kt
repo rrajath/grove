@@ -24,6 +24,8 @@ data class NotebookItem(
     val noteCount: Int,
     val lastModified: Long,
     val hasConflict: Boolean,
+    /** User-chosen list glyph; null = derive one from the file name. */
+    val icon: String? = null,
 )
 
 sealed class NotebooksUiState {
@@ -42,7 +44,8 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
         app.database.indexDao().notebooksFlow(),
         app.syncManager.state,
         app.syncManager.lastResult,
-    ) { vault, notebooks, syncState, lastResult ->
+        app.settingsRepository.settings,
+    ) { vault, notebooks, syncState, lastResult, settings ->
         if (vault == null) {
             NotebooksUiState.NoVault
         } else {
@@ -54,6 +57,7 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
                             noteCount = it.noteCount,
                             lastModified = it.lastModified,
                             hasConflict = it.conflictFileName != null,
+                            icon = settings.notebookIcons[it.fileName],
                         )
                     }
                     .sortedBy { it.fileName.lowercase() },
@@ -83,8 +87,13 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
     fun renameNotebook(oldName: String, newName: String) {
         val vault = app.vault.value ?: return
         viewModelScope.launch {
-            vault.renameNotebook(oldName, newName.trim())
-            app.database.indexDao().removeNotebook(oldName)
+            if (vault.renameNotebook(oldName, newName.trim())) {
+                app.database.indexDao().removeNotebook(oldName)
+                app.settingsRepository.moveNotebookIcon(
+                    oldName,
+                    if (newName.trim().endsWith(".org")) newName.trim() else "${newName.trim()}.org",
+                )
+            }
             app.syncManager.requestSync("notebook renamed")
         }
     }
@@ -92,10 +101,15 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
     fun trashNotebook(name: String) {
         val vault = app.vault.value ?: return
         viewModelScope.launch {
-            vault.trashNotebook(name)
-            app.database.indexDao().removeNotebook(name)
+            if (vault.trashNotebook(name)) {
+                app.database.indexDao().removeNotebook(name)
+            }
             app.syncManager.requestSync("notebook deleted")
         }
+    }
+
+    fun setNotebookIcon(fileName: String, glyph: String) {
+        viewModelScope.launch { app.settingsRepository.setNotebookIcon(fileName, glyph) }
     }
 
     fun forceReload(name: String) {

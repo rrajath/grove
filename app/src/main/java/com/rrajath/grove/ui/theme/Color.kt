@@ -31,6 +31,7 @@ data class GroveColors(
     val redSoft: Color,
     val blue: Color,
     val blueSoft: Color,
+    val violet: Color,
     // Org syntax highlighting
     val synStar: Color,
     val synTodo: Color,
@@ -64,6 +65,7 @@ val GroveLightColors = GroveColors(
     redSoft = Color(0x21A5462F), // 0.13
     blue = Color(0xFF3F6F86),
     blueSoft = Color(0x213F6F86), // 0.13
+    violet = Color(0xFF6E5A8E),
     synStar = Color(0xFF4F7A3A),
     synTodo = Color(0xFFA9761D),
     synDone = Color(0xFF4F7A3A),
@@ -96,6 +98,7 @@ val GroveDarkColors = GroveColors(
     redSoft = Color(0x29D2856A), // 0.16
     blue = Color(0xFF7FB0C4),
     blueSoft = Color(0x297FB0C4), // 0.16
+    violet = Color(0xFFAD9BD1),
     synStar = Color(0xFF8FB46A),
     synTodo = Color(0xFFD7A64F),
     synDone = Color(0xFF8FB46A),
@@ -108,3 +111,12 @@ val GroveDarkColors = GroveColors(
 )
 
 val LocalGroveColors = staticCompositionLocalOf { GroveLightColors }
+
+/**
+ * Heading-star color cycled by outline depth: green, blue, amber, red, violet,
+ * brown, then back to green for deeper nesting.
+ */
+fun GroveColors.starColor(level: Int): Color {
+    val cycle = listOf(green, blue, amber, red, violet, accent)
+    return cycle[((level - 1).coerceAtLeast(0)) % cycle.size]
+}

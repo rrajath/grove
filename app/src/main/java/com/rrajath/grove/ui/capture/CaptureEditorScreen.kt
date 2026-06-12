@@ -48,6 +48,8 @@ import com.rrajath.grove.capture.CaptureContext
 import com.rrajath.grove.capture.CaptureInserter
 import com.rrajath.grove.capture.CaptureTemplate
 import com.rrajath.grove.capture.PlaceholderExpander
+import com.rrajath.grove.capture.TargetLocation
+import com.rrajath.grove.org.LineEditing
 import com.rrajath.grove.org.OrgTimestamp
 import com.rrajath.grove.ui.components.GroveTopBar
 import com.rrajath.grove.ui.components.Pill
@@ -107,6 +109,7 @@ fun CaptureEditorScreen(
             sharedText = share?.text ?: "",
             sharedUrl = share?.url ?: "",
             promptValues = promptValues ?: emptyMap(),
+            dateOnly = template.location is TargetLocation.DatetreeDate,
         )
     }
     // The share payload is one-shot: consumed by this capture.
@@ -143,23 +146,7 @@ fun CaptureEditorScreen(
                         color = c.ink,
                     )
                 },
-                actions = {
-                    Box(
-                        Modifier
-                            .clip(RoundedCornerShape(11.dp))
-                            .background(c.accent)
-                            .clickable(enabled = saveState !is SaveState.Saving) {
-                                viewModel.save(template, value.text, context)
-                            }
-                            .padding(horizontal = 16.dp, vertical = 9.dp),
-                    ) {
-                        Text(
-                            if (saveState is SaveState.Saving) "Saving…" else "Save",
-                            fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
-                            fontSize = 14.sp, color = c.accentInk,
-                        )
-                    }
-                },
+                actions = {},
             )
         },
     ) { padding ->
@@ -179,20 +166,48 @@ fun CaptureEditorScreen(
                     modifier = Modifier.padding(horizontal = 18.dp, vertical = 6.dp),
                 )
             }
-            BasicTextField(
-                value = value,
-                onValueChange = { value = it },
-                textStyle = TextStyle(
-                    fontFamily = PlexMono, fontSize = 14.sp,
-                    lineHeight = 1.9.em, color = c.ink,
-                ),
-                cursorBrush = SolidColor(c.accent),
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .padding(20.dp)
-                    .focusRequester(focusRequester),
-            )
+            Box(Modifier.weight(1f).fillMaxWidth()) {
+                BasicTextField(
+                    value = value,
+                    onValueChange = { newValue ->
+                        val continued = LineEditing.continueListOnEnter(
+                            value.text, newValue.text, newValue.selection.start,
+                        )
+                        value =
+                            if (continued != null) TextFieldValue(continued.text, TextRange(continued.cursor))
+                            else newValue
+                    },
+                    textStyle = TextStyle(
+                        fontFamily = PlexMono, fontSize = 14.sp,
+                        lineHeight = 1.9.em, color = c.ink,
+                    ),
+                    cursorBrush = SolidColor(c.accent),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(20.dp)
+                        .focusRequester(focusRequester),
+                )
+                // Save floats bottom-right: above the keyboard while it's up
+                // (the column is ime-padded), at the screen's bottom otherwise.
+                Box(
+                    Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(end = 16.dp, bottom = 14.dp)
+                        .clip(RoundedCornerShape(15.dp))
+                        .background(c.accent)
+                        .clickable(enabled = saveState !is SaveState.Saving) {
+                            viewModel.save(template, value.text, context)
+                        }
+                        .padding(horizontal = 22.dp, vertical = 13.dp),
+                ) {
+                    Text(
+                        if (saveState is SaveState.Saving) "Saving…" else "Save",
+                        fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
+                        fontSize = 14.sp, color = c.accentInk,
+                    )
+                }
+            }
             ToolbarRow(
                 onInsert = { snippet ->
                     val sel = value.selection.start
@@ -216,29 +231,38 @@ private fun DatetreeBreadcrumb(template: CaptureTemplate, today: LocalDate) {
             .padding(horizontal = 18.dp, vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text("inserts under", fontFamily = PlexMono, fontSize = 11.5.sp, color = c.ink3)
+        Text("inserts under", fontFamily = PlexMono, fontSize = 11.5.sp, color = c.ink3, maxLines = 1)
         Spacer(Modifier.width(7.dp))
-        Text(
-            template.targetFile,
-            fontFamily = PlexMono, fontWeight = FontWeight.SemiBold,
-            fontSize = 11.5.sp, color = c.accent,
-        )
-        Text(
-            " › ${CaptureInserter.yearTitle(today)} › ${today.month.name.lowercase().replaceFirstChar { it.uppercase() }} › ",
-            fontFamily = PlexMono, fontSize = 11.5.sp, color = c.ink2,
-        )
-        Box(
-            Modifier
-                .clip(RoundedCornerShape(5.dp))
-                .background(c.accentSoft)
-                .padding(horizontal = 5.dp, vertical = 1.dp),
-        ) {
+        // The breadcrumb shares the row with the trailing pill; only the file
+        // name may shrink (ellipsized), so nothing ever wraps vertically.
+        Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
             Text(
-                "${OrgTimestamp.dayAbbrev(today)} ${today.dayOfMonth}",
-                fontFamily = PlexMono, fontSize = 11.5.sp, color = c.ink,
+                template.targetFile,
+                fontFamily = PlexMono, fontWeight = FontWeight.SemiBold,
+                fontSize = 11.5.sp, color = c.accent,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f, fill = false),
             )
+            Text(
+                " › ${CaptureInserter.yearTitle(today)} › ${today.month.name.lowercase().replaceFirstChar { it.uppercase() }} › ",
+                fontFamily = PlexMono, fontSize = 11.5.sp, color = c.ink2,
+                maxLines = 1,
+            )
+            Box(
+                Modifier
+                    .clip(RoundedCornerShape(5.dp))
+                    .background(c.accentSoft)
+                    .padding(horizontal = 5.dp, vertical = 1.dp),
+            ) {
+                Text(
+                    "${OrgTimestamp.dayAbbrev(today)} ${today.dayOfMonth}",
+                    fontFamily = PlexMono, fontSize = 11.5.sp, color = c.ink,
+                    maxLines = 1,
+                )
+            }
         }
-        Spacer(Modifier.weight(1f))
+        Spacer(Modifier.width(8.dp))
         Pill("auto-created", fg = c.green, bg = c.greenSoft)
     }
 }

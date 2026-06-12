@@ -88,4 +88,20 @@ class PlaceholderExpanderTest {
         assertEquals("<2025-06-11 Wed 14:32>\n", result.text)
         assertEquals(result.text.length, result.cursorOffset)
     }
+
+    @Test
+    fun `dateOnly context drops the time from datetime stamps`() {
+        val dateCtx = ctx.copy(dateOnly = true)
+        assertEquals("<2025-06-11 Wed>", PlaceholderExpander.expand("%U", dateCtx).text)
+        assertEquals("[2025-06-11 Wed]", PlaceholderExpander.expand("%u", dateCtx).text)
+        // %T/%t are unchanged either way
+        assertEquals("<2025-06-11 Wed>", PlaceholderExpander.expand("%T", dateCtx).text)
+    }
+
+    @Test
+    fun `journal template puts the cursor on the heading line`() {
+        val result = expand("%U %cursor")
+        assertEquals("<2025-06-11 Wed 14:32> ", result.text)
+        assertEquals(result.text.length, result.cursorOffset)
+    }
 }

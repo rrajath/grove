@@ -82,7 +82,9 @@ object DefaultTemplates {
             icon = "✶",
             targetFile = "journal.org",
             location = TargetLocation.DatetreeDatetime,
-            template = "%U\n%cursor",
+            // First line of the entry is its heading; the cursor lands right
+            // after the stamp, on the heading, ready for input.
+            template = "%U %cursor",
         ),
         CaptureTemplate(
             id = "builtin-quick-note",

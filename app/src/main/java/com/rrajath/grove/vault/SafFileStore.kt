@@ -91,17 +91,24 @@ class SafFileStore(
         withContext(Dispatchers.IO) {
             if (documentUri(newName) != null) return@withContext false
             val uri = documentUri(oldName) ?: return@withContext false
-            val renamed = DocumentsContract.renameDocument(resolver, uri, newName) != null
+            // Providers may throw instead of returning null (unsupported op,
+            // stale doc id after an external rename) — treat both as failure.
+            val renamed = runCatching {
+                DocumentsContract.renameDocument(resolver, uri, newName)
+            }.getOrNull() != null
             if (renamed) {
-                docIds.remove(oldName)?.let { }
+                docIds.remove(oldName)
                 docIds.remove(newName)
             }
             renamed
         }
 
+
+
     override suspend fun delete(name: String): Boolean = withContext(Dispatchers.IO) {
         val uri = documentUri(name) ?: return@withContext false
-        val ok = DocumentsContract.deleteDocument(resolver, uri)
+        val ok = runCatching { DocumentsContract.deleteDocument(resolver, uri) }
+            .getOrDefault(false)
         if (ok) docIds.remove(name)
         ok
     }

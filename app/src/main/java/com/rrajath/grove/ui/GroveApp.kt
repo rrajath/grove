@@ -51,6 +51,19 @@ fun GroveApp(viewModel: AppViewModel = viewModel(factory = AppViewModel.Factory)
     }
 }
 
+/**
+ * Human-readable form of the persisted SAF tree URI for the drawer header,
+ * e.g. "primary:Documents/org" → "~/Documents/org".
+ */
+private fun vaultDisplayPath(treeUri: String?): String {
+    if (treeUri == null) return "no folder selected"
+    val docId = runCatching {
+        android.provider.DocumentsContract.getTreeDocumentId(android.net.Uri.parse(treeUri))
+    }.getOrNull() ?: return treeUri
+    val path = docId.substringAfter(':', docId).ifEmpty { "(storage root)" }
+    return if (docId.startsWith("primary:")) "~/$path" else path
+}
+
 @Composable
 private fun GroveNavigation(settings: GroveSettings, viewModel: AppViewModel) {
     val navController = rememberNavController()
@@ -81,6 +94,7 @@ private fun GroveNavigation(settings: GroveSettings, viewModel: AppViewModel) {
             ) {
                 GroveDrawerContent(
                     currentRoute = currentRoute,
+                    vaultPath = vaultDisplayPath(settings.vaultTreeUri),
                     savedSearches = viewModel.savedSearches.collectAsState().value,
                     onNavigate = { route -> closeDrawerAnd { navController.navigate(route) } },
                     onDeleteSavedSearch = { viewModel.deleteSavedSearch(it.id) },

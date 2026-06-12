@@ -13,6 +13,11 @@ data class CaptureContext(
     val sharedUrl: String = "",
     /** Answers for `%^{prompt}` placeholders, keyed by prompt text. */
     val promptValues: Map<String, String> = emptyMap(),
+    /**
+     * Date-granularity target (e.g. datetree by date): `%U`/`%u` expand without
+     * a time-of-day, same as `%T`/`%t`.
+     */
+    val dateOnly: Boolean = false,
 )
 
 data class ExpandedTemplate(
@@ -36,7 +41,9 @@ object PlaceholderExpander {
         val date = ctx.now.toLocalDate()
         val time = ctx.now.toLocalTime()
         val dateStamp = OrgTimestamp(date)
-        val dateTimeStamp = OrgTimestamp(date, time = time.withSecond(0).withNano(0))
+        val dateTimeStamp =
+            if (ctx.dateOnly) dateStamp
+            else OrgTimestamp(date, time = time.withSecond(0).withNano(0))
         val timeText = "%d:%02d".format(time.hour, time.minute)
 
         val sb = StringBuilder()

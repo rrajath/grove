@@ -13,6 +13,7 @@ import com.rrajath.grove.org.InlineTokenizer
 import com.rrajath.grove.org.InlineType
 import com.rrajath.grove.org.OrgKeywords
 import com.rrajath.grove.ui.theme.GroveColors
+import com.rrajath.grove.ui.theme.starColor
 
 /**
  * Highlight-only syntax colouring for the raw org editor (design spec §6).
@@ -50,7 +51,7 @@ class OrgVisualTransformation(
     private fun AnnotatedString.Builder.styleHeadline(line: String, start: Int, m: MatchResult) {
         val stars = m.groupValues[1]
         addStyle(
-            SpanStyle(color = colors.synStar, fontWeight = FontWeight.SemiBold),
+            SpanStyle(color = colors.starColor(stars.length), fontWeight = FontWeight.SemiBold),
             start, start + stars.length,
         )
         var rest = m.groupValues[2]

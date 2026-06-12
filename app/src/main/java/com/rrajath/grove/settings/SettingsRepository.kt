@@ -30,6 +30,8 @@ data class GroveSettings(
     val addCreatedToNewNotes: Boolean = true,
     /** Per-notebook last-used note mode overrides: "file.org" → "read"/"edit". */
     val notebookModes: Map<String, String> = emptyMap(),
+    /** Per-notebook list glyph overrides: "file.org" → "✦". */
+    val notebookIcons: Map<String, String> = emptyMap(),
     val captureNotification: Boolean = false,
     // Outline display toggles (PRD §5.3)
     val showTagsInOutline: Boolean = true,
@@ -56,6 +58,7 @@ class SettingsRepository(private val context: Context) {
         val addIdToNewNotes = booleanPreferencesKey("add_id_to_new_notes")
         val addCreatedToNewNotes = booleanPreferencesKey("add_created_to_new_notes")
         val notebookModes = stringPreferencesKey("notebook_modes")
+        val notebookIcons = stringPreferencesKey("notebook_icons")
         val captureNotification = booleanPreferencesKey("capture_notification")
         val showTagsInOutline = booleanPreferencesKey("show_tags_in_outline")
         val showTimestampsInOutline = booleanPreferencesKey("show_timestamps_in_outline")
@@ -76,6 +79,7 @@ class SettingsRepository(private val context: Context) {
             addIdToNewNotes = prefs[Keys.addIdToNewNotes] ?: false,
             addCreatedToNewNotes = prefs[Keys.addCreatedToNewNotes] ?: true,
             notebookModes = decodeModes(prefs[Keys.notebookModes]),
+            notebookIcons = decodeModes(prefs[Keys.notebookIcons]),
             captureNotification = prefs[Keys.captureNotification] ?: false,
             showTagsInOutline = prefs[Keys.showTagsInOutline] ?: true,
             showTimestampsInOutline = prefs[Keys.showTimestampsInOutline] ?: true,
@@ -160,6 +164,24 @@ class SettingsRepository(private val context: Context) {
             val current = decodeModes(prefs[Keys.notebookModes]).toMutableMap()
             current[fileName] = mode.storageKey
             prefs[Keys.notebookModes] = current.entries.joinToString(";") { "${it.key}=${it.value}" }
+        }
+    }
+
+    suspend fun setNotebookIcon(fileName: String, glyph: String) {
+        context.settingsDataStore.edit { prefs ->
+            val current = decodeModes(prefs[Keys.notebookIcons]).toMutableMap()
+            current[fileName] = glyph
+            prefs[Keys.notebookIcons] = current.entries.joinToString(";") { "${it.key}=${it.value}" }
+        }
+    }
+
+    /** Keep a chosen icon attached to a notebook across renames. */
+    suspend fun moveNotebookIcon(oldFileName: String, newFileName: String) {
+        context.settingsDataStore.edit { prefs ->
+            val current = decodeModes(prefs[Keys.notebookIcons]).toMutableMap()
+            val glyph = current.remove(oldFileName) ?: return@edit
+            current[newFileName] = glyph
+            prefs[Keys.notebookIcons] = current.entries.joinToString(";") { "${it.key}=${it.value}" }
         }
     }
 }

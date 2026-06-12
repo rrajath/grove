@@ -38,6 +38,7 @@ import com.rrajath.grove.ui.theme.grove
 @Composable
 fun GroveDrawerContent(
     currentRoute: String?,
+    vaultPath: String,
     savedSearches: List<SavedSearch>,
     onNavigate: (String) -> Unit,
     onDeleteSavedSearch: (SavedSearch) -> Unit,
@@ -50,12 +51,12 @@ fun GroveDrawerContent(
             BrandMark(tileSize = 42.dp)
             Spacer(Modifier.height(10.dp))
             Text("Grove", fontFamily = PlexSans, fontWeight = FontWeight.SemiBold, fontSize = 18.sp, color = c.ink)
-            Text("~/org", fontFamily = PlexMono, fontSize = 12.sp, color = c.ink2)
+            Text(vaultPath, fontFamily = PlexMono, fontSize = 12.sp, color = c.ink2)
         }
         HorizontalDivider(color = c.line)
         Spacer(Modifier.height(8.dp))
 
-        DrawerItem("≡", "All Notes", active = false) { onNavigate(Routes.search()) }
+        DrawerItem("⌕", "Search", active = false) { onNavigate(Routes.search()) }
         DrawerItem("✦", "Notebooks", active = currentRoute == Routes.NOTEBOOKS) { onNavigate(Routes.NOTEBOOKS) }
 
         SectionLabel("SEARCHES")

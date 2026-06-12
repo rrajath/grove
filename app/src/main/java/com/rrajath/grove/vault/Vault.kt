@@ -39,7 +39,7 @@ class Vault(
             }
             .map { entry ->
                 val doc = document(entry)
-                Notebook(entry.name, doc.headlines.size, entry.lastModified)
+                Notebook(entry.name, doc.headlines.count { it.level == 1 }, entry.lastModified)
             }
     }
 
@@ -70,9 +70,15 @@ class Vault(
     /**
      * Soft delete: rename to `<name>.trash` so the file no longer lists as a
      * notebook but stays in the synced folder, recoverable from any device.
+     * Picks a fresh `.trash-N` name when one already exists (e.g. the notebook
+     * was deleted, recreated, and deleted again), and falls back to a hard
+     * delete if the provider refuses to rename.
      */
     suspend fun trashNotebook(name: String): Boolean {
-        val ok = store.rename(name, "$name.trash")
+        var trashName = "$name.trash"
+        var n = 2
+        while (store.exists(trashName)) trashName = "$name.trash-${n++}"
+        val ok = store.rename(name, trashName) || store.delete(name)
         if (ok) cache.keys.removeAll { it.name == name }
         return ok
     }
