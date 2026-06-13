@@ -450,13 +450,14 @@ private fun OutlineNode(
                     Text("… $childCount", fontFamily = PlexMono, fontSize = 11.sp, color = c.ink3)
                 }
             }
-            // Body preview: first lines of the note's own text
+            // Body preview: first two non-empty lines, keeping the line breaks
+            // so multi-line content stays readable.
             val preview = remember(doc, headline) {
                 doc.bodyOf(headline)
                     .map { it.trim() }
                     .filter { it.isNotEmpty() }
-                    .take(3)
-                    .joinToString(" ")
+                    .take(2)
+                    .joinToString("\n")
                     .take(200)
             }
             if (preview.isNotEmpty()) {
