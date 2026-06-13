@@ -10,6 +10,7 @@ import com.rrajath.grove.search.QueryParser
 import com.rrajath.grove.search.SavedSearch
 import com.rrajath.grove.search.Snippets
 import com.rrajath.grove.ui.vault.factory
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -17,6 +18,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.LocalDate
 
 data class SearchResult(
@@ -91,32 +93,36 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
             _state.value = _state.value.copy(results = emptyList(), agenda = null, notebookCount = 0)
             return
         }
-        val query = QueryParser.parse(raw)
-        val today = LocalDate.now()
-        val notes = app.database.indexDao().allNotes().map { it.toMeta() }
-        val matched = QueryMatcher.filter(notes, query, today)
-        val terms = query.textTerms
+        // Room runs the query off-main, but the mapping/filtering/snippet work is
+        // pure CPU and would otherwise block the UI thread on every keystroke.
+        val notes = app.database.indexDao().allNotes()
+        withContext(Dispatchers.Default) {
+            val query = QueryParser.parse(raw)
+            val today = LocalDate.now()
+            val matched = QueryMatcher.filter(notes.map { it.toMeta() }, query, today)
+            val terms = query.textTerms
 
-        fun toResult(meta: NoteMeta) = SearchResult(
-            fileName = meta.fileName,
-            lineIndex = meta.lineIndex,
-            title = meta.title,
-            keyword = meta.keyword,
-            isDone = meta.isDoneKeyword,
-            snippet = Snippets.build(meta.searchText.substringAfter('\n', ""), terms),
-            breadcrumb = "${meta.fileName} › ${meta.title}",
-        )
+            fun toResult(meta: NoteMeta) = SearchResult(
+                fileName = meta.fileName,
+                lineIndex = meta.lineIndex,
+                title = meta.title,
+                keyword = meta.keyword,
+                isDone = meta.isDoneKeyword,
+                snippet = Snippets.build(meta.searchText.substringAfter('\n', ""), terms),
+                breadcrumb = "${meta.fileName} › ${meta.title}",
+            )
 
-        val agenda = query.agendaDays?.let { days ->
-            QueryMatcher.agenda(matched, days, today).map { entry ->
-                AgendaDay(entry.date, entry.notes.map(::toResult))
+            val agenda = query.agendaDays?.let { days ->
+                QueryMatcher.agenda(matched, days, today).map { entry ->
+                    AgendaDay(entry.date, entry.notes.map(::toResult))
+                }
             }
+            _state.value = _state.value.copy(
+                results = matched.map(::toResult),
+                agenda = agenda,
+                notebookCount = matched.map { it.fileName }.distinct().size,
+            )
         }
-        _state.value = _state.value.copy(
-            results = matched.map(::toResult),
-            agenda = agenda,
-            notebookCount = matched.map { it.fileName }.distinct().size,
-        )
     }
 
     private fun NoteEntity.toMeta() = NoteMeta(
