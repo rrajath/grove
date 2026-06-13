@@ -35,6 +35,8 @@ data class GroveSettings(
     /** Per-notebook icon color overrides: "file.org" → palette key ("green"…). */
     val notebookColors: Map<String, String> = emptyMap(),
     val captureNotification: Boolean = false,
+    /** .org file that receives content shared into Grove from other apps. */
+    val shareTargetFile: String = DEFAULT_SHARE_TARGET,
     // Outline display toggles (PRD §5.3)
     val showTagsInOutline: Boolean = true,
     val showTimestampsInOutline: Boolean = true,
@@ -42,6 +44,7 @@ data class GroveSettings(
 ) {
     companion object {
         const val DEFAULT_TODO_KEYWORDS = "TODO IN-PROGRESS | DONE CANCELLED"
+        const val DEFAULT_SHARE_TARGET = "inbox.org"
     }
 }
 
@@ -63,6 +66,7 @@ class SettingsRepository(private val context: Context) {
         val notebookIcons = stringPreferencesKey("notebook_icons")
         val notebookColors = stringPreferencesKey("notebook_colors")
         val captureNotification = booleanPreferencesKey("capture_notification")
+        val shareTargetFile = stringPreferencesKey("share_target_file")
         val showTagsInOutline = booleanPreferencesKey("show_tags_in_outline")
         val showTimestampsInOutline = booleanPreferencesKey("show_timestamps_in_outline")
         val showKeywordsInOutline = booleanPreferencesKey("show_keywords_in_outline")
@@ -85,6 +89,7 @@ class SettingsRepository(private val context: Context) {
             notebookIcons = decodeModes(prefs[Keys.notebookIcons]),
             notebookColors = decodeModes(prefs[Keys.notebookColors]),
             captureNotification = prefs[Keys.captureNotification] ?: false,
+            shareTargetFile = prefs[Keys.shareTargetFile] ?: GroveSettings.DEFAULT_SHARE_TARGET,
             showTagsInOutline = prefs[Keys.showTagsInOutline] ?: true,
             showTimestampsInOutline = prefs[Keys.showTimestampsInOutline] ?: true,
             showKeywordsInOutline = prefs[Keys.showKeywordsInOutline] ?: true,
@@ -149,6 +154,10 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setCaptureNotification(enabled: Boolean) {
         context.settingsDataStore.edit { it[Keys.captureNotification] = enabled }
+    }
+
+    suspend fun setShareTargetFile(fileName: String) {
+        context.settingsDataStore.edit { it[Keys.shareTargetFile] = fileName }
     }
 
     suspend fun setOutlineToggle(key: OutlineToggle, enabled: Boolean) {

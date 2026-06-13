@@ -5,6 +5,9 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
 import com.rrajath.grove.GroveApplication
+import com.rrajath.grove.capture.PageTitleFetcher
+import com.rrajath.grove.capture.ShareIntake
+import com.rrajath.grove.org.OrgMutations
 import com.rrajath.grove.search.SavedSearch
 import com.rrajath.grove.settings.FontSizePreference
 import com.rrajath.grove.settings.GroveSettings
@@ -13,11 +16,17 @@ import com.rrajath.grove.settings.OutlineToggle
 import com.rrajath.grove.settings.SettingsRepository
 import com.rrajath.grove.settings.SyncMode
 import com.rrajath.grove.settings.ThemePreference
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.time.LocalDateTime
+import java.util.UUID
 
 class AppViewModel(private val app: GroveApplication) : ViewModel() {
 
@@ -69,6 +78,56 @@ class AppViewModel(private val app: GroveApplication) : ViewModel() {
 
     fun setCaptureNotification(enabled: Boolean) =
         viewModelScope.launch { settingsRepository.setCaptureNotification(enabled) }
+
+    fun setShareTargetFile(fileName: String) =
+        viewModelScope.launch { settingsRepository.setShareTargetFile(fileName.trim()) }
+
+    /**
+     * Route content shared into Grove (PRD §10) straight to the configured file:
+     * a URL becomes a heading linking the fetched page title; long text becomes
+     * an empty heading with the text as the body; short text becomes a heading.
+     * Appended to the bottom of the target file (created if missing).
+     */
+    fun consumeSharedContent() {
+        val payload = app.pendingShare.value ?: return
+        app.pendingShare.value = null
+        viewModelScope.launch {
+            val settings = settingsRepository.settings.first()
+            if (settings.vaultTreeUri == null) {
+                toast("Set a sync folder before sharing to Grove")
+                return@launch
+            }
+            // On a cold start the vault may still be initializing; await it.
+            val vault = app.vault.filterNotNull().first()
+            val resolvedTitle =
+                if (payload.url.isNotEmpty()) PageTitleFetcher.fetch(payload.url) else null
+            val note = ShareIntake.composeNote(payload, resolvedTitle)
+            val target = settings.shareTargetFile.trim().ifBlank { GroveSettings.DEFAULT_SHARE_TARGET }
+            val fileName = if (target.endsWith(".org")) target else "$target.org"
+            if (vault.open(fileName) == null) vault.createNotebook(fileName)
+            val doc = vault.open(fileName)
+            if (doc == null) {
+                toast("Couldn't open $fileName")
+                return@launch
+            }
+            val (newText, _) = OrgMutations.newTopLevel(
+                doc,
+                note.heading,
+                OrgMutations.NewNoteOptions(
+                    id = if (settings.addIdToNewNotes) UUID.randomUUID().toString() else null,
+                    createdAt = if (settings.addCreatedToNewNotes) LocalDateTime.now() else null,
+                    body = note.body,
+                ),
+            )
+            vault.save(fileName, newText)
+            app.syncManager.requestSync("shared note")
+            toast("Saved to $fileName")
+        }
+    }
+
+    private suspend fun toast(message: String) = withContext(Dispatchers.Main) {
+        android.widget.Toast.makeText(app, message, android.widget.Toast.LENGTH_SHORT).show()
+    }
 
     fun setOutlineToggle(toggle: OutlineToggle, enabled: Boolean) =
         viewModelScope.launch { settingsRepository.setOutlineToggle(toggle, enabled) }

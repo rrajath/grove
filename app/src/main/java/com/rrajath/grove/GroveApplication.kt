@@ -40,9 +40,11 @@ class GroveApplication : Application() {
 
     val searchRepository: SearchRepository by lazy { SearchRepository(this) }
 
-    /** Content shared into the app, consumed by the next capture (PRD §10). */
-    @Volatile
-    var pendingShare: SharedPayload? = null
+    /**
+     * Content shared into the app (PRD §10). Observed by the UI so it can be
+     * routed into the configured file even when the app was already running.
+     */
+    val pendingShare = kotlinx.coroutines.flow.MutableStateFlow<SharedPayload?>(null)
 
     val database: GroveDatabase by lazy { GroveDatabase.build(this) }
 

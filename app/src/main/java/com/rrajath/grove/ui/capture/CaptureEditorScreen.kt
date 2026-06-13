@@ -102,7 +102,7 @@ fun CaptureEditorScreen(
     val app = androidx.compose.ui.platform.LocalContext.current.applicationContext
             as com.rrajath.grove.GroveApplication
     val context = remember(template, promptValues) {
-        val share = app.pendingShare
+        val share = app.pendingShare.value
         CaptureContext(
             now = now,
             clipboard = clipboard.getText()?.text ?: "",
@@ -114,7 +114,7 @@ fun CaptureEditorScreen(
     }
     // The share payload is one-shot: consumed by this capture.
     androidx.compose.runtime.DisposableEffect(Unit) {
-        onDispose { app.pendingShare = null }
+        onDispose { app.pendingShare.value = null }
     }
     val expanded = remember(template, context) {
         CaptureInserter.withHeadingStars(

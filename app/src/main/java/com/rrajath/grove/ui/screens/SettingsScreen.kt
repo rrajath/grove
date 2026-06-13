@@ -65,18 +65,40 @@ fun SettingsScreen(
     onSetAddId: (Boolean) -> Unit,
     onSetAddCreated: (Boolean) -> Unit,
     onSetCaptureNotification: (Boolean) -> Unit,
+    onSetVaultUri: (String) -> Unit,
+    onSetShareTargetFile: (String) -> Unit,
     templatesViewModel: TemplatesViewModel = viewModel(factory = TemplatesViewModel.Factory),
 ) {
     val c = MaterialTheme.grove
+    val context = androidx.compose.ui.platform.LocalContext.current
     val templates by templatesViewModel.templates.collectAsState()
     var keywordsText by remember(settings.todoKeywords) {
         mutableStateOf(settings.todoKeywords)
     }
+    var shareFileText by remember(settings.shareTargetFile) {
+        mutableStateOf(settings.shareTargetFile)
+    }
 
-    // Apply a pending TODO-keyword edit on leave so back doesn't drop it.
+    val folderPicker = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.OpenDocumentTree()
+    ) { uri ->
+        if (uri != null) {
+            context.contentResolver.takePersistableUriPermission(
+                uri,
+                android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                        android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+            )
+            onSetVaultUri(uri.toString())
+        }
+    }
+
+    // Apply pending text edits on leave so back doesn't drop them.
     fun leave() {
         if (keywordsText != settings.todoKeywords && keywordsText.isNotBlank()) {
             onSetTodoKeywords(keywordsText)
+        }
+        if (shareFileText != settings.shareTargetFile && shareFileText.isNotBlank()) {
+            onSetShareTargetFile(shareFileText)
         }
         onBack()
     }
@@ -171,10 +193,10 @@ fun SettingsScreen(
 
             SectionLabel("SYNC")
             SettingsGroup {
-                SettingsRow(label = "Folder") {
+                SettingsRow(label = "Folder", onClick = { folderPicker.launch(null) }) {
                     Text(
-                        settings.vaultTreeUri?.let { uriDisplayName(it) } ?: "not set",
-                        fontFamily = PlexMono, fontSize = 12.sp, color = c.ink2,
+                        settings.vaultTreeUri?.let { uriDisplayName(it) } ?: "tap to choose",
+                        fontFamily = PlexMono, fontSize = 12.sp, color = c.accent,
                     )
                 }
                 RowDivider()
@@ -282,6 +304,30 @@ fun SettingsScreen(
                     checked = settings.addCreatedToNewNotes,
                     onToggle = onSetAddCreated,
                 )
+            }
+
+            SectionLabel("SHARING")
+            SettingsGroup {
+                Column(Modifier.padding(horizontal = 15.dp, vertical = 10.dp)) {
+                    Text(
+                        "Shared content target",
+                        fontFamily = PlexSans, fontWeight = FontWeight.Medium,
+                        fontSize = 14.5.sp, color = c.ink,
+                    )
+                    Text(
+                        "The .org file that receives links and text shared into Grove",
+                        fontFamily = PlexSans, fontSize = 12.sp, color = c.ink3,
+                        modifier = Modifier.padding(bottom = 6.dp),
+                    )
+                    OutlinedTextField(
+                        value = shareFileText,
+                        onValueChange = { shareFileText = it },
+                        singleLine = true,
+                        textStyle = TextStyle(fontFamily = PlexMono, fontSize = 13.sp),
+                        placeholder = { Text("inbox.org", fontFamily = PlexMono, color = c.ink3) },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
             }
 
             Text(

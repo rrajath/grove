@@ -30,7 +30,7 @@ class MainActivity : ComponentActivity() {
                 sharedText = intent.getStringExtra(Intent.EXTRA_TEXT),
             )
             if (!payload.isEmpty) {
-                (application as GroveApplication).pendingShare = payload
+                (application as GroveApplication).pendingShare.value = payload
             }
         }
     }

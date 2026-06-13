@@ -16,6 +16,8 @@ object OrgMutations {
         val id: String? = null,
         /** Adds a :CREATED: inactive timestamp. */
         val createdAt: LocalDateTime? = null,
+        /** Body text placed under the heading (after any properties drawer). */
+        val body: String? = null,
     )
 
     // --- headline line edits ---
@@ -157,6 +159,9 @@ object OrgMutations {
                     )
                 }
                 add(":END:")
+            }
+            options.body?.takeIf { it.isNotBlank() }?.let { body ->
+                body.trimEnd('\n').split("\n").forEach { add(it) }
             }
         }
         // An empty document is a single empty line — replace it instead of

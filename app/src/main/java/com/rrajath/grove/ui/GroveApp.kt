@@ -73,9 +73,11 @@ private fun GroveNavigation(settings: GroveSettings, viewModel: AppViewModel) {
     val app = androidx.compose.ui.platform.LocalContext.current.applicationContext
             as com.rrajath.grove.GroveApplication
 
-    // Shared-into-Grove content goes straight to the capture picker.
-    LaunchedEffect(Unit) {
-        if (app.pendingShare != null) navController.navigate(Routes.CAPTURE)
+    // Shared-into-Grove content is appended to the configured file directly
+    // (PRD §10) — observed so it works even when the app was already running.
+    val pendingShare by app.pendingShare.collectAsState()
+    LaunchedEffect(pendingShare) {
+        if (pendingShare != null) viewModel.consumeSharedContent()
     }
 
     fun closeDrawerAnd(action: () -> Unit) {
@@ -245,6 +247,8 @@ private fun GroveNavigation(settings: GroveSettings, viewModel: AppViewModel) {
                     onSetAddId = viewModel::setAddIdToNewNotes,
                     onSetAddCreated = viewModel::setAddCreatedToNewNotes,
                     onSetCaptureNotification = viewModel::setCaptureNotification,
+                    onSetVaultUri = viewModel::setVaultTreeUri,
+                    onSetShareTargetFile = viewModel::setShareTargetFile,
                 )
             }
         }
