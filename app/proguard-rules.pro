@@ -19,3 +19,12 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# Keep crash-report line numbers useful after minification.
+-keepattributes SourceFile,LineNumberTable
+
+# WorkManager instantiates workers reflectively by class name (SyncWorker is not
+# referenced from the manifest), so keep ListenableWorker subclasses + their ctor.
+-keep class * extends androidx.work.ListenableWorker {
+    <init>(android.content.Context, androidx.work.WorkerParameters);
+}
