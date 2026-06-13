@@ -28,6 +28,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -312,23 +313,23 @@ private fun OutlineNode(
     var menuOpen by remember { mutableStateOf(false) }
 
     // Swipe right = cycle state, swipe left = narrow to subtree (PRD §5.3).
-    // A full swipe is an action, not a dismiss: we let the box settle, run the
-    // action, then reset() so the row can be swiped again right away. Vetoing
-    // via confirmValueChange instead leaves the draggable stuck after one swipe
-    // (it only re-arms when the row recomposes fresh), so don't use it.
+    // A swipe is an action, not a dismiss. We react to targetValue (the moment
+    // the swipe commits, before the row animates off-screen), run the action,
+    // and snap the row home in a detached scope. Two traps avoided: vetoing via
+    // confirmValueChange leaves the draggable stuck after one swipe; and
+    // snapping inside this effect would self-cancel (the value change restarts
+    // the effect mid-animation), stranding the row to the side.
     val swipeState = androidx.compose.material3.rememberSwipeToDismissBoxState()
     val currentOps by androidx.compose.runtime.rememberUpdatedState(ops)
-    LaunchedEffect(swipeState.currentValue) {
-        when (swipeState.currentValue) {
-            androidx.compose.material3.SwipeToDismissBoxValue.StartToEnd -> {
-                currentOps.onCycleState()
-                swipeState.reset()
-            }
-            androidx.compose.material3.SwipeToDismissBoxValue.EndToStart -> {
-                currentOps.onNarrow()
-                swipeState.reset()
-            }
-            else -> {}
+    val swipeScope = androidx.compose.runtime.rememberCoroutineScope()
+    LaunchedEffect(swipeState.targetValue) {
+        when (swipeState.targetValue) {
+            androidx.compose.material3.SwipeToDismissBoxValue.StartToEnd -> currentOps.onCycleState()
+            androidx.compose.material3.SwipeToDismissBoxValue.EndToStart -> currentOps.onNarrow()
+            else -> return@LaunchedEffect
+        }
+        swipeScope.launch {
+            swipeState.snapTo(androidx.compose.material3.SwipeToDismissBoxValue.Settled)
         }
     }
 
