@@ -30,30 +30,19 @@ import androidx.compose.ui.graphics.Color
 import androidx.core.net.toUri
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.LinkAnnotation
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.TextLinkStyles
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.text.withLink
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rrajath.grove.org.BlockParser
-import com.rrajath.grove.org.InlineTokenizer
-import com.rrajath.grove.org.InlineType
 import com.rrajath.grove.org.OrgBlock
 import com.rrajath.grove.org.OrgDocument
 import com.rrajath.grove.org.OrgHeadline
 import com.rrajath.grove.ui.components.GroveTopBar
 import com.rrajath.grove.ui.components.Pill
 import com.rrajath.grove.ui.components.SegmentedControl
-import com.rrajath.grove.ui.theme.GroveColors
+import com.rrajath.grove.ui.components.annotateOrgInline
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSerif
 import com.rrajath.grove.ui.theme.grove
@@ -155,6 +144,8 @@ private fun NoteContent(
     modifier: Modifier = Modifier,
 ) {
     val c = MaterialTheme.grove
+    val context = LocalContext.current
+    val openLink: (String) -> Unit = { openOrgTarget(it, doc, fileName, context, onOpenNote) }
     Column(modifier) {
         Spacer(Modifier.height(8.dp))
 
@@ -180,7 +171,7 @@ private fun NoteContent(
             }
         }
         Text(
-            headline.title,
+            annotateOrgInline(headline.title, c, openLink),
             fontFamily = PlexSerif, fontWeight = FontWeight.SemiBold,
             fontSize = 25.sp, color = c.ink, lineHeight = 1.3.em,
         )
@@ -215,7 +206,7 @@ private fun NoteContent(
                     Spacer(Modifier.width(8.dp))
                 }
                 Text(
-                    child.title,
+                    annotateOrgInline(child.title, c, openLink),
                     fontFamily = PlexSerif, fontWeight = FontWeight.SemiBold,
                     fontSize = when (rel) {
                         1 -> 19.sp
@@ -242,28 +233,13 @@ private fun BodyBlocks(
     val c = MaterialTheme.grove
     val context = LocalContext.current
     val blocks = remember(bodyLines) { BlockParser.parse(bodyLines) }
-
-    fun openTarget(target: String) {
-        when {
-            target.startsWith("id:") ->
-                doc.findById(target.removePrefix("id:"))
-                    ?.let { onOpenNote(NoteRef(fileName, it.lineIndex)) }
-
-            target.startsWith("#") ->
-                doc.findByCustomId(target.removePrefix("#"))
-                    ?.let { onOpenNote(NoteRef(fileName, it.lineIndex)) }
-
-            else -> runCatching {
-                context.startActivity(Intent(Intent.ACTION_VIEW, target.toUri()))
-            }
-        }
-    }
+    val openTarget: (String) -> Unit = { openOrgTarget(it, doc, fileName, context, onOpenNote) }
 
     blocks.forEach { block ->
         when (block) {
             is OrgBlock.Paragraph -> {
                 Text(
-                    annotateOrgText(block.lines.joinToString(" ") { it.trim() }, c, ::openTarget),
+                    annotateOrgInline(block.lines.joinToString(" ") { it.trim() }, c, openTarget),
                     fontFamily = PlexSerif, fontSize = 16.sp,
                     lineHeight = 1.65.em, color = c.ink,
                 )
@@ -285,7 +261,7 @@ private fun BodyBlocks(
                             )
                             Spacer(Modifier.width(10.dp))
                             Text(
-                                annotateOrgText(item.text, c, ::openTarget),
+                                annotateOrgInline(item.text, c, openTarget),
                                 fontFamily = PlexSerif, fontSize = 16.sp,
                                 lineHeight = 1.55.em, color = c.ink,
                             )
@@ -334,37 +310,25 @@ private fun BodyBlocks(
     }
 }
 
-/** Render org inline markup into an AnnotatedString with tappable links. */
-private fun annotateOrgText(
-    text: String,
-    c: GroveColors,
-    onLink: (String) -> Unit,
-): AnnotatedString = buildAnnotatedString {
-    for (token in InlineTokenizer.tokenize(text)) {
-        when (token.type) {
-            InlineType.TEXT -> append(token.text)
-            InlineType.BOLD -> withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) { append(token.text) }
-            InlineType.ITALIC -> withStyle(SpanStyle(fontStyle = FontStyle.Italic)) { append(token.text) }
-            InlineType.UNDERLINE -> withStyle(SpanStyle(textDecoration = TextDecoration.Underline)) { append(token.text) }
-            InlineType.CODE, InlineType.VERBATIM -> withStyle(
-                SpanStyle(fontFamily = PlexMono, fontSize = 13.5.sp, background = c.surface2)
-            ) { append(token.text) }
+/** Resolve an org link target: internal id/custom-id jumps to the note, else opens externally. */
+private fun openOrgTarget(
+    target: String,
+    doc: OrgDocument,
+    fileName: String,
+    context: android.content.Context,
+    onOpenNote: (NoteRef) -> Unit,
+) {
+    when {
+        target.startsWith("id:") ->
+            doc.findById(target.removePrefix("id:"))
+                ?.let { onOpenNote(NoteRef(fileName, it.lineIndex)) }
 
-            InlineType.TIMESTAMP -> withStyle(
-                SpanStyle(fontFamily = PlexMono, fontSize = 13.5.sp, color = c.synTs)
-            ) { append(token.text) }
+        target.startsWith("#") ->
+            doc.findByCustomId(target.removePrefix("#"))
+                ?.let { onOpenNote(NoteRef(fileName, it.lineIndex)) }
 
-            InlineType.LINK -> {
-                val target = token.target ?: token.text
-                withLink(
-                    LinkAnnotation.Clickable(
-                        tag = target,
-                        styles = TextLinkStyles(
-                            SpanStyle(color = c.synLink, textDecoration = TextDecoration.Underline)
-                        ),
-                    ) { onLink(target) }
-                ) { append(token.text) }
-            }
+        else -> runCatching {
+            context.startActivity(Intent(Intent.ACTION_VIEW, target.toUri()))
         }
     }
 }

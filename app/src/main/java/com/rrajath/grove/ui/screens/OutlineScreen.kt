@@ -42,6 +42,7 @@ import com.rrajath.grove.org.OrgHeadline
 import com.rrajath.grove.settings.OutlineToggle
 import com.rrajath.grove.ui.components.GroveTopBar
 import com.rrajath.grove.ui.components.Pill
+import com.rrajath.grove.ui.components.annotateOrgInline
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
@@ -420,7 +421,7 @@ private fun OutlineNode(
                     Spacer(Modifier.width(6.dp))
                 }
                 Text(
-                    headline.title,
+                    annotateOrgInline(headline.title, c),
                     fontFamily = PlexSans,
                     fontWeight = if (headline.level == 1) FontWeight.SemiBold else FontWeight.Medium,
                     fontSize = 14.5.sp,
