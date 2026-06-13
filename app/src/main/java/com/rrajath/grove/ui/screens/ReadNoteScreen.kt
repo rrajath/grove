@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -27,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.core.net.toUri
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.LinkAnnotation
@@ -129,6 +131,10 @@ fun ReadNoteScreen(
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(padding)
+                            // Double-tap anywhere in the note switches to edit mode.
+                            .pointerInput(Unit) {
+                                detectTapGestures(onDoubleTap = { onEdit() })
+                            }
                             .verticalScroll(rememberScrollState())
                             .padding(horizontal = 24.dp),
                         onOpenNote = onOpenNote,
