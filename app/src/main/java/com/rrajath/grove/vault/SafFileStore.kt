@@ -49,6 +49,22 @@ class SafFileStore(
         entries.sortedBy { it.name }
     }
 
+    override suspend fun stat(name: String): FileEntry? = withContext(Dispatchers.IO) {
+        // documentUri() lists the tree only on a cache miss; once the doc id is
+        // cached this is a single-document query, not a full directory scan.
+        val uri = documentUri(name) ?: return@withContext null
+        resolver.query(
+            uri,
+            arrayOf(
+                DocumentsContract.Document.COLUMN_LAST_MODIFIED,
+                DocumentsContract.Document.COLUMN_SIZE,
+            ),
+            null, null, null,
+        )?.use { cursor ->
+            if (cursor.moveToFirst()) FileEntry(name, cursor.getLong(0), cursor.getLong(1)) else null
+        }
+    }
+
     override suspend fun read(name: String): String = withContext(Dispatchers.IO) {
         val uri = documentUri(name) ?: error("File not found in vault: $name")
         resolver.openInputStream(uri)?.use { it.readBytes().toString(Charsets.UTF_8) }

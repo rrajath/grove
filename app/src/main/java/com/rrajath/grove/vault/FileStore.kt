@@ -16,6 +16,13 @@ interface FileStore {
     /** All files in the vault (not filtered to .org; callers apply ignore rules). */
     suspend fun list(): List<FileEntry>
 
+    /**
+     * Metadata for a single file, or null if it doesn't exist. Implementations
+     * should avoid enumerating the whole vault when only one file is needed; the
+     * default falls back to [list] for stores where that's already cheap.
+     */
+    suspend fun stat(name: String): FileEntry? = list().firstOrNull { it.name == name }
+
     suspend fun read(name: String): String
 
     /**
