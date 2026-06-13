@@ -70,7 +70,7 @@ fun NotebooksScreen(
     val context = LocalContext.current
     var showCreateDialog by remember { mutableStateOf(false) }
     var renameTarget by remember { mutableStateOf<String?>(null) }
-    var iconTarget by remember { mutableStateOf<NotebookItem?>(null) }
+    var styleTarget by remember { mutableStateOf<String?>(null) }
 
     val folderPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocumentTree()
@@ -148,7 +148,7 @@ fun NotebooksScreen(
                                     onClick = { onOpenNotebook(nb.fileName) },
                                     onOpenConflict = { onOpenConflict(nb.fileName) },
                                     onRename = { renameTarget = nb.fileName },
-                                    onChangeIcon = { iconTarget = nb },
+                                    onChangeIcon = { styleTarget = nb.fileName },
                                     onDelete = { viewModel.trashNotebook(nb.fileName) },
                                     onForceReload = { viewModel.forceReload(nb.fileName) },
                                 )
@@ -184,26 +184,33 @@ fun NotebooksScreen(
             },
         )
     }
-    iconTarget?.let { target ->
-        IconPickerDialog(
-            notebook = target,
-            onDismiss = { iconTarget = null },
-            onPick = { glyph ->
-                viewModel.setNotebookIcon(target.fileName, glyph)
-                iconTarget = null
-            },
-        )
+    styleTarget?.let { target ->
+        val notebook = (state as? NotebooksUiState.Loaded)?.notebooks
+            ?.firstOrNull { it.fileName == target }
+        if (notebook == null) {
+            styleTarget = null
+        } else {
+            IconStyleDialog(
+                notebook = notebook,
+                onDismiss = { styleTarget = null },
+                onPickIcon = { glyph -> viewModel.setNotebookIcon(target, glyph) },
+                onPickColor = { key -> viewModel.setNotebookColor(target, key) },
+            )
+        }
     }
 }
 
 @Composable
-private fun IconPickerDialog(
+private fun IconStyleDialog(
     notebook: NotebookItem,
     onDismiss: () -> Unit,
-    onPick: (String) -> Unit,
+    onPickIcon: (String) -> Unit,
+    onPickColor: (String) -> Unit,
 ) {
     val c = MaterialTheme.grove
-    val current = notebookStyle(c, notebook.fileName, notebook.icon).first
+    val hash = nameHash(notebook.fileName)
+    val currentGlyph = notebook.icon ?: GLYPHS[hash % GLYPHS.size]
+    val currentColor = notebook.color ?: PALETTE_KEYS[hash % PALETTE_KEYS.size]
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = c.surface,
@@ -215,34 +222,63 @@ private fun IconPickerDialog(
             )
         },
         text = {
-            Row {
-                GLYPHS.forEach { glyph ->
-                    Box(
-                        Modifier
-                            .padding(end = 6.dp)
-                            .size(38.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(if (glyph == current) c.accentSoft else c.surface2)
-                            .border(
-                                1.dp,
-                                if (glyph == current) c.accent else c.line,
-                                RoundedCornerShape(12.dp),
+            Column {
+                Row {
+                    GLYPHS.forEach { glyph ->
+                        val selected = glyph == currentGlyph
+                        Box(
+                            Modifier
+                                .padding(end = 6.dp)
+                                .size(38.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(if (selected) c.accentSoft else c.surface2)
+                                .border(
+                                    1.dp,
+                                    if (selected) c.accent else c.line,
+                                    RoundedCornerShape(12.dp),
+                                )
+                                .clickable { onPickIcon(glyph) },
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                glyph,
+                                fontFamily = PlexMono, fontWeight = FontWeight.SemiBold,
+                                fontSize = 17.sp, color = if (selected) c.accent else c.ink2,
                             )
-                            .clickable { onPick(glyph) },
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            glyph,
-                            fontFamily = PlexMono, fontWeight = FontWeight.SemiBold,
-                            fontSize = 17.sp, color = if (glyph == current) c.accent else c.ink2,
-                        )
+                        }
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+                Row {
+                    PALETTE_KEYS.forEach { key ->
+                        val (fg, bg) = palette(c, key)
+                        val selected = key == currentColor
+                        Box(
+                            Modifier
+                                .padding(end = 6.dp)
+                                .size(38.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(bg)
+                                .border(
+                                    if (selected) 2.dp else 1.dp,
+                                    if (selected) fg else c.line,
+                                    RoundedCornerShape(12.dp),
+                                )
+                                .clickable { onPickColor(key) },
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                if (selected) currentGlyph else "",
+                                fontFamily = PlexMono, fontWeight = FontWeight.SemiBold,
+                                fontSize = 17.sp, color = fg,
+                            )
+                        }
                     }
                 }
             }
         },
-        confirmButton = {},
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel", color = c.ink2) }
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("Done", color = c.accent, fontWeight = FontWeight.SemiBold) }
         },
     )
 }
@@ -290,19 +326,30 @@ private fun SyncStatusStrip(state: NotebooksUiState.Loaded, onConflictTap: (Stri
 
 private val GLYPHS = listOf("✦", "✶", "✸", "✺", "❋", "✷")
 
+/** Palette keys persisted in settings; resolved against the current theme. */
+private val PALETTE_KEYS = listOf("green", "accent", "blue", "red")
+
+private fun palette(
+    c: GroveColors,
+    key: String,
+): Pair<androidx.compose.ui.graphics.Color, androidx.compose.ui.graphics.Color> = when (key) {
+    "green" -> c.green to c.greenSoft
+    "blue" -> c.blue to c.blueSoft
+    "red" -> c.red to c.redSoft
+    else -> c.accent to c.accentSoft
+}
+
+private fun nameHash(name: String): Int =
+    name.hashCode().let { if (it == Int.MIN_VALUE) 0 else kotlin.math.abs(it) }
+
 private fun notebookStyle(
     c: GroveColors,
     name: String,
     iconOverride: String? = null,
+    colorOverride: String? = null,
 ): Triple<String, androidx.compose.ui.graphics.Color, androidx.compose.ui.graphics.Color> {
-    val palettes = listOf(
-        c.green to c.greenSoft,
-        c.accent to c.accentSoft,
-        c.blue to c.blueSoft,
-        c.red to c.redSoft,
-    )
-    val hash = name.hashCode().let { if (it == Int.MIN_VALUE) 0 else kotlin.math.abs(it) }
-    val (fg, bg) = palettes[hash % palettes.size]
+    val hash = nameHash(name)
+    val (fg, bg) = palette(c, colorOverride ?: PALETTE_KEYS[hash % PALETTE_KEYS.size])
     return Triple(iconOverride ?: GLYPHS[hash % GLYPHS.size], fg, bg)
 }
 
@@ -318,8 +365,8 @@ private fun NotebookRow(
     onForceReload: () -> Unit,
 ) {
     val c = MaterialTheme.grove
-    val (glyph, fg, bg) = remember(notebook.fileName, notebook.icon, c) {
-        notebookStyle(c, notebook.fileName, notebook.icon)
+    val (glyph, fg, bg) = remember(notebook.fileName, notebook.icon, notebook.color, c) {
+        notebookStyle(c, notebook.fileName, notebook.icon, notebook.color)
     }
     var menuOpen by remember { mutableStateOf(false) }
 
@@ -370,7 +417,7 @@ private fun NotebookRow(
                 onClick = { menuOpen = false; onRename() },
             )
             DropdownMenuItem(
-                text = { Text("Change icon", fontFamily = PlexSans, color = c.ink) },
+                text = { Text("Icon & color", fontFamily = PlexSans, color = c.ink) },
                 onClick = { menuOpen = false; onChangeIcon() },
             )
             DropdownMenuItem(

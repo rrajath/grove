@@ -26,6 +26,8 @@ data class NotebookItem(
     val hasConflict: Boolean,
     /** User-chosen list glyph; null = derive one from the file name. */
     val icon: String? = null,
+    /** User-chosen icon palette key; null = derive one from the file name. */
+    val color: String? = null,
 )
 
 sealed class NotebooksUiState {
@@ -58,6 +60,7 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
                             lastModified = it.lastModified,
                             hasConflict = it.conflictFileName != null,
                             icon = settings.notebookIcons[it.fileName],
+                            color = settings.notebookColors[it.fileName],
                         )
                     }
                     .sortedBy { it.fileName.lowercase() },
@@ -89,7 +92,7 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
         viewModelScope.launch {
             if (vault.renameNotebook(oldName, newName.trim())) {
                 app.database.indexDao().removeNotebook(oldName)
-                app.settingsRepository.moveNotebookIcon(
+                app.settingsRepository.moveNotebookStyle(
                     oldName,
                     if (newName.trim().endsWith(".org")) newName.trim() else "${newName.trim()}.org",
                 )
@@ -110,6 +113,10 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
 
     fun setNotebookIcon(fileName: String, glyph: String) {
         viewModelScope.launch { app.settingsRepository.setNotebookIcon(fileName, glyph) }
+    }
+
+    fun setNotebookColor(fileName: String, colorKey: String) {
+        viewModelScope.launch { app.settingsRepository.setNotebookColor(fileName, colorKey) }
     }
 
     fun forceReload(name: String) {

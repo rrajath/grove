@@ -32,6 +32,8 @@ data class GroveSettings(
     val notebookModes: Map<String, String> = emptyMap(),
     /** Per-notebook list glyph overrides: "file.org" → "✦". */
     val notebookIcons: Map<String, String> = emptyMap(),
+    /** Per-notebook icon color overrides: "file.org" → palette key ("green"…). */
+    val notebookColors: Map<String, String> = emptyMap(),
     val captureNotification: Boolean = false,
     // Outline display toggles (PRD §5.3)
     val showTagsInOutline: Boolean = true,
@@ -59,6 +61,7 @@ class SettingsRepository(private val context: Context) {
         val addCreatedToNewNotes = booleanPreferencesKey("add_created_to_new_notes")
         val notebookModes = stringPreferencesKey("notebook_modes")
         val notebookIcons = stringPreferencesKey("notebook_icons")
+        val notebookColors = stringPreferencesKey("notebook_colors")
         val captureNotification = booleanPreferencesKey("capture_notification")
         val showTagsInOutline = booleanPreferencesKey("show_tags_in_outline")
         val showTimestampsInOutline = booleanPreferencesKey("show_timestamps_in_outline")
@@ -80,6 +83,7 @@ class SettingsRepository(private val context: Context) {
             addCreatedToNewNotes = prefs[Keys.addCreatedToNewNotes] ?: true,
             notebookModes = decodeModes(prefs[Keys.notebookModes]),
             notebookIcons = decodeModes(prefs[Keys.notebookIcons]),
+            notebookColors = decodeModes(prefs[Keys.notebookColors]),
             captureNotification = prefs[Keys.captureNotification] ?: false,
             showTagsInOutline = prefs[Keys.showTagsInOutline] ?: true,
             showTimestampsInOutline = prefs[Keys.showTimestampsInOutline] ?: true,
@@ -168,20 +172,30 @@ class SettingsRepository(private val context: Context) {
     }
 
     suspend fun setNotebookIcon(fileName: String, glyph: String) {
+        setMapEntry(Keys.notebookIcons, fileName, glyph)
+    }
+
+    suspend fun setNotebookColor(fileName: String, colorKey: String) {
+        setMapEntry(Keys.notebookColors, fileName, colorKey)
+    }
+
+    private suspend fun setMapEntry(key: Preferences.Key<String>, mapKey: String, value: String) {
         context.settingsDataStore.edit { prefs ->
-            val current = decodeModes(prefs[Keys.notebookIcons]).toMutableMap()
-            current[fileName] = glyph
-            prefs[Keys.notebookIcons] = current.entries.joinToString(";") { "${it.key}=${it.value}" }
+            val current = decodeModes(prefs[key]).toMutableMap()
+            current[mapKey] = value
+            prefs[key] = current.entries.joinToString(";") { "${it.key}=${it.value}" }
         }
     }
 
-    /** Keep a chosen icon attached to a notebook across renames. */
-    suspend fun moveNotebookIcon(oldFileName: String, newFileName: String) {
+    /** Keep a chosen icon and color attached to a notebook across renames. */
+    suspend fun moveNotebookStyle(oldFileName: String, newFileName: String) {
         context.settingsDataStore.edit { prefs ->
-            val current = decodeModes(prefs[Keys.notebookIcons]).toMutableMap()
-            val glyph = current.remove(oldFileName) ?: return@edit
-            current[newFileName] = glyph
-            prefs[Keys.notebookIcons] = current.entries.joinToString(";") { "${it.key}=${it.value}" }
+            for (key in listOf(Keys.notebookIcons, Keys.notebookColors)) {
+                val current = decodeModes(prefs[key]).toMutableMap()
+                val value = current.remove(oldFileName) ?: continue
+                current[newFileName] = value
+                prefs[key] = current.entries.joinToString(";") { "${it.key}=${it.value}" }
+            }
         }
     }
 }
