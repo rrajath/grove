@@ -67,9 +67,6 @@ class AppViewModel(private val app: GroveApplication) : ViewModel() {
     fun setAddCreatedToNewNotes(enabled: Boolean) =
         viewModelScope.launch { settingsRepository.setAddCreatedToNewNotes(enabled) }
 
-    fun recordNotebookMode(fileName: String, mode: NoteOpenMode) =
-        viewModelScope.launch { settingsRepository.setNotebookMode(fileName, mode) }
-
     fun setCaptureNotification(enabled: Boolean) =
         viewModelScope.launch { settingsRepository.setCaptureNotification(enabled) }
 

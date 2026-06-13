@@ -20,7 +20,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.rrajath.grove.settings.GroveSettings
-import com.rrajath.grove.settings.NoteOpenMode
 import com.rrajath.grove.ui.capture.CaptureEditorScreen
 import com.rrajath.grove.ui.editor.EditNoteScreen
 import com.rrajath.grove.ui.capture.CapturePickerSheet
@@ -134,10 +133,8 @@ private fun GroveNavigation(settings: GroveSettings, viewModel: AppViewModel) {
                     notebookId = entry.arguments?.getString("notebookId").orEmpty(),
                     onBack = { navController.popBackStack() },
                     onOpenNote = { ref ->
-                        // Default mode: per-notebook memory, then the global setting.
-                        val mode = settings.notebookModes[ref.fileName]
-                            ?: settings.defaultNoteOpenMode.storageKey
-                        navController.navigate(Routes.note(ref.encode(), mode))
+                        // Always open in the mode configured in Settings.
+                        navController.navigate(Routes.note(ref.encode(), settings.defaultNoteOpenMode.storageKey))
                     },
                     // A freshly created note opens straight in edit mode (blank heading).
                     onCreateNote = { ref -> navController.navigate(Routes.note(ref.encode(), "edit")) },
@@ -161,9 +158,6 @@ private fun GroveNavigation(settings: GroveSettings, viewModel: AppViewModel) {
                 if (ref == null) {
                     navController.popBackStack()
                 } else if (mode == "edit") {
-                    LaunchedEffect(ref.fileName) {
-                        viewModel.recordNotebookMode(ref.fileName, NoteOpenMode.EDIT)
-                    }
                     EditNoteScreen(
                         noteRef = ref,
                         onBack = { navController.popBackStack() },
@@ -174,9 +168,6 @@ private fun GroveNavigation(settings: GroveSettings, viewModel: AppViewModel) {
                         },
                     )
                 } else {
-                    LaunchedEffect(ref.fileName) {
-                        viewModel.recordNotebookMode(ref.fileName, NoteOpenMode.READ)
-                    }
                     ReadNoteScreen(
                         noteRef = ref,
                         onBack = { navController.popBackStack() },
