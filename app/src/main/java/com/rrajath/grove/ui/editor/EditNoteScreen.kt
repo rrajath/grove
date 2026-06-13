@@ -33,7 +33,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontStyle
@@ -68,7 +67,6 @@ fun EditNoteScreen(
 ) {
     val c = MaterialTheme.grove
     val state by viewModel.state.collectAsState()
-    val keyboard = LocalSoftwareKeyboardController.current
     var value by remember { mutableStateOf(TextFieldValue("")) }
     var metadataOpen by remember { mutableStateOf(false) }
     var confirmLeave by remember { mutableStateOf(false) }
@@ -175,7 +173,6 @@ fun EditNoteScreen(
                         applyEdit(TextFieldValue(it.text, TextRange(it.cursor)))
                     }
                 },
-                onDismissKeyboard = { keyboard?.hide() },
             )
         }
     }
@@ -265,41 +262,34 @@ private fun EditorToolbar(
     onInsert: (String) -> Unit,
     onHeading: () -> Unit,
     onIndent: (Int) -> Unit,
-    onDismissKeyboard: () -> Unit,
 ) {
     val c = MaterialTheme.grove
+    // Scrolls horizontally so the enlarged buttons never clip on narrow screens.
     Row(
         Modifier
             .fillMaxWidth()
             .background(c.surface)
             .border(1.dp, c.line)
+            .horizontalScroll(rememberScrollState())
             .padding(horizontal = 4.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // The formatting buttons scroll horizontally so enlarging them never
-        // clips on narrow screens; the dismiss button stays pinned at the right.
-        Row(
-            Modifier
-                .weight(1f)
-                .horizontalScroll(rememberScrollState()),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            ToolButton("B", c.ink, bold = true) { onWrap('*') }
-            ToolButton("I", c.ink, italic = true) { onWrap('/') }
-            ToolButton("U", c.ink, underline = true) { onWrap('_') }
-            ToolButton("</>", c.ink) { onWrap('~') }
-            Box(Modifier.width(1.dp).height(24.dp).background(c.line))
-            ToolButton("[[]]", c.synLink) { onInsert("[[][]]") }
-            ToolButton("◷", c.synTs) {
-                val now = LocalDateTime.now()
-                onInsert(OrgTimestamp(now.toLocalDate(), time = now.toLocalTime().withSecond(0).withNano(0)).format())
-            }
-            ToolButton("*", c.synStar, bold = true) { onHeading() }
-            // List indent: « promotes a sub-list item, » demotes into a sub-list.
-            ToolButton("«", c.ink) { onIndent(-1) }
-            ToolButton("»", c.ink) { onIndent(+1) }
+        ToolButton("B", c.ink, bold = true) { onWrap('*') }
+        ToolButton("I", c.ink, italic = true) { onWrap('/') }
+        ToolButton("U", c.ink, underline = true) { onWrap('_') }
+        ToolButton("</>", c.ink) { onWrap('~') }
+        Box(Modifier.width(1.dp).height(24.dp).background(c.line))
+        ToolButton("[[]]", c.synLink) { onInsert("[[][]]") }
+        // The clock glyph is drawn smaller than the letters at a given size, so
+        // bump its font so it reads at the same height as the other buttons.
+        ToolButton("◷", c.synTs, fontSize = 27.sp) {
+            val now = LocalDateTime.now()
+            onInsert(OrgTimestamp(now.toLocalDate(), time = now.toLocalTime().withSecond(0).withNano(0)).format())
         }
-        ToolButton("⌄", c.ink2) { onDismissKeyboard() }
+        ToolButton("*", c.synStar, bold = true) { onHeading() }
+        // List indent: « promotes a sub-list item, » demotes into a sub-list.
+        ToolButton("«", c.ink) { onIndent(-1) }
+        ToolButton("»", c.ink) { onIndent(+1) }
     }
 }
 
@@ -310,14 +300,14 @@ private fun ToolButton(
     bold: Boolean = false,
     italic: Boolean = false,
     underline: Boolean = false,
+    fontSize: androidx.compose.ui.unit.TextUnit = 20.sp,
     onClick: () -> Unit,
 ) {
     Box(
         Modifier
             .clip(RoundedCornerShape(8.dp))
             .clickable(onClick = onClick)
-            // Uniform square slot so every glyph (including the small ◷) reads
-            // at the same size; wider labels like "[[]]" expand past the minimum.
+            // Uniform square slot; wider labels like "[[]]" expand past the minimum.
             .sizeIn(minWidth = 44.dp, minHeight = 44.dp)
             .padding(horizontal = 6.dp),
         contentAlignment = Alignment.Center,
@@ -328,7 +318,7 @@ private fun ToolButton(
             fontWeight = if (bold) FontWeight.Bold else FontWeight.Normal,
             fontStyle = if (italic) FontStyle.Italic else null,
             textDecoration = if (underline) androidx.compose.ui.text.style.TextDecoration.Underline else null,
-            fontSize = 20.sp,
+            fontSize = fontSize,
             color = color,
         )
     }
