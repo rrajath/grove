@@ -183,11 +183,11 @@ private fun NoteContent(
         }
         headline.planning.scheduled?.let {
             Spacer(Modifier.height(6.dp))
-            Text("◷ Scheduled ${it.format()}", fontFamily = PlexMono, fontSize = 12.5.sp, color = c.blue)
+            PlanningChip("SCHEDULED: ${it.format()}", fg = c.blue, bg = c.blueSoft)
         }
         headline.planning.deadline?.let {
             Spacer(Modifier.height(6.dp))
-            Text("DEADLINE ${it.format()}", fontFamily = PlexMono, fontSize = 12.5.sp, color = c.red)
+            PlanningChip("DEADLINE: ${it.format()}", fg = c.red, bg = c.redSoft)
         }
         Spacer(Modifier.height(16.dp))
 
@@ -220,6 +220,19 @@ private fun NoteContent(
             BodyBlocks(doc, doc.bodyOf(child), fileName, onOpenNote)
         }
         Spacer(Modifier.height(40.dp))
+    }
+}
+
+/** A planning date shown as a soft-tinted chip (SCHEDULED blue, DEADLINE red). */
+@Composable
+private fun PlanningChip(text: String, fg: Color, bg: Color) {
+    Box(
+        Modifier
+            .clip(RoundedCornerShape(6.dp))
+            .background(bg)
+            .padding(horizontal = 8.dp, vertical = 3.dp),
+    ) {
+        Text(text, fontFamily = PlexMono, fontSize = 12.5.sp, color = fg)
     }
 }
 
