@@ -1,9 +1,32 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
 }
+
+// Semantic version lives in version.properties; any build that produces an
+// app (assemble/bundle/install/build) auto-bumps the patch and versionCode.
+val versionFile = file("version.properties")
+val versionProps = Properties().apply { versionFile.inputStream().use { load(it) } }
+val bumpVersion = gradle.startParameter.taskNames.any { name ->
+    listOf("assemble", "bundle", "install", "build").any { name.contains(it, ignoreCase = true) }
+}
+if (bumpVersion) {
+    versionProps.setProperty(
+        "VERSION_PATCH",
+        (versionProps.getProperty("VERSION_PATCH").toInt() + 1).toString(),
+    )
+    versionProps.setProperty(
+        "VERSION_CODE",
+        (versionProps.getProperty("VERSION_CODE").toInt() + 1).toString(),
+    )
+    versionFile.outputStream().use { versionProps.store(it, "Auto-incremented on build") }
+}
+val semanticVersion = listOf("VERSION_MAJOR", "VERSION_MINOR", "VERSION_PATCH")
+    .joinToString(".") { versionProps.getProperty(it) }
 
 android {
     namespace = "com.rrajath.grove"
@@ -15,8 +38,8 @@ android {
         applicationId = "com.rrajath.grove"
         minSdk = 34
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = versionProps.getProperty("VERSION_CODE").toInt()
+        versionName = semanticVersion
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -36,6 +59,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 

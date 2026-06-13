@@ -69,11 +69,24 @@ fun SettingsScreen(
 ) {
     val c = MaterialTheme.grove
     val templates by templatesViewModel.templates.collectAsState()
+    var keywordsText by remember(settings.todoKeywords) {
+        mutableStateOf(settings.todoKeywords)
+    }
+
+    // Apply a pending TODO-keyword edit on leave so back doesn't drop it.
+    fun leave() {
+        if (keywordsText != settings.todoKeywords && keywordsText.isNotBlank()) {
+            onSetTodoKeywords(keywordsText)
+        }
+        onBack()
+    }
+    androidx.activity.compose.BackHandler { leave() }
+
     Scaffold(
         containerColor = c.bg,
         topBar = {
             GroveTopBar(
-                leading = { IconGlyph("←", onClick = onBack) },
+                leading = { IconGlyph("←", onClick = ::leave) },
                 title = {
                     Text(
                         "Settings",
@@ -226,9 +239,6 @@ fun SettingsScreen(
                         fontFamily = PlexSans, fontSize = 12.sp, color = c.ink3,
                         modifier = Modifier.padding(bottom = 6.dp),
                     )
-                    var keywordsText by remember(settings.todoKeywords) {
-                        mutableStateOf(settings.todoKeywords)
-                    }
                     OutlinedTextField(
                         value = keywordsText,
                         onValueChange = { keywordsText = it },
@@ -275,7 +285,7 @@ fun SettingsScreen(
             }
 
             Text(
-                "com.rrajath.grove",
+                "Grove v${com.rrajath.grove.BuildConfig.VERSION_NAME}",
                 fontFamily = PlexMono, fontSize = 11.5.sp, color = c.ink3,
                 textAlign = TextAlign.Center,
                 modifier = Modifier
