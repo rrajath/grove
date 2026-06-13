@@ -32,6 +32,7 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
@@ -245,7 +246,8 @@ fun OutlineScreen(
                         state = listState,
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(horizontal = 10.dp),
+                            .padding(horizontal = 10.dp)
+                            .testTag("outline_list"),
                     ) {
                         items(visible, key = { it.lineIndex }) { h ->
                             OutlineNode(

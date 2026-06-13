@@ -40,6 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -141,7 +142,7 @@ fun NotebooksScreen(
                     if (s.notebooks.isEmpty()) {
                         CenterMessage("✦", "No .org files here yet", "Capture a note or create a notebook with ＋")
                     } else {
-                        LazyColumn(Modifier.fillMaxSize()) {
+                        LazyColumn(Modifier.fillMaxSize().testTag("notebooks_list")) {
                             items(s.notebooks, key = { it.fileName }) { nb ->
                                 NotebookRow(
                                     notebook = nb,

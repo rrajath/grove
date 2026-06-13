@@ -52,6 +52,16 @@ android {
                 "proguard-rules.pro"
             )
         }
+        // Build type the :macrobenchmark module measures against. Mirrors release
+        // (so numbers reflect a shippable build) but is debug-signed and marked
+        // profileable so Macrobenchmark can capture traces without root.
+        create("benchmark") {
+            initWith(getByName("release"))
+            signingConfig = signingConfigs.getByName("debug")
+            matchingFallbacks += listOf("release")
+            isDebuggable = false
+            isProfileable = true
+        }
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
@@ -82,6 +92,9 @@ dependencies {
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.androidx.lifecycle.process)
     implementation(libs.androidx.glance.appwidget)
+    // Enables CompilationMode.Partial (baseline-profile) benchmarks and installs
+    // a packaged baseline profile at app startup once one is generated.
+    implementation(libs.androidx.profileinstaller)
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(libs.androidx.junit)
