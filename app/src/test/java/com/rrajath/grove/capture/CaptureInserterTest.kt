@@ -211,4 +211,54 @@ class CaptureInserterTest {
             result.newText.indexOf("* 2025") < result.newText.indexOf("* 2026")
         )
     }
+
+    // --- editor star prefill ---
+
+    @Test
+    fun `datetree entry is prefilled with day-level stars`() {
+        val result = CaptureInserter.withHeadingStars(
+            ExpandedTemplate("", 0), TargetLocation.DatetreeDate,
+        )
+        assertEquals("**** ", result.text)
+        assertEquals(5, result.cursorOffset)
+    }
+
+    @Test
+    fun `star prefill keeps the cursor in place relative to the template`() {
+        val result = CaptureInserter.withHeadingStars(
+            ExpandedTemplate("<2025-06-11 Wed> \nbody", 17), TargetLocation.DatetreeDatetime,
+        )
+        assertEquals("**** <2025-06-11 Wed> \nbody", result.text)
+        assertEquals(22, result.cursorOffset)
+    }
+
+    @Test
+    fun `templates that already start with a heading are untouched`() {
+        val expanded = ExpandedTemplate("* My title\nbody", 15)
+        assertEquals(expanded, CaptureInserter.withHeadingStars(expanded, TargetLocation.BottomOfFile))
+    }
+
+    @Test
+    fun `top and bottom of file prefill a single star`() {
+        assertEquals(
+            "* note",
+            CaptureInserter.withHeadingStars(ExpandedTemplate("note", 0), TargetLocation.TopOfFile).text,
+        )
+    }
+
+    @Test
+    fun `under-heading entries are not prefilled`() {
+        val expanded = ExpandedTemplate("note", 0)
+        assertEquals(
+            expanded,
+            CaptureInserter.withHeadingStars(expanded, TargetLocation.UnderHeading(title = "Inbox")),
+        )
+    }
+
+    @Test
+    fun `prefilled stars round-trip through datetree insertion unchanged`() {
+        val typed = "**** My day\nIt went well"
+        val result = insert("", TargetLocation.DatetreeDate, typed)
+        assertTrue(result.newText.contains("*** 2025-06-11 Wednesday\n**** My day\nIt went well"))
+    }
 }

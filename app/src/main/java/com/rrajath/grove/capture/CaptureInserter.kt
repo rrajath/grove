@@ -54,6 +54,28 @@ object CaptureInserter {
 
     class CaptureTargetNotFound(message: String) : Exception(message)
 
+    /** Heading depth an entry gets when inserted at [location], if statically known. */
+    fun entryLevel(location: TargetLocation): Int? = when (location) {
+        is TargetLocation.TopOfFile, is TargetLocation.BottomOfFile -> 1
+        // Depends on the target heading's depth in the file; not known here.
+        is TargetLocation.UnderHeading -> null
+        // Year → month → day tree; entries sit under the day heading.
+        is TargetLocation.DatetreeDate, is TargetLocation.DatetreeDatetime -> 4
+    }
+
+    /**
+     * Make the capture editor WYSIWYG: prefix the expanded entry with the
+     * stars its heading will get on insert, so the user types the heading
+     * right after them. Skipped when the template already supplies a heading
+     * (insertion re-levels it anyway) or the depth isn't statically known.
+     */
+    fun withHeadingStars(expanded: ExpandedTemplate, location: TargetLocation): ExpandedTemplate {
+        val level = entryLevel(location) ?: return expanded
+        if (STARS.matchEntire(expanded.text.substringBefore('\n')) != null) return expanded
+        val stars = "*".repeat(level) + " "
+        return ExpandedTemplate(stars + expanded.text, expanded.cursorOffset + stars.length)
+    }
+
     // --- datetree ---
 
     fun yearTitle(d: LocalDate) = d.year.toString()

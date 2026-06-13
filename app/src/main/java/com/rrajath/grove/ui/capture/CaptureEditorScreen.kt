@@ -117,7 +117,10 @@ fun CaptureEditorScreen(
         onDispose { app.pendingShare = null }
     }
     val expanded = remember(template, context) {
-        PlaceholderExpander.expand(template.template, context)
+        CaptureInserter.withHeadingStars(
+            PlaceholderExpander.expand(template.template, context),
+            template.location,
+        )
     }
     var value by remember(expanded) {
         mutableStateOf(TextFieldValue(expanded.text, TextRange(expanded.cursorOffset)))
