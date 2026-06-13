@@ -53,7 +53,10 @@ fun MetadataSheet(
 ) {
     val c = MaterialTheme.grove
     val state by viewModel.state.collectAsState()
-    val headline = viewModel.currentHeadline
+    // Derive the headline from the observed buffer so the sheet recomposes when
+    // a chip mutates state — reading state.buffer here (not the off-band
+    // viewModel.currentHeadline) is what subscribes this scope to the change.
+    val headline = remember(state.buffer, state.keywords) { viewModel.currentHeadline }
     var datePickerFor by remember { mutableStateOf<String?>(null) }
 
     ModalBottomSheet(
@@ -79,15 +82,7 @@ fun MetadataSheet(
                         fg = if (done) c.green else c.amber,
                         bg = if (done) c.greenSoft else c.amberSoft,
                     ) {
-                        if (done && (headline?.planning?.scheduled?.repeater != null ||
-                                    headline?.planning?.deadline?.repeater != null)
-                        ) {
-                            viewModel.markDone()
-                        } else if (done) {
-                            viewModel.markDone()
-                        } else {
-                            viewModel.setKeyword(kw)
-                        }
+                        if (done) viewModel.markDone(kw) else viewModel.setKeyword(kw)
                     }
                 }
             }

@@ -92,9 +92,9 @@ class EditorViewModel(private val app: GroveApplication) : ViewModel() {
     fun setScheduled(ts: OrgTimestamp?) = mutateBuffer { d, h -> OrgMutations.setScheduled(d, h, ts) }
     fun setDeadline(ts: OrgTimestamp?) = mutateBuffer { d, h -> OrgMutations.setDeadline(d, h, ts) }
 
-    fun markDone() {
-        val done = _state.value.keywords.done.firstOrNull() ?: "DONE"
-        mutateBuffer { d, h -> OrgMutations.markDone(d, h, done, LocalDateTime.now()) }
+    /** Apply the specific [doneKeyword] the user picked (repeaters advance instead). */
+    fun markDone(doneKeyword: String) {
+        mutateBuffer { d, h -> OrgMutations.markDone(d, h, doneKeyword, LocalDateTime.now()) }
     }
 
     /**
