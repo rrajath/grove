@@ -164,6 +164,7 @@ fun EditNoteScreen(
             EditorToolbar(
                 onWrap = { marker -> applyEdit(wrapSelection(value, marker)) },
                 onInsert = { snippet -> applyEdit(insertAtCursor(value, snippet)) },
+                onLink = { applyEdit(insertLinkTemplate(value)) },
                 onHeading = {
                     val edit = LineEditing.insertHeadingStar(value.text, value.selection.start)
                     applyEdit(TextFieldValue(edit.text, TextRange(edit.cursor)))
@@ -260,6 +261,7 @@ private fun StaleFileBanner(onOverwrite: () -> Unit, onReload: () -> Unit) {
 private fun EditorToolbar(
     onWrap: (Char) -> Unit,
     onInsert: (String) -> Unit,
+    onLink: () -> Unit,
     onHeading: () -> Unit,
     onIndent: (Int) -> Unit,
 ) {
@@ -279,7 +281,7 @@ private fun EditorToolbar(
         ToolButton("U", c.ink, underline = true) { onWrap('_') }
         ToolButton("</>", c.ink) { onWrap('~') }
         Box(Modifier.width(1.dp).height(24.dp).background(c.line))
-        ToolButton("[[]]", c.synLink) { onInsert("[[][]]") }
+        ToolButton("[[]]", c.synLink) { onLink() }
         // The clock glyph is drawn smaller than the letters at a given size, so
         // bump its font so it reads at the same height as the other buttons.
         ToolButton("◷", c.synTs, fontSize = 27.sp) {
@@ -348,5 +350,19 @@ internal fun insertAtCursor(value: TextFieldValue, snippet: String): TextFieldVa
     return TextFieldValue(
         value.text.substring(0, at) + snippet + value.text.substring(at),
         TextRange(at + snippet.length),
+    )
+}
+
+/**
+ * Insert an org link template with named placeholders and pre-select "link" so
+ * the user can type the URL over it, then move to "description".
+ */
+internal fun insertLinkTemplate(value: TextFieldValue): TextFieldValue {
+    val at = value.selection.start
+    val template = "[[link][description]]"
+    val linkStart = at + 2 // just inside the opening "[["
+    return TextFieldValue(
+        value.text.substring(0, at) + template + value.text.substring(at),
+        TextRange(linkStart, linkStart + "link".length),
     )
 }
