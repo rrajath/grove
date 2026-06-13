@@ -71,11 +71,23 @@ class EditorViewModel(private val app: GroveApplication) : ViewModel() {
         _state.value = _state.value.copy(buffer = text, dirty = true)
     }
 
+    // Memoize the most recent parse so repeated currentHeadline reads and the
+    // metadata mutations don't re-parse the same buffer over and over.
+    private var parsedBuffer: String? = null
+    private var parsedKeywords: OrgKeywords? = null
+    private var parsedResult: Pair<OrgDocument, OrgHeadline>? = null
+
     /** Parse the buffer alone; its first headline is the note being edited. */
     private fun bufferHeadline(): Pair<OrgDocument, OrgHeadline>? {
-        val doc = OrgParser.parse(_state.value.buffer, _state.value.keywords)
-        val h = doc.headlines.firstOrNull() ?: return null
-        return doc to h
+        val buffer = _state.value.buffer
+        val keywords = _state.value.keywords
+        if (buffer == parsedBuffer && keywords == parsedKeywords) return parsedResult
+        val doc = OrgParser.parse(buffer, keywords)
+        val result = doc.headlines.firstOrNull()?.let { doc to it }
+        parsedBuffer = buffer
+        parsedKeywords = keywords
+        parsedResult = result
+        return result
     }
 
     val currentHeadline: OrgHeadline?
