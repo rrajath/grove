@@ -3,15 +3,17 @@ package com.rrajath.grove.ui.editor
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -271,24 +273,32 @@ private fun EditorToolbar(
             .fillMaxWidth()
             .background(c.surface)
             .border(1.dp, c.line)
-            .padding(horizontal = 8.dp, vertical = 7.dp),
+            .padding(horizontal = 4.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        ToolButton("B", c.ink, bold = true) { onWrap('*') }
-        ToolButton("I", c.ink, italic = true) { onWrap('/') }
-        ToolButton("U", c.ink, underline = true) { onWrap('_') }
-        ToolButton("</>", c.ink) { onWrap('~') }
-        Box(Modifier.width(1.dp).padding(vertical = 4.dp).background(c.line))
-        ToolButton("[[]]", c.synLink) { onInsert("[[][]]") }
-        ToolButton("◷", c.synTs) {
-            val now = LocalDateTime.now()
-            onInsert(OrgTimestamp(now.toLocalDate(), time = now.toLocalTime().withSecond(0).withNano(0)).format())
+        // The formatting buttons scroll horizontally so enlarging them never
+        // clips on narrow screens; the dismiss button stays pinned at the right.
+        Row(
+            Modifier
+                .weight(1f)
+                .horizontalScroll(rememberScrollState()),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            ToolButton("B", c.ink, bold = true) { onWrap('*') }
+            ToolButton("I", c.ink, italic = true) { onWrap('/') }
+            ToolButton("U", c.ink, underline = true) { onWrap('_') }
+            ToolButton("</>", c.ink) { onWrap('~') }
+            Box(Modifier.width(1.dp).height(24.dp).background(c.line))
+            ToolButton("[[]]", c.synLink) { onInsert("[[][]]") }
+            ToolButton("◷", c.synTs) {
+                val now = LocalDateTime.now()
+                onInsert(OrgTimestamp(now.toLocalDate(), time = now.toLocalTime().withSecond(0).withNano(0)).format())
+            }
+            ToolButton("*", c.synStar, bold = true) { onHeading() }
+            // List indent: « promotes a sub-list item, » demotes into a sub-list.
+            ToolButton("«", c.ink) { onIndent(-1) }
+            ToolButton("»", c.ink) { onIndent(+1) }
         }
-        ToolButton("*", c.synStar, bold = true) { onHeading() }
-        // List indent: « promotes a sub-list item, » demotes into a sub-list.
-        ToolButton("«", c.ink) { onIndent(-1) }
-        ToolButton("»", c.ink) { onIndent(+1) }
-        Spacer(Modifier.weight(1f))
         ToolButton("⌄", c.ink2) { onDismissKeyboard() }
     }
 }
@@ -306,7 +316,11 @@ private fun ToolButton(
         Modifier
             .clip(RoundedCornerShape(8.dp))
             .clickable(onClick = onClick)
-            .padding(horizontal = 11.dp, vertical = 7.dp),
+            // Uniform square slot so every glyph (including the small ◷) reads
+            // at the same size; wider labels like "[[]]" expand past the minimum.
+            .sizeIn(minWidth = 44.dp, minHeight = 44.dp)
+            .padding(horizontal = 6.dp),
+        contentAlignment = Alignment.Center,
     ) {
         Text(
             label,
@@ -314,7 +328,7 @@ private fun ToolButton(
             fontWeight = if (bold) FontWeight.Bold else FontWeight.Normal,
             fontStyle = if (italic) FontStyle.Italic else null,
             textDecoration = if (underline) androidx.compose.ui.text.style.TextDecoration.Underline else null,
-            fontSize = 17.sp,
+            fontSize = 20.sp,
             color = color,
         )
     }
