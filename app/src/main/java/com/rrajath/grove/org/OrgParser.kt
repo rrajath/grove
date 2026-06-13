@@ -51,6 +51,15 @@ class OrgDocument(
 
     fun serialize(): String = text
 
+    /**
+     * Whether [h] has any nested headline — i.e. anything folding would hide.
+     * O(1): the next headline in document order is deeper iff a subtree exists.
+     * Use this for foldability checks instead of `directChildren(h).isNotEmpty()`,
+     * which is O(subtree) and becomes O(n²) when run across every headline.
+     */
+    fun hasDescendants(h: OrgHeadline): Boolean =
+        (headlines.getOrNull(h.index + 1)?.level ?: 0) > h.level
+
     fun directChildren(h: OrgHeadline): List<OrgHeadline> {
         val children = mutableListOf<OrgHeadline>()
         for (i in (h.index + 1) until headlines.size) {

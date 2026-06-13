@@ -93,7 +93,7 @@ fun OutlineScreen(
         if (!defaultCollapseApplied) {
             (state as? DocumentUiState.Loaded)?.let { loaded ->
                 collapsed = loaded.document.headlines
-                    .filter { loaded.document.directChildren(it).isNotEmpty() }
+                    .filter { loaded.document.hasDescendants(it) }
                     .map { it.lineIndex }
                     .toSet()
                 defaultCollapseApplied = true
@@ -125,7 +125,7 @@ fun OutlineScreen(
                     (state as? DocumentUiState.Loaded)?.let { loaded ->
                         val foldable = remember(loaded.document) {
                             loaded.document.headlines
-                                .filter { loaded.document.directChildren(it).isNotEmpty() }
+                                .filter { loaded.document.hasDescendants(it) }
                                 .map { it.lineIndex }
                                 .toSet()
                         }
@@ -326,8 +326,9 @@ private fun OutlineNode(
     flags: OutlineDisplayFlags = OutlineDisplayFlags(),
 ) {
     val c = MaterialTheme.grove
+    val hasChildren = remember(doc, headline) { doc.hasDescendants(headline) }
+    // Only needed for the "… N" collapsed indicator below.
     val childCount = remember(doc, headline) { doc.directChildren(headline).size }
-    val hasChildren = childCount > 0
     val isDone = headline.keyword != null && doc.keywords.isDone(headline.keyword)
     var menuOpen by remember { mutableStateOf(false) }
     // Tokenizing the title allocates a new AnnotatedString; rows recompose on
