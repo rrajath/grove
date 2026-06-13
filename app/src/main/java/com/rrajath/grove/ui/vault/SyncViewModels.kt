@@ -9,6 +9,7 @@ import com.rrajath.grove.sync.SyncConflicts
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -61,10 +62,22 @@ class ConflictViewModel(private val app: GroveApplication) : ViewModel() {
 }
 
 class SyncLogViewModel(app: GroveApplication) : ViewModel() {
-    val entries: StateFlow<List<SyncLogEntity>> = app.database.syncLogDao().recent()
+    private val limit = MutableStateFlow(PAGE_SIZE)
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val entries: StateFlow<List<SyncLogEntity>> = limit
+        .flatMapLatest { app.database.syncLogDao().recent(it) }
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
+    val total: StateFlow<Int> = app.database.syncLogDao().count()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, 0)
+
+    fun loadMore() {
+        limit.value += PAGE_SIZE
+    }
+
     companion object {
+        const val PAGE_SIZE = 50
         val Factory = factory { SyncLogViewModel(it) }
     }
 }

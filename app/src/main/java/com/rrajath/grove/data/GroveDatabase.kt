@@ -129,8 +129,11 @@ interface SyncLogDao {
     @Insert
     suspend fun insert(entry: SyncLogEntity)
 
-    @Query("SELECT * FROM sync_log ORDER BY id DESC LIMIT 200")
-    fun recent(): Flow<List<SyncLogEntity>>
+    @Query("SELECT * FROM sync_log ORDER BY id DESC LIMIT :limit")
+    fun recent(limit: Int): Flow<List<SyncLogEntity>>
+
+    @Query("SELECT COUNT(*) FROM sync_log")
+    fun count(): Flow<Int>
 
     @Query("DELETE FROM sync_log WHERE id NOT IN (SELECT id FROM sync_log ORDER BY id DESC LIMIT 500)")
     suspend fun trim()
