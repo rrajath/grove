@@ -8,7 +8,9 @@ import com.rrajath.grove.GroveApplication
 import com.rrajath.grove.org.OrgDocument
 import com.rrajath.grove.org.OrgHeadline
 import com.rrajath.grove.org.OrgMutations
+import com.rrajath.grove.org.OrgParser
 import com.rrajath.grove.sync.SyncState
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -16,6 +18,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.LocalDateTime
 import java.util.UUID
 
@@ -164,12 +167,17 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
             val vault = app.vault.value
             if (loaded != null && vault != null) {
                 viewModelScope.launch {
-                    val newText = block(loaded.document, headline)
-                    if (newText != null) {
-                        vault.save(loaded.fileName, newText)
-                        app.syncManager.requestSync("outline edit")
-                        load(loaded.fileName)
-                    }
+                    // Compute the new text and parse it once, off the main thread.
+                    val parsed = withContext(Dispatchers.Default) {
+                        block(loaded.document, headline)
+                            ?.let { it to OrgParser.parse(it, loaded.document.keywords) }
+                    } ?: return@launch
+                    val (newText, newDoc) = parsed
+                    // Show the result immediately from the in-memory parse; persist
+                    // and re-index in the background (no disk read + reparse round-trip).
+                    _state.value = DocumentUiState.Loaded(loaded.fileName, newDoc)
+                    vault.save(loaded.fileName, newText)
+                    app.syncManager.requestSync("outline edit")
                 }
             }
         }
@@ -219,9 +227,12 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
                     createdAt = if (settings.addCreatedToNewNotes) LocalDateTime.now() else null,
                 ),
             )
+            val newDoc = withContext(Dispatchers.Default) {
+                OrgParser.parse(newText, loaded.document.keywords)
+            }
+            _state.value = DocumentUiState.Loaded(loaded.fileName, newDoc)
             vault.save(loaded.fileName, newText)
             app.syncManager.requestSync("note added")
-            load(loaded.fileName)
             onCreated(lineIndex)
         }
     }
@@ -237,10 +248,13 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
         val vault = app.vault.value ?: return
         viewModelScope.launch {
             val next = loaded.document.keywords.next(headline.keyword)
-            val newText = OrgMutations.setKeyword(loaded.document, headline, next)
+            val (newText, newDoc) = withContext(Dispatchers.Default) {
+                val text = OrgMutations.setKeyword(loaded.document, headline, next)
+                text to OrgParser.parse(text, loaded.document.keywords)
+            }
+            _state.value = DocumentUiState.Loaded(loaded.fileName, newDoc)
             vault.save(loaded.fileName, newText)
             app.syncManager.requestSync("state cycled")
-            load(loaded.fileName)
         }
     }
 
