@@ -470,11 +470,18 @@ private fun OutlineNode(
             }
             // Scheduled / deadline chips
             headline.planning.scheduled?.takeIf { flags.timestamps }?.let { ts ->
-                Text(
-                    "◷ ${ts.format()}",
-                    fontFamily = PlexMono, fontSize = 11.sp, color = c.blue,
-                    modifier = Modifier.padding(top = 3.dp),
-                )
+                Box(
+                    Modifier
+                        .padding(top = 3.dp)
+                        .clip(RoundedCornerShape(5.dp))
+                        .background(c.blueSoft)
+                        .padding(horizontal = 5.dp, vertical = 1.dp),
+                ) {
+                    Text(
+                        "SCHEDULED: ${ts.format()}",
+                        fontFamily = PlexMono, fontSize = 11.sp, color = c.blue,
+                    )
+                }
             }
             headline.planning.deadline?.takeIf { flags.timestamps }?.let { ts ->
                 Box(
