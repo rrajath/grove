@@ -108,4 +108,69 @@ class LineEditingTest {
         val edit = LineEditing.insertHeadingStar("* title", 7)
         assertEquals("* title\n* ", edit.text)
     }
+
+    // --- list indent buttons ---
+
+    @Test
+    fun `indent turns an item into a sub-list item`() {
+        val edit = LineEditing.changeListIndent("- one\n- two", 9, +1)!!
+        assertEquals("- one\n  - two", edit.text)
+        assertEquals(11, edit.cursor)
+    }
+
+    @Test
+    fun `outdent promotes a sub-list item`() {
+        val edit = LineEditing.changeListIndent("- one\n  - two", 11, -1)!!
+        assertEquals("- one\n- two", edit.text)
+        assertEquals(9, edit.cursor)
+    }
+
+    @Test
+    fun `indenting an ordered item restarts numbering at 1`() {
+        val edit = LineEditing.changeListIndent("1. one\n2. two", 13, +1)!!
+        assertEquals("1. one\n  1. two", edit.text)
+    }
+
+    @Test
+    fun `indenting a paren-numbered item restarts at 1 keeping the suffix`() {
+        val edit = LineEditing.changeListIndent("1) one\n3) three", 15, +1)!!
+        assertEquals("1) one\n  1) three", edit.text)
+    }
+
+    @Test
+    fun `outdenting an ordered sub-item keeps its number`() {
+        val edit = LineEditing.changeListIndent("1. one\n  1. sub", 15, -1)!!
+        assertEquals("1. one\n1. sub", edit.text)
+    }
+
+    @Test
+    fun `outdent at column zero does nothing`() {
+        assertNull(LineEditing.changeListIndent("- one", 5, -1))
+    }
+
+    @Test
+    fun `indent on a non-list line does nothing`() {
+        assertNull(LineEditing.changeListIndent("plain text", 5, +1))
+        assertNull(LineEditing.changeListIndent("* heading", 5, +1))
+    }
+
+    @Test
+    fun `outdent of a single-space indent removes just that space`() {
+        val edit = LineEditing.changeListIndent(" - one", 6, -1)!!
+        assertEquals("- one", edit.text)
+        assertEquals(5, edit.cursor)
+    }
+
+    @Test
+    fun `cursor at line start stays at line start on outdent`() {
+        val edit = LineEditing.changeListIndent("- one\n  - two", 6, -1)!!
+        assertEquals("- one\n- two", edit.text)
+        assertEquals(6, edit.cursor)
+    }
+
+    @Test
+    fun `indent only affects the cursor line`() {
+        val edit = LineEditing.changeListIndent("- one\n- two\n- three", 8, +1)!!
+        assertEquals("- one\n  - two\n- three", edit.text)
+    }
 }

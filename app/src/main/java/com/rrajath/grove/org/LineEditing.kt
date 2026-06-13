@@ -46,6 +46,37 @@ object LineEditing {
         }
     }
 
+    private const val INDENT_STEP = "  "
+
+    /**
+     * Toolbar indent buttons: shift the list item under the cursor one level
+     * deeper ([delta] > 0) or shallower by [INDENT_STEP], turning it into a
+     * sub-list item or promoting it back. Returns null when the cursor line
+     * isn't a list item, or when outdenting an item already at column zero.
+     */
+    fun changeListIndent(text: String, cursor: Int, delta: Int): TextEdit? {
+        val at = cursor.coerceIn(0, text.length)
+        val lineStart = text.lastIndexOf('\n', at - 1) + 1
+        val lineEnd = text.indexOf('\n', at).let { if (it == -1) text.length else it }
+        val line = text.substring(lineStart, lineEnd)
+        val item = LIST_ITEM.matchEntire(line) ?: return null
+        val (indent, bullet, spaces, content) = item.destructured
+        val newLine = if (delta > 0) {
+            // A fresh sub-list restarts numbering at 1 (unordered bullets unchanged).
+            val newBullet = NUMBERED.matchEntire(bullet)
+                ?.destructured?.let { (_, suffix) -> "1$suffix" }
+                ?: bullet
+            INDENT_STEP + indent + newBullet + spaces + content
+        } else {
+            if (indent.isEmpty()) return null
+            line.substring(minOf(INDENT_STEP.length, indent.length))
+        }
+        return TextEdit(
+            text.substring(0, lineStart) + newLine + text.substring(lineEnd),
+            (at + newLine.length - line.length).coerceAtLeast(lineStart),
+        )
+    }
+
     /**
      * Toolbar `*` button: on an empty heading line (`* `, `** `…) demote it by
      * one star; anywhere else start a new heading on the next line.

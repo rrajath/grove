@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
@@ -20,7 +21,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -54,7 +54,8 @@ import java.time.LocalDateTime
 
 /**
  * Raw org editor (design spec §6): syntax-highlighted subtree editing with
- * formatting toolbar and metadata sheet. Autosaves on navigate-away.
+ * formatting toolbar and metadata sheet. Leaving with unsaved changes asks
+ * to save or discard.
  */
 @Composable
 fun EditNoteScreen(
@@ -68,6 +69,12 @@ fun EditNoteScreen(
     val keyboard = LocalSoftwareKeyboardController.current
     var value by remember { mutableStateOf(TextFieldValue("")) }
     var metadataOpen by remember { mutableStateOf(false) }
+    var confirmLeave by remember { mutableStateOf(false) }
+
+    fun leave() {
+        if (state.dirty) confirmLeave = true else onBack()
+    }
+    androidx.activity.compose.BackHandler { leave() }
 
     LaunchedEffect(noteRef) { viewModel.load(noteRef) }
     LaunchedEffect(state.loading) {
@@ -81,11 +88,6 @@ fun EditNoteScreen(
             value = TextFieldValue(state.buffer, TextRange(value.selection.start.coerceAtMost(state.buffer.length)))
         }
     }
-    // Autosave on leave.
-    DisposableEffect(Unit) {
-        onDispose { viewModel.save() }
-    }
-
     val transformation = remember(c, state.keywords) { OrgVisualTransformation(c, state.keywords) }
 
     fun applyEdit(newValue: TextFieldValue) {
@@ -108,7 +110,7 @@ fun EditNoteScreen(
         topBar = {
             GroveTopBar(
                 leading = {
-                    IconGlyph("←", onClick = { viewModel.save(onSaved = onBack) })
+                    IconGlyph("←", onClick = ::leave)
                 },
                 title = {},
                 actions = {
@@ -127,6 +129,9 @@ fun EditNoteScreen(
             Modifier
                 .fillMaxSize()
                 .padding(padding)
+                // Without consuming the Scaffold insets, the nav-bar padding and
+                // imePadding stack up, leaving a gap between toolbar and keyboard.
+                .consumeWindowInsets(padding)
                 .imePadding(),
         ) {
             state.error?.let { error ->
@@ -163,6 +168,11 @@ fun EditNoteScreen(
                     val edit = LineEditing.insertHeadingStar(value.text, value.selection.start)
                     applyEdit(TextFieldValue(edit.text, TextRange(edit.cursor)))
                 },
+                onIndent = { delta ->
+                    LineEditing.changeListIndent(value.text, value.selection.start, delta)?.let {
+                        applyEdit(TextFieldValue(it.text, TextRange(it.cursor)))
+                    }
+                },
                 onDismissKeyboard = { keyboard?.hide() },
             )
         }
@@ -172,6 +182,38 @@ fun EditNoteScreen(
         MetadataSheet(
             viewModel = viewModel,
             onDismiss = { metadataOpen = false },
+        )
+    }
+
+    if (confirmLeave) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { confirmLeave = false },
+            containerColor = c.surface,
+            title = {
+                Text(
+                    "Save changes?",
+                    fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
+                    fontSize = 16.sp, color = c.ink,
+                )
+            },
+            text = {
+                Text(
+                    "This note has unsaved changes.",
+                    fontFamily = PlexSans, fontSize = 14.sp, color = c.ink2,
+                )
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    confirmLeave = false
+                    viewModel.save(onSaved = onBack)
+                }) { Text("Save", color = c.accent, fontWeight = FontWeight.SemiBold) }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    confirmLeave = false
+                    onBack()
+                }) { Text("Discard", color = c.red) }
+            },
         )
     }
 }
@@ -220,6 +262,7 @@ private fun EditorToolbar(
     onWrap: (Char) -> Unit,
     onInsert: (String) -> Unit,
     onHeading: () -> Unit,
+    onIndent: (Int) -> Unit,
     onDismissKeyboard: () -> Unit,
 ) {
     val c = MaterialTheme.grove
@@ -242,6 +285,9 @@ private fun EditorToolbar(
             onInsert(OrgTimestamp(now.toLocalDate(), time = now.toLocalTime().withSecond(0).withNano(0)).format())
         }
         ToolButton("*", c.synStar, bold = true) { onHeading() }
+        // List indent: « promotes a sub-list item, » demotes into a sub-list.
+        ToolButton("«", c.ink) { onIndent(-1) }
+        ToolButton("»", c.ink) { onIndent(+1) }
         Spacer(Modifier.weight(1f))
         ToolButton("⌄", c.ink2) { onDismissKeyboard() }
     }
@@ -268,7 +314,7 @@ private fun ToolButton(
             fontWeight = if (bold) FontWeight.Bold else FontWeight.Normal,
             fontStyle = if (italic) FontStyle.Italic else null,
             textDecoration = if (underline) androidx.compose.ui.text.style.TextDecoration.Underline else null,
-            fontSize = 13.sp,
+            fontSize = 17.sp,
             color = color,
         )
     }
