@@ -21,9 +21,10 @@ import org.junit.runner.RunWith
  *       com.rrajath.grove.macrobenchmark.BaselineProfileGenerator
  *
  * Pull the generated `baseline-prof.txt` from the test output and drop it at
- * `app/src/main/baseline-prof.txt` (profileinstaller picks it up), or adopt the
- * `androidx.baselineprofile` Gradle plugin to wire generation/consumption
- * automatically. See the instructions for details.
+ * `app/src/main/baseline-prof.txt` — AGP's ART-profile pipeline packages it and
+ * profileinstaller installs it at first run. (The `androidx.baselineprofile`
+ * Gradle plugin, which would automate this, does not yet support AGP 9 — it
+ * fails with "not a supported android module".) See docs/benchmarking.md.
  */
 @RunWith(AndroidJUnit4::class)
 class BaselineProfileGenerator {
