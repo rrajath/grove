@@ -330,6 +330,9 @@ private fun OutlineNode(
     val hasChildren = childCount > 0
     val isDone = headline.keyword != null && doc.keywords.isDone(headline.keyword)
     var menuOpen by remember { mutableStateOf(false) }
+    // Tokenizing the title allocates a new AnnotatedString; rows recompose on
+    // scroll and swipe, so keep it across recompositions.
+    val titleAnnotated = remember(headline.title, c) { annotateOrgInline(headline.title, c) }
 
     // Swipe right = cycle state, swipe left = narrow to subtree (PRD §5.3).
     // A swipe is an action, not a dismiss. We react to targetValue (the moment
@@ -439,7 +442,7 @@ private fun OutlineNode(
                     Spacer(Modifier.width(6.dp))
                 }
                 Text(
-                    annotateOrgInline(headline.title, c),
+                    titleAnnotated,
                     fontFamily = PlexSans,
                     fontWeight = if (headline.level == 1) FontWeight.SemiBold else FontWeight.Medium,
                     fontSize = 14.5.sp,
