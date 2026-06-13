@@ -84,6 +84,22 @@ fun OutlineScreen(
     var narrowedTo by rememberSaveable(notebookId) { mutableStateOf<Int?>(null) }
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
 
+    // A freshly opened notebook starts fully collapsed. Applied once per open
+    // (the flag is saved alongside `collapsed`), so the user's later expanding
+    // and collapsing is preserved across navigating into a note and back.
+    var defaultCollapseApplied by rememberSaveable(notebookId) { mutableStateOf(false) }
+    LaunchedEffect(state, defaultCollapseApplied) {
+        if (!defaultCollapseApplied) {
+            (state as? DocumentUiState.Loaded)?.let { loaded ->
+                collapsed = loaded.document.headlines
+                    .filter { loaded.document.directChildren(it).isNotEmpty() }
+                    .map { it.lineIndex }
+                    .toSet()
+                defaultCollapseApplied = true
+            }
+        }
+    }
+
     Scaffold(
         containerColor = c.bg,
         topBar = {
