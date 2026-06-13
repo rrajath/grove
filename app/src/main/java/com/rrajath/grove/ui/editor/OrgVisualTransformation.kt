@@ -25,8 +25,20 @@ class OrgVisualTransformation(
     private val keywords: OrgKeywords,
 ) : VisualTransformation {
 
-    override fun filter(text: AnnotatedString): TransformedText =
-        TransformedText(highlight(text.text), OffsetMapping.Identity)
+    // Compose calls filter() repeatedly (often several times per frame) with the
+    // same text. Highlighting re-tokenizes every line, so cache the last result
+    // and return it when the raw text is unchanged.
+    private var cachedRaw: String? = null
+    private var cachedResult: TransformedText? = null
+
+    override fun filter(text: AnnotatedString): TransformedText {
+        val raw = text.text
+        cachedResult?.let { if (raw == cachedRaw) return it }
+        val result = TransformedText(highlight(raw), OffsetMapping.Identity)
+        cachedRaw = raw
+        cachedResult = result
+        return result
+    }
 
     fun highlight(raw: String): AnnotatedString = buildAnnotatedString {
         append(raw)
@@ -54,34 +66,16 @@ class OrgVisualTransformation(
             SpanStyle(color = colors.starColor(stars.length), fontWeight = FontWeight.SemiBold),
             start, start + stars.length,
         )
-        var rest = m.groupValues[2]
-        var offset = start + stars.length + 1
-
-        val firstWord = rest.substringBefore(' ')
-        if (firstWord in keywords.all) {
-            val color = if (keywords.isDone(firstWord)) colors.synDone else colors.synTodo
-            addStyle(SpanStyle(color = color, fontWeight = FontWeight.Bold), offset, offset + firstWord.length)
-            offset += firstWord.length
-            rest = rest.drop(firstWord.length)
-            val trimmed = rest.trimStart()
-            offset += rest.length - trimmed.length
-            rest = trimmed
-        }
-        PRIORITY.find(rest)?.let { p ->
-            if (p.range.first == 0) {
-                addStyle(SpanStyle(color = colors.red, fontWeight = FontWeight.Bold), offset, offset + p.value.length)
-            }
-        }
-        TAGS_AT_END.find(line)?.let { tags ->
-            addStyle(SpanStyle(color = colors.synTag), start + tags.range.first, start + tags.range.last + 1)
-        }
-        // Heading text itself: ink, semibold
+        // Heading text: ink, semibold. Applied first so the keyword and tag spans
+        // below layer on top (previously these were applied, fully overwritten by
+        // this span, then re-applied — pure wasted work).
         addStyle(
             SpanStyle(color = colors.ink, fontWeight = FontWeight.SemiBold),
             start + stars.length + 1,
             start + line.length,
         )
-        // Re-apply keyword/priority/tags over the heading style
+        val rest = m.groupValues[2]
+        val firstWord = rest.substringBefore(' ')
         if (firstWord in keywords.all) {
             val color = if (keywords.isDone(firstWord)) colors.synDone else colors.synTodo
             val kwStart = start + stars.length + 1
@@ -146,7 +140,6 @@ class OrgVisualTransformation(
 
     companion object {
         private val HEADLINE = Regex("""^(\*+)\s+(.*)$""")
-        private val PRIORITY = Regex("""\[#[A-Za-z]\]""")
         private val TAGS_AT_END = Regex("""\s+(:[A-Za-z0-9_@#%]+(?::[A-Za-z0-9_@#%]+)*:)\s*$""")
         private val TIMESTAMP = Regex("""[<\[][^>\]]*[>\]]""")
         private val PLANNING_KW = Regex("""(SCHEDULED|DEADLINE|CLOSED):""")
