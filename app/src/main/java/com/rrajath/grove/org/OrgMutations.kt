@@ -140,7 +140,10 @@ object OrgMutations {
         options: NewNoteOptions,
     ): Pair<String, Int> {
         val entry = buildList {
-            add(headlineLine(level, options.keyword, null, title, emptyList()))
+            // A blank-title note (created for immediate editing) needs the
+            // trailing space so the cursor lands after "* " ready for typing.
+            val header = headlineLine(level, options.keyword, null, title, emptyList())
+            add(if (title.isEmpty() && options.keyword == null) "$header " else header)
             if (options.id != null || options.createdAt != null) {
                 add(":PROPERTIES:")
                 options.id?.let { add(":ID: $it") }

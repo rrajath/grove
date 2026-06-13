@@ -139,6 +139,8 @@ private fun GroveNavigation(settings: GroveSettings, viewModel: AppViewModel) {
                             ?: settings.defaultNoteOpenMode.storageKey
                         navController.navigate(Routes.note(ref.encode(), mode))
                     },
+                    // A freshly created note opens straight in edit mode (blank heading).
+                    onCreateNote = { ref -> navController.navigate(Routes.note(ref.encode(), "edit")) },
                     displayFlags = OutlineDisplayFlags(
                         tags = settings.showTagsInOutline,
                         timestamps = settings.showTimestampsInOutline,

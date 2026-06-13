@@ -25,6 +25,8 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -53,12 +55,16 @@ data class OutlineDisplayFlags(
     val keywords: Boolean = true,
 )
 
+/** Persist the collapsed line-index set across navigation (Set isn't saveable by default). */
+private val IntSetSaver = listSaver<Set<Int>, Int>(save = { it.toList() }, restore = { it.toSet() })
+
 /** Outline view per design spec §4 — collapsible heading tree with node ops. */
 @Composable
 fun OutlineScreen(
     notebookId: String,
     onBack: () -> Unit,
     onOpenNote: (NoteRef) -> Unit,
+    onCreateNote: (NoteRef) -> Unit,
     displayFlags: OutlineDisplayFlags = OutlineDisplayFlags(),
     onToggleDisplay: (OutlineToggle, Boolean) -> Unit = { _, _ -> },
     viewModel: DocumentViewModel = viewModel(factory = DocumentViewModel.Factory),
@@ -67,12 +73,14 @@ fun OutlineScreen(
     val state by viewModel.state.collectAsState()
     LaunchedEffect(notebookId) { viewModel.load(notebookId) }
 
-    // Collapsed headline line-indices (default: all expanded)
-    var collapsed by remember(notebookId) { mutableStateOf(setOf<Int>()) }
+    // Collapsed line-indices and scroll survive navigating into a note and back
+    // (rememberSaveable persists across the destination leaving composition).
+    var collapsed by rememberSaveable(notebookId, stateSaver = IntSetSaver) {
+        mutableStateOf(setOf<Int>())
+    }
     // "Show in context": narrow the view to one subtree (swipe-left in the spec)
-    var narrowedTo by remember(notebookId) { mutableStateOf<Int?>(null) }
-    var newChildFor by remember { mutableStateOf<OrgHeadline?>(null) }
-    var newTopLevelOpen by remember { mutableStateOf(false) }
+    var narrowedTo by rememberSaveable(notebookId) { mutableStateOf<Int?>(null) }
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
 
     Scaffold(
         containerColor = c.bg,
@@ -146,7 +154,9 @@ fun OutlineScreen(
                     .size(54.dp)
                     .clip(RoundedCornerShape(18.dp))
                     .background(c.accent)
-                    .clickable(onClick = { newTopLevelOpen = true }),
+                    .clickable(onClick = {
+                        viewModel.newTopLevelNote { line -> onCreateNote(NoteRef(notebookId, line)) }
+                    }),
                 contentAlignment = Alignment.Center,
             ) {
                 Text("+", fontFamily = PlexSans, fontSize = 26.sp, color = c.accentInk)
@@ -214,7 +224,8 @@ fun OutlineScreen(
                         }
                     }
                     LazyColumn(
-                        Modifier
+                        state = listState,
+                        modifier = Modifier
                             .fillMaxSize()
                             .padding(horizontal = 10.dp),
                     ) {
@@ -231,7 +242,11 @@ fun OutlineScreen(
                                 flags = displayFlags,
                                 ops = NodeOps(
                                     onEdit = { onOpenNote(NoteRef(notebookId, h.lineIndex)) },
-                                    onNewChild = { newChildFor = h },
+                                    onNewChild = {
+                                        viewModel.newChild(h) { line ->
+                                            onCreateNote(NoteRef(notebookId, line))
+                                        }
+                                    },
                                     onCycleState = { viewModel.cycleState(h) },
                                     onMoveUp = { viewModel.moveUp(h) },
                                     onMoveDown = { viewModel.moveDown(h) },
@@ -249,26 +264,6 @@ fun OutlineScreen(
         }
     }
 
-    newChildFor?.let { parent ->
-        NewNoteDialog(
-            title = "New note under \"${parent.title}\"",
-            onDismiss = { newChildFor = null },
-            onCreate = { title ->
-                viewModel.newChild(parent, title)
-                newChildFor = null
-            },
-        )
-    }
-    if (newTopLevelOpen) {
-        NewNoteDialog(
-            title = "New note",
-            onDismiss = { newTopLevelOpen = false },
-            onCreate = { title ->
-                viewModel.newTopLevelNote(title)
-                newTopLevelOpen = false
-            },
-        )
-    }
 }
 
 data class NodeOps(
@@ -283,43 +278,6 @@ data class NodeOps(
     val onNarrow: () -> Unit,
     val onDelete: () -> Unit,
 )
-
-@Composable
-private fun NewNoteDialog(
-    title: String,
-    onDismiss: () -> Unit,
-    onCreate: (String) -> Unit,
-) {
-    val c = MaterialTheme.grove
-    var text by remember { mutableStateOf("") }
-    androidx.compose.material3.AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = c.surface,
-        title = {
-            Text(
-                title,
-                fontFamily = PlexSans, fontWeight = FontWeight.SemiBold, fontSize = 16.sp, color = c.ink,
-            )
-        },
-        text = {
-            androidx.compose.material3.OutlinedTextField(
-                value = text,
-                onValueChange = { text = it },
-                singleLine = true,
-                placeholder = { Text("Heading", color = c.ink3) },
-            )
-        },
-        confirmButton = {
-            androidx.compose.material3.TextButton(
-                onClick = { if (text.isNotBlank()) onCreate(text.trim()) },
-                enabled = text.isNotBlank(),
-            ) { Text("Create", color = c.accent, fontWeight = FontWeight.SemiBold) }
-        },
-        dismissButton = {
-            androidx.compose.material3.TextButton(onClick = onDismiss) { Text("Cancel", color = c.ink2) }
-        },
-    )
-}
 
 private fun visibleHeadlines(doc: OrgDocument, collapsed: Set<Int>): List<OrgHeadline> {
     val result = mutableListOf<OrgHeadline>()

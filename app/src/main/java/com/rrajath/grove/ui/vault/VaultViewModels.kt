@@ -194,23 +194,25 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
 
     val hasClipboard: Boolean get() = subtreeClipboard != null
 
-    fun newChild(headline: OrgHeadline, title: String) = newNote { doc, options ->
-        OrgMutations.newChild(doc, headline, title, options)
+    /** Create a blank child note and report its line index so the caller can open the editor. */
+    fun newChild(headline: OrgHeadline, onCreated: (Int) -> Unit) = newNote(onCreated) { doc, options ->
+        OrgMutations.newChild(doc, headline, "", options)
     }
 
-    /** Outline FAB: add a top-level note to this notebook (PRD §5.3). */
-    fun newTopLevelNote(title: String) = newNote { doc, options ->
-        OrgMutations.newTopLevel(doc, title, options)
+    /** Outline FAB: add a blank top-level note to this notebook (PRD §5.3). */
+    fun newTopLevelNote(onCreated: (Int) -> Unit) = newNote(onCreated) { doc, options ->
+        OrgMutations.newTopLevel(doc, "", options)
     }
 
     private fun newNote(
+        onCreated: (Int) -> Unit,
         insert: (OrgDocument, OrgMutations.NewNoteOptions) -> Pair<String, Int>,
     ) {
         val loaded = _state.value as? DocumentUiState.Loaded ?: return
         val vault = app.vault.value ?: return
         viewModelScope.launch {
             val settings = app.settingsRepository.settings.first()
-            val (newText, _) = insert(
+            val (newText, lineIndex) = insert(
                 loaded.document,
                 OrgMutations.NewNoteOptions(
                     id = if (settings.addIdToNewNotes) UUID.randomUUID().toString() else null,
@@ -220,21 +222,22 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
             vault.save(loaded.fileName, newText)
             app.syncManager.requestSync("note added")
             load(loaded.fileName)
+            onCreated(lineIndex)
         }
     }
 
-    /** Swipe-right quick action: cycle TODO state (repeaters advance on done). */
+    /**
+     * Swipe-right quick action: cycle the TODO state like org's shift-cycle,
+     * stepping through every keyword and back to none:
+     * none → active… → done… → none. Plain keyword change (no CLOSED stamp);
+     * use the metadata sheet's DONE chip for org-todo "mark done" semantics.
+     */
     fun cycleState(headline: OrgHeadline) {
         val loaded = _state.value as? DocumentUiState.Loaded ?: return
         val vault = app.vault.value ?: return
         viewModelScope.launch {
-            val keywords = loaded.document.keywords
-            val next = keywords.next(headline.keyword)
-            val newText = if (next != null && keywords.isDone(next)) {
-                OrgMutations.markDone(loaded.document, headline, next, LocalDateTime.now())
-            } else {
-                OrgMutations.setKeyword(loaded.document, headline, next)
-            }
+            val next = loaded.document.keywords.next(headline.keyword)
+            val newText = OrgMutations.setKeyword(loaded.document, headline, next)
             vault.save(loaded.fileName, newText)
             app.syncManager.requestSync("state cycled")
             load(loaded.fileName)
