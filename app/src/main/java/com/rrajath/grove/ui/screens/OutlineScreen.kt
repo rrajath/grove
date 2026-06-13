@@ -312,16 +312,25 @@ private fun OutlineNode(
     var menuOpen by remember { mutableStateOf(false) }
 
     // Swipe right = cycle state, swipe left = narrow to subtree (PRD §5.3).
-    val swipeState = androidx.compose.material3.rememberSwipeToDismissBoxState(
-        confirmValueChange = { value ->
-            when (value) {
-                androidx.compose.material3.SwipeToDismissBoxValue.StartToEnd -> ops.onCycleState()
-                androidx.compose.material3.SwipeToDismissBoxValue.EndToStart -> ops.onNarrow()
-                else -> {}
+    // A full swipe is an action, not a dismiss: we let the box settle, run the
+    // action, then reset() so the row can be swiped again right away. Vetoing
+    // via confirmValueChange instead leaves the draggable stuck after one swipe
+    // (it only re-arms when the row recomposes fresh), so don't use it.
+    val swipeState = androidx.compose.material3.rememberSwipeToDismissBoxState()
+    val currentOps by androidx.compose.runtime.rememberUpdatedState(ops)
+    LaunchedEffect(swipeState.currentValue) {
+        when (swipeState.currentValue) {
+            androidx.compose.material3.SwipeToDismissBoxValue.StartToEnd -> {
+                currentOps.onCycleState()
+                swipeState.reset()
             }
-            false // always snap back; the swipe triggers an action, not a dismiss
-        },
-    )
+            androidx.compose.material3.SwipeToDismissBoxValue.EndToStart -> {
+                currentOps.onNarrow()
+                swipeState.reset()
+            }
+            else -> {}
+        }
+    }
 
     Box {
         NodeMenu(
