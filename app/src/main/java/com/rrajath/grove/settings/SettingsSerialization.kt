@@ -20,7 +20,7 @@ object SettingsSerialization {
     }
 
     fun export(settings: GroveSettings): String =
-        json.encodeToString(SettingsExport.fromSettings(settings))
+        json.encodeToString(SettingsExport.serializer(), SettingsExport.fromSettings(settings))
 
     /**
      * Parse a previously exported document, layering its values over [base] so
@@ -28,7 +28,7 @@ object SettingsSerialization {
      * Throws if [text] isn't valid JSON for this schema.
      */
     fun import(text: String, base: GroveSettings = GroveSettings()): GroveSettings =
-        json.decodeFromString<SettingsExport>(text).applyTo(base)
+        json.decodeFromString(SettingsExport.serializer(), text).applyTo(base)
 }
 
 @Serializable
