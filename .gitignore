@@ -10,3 +10,8 @@
 local.properties
 
 .kotlin
+
+# Signing material — never commit keystores or their base64; CI pulls these
+# from repo secrets (see .github/workflows/build.yml).
+*.keystore
+*.jks

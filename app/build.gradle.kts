@@ -1,5 +1,3 @@
-import java.util.Properties
-
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -7,26 +5,32 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
-// Semantic version lives in version.properties; any build that produces an
-// app (assemble/bundle/install/build) auto-bumps the patch and versionCode.
-val versionFile = file("version.properties")
-val versionProps = Properties().apply { versionFile.inputStream().use { load(it) } }
-val bumpVersion = gradle.startParameter.taskNames.any { name ->
-    listOf("assemble", "bundle", "install", "build").any { name.contains(it, ignoreCase = true) }
+// Version is derived from git at build time — nothing is hardcoded or written
+// back into the repo. Bump these two for a new major/minor line; the patch and
+// versionCode track the git commit count, so every commit yields a unique,
+// monotonically increasing build.
+val versionMajor = 1
+val versionMinor = 0
+
+fun gitOutput(args: List<String>): String? {
+    val out = providers.exec {
+        commandLine(listOf("git") + args)
+        isIgnoreExitValue = true
+    }
+    return if (out.result.get().exitValue == 0)
+        out.standardOutput.asText.get().trim().ifEmpty { null }
+    else null
 }
-if (bumpVersion) {
-    versionProps.setProperty(
-        "VERSION_PATCH",
-        (versionProps.getProperty("VERSION_PATCH").toInt() + 1).toString(),
-    )
-    versionProps.setProperty(
-        "VERSION_CODE",
-        (versionProps.getProperty("VERSION_CODE").toInt() + 1).toString(),
-    )
-    versionFile.outputStream().use { versionProps.store(it, "Auto-incremented on build") }
-}
-val semanticVersion = listOf("VERSION_MAJOR", "VERSION_MINOR", "VERSION_PATCH")
-    .joinToString(".") { versionProps.getProperty(it) }
+
+// Number of commits reachable from HEAD. CI must check out full history
+// (actions/checkout fetch-depth: 0) or a shallow clone undercounts. Falls back
+// to 1 outside a git checkout (e.g. a source archive).
+val gitCommitCount = gitOutput(listOf("rev-list", "--count", "HEAD"))?.toIntOrNull() ?: 1
+val semanticVersion = "$versionMajor.$versionMinor.$gitCommitCount"
+
+// Release signing comes from the environment (CI secrets). Without it — e.g. a
+// local `assembleRelease` — the release build stays unsigned, as it was before.
+val releaseKeystore = System.getenv("SIGNING_KEYSTORE_PATH")?.takeIf { it.isNotBlank() }
 
 android {
     namespace = "com.rrajath.grove"
@@ -38,16 +42,32 @@ android {
         applicationId = "com.rrajath.grove"
         minSdk = 34
         targetSdk = 36
-        versionCode = versionProps.getProperty("VERSION_CODE").toInt()
+        versionCode = gitCommitCount
         versionName = semanticVersion
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    signingConfigs {
+        create("release") {
+            // Populated only when the CI secrets are present; otherwise the
+            // release config stays empty and the build produces an unsigned APK.
+            if (releaseKeystore != null) {
+                storeFile = file(releaseKeystore)
+                storePassword = System.getenv("SIGNING_STORE_PASSWORD")
+                keyAlias = System.getenv("SIGNING_KEY_ALIAS")
+                keyPassword = System.getenv("SIGNING_KEY_PASSWORD")
+            }
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
+            if (releaseKeystore != null) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
