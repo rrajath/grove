@@ -1,13 +1,15 @@
-name: Build
+name: Build & Release
 
-# Build debug and release APKs on every push (and PR).
+# Build debug and release APKs on every push (and PR). Pushes to the default
+# branch additionally publish a GitHub Release with both APKs attached.
 on:
   push:
   pull_request:
   workflow_dispatch:
 
+# contents: write is needed to create the release and its tag.
 permissions:
-  contents: read
+  contents: write
 
 # One in-flight run per ref; a newer push cancels the older run.
 concurrency:
@@ -19,8 +21,9 @@ jobs:
     runs-on: ubuntu-latest
     env:
       # versionCode = git commit count, so the full history must be present.
-      # Signing only kicks in once the keystore secret is configured; until
-      # then the release build is produced unsigned and CI still stays green.
+      # Signing only kicks in once the keystore secret is configured AND the
+      # alias/passwords are valid; otherwise the release build stays unsigned
+      # (build.gradle.kts validates and degrades gracefully) and CI stays green.
       HAS_SIGNING: ${{ secrets.SIGNING_KEYSTORE_BASE64 != '' }}
     steps:
       - name: Check out full history
@@ -72,3 +75,26 @@ jobs:
           name: app-release
           path: app/build/outputs/apk/release/*.apk
           if-no-files-found: error
+
+      # Publish a GitHub Release with both APKs on every push to the default
+      # branch. The tag is the git-derived versionName (v1.0.<commit-count>),
+      # which is unique and monotonic per commit. Re-runs of the same commit
+      # re-upload the assets instead of failing on an existing tag.
+      - name: Publish GitHub Release
+        if: github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          VERSION="$(./gradlew -q printVersionName | tail -n1)"
+          TAG="v$VERSION"
+          # The release APK is app-release.apk when signed, app-release-unsigned.apk otherwise.
+          ASSETS=$(ls app/build/outputs/apk/debug/*.apk app/build/outputs/apk/release/*.apk)
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" $ASSETS --clobber
+          else
+            gh release create "$TAG" $ASSETS \
+              --target "$GITHUB_SHA" \
+              --title "$TAG" \
+              --notes "Automated release for $TAG (commit ${GITHUB_SHA:0:7})."
+          fi
