@@ -105,6 +105,37 @@ class SettingsRepository(private val context: Context) {
             ?.toMap()
             ?: emptyMap()
 
+    private fun encodeModes(map: Map<String, String>): String =
+        map.entries.joinToString(";") { "${it.key}=${it.value}" }
+
+    /**
+     * Bulk-write an imported settings document in one transaction. Leaves the
+     * device-specific vault URI and onboarding flag alone — those don't travel
+     * with an export (see [SettingsSerialization]).
+     */
+    suspend fun applyImported(s: GroveSettings) {
+        context.settingsDataStore.edit { p ->
+            p[Keys.theme] = s.theme.storageKey
+            p[Keys.fontSize] = s.fontSize.storageKey
+            p[Keys.noteOpenMode] = s.defaultNoteOpenMode.storageKey
+            p[Keys.syncMode] = s.syncMode.storageKey
+            p[Keys.periodicSyncMinutes] = s.periodicSyncMinutes
+            p[Keys.todoKeywords] = s.todoKeywords
+            if (s.defaultPriority == null) p.remove(Keys.defaultPriority)
+            else p[Keys.defaultPriority] = s.defaultPriority.toString()
+            p[Keys.addIdToNewNotes] = s.addIdToNewNotes
+            p[Keys.addCreatedToNewNotes] = s.addCreatedToNewNotes
+            p[Keys.notebookModes] = encodeModes(s.notebookModes)
+            p[Keys.notebookIcons] = encodeModes(s.notebookIcons)
+            p[Keys.notebookColors] = encodeModes(s.notebookColors)
+            p[Keys.captureNotification] = s.captureNotification
+            p[Keys.shareTargetFile] = s.shareTargetFile
+            p[Keys.showTagsInOutline] = s.showTagsInOutline
+            p[Keys.showTimestampsInOutline] = s.showTimestampsInOutline
+            p[Keys.showKeywordsInOutline] = s.showKeywordsInOutline
+        }
+    }
+
     suspend fun setTheme(theme: ThemePreference) {
         context.settingsDataStore.edit { it[Keys.theme] = theme.storageKey }
     }
@@ -176,7 +207,7 @@ class SettingsRepository(private val context: Context) {
         context.settingsDataStore.edit { prefs ->
             val current = decodeModes(prefs[Keys.notebookModes]).toMutableMap()
             current[fileName] = mode.storageKey
-            prefs[Keys.notebookModes] = current.entries.joinToString(";") { "${it.key}=${it.value}" }
+            prefs[Keys.notebookModes] = encodeModes(current)
         }
     }
 
@@ -192,7 +223,7 @@ class SettingsRepository(private val context: Context) {
         context.settingsDataStore.edit { prefs ->
             val current = decodeModes(prefs[key]).toMutableMap()
             current[mapKey] = value
-            prefs[key] = current.entries.joinToString(";") { "${it.key}=${it.value}" }
+            prefs[key] = encodeModes(current)
         }
     }
 
@@ -203,7 +234,7 @@ class SettingsRepository(private val context: Context) {
                 val current = decodeModes(prefs[key]).toMutableMap()
                 val value = current.remove(oldFileName) ?: continue
                 current[newFileName] = value
-                prefs[key] = current.entries.joinToString(";") { "${it.key}=${it.value}" }
+                prefs[key] = encodeModes(current)
             }
         }
     }
