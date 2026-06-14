@@ -200,7 +200,14 @@ private fun GroveNavigation(settings: GroveSettings, viewModel: AppViewModel) {
                     },
                 )
             }
-            composable(Routes.CAPTURE_TEMPLATE) { entry ->
+            composable(
+                Routes.CAPTURE_TEMPLATE,
+                // Launcher shortcuts (and any caller) can jump straight into a
+                // specific template's editor: grove://capture/builtin-journal etc.
+                deepLinks = listOf(
+                    androidx.navigation.navDeepLink { uriPattern = "grove://capture/{templateId}" },
+                ),
+            ) { entry ->
                 CaptureEditorScreen(
                     templateId = entry.arguments?.getString("templateId").orEmpty(),
                     onClose = { navController.popBackStack() },

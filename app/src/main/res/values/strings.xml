@@ -1,4 +1,8 @@
 <resources>
     <string name="app_name">Grove</string>
     <string name="widget_description">One-tap capture into your org notes</string>
+    <string name="shortcut_journal_short">Journal</string>
+    <string name="shortcut_journal_long">New journal entry</string>
+    <string name="shortcut_quick_note_short">Quick Note</string>
+    <string name="shortcut_quick_note_long">New quick note</string>
 </resources>
