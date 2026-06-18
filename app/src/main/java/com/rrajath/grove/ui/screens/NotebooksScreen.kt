@@ -538,7 +538,7 @@ internal fun IconGlyph(glyph: String, onClick: () -> Unit) {
         Text(
             glyph,
             fontFamily = PlexMono,
-            fontSize = 18.sp,
+            fontSize = 22.sp,
             color = MaterialTheme.grove.ink,
         )
     }

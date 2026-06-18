@@ -14,6 +14,7 @@ import com.rrajath.grove.settings.GroveSettings
 import com.rrajath.grove.settings.NoteOpenMode
 import com.rrajath.grove.settings.OutlineToggle
 import com.rrajath.grove.settings.SettingsRepository
+import com.rrajath.grove.settings.SettingsSerialization
 import com.rrajath.grove.settings.SyncMode
 import com.rrajath.grove.settings.ThemePreference
 import kotlinx.coroutines.Dispatchers
@@ -131,6 +132,41 @@ class AppViewModel(private val app: GroveApplication) : ViewModel() {
 
     fun setOutlineToggle(toggle: OutlineToggle, enabled: Boolean) =
         viewModelScope.launch { settingsRepository.setOutlineToggle(toggle, enabled) }
+
+    /** Write the current preferences as a JSON document to the user-picked [uri]. */
+    fun exportSettings(uri: android.net.Uri) = viewModelScope.launch {
+        val current = settingsRepository.settings.first()
+        val text = SettingsSerialization.export(current)
+        val ok = withContext(Dispatchers.IO) {
+            runCatching {
+                app.contentResolver.openOutputStream(uri, "wt")?.use {
+                    it.write(text.toByteArray(Charsets.UTF_8))
+                } ?: error("no output stream")
+            }.isSuccess
+        }
+        toast(if (ok) "Settings exported" else "Couldn't write settings file")
+    }
+
+    /** Read a JSON document from [uri] and apply the portable preferences within. */
+    fun importSettings(uri: android.net.Uri) = viewModelScope.launch {
+        val text = withContext(Dispatchers.IO) {
+            runCatching {
+                app.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+            }.getOrNull()
+        }
+        if (text == null) {
+            toast("Couldn't read settings file")
+            return@launch
+        }
+        val current = settingsRepository.settings.first()
+        val imported = runCatching { SettingsSerialization.import(text, current) }.getOrNull()
+        if (imported == null) {
+            toast("Not a valid Grove settings file")
+            return@launch
+        }
+        settingsRepository.applyImported(imported)
+        toast("Settings imported")
+    }
 
     companion object {
         val Factory = object : ViewModelProvider.Factory {

@@ -256,6 +256,8 @@ private fun GroveNavigation(settings: GroveSettings, viewModel: AppViewModel) {
                     onSetCaptureNotification = viewModel::setCaptureNotification,
                     onSetVaultUri = viewModel::setVaultTreeUri,
                     onSetShareTargetFile = viewModel::setShareTargetFile,
+                    onExportSettings = viewModel::exportSettings,
+                    onImportSettings = viewModel::importSettings,
                 )
             }
         }

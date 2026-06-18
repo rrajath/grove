@@ -130,8 +130,8 @@ private fun DrawerItem(
             .padding(horizontal = 12.dp, vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(Modifier.width(26.dp)) {
-            Text(glyph, fontFamily = PlexMono, fontSize = 14.sp, color = if (active) c.accent else c.ink2)
+        Box(Modifier.width(30.dp)) {
+            Text(glyph, fontFamily = PlexMono, fontSize = 18.sp, color = if (active) c.accent else c.ink2)
         }
         Text(
             label,

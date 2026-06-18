@@ -67,6 +67,8 @@ fun SettingsScreen(
     onSetCaptureNotification: (Boolean) -> Unit,
     onSetVaultUri: (String) -> Unit,
     onSetShareTargetFile: (String) -> Unit,
+    onExportSettings: (android.net.Uri) -> Unit,
+    onImportSettings: (android.net.Uri) -> Unit,
     templatesViewModel: TemplatesViewModel = viewModel(factory = TemplatesViewModel.Factory),
 ) {
     val c = MaterialTheme.grove
@@ -91,6 +93,14 @@ fun SettingsScreen(
             onSetVaultUri(uri.toString())
         }
     }
+
+    val settingsExporter = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.CreateDocument("application/json")
+    ) { uri -> if (uri != null) onExportSettings(uri) }
+
+    val settingsImporter = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.OpenDocument()
+    ) { uri -> if (uri != null) onImportSettings(uri) }
 
     // Apply pending text edits on leave so back doesn't drop them.
     fun leave() {
@@ -327,6 +337,37 @@ fun SettingsScreen(
                         placeholder = { Text("inbox.org", fontFamily = PlexMono, color = c.ink3) },
                         modifier = Modifier.fillMaxWidth(),
                     )
+                }
+            }
+
+            SectionLabel("BACKUP")
+            SettingsGroup {
+                Column(Modifier.padding(horizontal = 15.dp, vertical = 10.dp)) {
+                    Text(
+                        "Import or export your preferences as a JSON file. The sync"
+                            + " folder isn't included — it stays on this device.",
+                        fontFamily = PlexSans, fontSize = 12.sp, color = c.ink3,
+                        modifier = Modifier.padding(bottom = 4.dp),
+                    )
+                }
+                RowDivider()
+                SettingsRow(
+                    label = "Export settings",
+                    onClick = { settingsExporter.launch("grove-settings.json") },
+                ) {
+                    Text("↑", fontFamily = PlexMono, fontSize = 14.sp, color = c.accent)
+                }
+                RowDivider()
+                SettingsRow(
+                    label = "Import settings",
+                    // Providers report .json inconsistently; accept text-ish types too.
+                    onClick = {
+                        settingsImporter.launch(
+                            arrayOf("application/json", "text/plain", "application/octet-stream")
+                        )
+                    },
+                ) {
+                    Text("↓", fontFamily = PlexMono, fontSize = 14.sp, color = c.accent)
                 }
             }
 

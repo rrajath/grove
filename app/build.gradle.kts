@@ -1,3 +1,6 @@
+import java.io.File
+import java.security.KeyStore
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -28,9 +31,43 @@ fun gitOutput(args: List<String>): String? {
 val gitCommitCount = gitOutput(listOf("rev-list", "--count", "HEAD"))?.toIntOrNull() ?: 1
 val semanticVersion = "$versionMajor.$versionMinor.$gitCommitCount"
 
-// Release signing comes from the environment (CI secrets). Without it — e.g. a
-// local `assembleRelease` — the release build stays unsigned, as it was before.
-val releaseKeystore = System.getenv("SIGNING_KEYSTORE_PATH")?.takeIf { it.isNotBlank() }
+// Release signing comes from the environment (CI secrets). We validate the
+// keystore and alias up front so a missing or misconfigured secret degrades to
+// an unsigned release build instead of failing packaging — and a local
+// `assembleRelease` (no env set) likewise stays unsigned, as before.
+class ReleaseSigning(
+    val storeFile: File,
+    val storePassword: String,
+    val keyAlias: String,
+    val keyPassword: String,
+)
+
+val releaseSigning: ReleaseSigning? = run {
+    val path = System.getenv("SIGNING_KEYSTORE_PATH")?.takeIf { it.isNotBlank() } ?: return@run null
+    val storePassword = System.getenv("SIGNING_STORE_PASSWORD").orEmpty()
+    val keyAlias = System.getenv("SIGNING_KEY_ALIAS").orEmpty()
+    val keyPassword = System.getenv("SIGNING_KEY_PASSWORD").orEmpty()
+    val store = file(path)
+    fun disable(reason: String): ReleaseSigning? {
+        logger.warn("Release signing disabled: $reason. Building an unsigned release APK.")
+        return null
+    }
+    if (!store.exists()) return@run disable("keystore '$path' not found")
+    if (keyAlias.isBlank()) return@run disable("SIGNING_KEY_ALIAS is empty")
+    val keystore = listOf("PKCS12", "JKS").firstNotNullOfOrNull { type ->
+        runCatching {
+            KeyStore.getInstance(type).apply {
+                store.inputStream().use { load(it, storePassword.toCharArray()) }
+            }
+        }.getOrNull()
+    } ?: return@run disable("could not open keystore (wrong store password or unknown format)")
+    if (!keystore.containsAlias(keyAlias)) return@run disable("alias '$keyAlias' not found in keystore")
+    val keyUsable = runCatching {
+        keystore.getKey(keyAlias, keyPassword.toCharArray()) != null
+    }.getOrDefault(false)
+    if (!keyUsable) return@run disable("wrong key password for alias '$keyAlias'")
+    ReleaseSigning(store, storePassword, keyAlias, keyPassword)
+}
 
 android {
     namespace = "com.rrajath.grove"
@@ -50,13 +87,13 @@ android {
 
     signingConfigs {
         create("release") {
-            // Populated only when the CI secrets are present; otherwise the
-            // release config stays empty and the build produces an unsigned APK.
-            if (releaseKeystore != null) {
-                storeFile = file(releaseKeystore)
-                storePassword = System.getenv("SIGNING_STORE_PASSWORD")
-                keyAlias = System.getenv("SIGNING_KEY_ALIAS")
-                keyPassword = System.getenv("SIGNING_KEY_PASSWORD")
+            // Wired only when the CI secrets resolve to a valid keystore + alias;
+            // otherwise the config stays empty and the release builds unsigned.
+            releaseSigning?.let {
+                storeFile = it.storeFile
+                storePassword = it.storePassword
+                keyAlias = it.keyAlias
+                keyPassword = it.keyPassword
             }
         }
     }
@@ -65,7 +102,7 @@ android {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
-            if (releaseKeystore != null) {
+            if (releaseSigning != null) {
                 signingConfig = signingConfigs.getByName("release")
             }
             proguardFiles(
@@ -124,4 +161,10 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+}
+
+// Print just the resolved versionName so CI can tag releases from one source of
+// truth: `./gradlew -q printVersionName` → "1.0.123".
+tasks.register("printVersionName") {
+    doLast { println(semanticVersion) }
 }
