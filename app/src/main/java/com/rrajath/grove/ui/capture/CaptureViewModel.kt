@@ -61,6 +61,7 @@ class CaptureViewModel(private val app: GroveApplication) : ViewModel() {
                     today = LocalDate.from(context.now),
                 )
                 vault.save(template.targetFile, result.newText)
+                app.syncManager.requestSync("capture saved")
                 _saveState.value = SaveState.Saved
             } catch (e: Exception) {
                 _saveState.value = SaveState.Failed(e.message ?: "Capture failed")

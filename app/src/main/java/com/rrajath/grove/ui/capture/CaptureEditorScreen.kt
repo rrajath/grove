@@ -55,6 +55,7 @@ import com.rrajath.grove.org.LineEditing
 import com.rrajath.grove.org.OrgTimestamp
 import com.rrajath.grove.ui.components.GroveTopBar
 import com.rrajath.grove.ui.components.Pill
+import com.rrajath.grove.ui.editor.OrgVisualTransformation
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
@@ -78,6 +79,9 @@ fun CaptureEditorScreen(
     val saveState by viewModel.saveState.collectAsState()
     val clipboard = LocalClipboardManager.current
     val template = templates.firstOrNull { it.id == templateId }
+    val app = androidx.compose.ui.platform.LocalContext.current.applicationContext
+            as com.rrajath.grove.GroveApplication
+    val keywords by app.keywords.collectAsState()
 
     LaunchedEffect(saveState) {
         if (saveState is SaveState.Saved) {
@@ -101,8 +105,6 @@ fun CaptureEditorScreen(
         return
     }
 
-    val app = androidx.compose.ui.platform.LocalContext.current.applicationContext
-            as com.rrajath.grove.GroveApplication
     val context = remember(template, promptValues) {
         val share = app.pendingShare.value
         CaptureContext(
@@ -188,10 +190,10 @@ fun CaptureEditorScreen(
                         lineHeight = 1.9.em, color = c.ink,
                     ),
                     cursorBrush = SolidColor(c.accent),
+                    visualTransformation = remember(c, keywords) { OrgVisualTransformation(c, keywords) },
                     modifier = Modifier
                         .fillMaxSize()
-                        .verticalScroll(rememberScrollState())
-                        .padding(20.dp)
+                        .padding(start = 20.dp, top = 20.dp, end = 20.dp, bottom = 80.dp)
                         .focusRequester(focusRequester),
                 )
                 // Save floats bottom-right: above the keyboard while it's up
@@ -276,6 +278,7 @@ private fun DatetreeBreadcrumb(template: CaptureTemplate, today: LocalDate) {
 @Composable
 private fun ToolbarRow(onInsert: (String) -> Unit, now: LocalDateTime) {
     val c = MaterialTheme.grove
+    var showPlaceholderInfo by remember { mutableStateOf(false) }
     Row(
         Modifier
             .fillMaxWidth()
@@ -286,14 +289,24 @@ private fun ToolbarRow(onInsert: (String) -> Unit, now: LocalDateTime) {
     ) {
         ToolbarButton("B", FontWeight.Bold, c.ink) { onInsert("*bold*") }
         ToolbarButton("I", FontWeight.Normal, c.ink, italic = true) { onInsert("/italic/") }
-        ToolbarButton("◷", FontWeight.Normal, c.synTs) {
+        ToolbarButton("◷", FontWeight.Normal, c.synTs, fontSize = 18.sp) {
             onInsert(OrgTimestamp(now.toLocalDate(), time = now.toLocalTime().withSecond(0).withNano(0)).format())
         }
         Spacer(Modifier.weight(1f))
-        Text(
-            "%placeholders expanded",
-            fontFamily = PlexMono, fontSize = 11.5.sp, color = c.ink2,
-        )
+        Box(
+            Modifier
+                .clip(RoundedCornerShape(6.dp))
+                .clickable { showPlaceholderInfo = true }
+                .padding(horizontal = 8.dp, vertical = 4.dp),
+        ) {
+            Text(
+                "%placeholders expanded",
+                fontFamily = PlexMono, fontSize = 11.5.sp, color = c.ink2,
+            )
+        }
+    }
+    if (showPlaceholderInfo) {
+        PlaceholderInfoDialog(onDismiss = { showPlaceholderInfo = false })
     }
 }
 
@@ -303,6 +316,7 @@ private fun ToolbarButton(
     weight: FontWeight,
     color: androidx.compose.ui.graphics.Color,
     italic: Boolean = false,
+    fontSize: androidx.compose.ui.unit.TextUnit = 14.sp,
     onClick: () -> Unit,
 ) {
     Box(
@@ -313,10 +327,68 @@ private fun ToolbarButton(
     ) {
         Text(
             label,
-            fontFamily = PlexMono, fontWeight = weight, fontSize = 14.sp, color = color,
+            fontFamily = PlexMono, fontWeight = weight, fontSize = fontSize, color = color,
             fontStyle = if (italic) androidx.compose.ui.text.font.FontStyle.Italic else null,
         )
     }
+}
+
+private val PLACEHOLDER_DOCS = listOf(
+    "%U" to "Active datetime stamp: <date time>",
+    "%u" to "Inactive datetime stamp: [date time]",
+    "%T" to "Active date stamp: <date>",
+    "%t" to "Inactive date stamp: [date]",
+    "%date" to "ISO date: YYYY-MM-DD",
+    "%time" to "Current time: HH:MM",
+    "%day" to "Day of week: Monday, …",
+    "%month" to "Month name: January, …",
+    "%year" to "4-digit year",
+    "%clipboard" to "Clipboard contents",
+    "%shared_text" to "Shared text",
+    "%shared_url" to "Shared URL",
+    "%cursor / %?" to "Place cursor here",
+    "%^{Prompt}" to "Ask for user input",
+)
+
+@Composable
+private fun PlaceholderInfoDialog(onDismiss: () -> Unit) {
+    val c = MaterialTheme.grove
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = c.surface,
+        title = {
+            Text(
+                "Placeholders",
+                fontFamily = PlexSans, fontWeight = FontWeight.SemiBold, color = c.ink,
+            )
+        },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
+                PLACEHOLDER_DOCS.forEach { (key, desc) ->
+                    Row(
+                        Modifier.padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            key,
+                            fontFamily = PlexMono, fontSize = 12.sp, color = c.accent,
+                            modifier = Modifier.width(120.dp),
+                        )
+                        Text(
+                            desc,
+                            fontFamily = PlexSans, fontSize = 12.sp, color = c.ink2,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("OK", color = c.accent, fontWeight = FontWeight.SemiBold)
+            }
+        },
+    )
 }
 
 @Composable
