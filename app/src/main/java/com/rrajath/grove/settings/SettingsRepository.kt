@@ -41,6 +41,8 @@ data class GroveSettings(
     val showTagsInOutline: Boolean = true,
     val showTimestampsInOutline: Boolean = true,
     val showKeywordsInOutline: Boolean = true,
+    /** Ordered list of pinned notebook file names; first = topmost. */
+    val pinnedNotebooks: List<String> = emptyList(),
 ) {
     companion object {
         const val DEFAULT_TODO_KEYWORDS = "TODO IN-PROGRESS | DONE CANCELLED"
@@ -70,6 +72,7 @@ class SettingsRepository(private val context: Context) {
         val showTagsInOutline = booleanPreferencesKey("show_tags_in_outline")
         val showTimestampsInOutline = booleanPreferencesKey("show_timestamps_in_outline")
         val showKeywordsInOutline = booleanPreferencesKey("show_keywords_in_outline")
+        val pinnedNotebooks = stringPreferencesKey("pinned_notebooks")
     }
 
     val settings: Flow<GroveSettings> = context.settingsDataStore.data.map { prefs ->
@@ -93,8 +96,15 @@ class SettingsRepository(private val context: Context) {
             showTagsInOutline = prefs[Keys.showTagsInOutline] ?: true,
             showTimestampsInOutline = prefs[Keys.showTimestampsInOutline] ?: true,
             showKeywordsInOutline = prefs[Keys.showKeywordsInOutline] ?: true,
+            pinnedNotebooks = decodePinnedList(prefs[Keys.pinnedNotebooks]),
         )
     }
+
+    private fun decodePinnedList(raw: String?): List<String> =
+        raw?.split(';')?.filter { it.isNotEmpty() } ?: emptyList()
+
+    private fun encodePinnedList(list: List<String>): String =
+        list.joinToString(";")
 
     private fun decodeModes(raw: String?): Map<String, String> =
         raw?.split(';')
@@ -227,7 +237,26 @@ class SettingsRepository(private val context: Context) {
         }
     }
 
-    /** Keep a chosen icon and color attached to a notebook across renames. */
+    suspend fun pinNotebook(fileName: String) {
+        context.settingsDataStore.edit { prefs ->
+            val current = decodePinnedList(prefs[Keys.pinnedNotebooks]).toMutableList()
+            if (fileName !in current) {
+                current.add(fileName)
+                prefs[Keys.pinnedNotebooks] = encodePinnedList(current)
+            }
+        }
+    }
+
+    suspend fun unpinNotebook(fileName: String) {
+        context.settingsDataStore.edit { prefs ->
+            val current = decodePinnedList(prefs[Keys.pinnedNotebooks]).toMutableList()
+            if (current.remove(fileName)) {
+                prefs[Keys.pinnedNotebooks] = encodePinnedList(current)
+            }
+        }
+    }
+
+    /** Keep a chosen icon, color, and pin position attached to a notebook across renames. */
     suspend fun moveNotebookStyle(oldFileName: String, newFileName: String) {
         context.settingsDataStore.edit { prefs ->
             for (key in listOf(Keys.notebookIcons, Keys.notebookColors)) {
@@ -235,6 +264,12 @@ class SettingsRepository(private val context: Context) {
                 val value = current.remove(oldFileName) ?: continue
                 current[newFileName] = value
                 prefs[key] = encodeModes(current)
+            }
+            val pinned = decodePinnedList(prefs[Keys.pinnedNotebooks]).toMutableList()
+            val pinIdx = pinned.indexOf(oldFileName)
+            if (pinIdx >= 0) {
+                pinned[pinIdx] = newFileName
+                prefs[Keys.pinnedNotebooks] = encodePinnedList(pinned)
             }
         }
     }

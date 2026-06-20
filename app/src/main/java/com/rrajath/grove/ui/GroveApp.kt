@@ -139,7 +139,7 @@ private fun GroveNavigation(settings: GroveSettings, viewModel: AppViewModel) {
                         navController.navigate(Routes.note(ref.encode(), settings.defaultNoteOpenMode.storageKey))
                     },
                     // A freshly created note opens straight in edit mode (blank heading).
-                    onCreateNote = { ref -> navController.navigate(Routes.note(ref.encode(), "edit")) },
+                    onCreateNote = { ref -> navController.navigate(Routes.note(ref.encode(), "edit", isNew = true)) },
                     displayFlags = OutlineDisplayFlags(
                         tags = settings.showTagsInOutline,
                         timestamps = settings.showTimestampsInOutline,
@@ -151,17 +151,19 @@ private fun GroveNavigation(settings: GroveSettings, viewModel: AppViewModel) {
             composable(
                 Routes.NOTE,
                 deepLinks = listOf(
-                    androidx.navigation.navDeepLink { uriPattern = "grove://note/{noteId}?mode={mode}" },
+                    androidx.navigation.navDeepLink { uriPattern = "grove://note/{noteId}?mode={mode}&isNew={isNew}" },
                 ),
             ) { entry ->
                 val noteId = entry.arguments?.getString("noteId").orEmpty()
                 val mode = entry.arguments?.getString("mode") ?: "read"
+                val isNew = entry.arguments?.getString("isNew") == "true"
                 val ref = NoteRef.decode(noteId)
                 if (ref == null) {
                     navController.popBackStack()
                 } else if (mode == "edit") {
                     EditNoteScreen(
                         noteRef = ref,
+                        isNewNote = isNew,
                         onBack = { navController.popBackStack() },
                         onSwitchToRead = {
                             navController.navigate(Routes.note(ref.encode(), "read")) {

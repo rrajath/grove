@@ -26,6 +26,7 @@ class SettingsSerializationTest {
         showTagsInOutline = false,
         showTimestampsInOutline = false,
         showKeywordsInOutline = true,
+        pinnedNotebooks = listOf("pinned-first.org", "pinned-second.org"),
         // Device-specific fields that must NOT travel with an export.
         vaultTreeUri = "content://com.android.externalstorage/tree/primary%3Aorg",
         onboardingDone = true,
@@ -54,6 +55,7 @@ class SettingsSerializationTest {
         assertEquals(sample.showTagsInOutline, restored.showTagsInOutline)
         assertEquals(sample.showTimestampsInOutline, restored.showTimestampsInOutline)
         assertEquals(sample.showKeywordsInOutline, restored.showKeywordsInOutline)
+        assertEquals(sample.pinnedNotebooks, restored.pinnedNotebooks)
     }
 
     @Test

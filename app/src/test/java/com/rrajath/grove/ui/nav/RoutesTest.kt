@@ -13,9 +13,10 @@ class RoutesTest {
     }
 
     @Test
-    fun `note route defaults to read mode`() {
-        assertEquals("note/abc-123?mode=read", Routes.note("abc-123"))
-        assertEquals("note/abc-123?mode=edit", Routes.note("abc-123", mode = "edit"))
+    fun `note route defaults to read mode and isNew false`() {
+        assertEquals("note/abc-123?mode=read&isNew=false", Routes.note("abc-123"))
+        assertEquals("note/abc-123?mode=edit&isNew=false", Routes.note("abc-123", mode = "edit"))
+        assertEquals("note/abc-123?mode=edit&isNew=true", Routes.note("abc-123", mode = "edit", isNew = true))
     }
 
     @Test
@@ -44,7 +45,7 @@ class RoutesTest {
             Routes.OUTLINE.substringBefore("{"),
             Routes.outline("x").substringBefore("x"),
         )
-        // note/{noteId}?mode={mode}
+        // note/{noteId}?mode={mode}&isNew={isNew}
         assertEquals(
             Routes.NOTE.substringBefore("{"),
             Routes.note("x").substringBefore("x"),

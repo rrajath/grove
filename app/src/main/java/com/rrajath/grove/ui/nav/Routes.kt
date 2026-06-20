@@ -10,7 +10,7 @@ object Routes {
     const val ONBOARDING = "onboarding"
     const val NOTEBOOKS = "notebooks"
     const val OUTLINE = "outline/{notebookId}"
-    const val NOTE = "note/{noteId}?mode={mode}"
+    const val NOTE = "note/{noteId}?mode={mode}&isNew={isNew}"
     const val CAPTURE = "capture"
     const val CAPTURE_TEMPLATE = "capture/{templateId}"
     const val SEARCH = "search?q={q}"
@@ -25,7 +25,8 @@ object Routes {
     fun encode(id: String): String = URLEncoder.encode(id, "UTF-8")
 
     fun outline(notebookId: String) = "outline/${encode(notebookId)}"
-    fun note(noteId: String, mode: String = "read") = "note/${encode(noteId)}?mode=$mode"
+    fun note(noteId: String, mode: String = "read", isNew: Boolean = false) =
+        "note/${encode(noteId)}?mode=$mode&isNew=$isNew"
     fun capture(templateId: String? = null) =
         if (templateId == null) CAPTURE else "capture/${encode(templateId)}"
     fun conflict(notebookId: String) = "conflict/${encode(notebookId)}"
