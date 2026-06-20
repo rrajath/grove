@@ -7,11 +7,15 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -126,21 +130,29 @@ fun CaptureEditorScreen(
             template.location,
         )
     }
+    val initialText = remember(expanded) { expanded.text }
     var value by remember(expanded) {
         mutableStateOf(TextFieldValue(expanded.text, TextRange(expanded.cursorOffset)))
     }
     val focusRequester = remember { FocusRequester() }
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
 
+    var showDiscardDialog by remember { mutableStateOf(false) }
+
+    fun tryClose() {
+        if (value.text != initialText) showDiscardDialog = true else onClose()
+    }
+
     Scaffold(
         containerColor = c.bg,
+        contentWindowInsets = WindowInsets(0),
         topBar = {
             GroveTopBar(
                 leading = {
                     Box(
                         Modifier
                             .clip(RoundedCornerShape(10.dp))
-                            .clickable(onClick = onClose)
+                            .clickable(onClick = ::tryClose)
                             .padding(12.dp),
                     ) {
                         Text("×", fontFamily = PlexSans, fontSize = 22.sp, color = c.ink)
@@ -161,7 +173,7 @@ fun CaptureEditorScreen(
             Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .imePadding(),
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom)),
         ) {
             if (template.location.isDatetree) {
                 DatetreeBreadcrumb(template, now.toLocalDate())
@@ -225,6 +237,39 @@ fun CaptureEditorScreen(
                 now = now,
             )
         }
+    }
+
+    if (showDiscardDialog) {
+        AlertDialog(
+            onDismissRequest = { showDiscardDialog = false },
+            containerColor = c.surface,
+            title = {
+                Text(
+                    "Discard note?",
+                    fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
+                    fontSize = 16.sp, color = c.ink,
+                )
+            },
+            text = {
+                Text(
+                    "Your changes will be lost.",
+                    fontFamily = PlexSans, fontSize = 14.sp, color = c.ink2,
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDiscardDialog = false
+                    viewModel.save(template, value.text, context)
+                }) {
+                    Text("Save", color = c.accent, fontWeight = FontWeight.SemiBold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDiscardDialog = false; onClose() }) {
+                    Text("Discard", color = c.red)
+                }
+            },
+        )
     }
 }
 

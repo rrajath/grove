@@ -150,6 +150,29 @@ class EditorViewModel(private val app: GroveApplication) : ViewModel() {
         _state.value = _state.value.copy(staleFile = false)
     }
 
+    fun isCurrentHeadingBlank(): Boolean = currentHeadline?.title.isNullOrBlank()
+
+    /**
+     * Remove the edited subtree from the file without saving the buffer.
+     * Used when the user discards a freshly created note that still has no heading.
+     */
+    fun deleteSubtree(onDeleted: () -> Unit = {}) {
+        val s = _state.value
+        viewModelScope.launch {
+            val vault = app.vault.value ?: run { onDeleted(); return@launch }
+            val doc = vault.open(s.fileName) ?: run { onDeleted(); return@launch }
+            val headline = doc.headlines.firstOrNull { it.lineIndex == s.lineIndex }
+            if (headline != null) {
+                val newText = OrgMutations.deleteSubtree(doc, headline)
+                if (newText != null) {
+                    vault.save(s.fileName, newText)
+                    app.syncManager.requestSync("empty note discarded")
+                }
+            }
+            onDeleted()
+        }
+    }
+
     companion object {
         val Factory = factory { EditorViewModel(it) }
     }

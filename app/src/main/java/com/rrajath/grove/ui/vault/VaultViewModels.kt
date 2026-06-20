@@ -31,7 +31,11 @@ data class NotebookItem(
     val icon: String? = null,
     /** User-chosen icon palette key; null = derive one from the file name. */
     val color: String? = null,
-)
+    /** Position in the pinned list (0 = topmost). -1 means not pinned. */
+    val pinnedIndex: Int = -1,
+) {
+    val isPinned: Boolean get() = pinnedIndex >= 0
+}
 
 sealed class NotebooksUiState {
     data object NoVault : NotebooksUiState()
@@ -64,9 +68,13 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
                             hasConflict = it.conflictFileName != null,
                             icon = settings.notebookIcons[it.fileName],
                             color = settings.notebookColors[it.fileName],
+                            pinnedIndex = settings.pinnedNotebooks.indexOf(it.fileName),
                         )
                     }
-                    .sortedBy { it.fileName.lowercase() },
+                    .sortedWith(
+                        compareBy<NotebookItem> { if (it.isPinned) it.pinnedIndex else Int.MAX_VALUE }
+                            .thenBy { it.fileName.lowercase() }
+                    ),
                 syncState = syncState,
                 lastSyncAt = lastResult?.completedAt,
             )
@@ -124,6 +132,14 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
 
     fun forceReload(name: String) {
         viewModelScope.launch { app.syncManager.forceReload(name) }
+    }
+
+    fun pinNotebook(fileName: String) {
+        viewModelScope.launch { app.settingsRepository.pinNotebook(fileName) }
+    }
+
+    fun unpinNotebook(fileName: String) {
+        viewModelScope.launch { app.settingsRepository.unpinNotebook(fileName) }
     }
 
     companion object {

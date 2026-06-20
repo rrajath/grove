@@ -152,6 +152,8 @@ fun NotebooksScreen(
                                     onChangeIcon = { styleTarget = nb.fileName },
                                     onDelete = { viewModel.trashNotebook(nb.fileName) },
                                     onForceReload = { viewModel.forceReload(nb.fileName) },
+                                    onPin = { viewModel.pinNotebook(nb.fileName) },
+                                    onUnpin = { viewModel.unpinNotebook(nb.fileName) },
                                 )
                             }
                         }
@@ -364,6 +366,8 @@ private fun NotebookRow(
     onChangeIcon: () -> Unit,
     onDelete: () -> Unit,
     onForceReload: () -> Unit,
+    onPin: () -> Unit,
+    onUnpin: () -> Unit,
 ) {
     val c = MaterialTheme.grove
     val (glyph, fg, bg) = remember(notebook.fileName, notebook.icon, notebook.color, c) {
@@ -402,6 +406,10 @@ private fun NotebookRow(
                     fontFamily = PlexSans, fontSize = 12.5.sp, color = c.ink2,
                 )
             }
+            if (notebook.isPinned) {
+                Text("⊤", fontFamily = PlexMono, fontSize = 11.sp, color = c.accent,
+                    modifier = Modifier.padding(end = 6.dp))
+            }
             if (notebook.hasConflict) {
                 Pill("Conflict", fg = c.amber, bg = c.amberSoft, onClick = onOpenConflict)
             } else {
@@ -413,6 +421,17 @@ private fun NotebookRow(
             onDismissRequest = { menuOpen = false },
             containerColor = c.surface,
         ) {
+            if (notebook.isPinned) {
+                DropdownMenuItem(
+                    text = { Text("Unpin", fontFamily = PlexSans, color = c.ink) },
+                    onClick = { menuOpen = false; onUnpin() },
+                )
+            } else {
+                DropdownMenuItem(
+                    text = { Text("Pin to top", fontFamily = PlexSans, color = c.ink) },
+                    onClick = { menuOpen = false; onPin() },
+                )
+            }
             DropdownMenuItem(
                 text = { Text("Rename", fontFamily = PlexSans, color = c.ink) },
                 onClick = { menuOpen = false; onRename() },

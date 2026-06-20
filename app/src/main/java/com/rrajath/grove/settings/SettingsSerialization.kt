@@ -51,6 +51,7 @@ data class SettingsExport(
     val showTagsInOutline: Boolean = true,
     val showTimestampsInOutline: Boolean = true,
     val showKeywordsInOutline: Boolean = true,
+    val pinnedNotebooks: List<String> = emptyList(),
 ) {
     /** Map back onto [base], using the enums' tolerant `fromStorage` fallbacks. */
     fun applyTo(base: GroveSettings): GroveSettings = base.copy(
@@ -71,6 +72,7 @@ data class SettingsExport(
         showTagsInOutline = showTagsInOutline,
         showTimestampsInOutline = showTimestampsInOutline,
         showKeywordsInOutline = showKeywordsInOutline,
+        pinnedNotebooks = pinnedNotebooks,
     )
 
     companion object {
@@ -94,6 +96,7 @@ data class SettingsExport(
             showTagsInOutline = s.showTagsInOutline,
             showTimestampsInOutline = s.showTimestampsInOutline,
             showKeywordsInOutline = s.showKeywordsInOutline,
+            pinnedNotebooks = s.pinnedNotebooks,
         )
     }
 }
