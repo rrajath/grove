@@ -149,14 +149,8 @@ fun CaptureEditorScreen(
         if (value.text != initialText) showDiscardDialog = true else onClose()
     }
 
-    fun hasBlankHeading(text: String): Boolean {
-        val firstLine = text.trimStart().lineSequence().firstOrNull() ?: return false
-        val match = Regex("""^(\*+) (.*)$""").find(firstLine)
-        return match != null && match.groupValues[2].isBlank()
-    }
-
     fun trySave() {
-        if (hasBlankHeading(value.text)) {
+        if (CaptureInserter.hasBlankHeading(value.text)) {
             showEmptyHeadingAlert = true
         } else {
             viewModel.save(template, value.text, context)
