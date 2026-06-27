@@ -143,9 +143,24 @@ fun CaptureEditorScreen(
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
 
     var showDiscardDialog by remember { mutableStateOf(false) }
+    var showEmptyHeadingAlert by remember { mutableStateOf(false) }
 
     fun tryClose() {
         if (value.text != initialText) showDiscardDialog = true else onClose()
+    }
+
+    fun hasBlankHeading(text: String): Boolean {
+        val firstLine = text.trimStart().lineSequence().firstOrNull() ?: return false
+        val match = Regex("""^(\*+) (.*)$""").find(firstLine)
+        return match != null && match.groupValues[2].isBlank()
+    }
+
+    fun trySave() {
+        if (hasBlankHeading(value.text)) {
+            showEmptyHeadingAlert = true
+        } else {
+            viewModel.save(template, value.text, context)
+        }
     }
 
     Scaffold(
@@ -228,7 +243,7 @@ fun CaptureEditorScreen(
                         .clip(RoundedCornerShape(15.dp))
                         .background(c.accent)
                         .clickable(enabled = saveState !is SaveState.Saving) {
-                            viewModel.save(template, value.text, context)
+                            trySave()
                         }
                         .padding(horizontal = 22.dp, vertical = 13.dp),
                 ) {
@@ -270,7 +285,7 @@ fun CaptureEditorScreen(
             confirmButton = {
                 TextButton(onClick = {
                     showDiscardDialog = false
-                    viewModel.save(template, value.text, context)
+                    trySave()
                 }) {
                     Text("Save", color = c.accent, fontWeight = FontWeight.SemiBold)
                 }
@@ -278,6 +293,31 @@ fun CaptureEditorScreen(
             dismissButton = {
                 TextButton(onClick = { showDiscardDialog = false; onClose() }) {
                     Text("Discard", color = c.red)
+                }
+            },
+        )
+    }
+
+    if (showEmptyHeadingAlert) {
+        AlertDialog(
+            onDismissRequest = { showEmptyHeadingAlert = false },
+            containerColor = c.surface,
+            title = {
+                Text(
+                    "Add a heading",
+                    fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
+                    fontSize = 16.sp, color = c.ink,
+                )
+            },
+            text = {
+                Text(
+                    "Please give this note a heading before saving.",
+                    fontFamily = PlexSans, fontSize = 14.sp, color = c.ink2,
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { showEmptyHeadingAlert = false }) {
+                    Text("OK", color = c.accent, fontWeight = FontWeight.SemiBold)
                 }
             },
         )

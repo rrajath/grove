@@ -68,6 +68,7 @@ fun OutlineScreen(
     onBack: () -> Unit,
     onOpenNote: (NoteRef) -> Unit,
     onCreateNote: (NoteRef) -> Unit,
+    onFavorite: (fileName: String, lineIndex: Int, title: String) -> Unit = { _, _, _ -> },
     displayFlags: OutlineDisplayFlags = OutlineDisplayFlags(),
     onToggleDisplay: (OutlineToggle, Boolean) -> Unit = { _, _ -> },
     viewModel: DocumentViewModel = viewModel(factory = DocumentViewModel.Factory),
@@ -275,6 +276,7 @@ fun OutlineScreen(
                                     onPaste = if (viewModel.hasClipboard) ({ viewModel.pasteUnder(h) }) else null,
                                     onNarrow = { narrowedTo = h.lineIndex },
                                     onDelete = { viewModel.deleteSubtree(h) },
+                                    onFavorite = { onFavorite(notebookId, h.lineIndex, h.title) },
                                 ),
                             )
                         }
@@ -297,6 +299,7 @@ data class NodeOps(
     val onPaste: (() -> Unit)?,
     val onNarrow: () -> Unit,
     val onDelete: () -> Unit,
+    val onFavorite: () -> Unit = {},
 )
 
 private fun visibleHeadlines(doc: OrgDocument, collapsed: Set<Int>): List<OrgHeadline> {
@@ -541,6 +544,7 @@ private fun NodeMenu(expanded: Boolean, onDismiss: () -> Unit, ops: NodeOps) {
         item("Copy", action = ops.onCopy)
         ops.onPaste?.let { item("Paste under", action = it) }
         item("Show in context", action = ops.onNarrow)
+        item("♥ Favorite", action = ops.onFavorite)
         item("Delete", color = c.red, action = ops.onDelete)
     }
 }

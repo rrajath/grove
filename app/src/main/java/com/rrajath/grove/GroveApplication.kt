@@ -7,6 +7,7 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
 import com.rrajath.grove.capture.SharedPayload
 import com.rrajath.grove.capture.TemplatesRepository
+import com.rrajath.grove.data.FavoritesRepository
 import com.rrajath.grove.data.GroveDatabase
 import com.rrajath.grove.org.OrgKeywords
 import com.rrajath.grove.search.SearchRepository
@@ -39,6 +40,8 @@ class GroveApplication : Application() {
     val templatesRepository: TemplatesRepository by lazy { TemplatesRepository(this) }
 
     val searchRepository: SearchRepository by lazy { SearchRepository(this) }
+
+    val favoritesRepository: FavoritesRepository by lazy { FavoritesRepository(this) }
 
     /**
      * Content shared into the app (PRD §10). Observed by the UI so it can be
