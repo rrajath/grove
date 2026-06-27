@@ -77,6 +77,28 @@ object LineEditing {
         )
     }
 
+    private val HEADING_FIRST_CHAR = Regex("""^\*+ [a-z]$""")
+
+    /**
+     * Auto-capitalize the first letter typed into an org heading. Returns null
+     * when no capitalization is needed (not a heading line, char already uppercase,
+     * or cursor not right after the first content character).
+     *
+     * Call this after [continueListOnEnter] in the text-change handler, passing
+     * the old text (before the edit) and the new text + cursor from the IME.
+     */
+    fun capitalizeHeadingOnType(oldText: String, newText: String, cursor: Int): TextEdit? {
+        if (newText.length != oldText.length + 1) return null
+        if (cursor < 1 || cursor > newText.length) return null
+        val newChar = newText[cursor - 1]
+        if (!newChar.isLetter() || newChar.isUpperCase()) return null
+        val lineStart = newText.lastIndexOf('\n', cursor - 2) + 1
+        val lineUpToCursor = newText.substring(lineStart, cursor)
+        if (!HEADING_FIRST_CHAR.matches(lineUpToCursor)) return null
+        val capitalized = newText.substring(0, cursor - 1) + newChar.uppercaseChar() + newText.substring(cursor)
+        return TextEdit(capitalized, cursor)
+    }
+
     /**
      * Toolbar `*` button: on an empty heading line (`* `, `** `…) demote it by
      * one star; anywhere else start a new heading on the next line.

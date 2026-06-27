@@ -54,6 +54,16 @@ object CaptureInserter {
 
     class CaptureTargetNotFound(message: String) : Exception(message)
 
+    /**
+     * Returns true if [text] has no meaningful heading title — i.e. the first
+     * headline is missing or its title (after stripping any keyword/priority) is
+     * blank. Used by the capture editor's save-guard to block empty headings.
+     */
+    fun hasBlankHeading(text: String, keywords: OrgKeywords = OrgKeywords.DEFAULT): Boolean {
+        val doc = OrgParser.parse(text, keywords)
+        return doc.headlines.firstOrNull()?.title.isNullOrBlank()
+    }
+
     /** Heading depth an entry gets when inserted at [location], if statically known. */
     fun entryLevel(location: TargetLocation): Int? = when (location) {
         is TargetLocation.TopOfFile, is TargetLocation.BottomOfFile -> 1

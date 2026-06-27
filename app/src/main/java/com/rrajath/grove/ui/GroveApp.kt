@@ -97,6 +97,7 @@ private fun GroveNavigation(settings: GroveSettings, viewModel: AppViewModel) {
                     currentRoute = currentRoute,
                     vaultPath = vaultDisplayPath(settings.vaultTreeUri),
                     savedSearches = viewModel.savedSearches.collectAsState().value,
+                    favorites = viewModel.favorites.collectAsState().value,
                     onNavigate = { route -> closeDrawerAnd { navController.navigate(route) } },
                     onDeleteSavedSearch = { viewModel.deleteSavedSearch(it.id) },
                 )
@@ -140,6 +141,7 @@ private fun GroveNavigation(settings: GroveSettings, viewModel: AppViewModel) {
                     },
                     // A freshly created note opens straight in edit mode (blank heading).
                     onCreateNote = { ref -> navController.navigate(Routes.note(ref.encode(), "edit", isNew = true)) },
+                    onFavorite = { fileName, lineIndex, title -> viewModel.addFavorite(fileName, lineIndex, title) },
                     displayFlags = OutlineDisplayFlags(
                         tags = settings.showTagsInOutline,
                         timestamps = settings.showTimestampsInOutline,

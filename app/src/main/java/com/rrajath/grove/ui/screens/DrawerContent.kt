@@ -27,12 +27,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.rrajath.grove.data.FavoriteNote
 import com.rrajath.grove.search.SavedSearch
 import com.rrajath.grove.ui.components.BrandMark
 import com.rrajath.grove.ui.nav.Routes
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
+import com.rrajath.grove.ui.vault.NoteRef
 
 /** Navigation drawer per design spec §3. */
 @Composable
@@ -40,6 +42,7 @@ fun GroveDrawerContent(
     currentRoute: String?,
     vaultPath: String,
     savedSearches: List<SavedSearch>,
+    favorites: List<FavoriteNote> = emptyList(),
     onNavigate: (String) -> Unit,
     onDeleteSavedSearch: (SavedSearch) -> Unit,
 ) {
@@ -65,6 +68,15 @@ fun GroveDrawerContent(
                 "⌖", search.name, active = false,
                 onLongClick = { deleteTarget = search },
             ) { onNavigate(Routes.search(search.query)) }
+        }
+
+        if (favorites.isNotEmpty()) {
+            SectionLabel("♥ FAVORITES")
+            favorites.forEach { fav ->
+                DrawerItem("♥", fav.title, active = false) {
+                    onNavigate(Routes.note(NoteRef(fav.fileName, fav.lineIndex).encode()))
+                }
+            }
         }
 
         HorizontalDivider(color = c.line, modifier = Modifier.padding(vertical = 8.dp))

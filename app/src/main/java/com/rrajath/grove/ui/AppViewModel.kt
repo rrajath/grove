@@ -7,6 +7,7 @@ import androidx.lifecycle.viewmodel.CreationExtras
 import com.rrajath.grove.GroveApplication
 import com.rrajath.grove.capture.PageTitleFetcher
 import com.rrajath.grove.capture.ShareIntake
+import com.rrajath.grove.data.FavoriteNote
 import com.rrajath.grove.org.OrgMutations
 import com.rrajath.grove.search.SavedSearch
 import com.rrajath.grove.settings.FontSizePreference
@@ -43,6 +44,15 @@ class AppViewModel(private val app: GroveApplication) : ViewModel() {
 
     fun deleteSavedSearch(id: String) =
         viewModelScope.launch { app.searchRepository.deleteSearch(id) }
+
+    val favorites: StateFlow<List<FavoriteNote>> = app.favoritesRepository.favorites
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    fun addFavorite(fileName: String, lineIndex: Int, title: String) =
+        viewModelScope.launch { app.favoritesRepository.addFavorite(FavoriteNote(fileName, lineIndex, title)) }
+
+    fun removeFavorite(fileName: String, lineIndex: Int) =
+        viewModelScope.launch { app.favoritesRepository.removeFavorite(fileName, lineIndex) }
 
     fun setTheme(theme: ThemePreference) =
         viewModelScope.launch { settingsRepository.setTheme(theme) }

@@ -111,9 +111,14 @@ fun CaptureEditorScreen(
 
     val context = remember(template, promptValues) {
         val share = app.pendingShare.value
+        // Only read the clipboard when the template actually uses %clipboard.
+        // Android 13+ shows a system toast on every clipboard read, so reading
+        // unconditionally would confuse users whose templates don't need it.
+        val clipboardText =
+            if (template.template.contains("%clipboard")) clipboard.getText()?.text ?: "" else ""
         CaptureContext(
             now = now,
-            clipboard = clipboard.getText()?.text ?: "",
+            clipboard = clipboardText,
             sharedText = share?.text ?: "",
             sharedUrl = share?.url ?: "",
             promptValues = promptValues ?: emptyMap(),
@@ -138,9 +143,18 @@ fun CaptureEditorScreen(
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
 
     var showDiscardDialog by remember { mutableStateOf(false) }
+    var showEmptyHeadingAlert by remember { mutableStateOf(false) }
 
     fun tryClose() {
         if (value.text != initialText) showDiscardDialog = true else onClose()
+    }
+
+    fun trySave() {
+        if (CaptureInserter.hasBlankHeading(value.text)) {
+            showEmptyHeadingAlert = true
+        } else {
+            viewModel.save(template, value.text, context)
+        }
     }
 
     Scaffold(
@@ -192,9 +206,15 @@ fun CaptureEditorScreen(
                         val continued = LineEditing.continueListOnEnter(
                             value.text, newValue.text, newValue.selection.start,
                         )
-                        value =
+                        val effective =
                             if (continued != null) TextFieldValue(continued.text, TextRange(continued.cursor))
                             else newValue
+                        val capitalized = LineEditing.capitalizeHeadingOnType(
+                            value.text, effective.text, effective.selection.start,
+                        )
+                        value =
+                            if (capitalized != null) TextFieldValue(capitalized.text, TextRange(capitalized.cursor))
+                            else effective
                     },
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                     textStyle = TextStyle(
@@ -217,7 +237,7 @@ fun CaptureEditorScreen(
                         .clip(RoundedCornerShape(15.dp))
                         .background(c.accent)
                         .clickable(enabled = saveState !is SaveState.Saving) {
-                            viewModel.save(template, value.text, context)
+                            trySave()
                         }
                         .padding(horizontal = 22.dp, vertical = 13.dp),
                 ) {
@@ -259,7 +279,7 @@ fun CaptureEditorScreen(
             confirmButton = {
                 TextButton(onClick = {
                     showDiscardDialog = false
-                    viewModel.save(template, value.text, context)
+                    trySave()
                 }) {
                     Text("Save", color = c.accent, fontWeight = FontWeight.SemiBold)
                 }
@@ -267,6 +287,31 @@ fun CaptureEditorScreen(
             dismissButton = {
                 TextButton(onClick = { showDiscardDialog = false; onClose() }) {
                     Text("Discard", color = c.red)
+                }
+            },
+        )
+    }
+
+    if (showEmptyHeadingAlert) {
+        AlertDialog(
+            onDismissRequest = { showEmptyHeadingAlert = false },
+            containerColor = c.surface,
+            title = {
+                Text(
+                    "Add a heading",
+                    fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
+                    fontSize = 16.sp, color = c.ink,
+                )
+            },
+            text = {
+                Text(
+                    "Please give this note a heading before saving.",
+                    fontFamily = PlexSans, fontSize = 14.sp, color = c.ink2,
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { showEmptyHeadingAlert = false }) {
+                    Text("OK", color = c.accent, fontWeight = FontWeight.SemiBold)
                 }
             },
         )
@@ -463,6 +508,7 @@ private fun PromptDialog(
                         value = values[prompt].orEmpty(),
                         onValueChange = { values = values + (prompt to it) },
                         singleLine = true,
+                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                         modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
                     )
                 }
