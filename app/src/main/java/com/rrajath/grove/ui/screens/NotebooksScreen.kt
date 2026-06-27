@@ -25,11 +25,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.ui.res.painterResource
+import com.rrajath.grove.R
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -407,8 +410,12 @@ private fun NotebookRow(
                 )
             }
             if (notebook.isPinned) {
-                Text("⊤", fontFamily = PlexMono, fontSize = 11.sp, color = c.accent,
-                    modifier = Modifier.padding(end = 6.dp))
+                Icon(
+                    painter = painterResource(R.drawable.ic_pin),
+                    contentDescription = null,
+                    tint = c.accent,
+                    modifier = Modifier.padding(end = 6.dp).size(14.dp),
+                )
             }
             if (notebook.hasConflict) {
                 Pill("Conflict", fg = c.amber, bg = c.amberSoft, onClick = onOpenConflict)

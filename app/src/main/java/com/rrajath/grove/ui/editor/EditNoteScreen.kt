@@ -127,9 +127,15 @@ fun EditNoteScreen(
         val continued = LineEditing.continueListOnEnter(
             value.text, newValue.text, newValue.selection.start,
         )
-        applyEdit(
+        val effective =
             if (continued != null) TextFieldValue(continued.text, TextRange(continued.cursor))
             else newValue
+        val capitalized = LineEditing.capitalizeHeadingOnType(
+            value.text, effective.text, effective.selection.start,
+        )
+        applyEdit(
+            if (capitalized != null) TextFieldValue(capitalized.text, TextRange(capitalized.cursor))
+            else effective
         )
     }
 

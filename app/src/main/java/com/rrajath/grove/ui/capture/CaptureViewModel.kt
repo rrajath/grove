@@ -12,6 +12,8 @@ import com.rrajath.grove.capture.TemplatesRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -38,11 +40,6 @@ class CaptureViewModel(private val app: GroveApplication) : ViewModel() {
      * if it doesn't exist yet.
      */
     fun save(template: CaptureTemplate, entryText: String, context: CaptureContext) {
-        val vault = app.vault.value
-        if (vault == null) {
-            _saveState.value = SaveState.Failed("No sync folder configured")
-            return
-        }
         if (entryText.isBlank()) {
             _saveState.value = SaveState.Failed("Nothing to save")
             return
@@ -50,6 +47,14 @@ class CaptureViewModel(private val app: GroveApplication) : ViewModel() {
         _saveState.value = SaveState.Saving
         viewModelScope.launch {
             try {
+                val settings = app.settingsRepository.settings.first()
+                if (settings.vaultTreeUri == null) {
+                    _saveState.value = SaveState.Failed("No sync folder configured")
+                    return@launch
+                }
+                // On a cold start (e.g. launched via app shortcut) the vault may
+                // still be initializing even though a folder is configured; await it.
+                val vault = app.vault.filterNotNull().first()
                 if (!vault.open(template.targetFile).let { it != null }) {
                     vault.createNotebook(template.targetFile)
                 }

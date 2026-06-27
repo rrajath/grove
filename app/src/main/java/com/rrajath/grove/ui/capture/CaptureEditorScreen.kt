@@ -111,9 +111,14 @@ fun CaptureEditorScreen(
 
     val context = remember(template, promptValues) {
         val share = app.pendingShare.value
+        // Only read the clipboard when the template actually uses %clipboard.
+        // Android 13+ shows a system toast on every clipboard read, so reading
+        // unconditionally would confuse users whose templates don't need it.
+        val clipboardText =
+            if (template.template.contains("%clipboard")) clipboard.getText()?.text ?: "" else ""
         CaptureContext(
             now = now,
-            clipboard = clipboard.getText()?.text ?: "",
+            clipboard = clipboardText,
             sharedText = share?.text ?: "",
             sharedUrl = share?.url ?: "",
             promptValues = promptValues ?: emptyMap(),
@@ -192,9 +197,15 @@ fun CaptureEditorScreen(
                         val continued = LineEditing.continueListOnEnter(
                             value.text, newValue.text, newValue.selection.start,
                         )
-                        value =
+                        val effective =
                             if (continued != null) TextFieldValue(continued.text, TextRange(continued.cursor))
                             else newValue
+                        val capitalized = LineEditing.capitalizeHeadingOnType(
+                            value.text, effective.text, effective.selection.start,
+                        )
+                        value =
+                            if (capitalized != null) TextFieldValue(capitalized.text, TextRange(capitalized.cursor))
+                            else effective
                     },
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                     textStyle = TextStyle(
@@ -463,6 +474,7 @@ private fun PromptDialog(
                         value = values[prompt].orEmpty(),
                         onValueChange = { values = values + (prompt to it) },
                         singleLine = true,
+                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                         modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
                     )
                 }
