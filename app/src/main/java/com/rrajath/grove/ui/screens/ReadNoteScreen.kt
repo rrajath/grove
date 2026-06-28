@@ -262,7 +262,7 @@ private fun BodyBlocks(
             is OrgBlock.ListBlock -> {
                 Column(Modifier.padding(start = 8.dp)) {
                     block.items.forEachIndexed { i, item ->
-                        Row(Modifier.padding(vertical = 2.dp)) {
+                        Row(Modifier.padding(vertical = 2.dp).padding(start = (item.indent * 4).dp)) {
                             Text(
                                 when {
                                     item.checkbox == 'X' || item.checkbox == 'x' -> "☑"
