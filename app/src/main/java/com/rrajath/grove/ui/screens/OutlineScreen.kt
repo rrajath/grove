@@ -544,7 +544,7 @@ private fun NodeMenu(expanded: Boolean, onDismiss: () -> Unit, ops: NodeOps) {
         item("Copy", action = ops.onCopy)
         ops.onPaste?.let { item("Paste under", action = it) }
         item("Show in context", action = ops.onNarrow)
-        item("♥ Favorite", action = ops.onFavorite)
+        item("Favorite", action = ops.onFavorite)
         item("Delete", color = c.red, action = ops.onDelete)
     }
 }

@@ -54,6 +54,26 @@ class BlockParserTest {
     }
 
     @Test
+    fun `nested list items carry correct indent levels`() {
+        val blocks = BlockParser.parse(
+            listOf(
+                "- top",
+                "  - nested",
+                "    - deep",
+                "  - nested again",
+                "- top again",
+            )
+        )
+        val list = blocks[0] as OrgBlock.ListBlock
+        assertEquals(5, list.items.size)
+        assertEquals(0, list.items[0].indent)
+        assertEquals(2, list.items[1].indent)
+        assertEquals(4, list.items[2].indent)
+        assertEquals(2, list.items[3].indent)
+        assertEquals(0, list.items[4].indent)
+    }
+
+    @Test
     fun `tables group into one block`() {
         val blocks = BlockParser.parse(listOf("| a | b |", "|---|---|", "| 1 | 2 |"))
         assertEquals(1, blocks.size)
