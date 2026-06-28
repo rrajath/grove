@@ -75,12 +75,8 @@ settings
 ```
 
 ## Design System
-
-All design tokens are defined in `design/README.md`. Key points:
-
-- **Fonts:** IBM Plex Sans (UI), IBM Plex Serif (read-mode body), IBM Plex Mono (editor, timestamps, file names). Bundle as assets or use downloadable fonts.
-- **Colors:** Warm earth tones. Light `--bg #f3ede1`, dark `--bg #16130e`; `--accent #8a5a2b` / `#cb9d62`. Override `MaterialTheme.colorScheme` and add extension properties for non-Material tokens (`accent`, `ink`, `syn-star`, etc.).
-- **Syntax highlighting tokens:** `syn-star`, `syn-todo`, `syn-done`, `syn-kw`, `syn-ts`, `syn-tag`, `syn-link`, `syn-prop` — full values in `design/README.md`.
+Full reference: `docs/DESIGN_SYSTEM.md`
+Whenever a task adds, modifies, or styles any UI element, read that file first and follow it. Don't invent colors, spacing, or components it doesn't cover — ask instead.
 
 ## Editor Implementation Notes
 
