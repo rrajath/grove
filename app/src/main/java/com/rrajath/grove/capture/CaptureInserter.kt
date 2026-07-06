@@ -15,7 +15,7 @@ import java.util.Locale
  */
 object CaptureInserter {
 
-    data class Insertion(val newText: String, val insertedAtLine: Int)
+    data class Insertion(val newText: String, val insertedAtLine: Int, val entryLineCount: Int = 1)
 
     private val STARS = Regex("""^(\*+)\s+(.*)$""")
 
@@ -53,6 +53,18 @@ object CaptureInserter {
     }
 
     class CaptureTargetNotFound(message: String) : Exception(message)
+
+    /**
+     * Remove a previously spliced-in entry (e.g. an autosaved draft) so it can
+     * be replaced by a fresh [insert] rather than duplicated.
+     */
+    fun removeInsertion(text: String, insertion: Insertion): String {
+        val lines = text.split("\n").toMutableList()
+        val start = insertion.insertedAtLine.coerceIn(0, lines.size)
+        val end = (start + insertion.entryLineCount).coerceAtMost(lines.size)
+        repeat(end - start) { lines.removeAt(start) }
+        return lines.joinToString("\n")
+    }
 
     /**
      * Returns true if [text] has no meaningful heading title — i.e. the first
@@ -188,7 +200,7 @@ object CaptureInserter {
 
     private fun spliceEntry(text: String, atLine: Int, entryLines: List<String>): Insertion {
         if (text.isEmpty()) {
-            return Insertion(entryLines.joinToString("\n") + "\n", 0)
+            return Insertion(entryLines.joinToString("\n") + "\n", 0, entryLines.size)
         }
         val lines = text.split("\n").toMutableList()
         var at = atLine.coerceIn(0, lines.size)
@@ -197,6 +209,6 @@ object CaptureInserter {
         // line plus an unterminated last line.
         if (at == lines.size && lines.last().isEmpty()) at--
         lines.addAll(at, entryLines)
-        return Insertion(lines.joinToString("\n"), at)
+        return Insertion(lines.joinToString("\n"), at, entryLines.size)
     }
 }

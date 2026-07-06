@@ -134,6 +134,22 @@ object OrgMutations {
         options: NewNoteOptions = NewNoteOptions(),
     ): Pair<String, Int> = insertNote(doc, doc.lines.size, 1, title, options)
 
+    /** Insert a new sibling note immediately above [h] (same level). */
+    fun insertSiblingAbove(
+        doc: OrgDocument,
+        h: OrgHeadline,
+        title: String = "",
+        options: NewNoteOptions = NewNoteOptions(),
+    ): Pair<String, Int> = insertNote(doc, h.lineIndex, h.level, title, options)
+
+    /** Insert a new sibling note immediately below [h]'s whole subtree (same level). */
+    fun insertSiblingBelow(
+        doc: OrgDocument,
+        h: OrgHeadline,
+        title: String = "",
+        options: NewNoteOptions = NewNoteOptions(),
+    ): Pair<String, Int> = insertNote(doc, doc.subtreeEndLine(h), h.level, title, options)
+
     private fun insertNote(
         doc: OrgDocument,
         atLine: Int,

@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -25,12 +26,21 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.core.net.toUri
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
@@ -43,7 +53,11 @@ import com.rrajath.grove.ui.components.GroveTopBar
 import com.rrajath.grove.ui.components.Pill
 import com.rrajath.grove.ui.components.SegmentedControl
 import com.rrajath.grove.ui.components.annotateOrgInline
+import com.rrajath.grove.ui.components.autoScrollWhileDragging
+import com.rrajath.grove.ui.components.linkPressHandler
+import com.rrajath.grove.ui.components.orgInlineLinks
 import com.rrajath.grove.ui.theme.PlexMono
+import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.PlexSerif
 import com.rrajath.grove.ui.theme.grove
 import com.rrajath.grove.ui.vault.DocumentUiState
@@ -114,21 +128,25 @@ fun ReadNoteScreen(
                         contentAlignment = Alignment.Center,
                     ) { Text("Note not found", color = c.ink2) }
                 } else {
-                    NoteContent(
-                        doc = doc,
-                        headline = headline,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(padding)
-                            // Double-tap anywhere in the note switches to edit mode.
-                            .pointerInput(Unit) {
-                                detectTapGestures(onDoubleTap = { onEdit() })
-                            }
-                            .verticalScroll(rememberScrollState())
-                            .padding(horizontal = 24.dp),
-                        onOpenNote = onOpenNote,
-                        fileName = noteRef.fileName,
-                    )
+                    val scrollState = rememberScrollState()
+                    SelectionContainer {
+                        NoteContent(
+                            doc = doc,
+                            headline = headline,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(padding)
+                                // Double-tap anywhere in the note switches to edit mode.
+                                .pointerInput(Unit) {
+                                    detectTapGestures(onDoubleTap = { onEdit() })
+                                }
+                                .autoScrollWhileDragging(scrollState)
+                                .verticalScroll(scrollState)
+                                .padding(horizontal = 24.dp),
+                            onOpenNote = onOpenNote,
+                            fileName = noteRef.fileName,
+                        )
+                    }
                 }
             }
         }
@@ -146,81 +164,157 @@ private fun NoteContent(
     val c = MaterialTheme.grove
     val context = LocalContext.current
     val openLink: (String) -> Unit = { openOrgTarget(it, doc, fileName, context, onOpenNote) }
-    Column(modifier) {
-        Spacer(Modifier.height(8.dp))
+    var linkMenuTarget by remember { mutableStateOf<String?>(null) }
+    val onLinkLongPress: (String) -> Unit = { linkMenuTarget = it }
 
-        // Tag chips
-        val tags = doc.inheritedTags(headline)
-        if (tags.isNotEmpty()) {
-            Row {
-                tags.forEach { tag ->
-                    Pill(tag, fg = c.accent, bg = c.accentSoft)
-                    Spacer(Modifier.width(7.dp))
+    Box {
+        Column(modifier) {
+            Spacer(Modifier.height(8.dp))
+
+            // Tag chips
+            val tags = doc.inheritedTags(headline)
+            if (tags.isNotEmpty()) {
+                Row {
+                    tags.forEach { tag ->
+                        Pill(tag, fg = c.accent, bg = c.accentSoft)
+                        Spacer(Modifier.width(7.dp))
+                    }
                 }
+                Spacer(Modifier.height(12.dp))
             }
-            Spacer(Modifier.height(12.dp))
-        }
 
-        // Title
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            headline.keyword?.let { kw ->
-                val (fg, bg) = if (doc.keywords.isDone(kw)) c.green to c.greenSoft
-                else c.amber to c.amberSoft
-                Pill(kw, fg = fg, bg = bg)
-                Spacer(Modifier.width(8.dp))
-            }
-        }
-        Text(
-            annotateOrgInline(headline.title, c, openLink),
-            fontFamily = PlexSerif, fontWeight = FontWeight.SemiBold,
-            fontSize = 25.sp, color = c.ink, lineHeight = 1.3.em,
-        )
-
-        // Created / planning metadata
-        headline.properties["CREATED"]?.let { created ->
-            Spacer(Modifier.height(6.dp))
-            Text("Created $created", fontFamily = PlexMono, fontSize = 12.5.sp, color = c.ink3)
-        }
-        headline.planning.scheduled?.let {
-            Spacer(Modifier.height(6.dp))
-            PlanningChip("SCHEDULED: ${it.format()}", fg = c.blue, bg = c.blueSoft)
-        }
-        headline.planning.deadline?.let {
-            Spacer(Modifier.height(6.dp))
-            PlanningChip("DEADLINE: ${it.format()}", fg = c.red, bg = c.redSoft)
-        }
-        Spacer(Modifier.height(16.dp))
-
-        // Own body
-        BodyBlocks(doc, doc.bodyOf(headline), fileName, onOpenNote)
-
-        // Subtree rendered inline, headings sized by relative depth
-        doc.subtree(headline).forEach { child ->
-            Spacer(Modifier.height(20.dp))
-            val rel = (child.level - headline.level).coerceAtLeast(1)
+            // Title
             Row(verticalAlignment = Alignment.CenterVertically) {
-                child.keyword?.let { kw ->
+                headline.keyword?.let { kw ->
                     val (fg, bg) = if (doc.keywords.isDone(kw)) c.green to c.greenSoft
                     else c.amber to c.amberSoft
                     Pill(kw, fg = fg, bg = bg)
                     Spacer(Modifier.width(8.dp))
                 }
-                Text(
-                    annotateOrgInline(child.title, c, openLink),
-                    fontFamily = PlexSerif, fontWeight = FontWeight.SemiBold,
-                    fontSize = when (rel) {
-                        1 -> 19.sp
-                        2 -> 17.sp
-                        else -> 16.sp
-                    },
-                    color = c.ink,
-                )
             }
-            Spacer(Modifier.height(8.dp))
-            BodyBlocks(doc, doc.bodyOf(child), fileName, onOpenNote)
+            OrgText(
+                headline.title, onOpenLink = openLink, onLinkLongPress = onLinkLongPress,
+                style = TextStyle(
+                    fontFamily = PlexSerif, fontWeight = FontWeight.SemiBold,
+                    fontSize = 25.sp, color = c.ink, lineHeight = 1.3.em,
+                ),
+            )
+
+            // Created / planning metadata
+            headline.properties["CREATED"]?.let { created ->
+                Spacer(Modifier.height(6.dp))
+                Text("Created $created", fontFamily = PlexMono, fontSize = 12.5.sp, color = c.ink3)
+            }
+            headline.planning.scheduled?.let {
+                Spacer(Modifier.height(6.dp))
+                PlanningChip("SCHEDULED: ${it.format()}", fg = c.blue, bg = c.blueSoft)
+            }
+            headline.planning.deadline?.let {
+                Spacer(Modifier.height(6.dp))
+                PlanningChip("DEADLINE: ${it.format()}", fg = c.red, bg = c.redSoft)
+            }
+            Spacer(Modifier.height(16.dp))
+
+            // Own body
+            BodyBlocks(doc, doc.bodyOf(headline), fileName, onOpenNote, onLinkLongPress)
+
+            // Subtree rendered inline, headings sized by relative depth
+            doc.subtree(headline).forEach { child ->
+                Spacer(Modifier.height(20.dp))
+                val rel = (child.level - headline.level).coerceAtLeast(1)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    child.keyword?.let { kw ->
+                        val (fg, bg) = if (doc.keywords.isDone(kw)) c.green to c.greenSoft
+                        else c.amber to c.amberSoft
+                        Pill(kw, fg = fg, bg = bg)
+                        Spacer(Modifier.width(8.dp))
+                    }
+                    OrgText(
+                        child.title, onOpenLink = openLink, onLinkLongPress = onLinkLongPress,
+                        style = TextStyle(
+                            fontFamily = PlexSerif, fontWeight = FontWeight.SemiBold,
+                            fontSize = when (rel) {
+                                1 -> 19.sp
+                                2 -> 17.sp
+                                else -> 16.sp
+                            },
+                            color = c.ink,
+                        ),
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
+                BodyBlocks(doc, doc.bodyOf(child), fileName, onOpenNote, onLinkLongPress)
+            }
+            Spacer(Modifier.height(40.dp))
         }
-        Spacer(Modifier.height(40.dp))
+
+        val target = linkMenuTarget
+        DropdownMenu(
+            expanded = target != null,
+            onDismissRequest = { linkMenuTarget = null },
+            containerColor = c.surface,
+        ) {
+            if (target != null) {
+                LinkActionMenuItems(target, onDismiss = { linkMenuTarget = null })
+            }
+        }
     }
+}
+
+/** Text that renders org inline markup and hands link taps/long-presses to [onOpenLink]/[onLinkLongPress]. */
+@Composable
+private fun OrgText(
+    text: String,
+    onOpenLink: (String) -> Unit,
+    onLinkLongPress: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    style: TextStyle = TextStyle.Default,
+    maxLines: Int = Int.MAX_VALUE,
+    overflow: TextOverflow = TextOverflow.Clip,
+) {
+    val c = MaterialTheme.grove
+    val annotated = remember(text, c) { annotateOrgInline(text, c, onOpenLink) }
+    val links = remember(text) { orgInlineLinks(text) }
+    var layout by remember { mutableStateOf<TextLayoutResult?>(null) }
+    Text(
+        annotated,
+        style = style,
+        maxLines = maxLines,
+        overflow = overflow,
+        onTextLayout = { layout = it },
+        modifier = modifier.linkPressHandler(
+            links = links,
+            layoutResult = { layout },
+            onTap = onOpenLink,
+            onLongPress = onLinkLongPress,
+        ),
+    )
+}
+
+/** Copy link / Share link — the actions offered when long-pressing a link in read mode. */
+@Composable
+private fun LinkActionMenuItems(target: String, onDismiss: () -> Unit) {
+    val c = MaterialTheme.grove
+    val clipboard = LocalClipboardManager.current
+    val context = LocalContext.current
+    DropdownMenuItem(
+        text = { Text("Copy link", fontFamily = PlexSans, fontSize = 14.sp, color = c.ink) },
+        onClick = {
+            clipboard.setText(AnnotatedString(target))
+            onDismiss()
+        },
+    )
+    DropdownMenuItem(
+        text = { Text("Share link", fontFamily = PlexSans, fontSize = 14.sp, color = c.ink) },
+        onClick = {
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(Intent.EXTRA_TEXT, target)
+            }
+            context.startActivity(Intent.createChooser(intent, null))
+            onDismiss()
+        },
+    )
 }
 
 /** A planning date shown as a soft-tinted chip (SCHEDULED blue, DEADLINE red). */
@@ -242,6 +336,7 @@ private fun BodyBlocks(
     bodyLines: List<String>,
     fileName: String,
     onOpenNote: (NoteRef) -> Unit,
+    onLinkLongPress: (String) -> Unit,
 ) {
     val c = MaterialTheme.grove
     val context = LocalContext.current
@@ -251,10 +346,10 @@ private fun BodyBlocks(
     blocks.forEach { block ->
         when (block) {
             is OrgBlock.Paragraph -> {
-                Text(
-                    annotateOrgInline(block.lines.joinToString(" ") { it.trim() }, c, openTarget),
-                    fontFamily = PlexSerif, fontSize = 16.sp,
-                    lineHeight = 1.65.em, color = c.ink,
+                OrgText(
+                    block.lines.joinToString(" ") { it.trim() },
+                    onOpenLink = openTarget, onLinkLongPress = onLinkLongPress,
+                    style = TextStyle(fontFamily = PlexSerif, fontSize = 16.sp, lineHeight = 1.65.em, color = c.ink),
                 )
                 Spacer(Modifier.height(12.dp))
             }
@@ -273,10 +368,13 @@ private fun BodyBlocks(
                                 fontFamily = PlexSerif, fontSize = 16.sp, color = c.ink2,
                             )
                             Spacer(Modifier.width(10.dp))
-                            Text(
-                                annotateOrgInline(item.text, c, openTarget),
-                                fontFamily = PlexSerif, fontSize = 16.sp,
-                                lineHeight = 1.55.em, color = c.ink,
+                            OrgText(
+                                item.text,
+                                onOpenLink = openTarget, onLinkLongPress = onLinkLongPress,
+                                style = TextStyle(
+                                    fontFamily = PlexSerif, fontSize = 16.sp,
+                                    lineHeight = 1.55.em, color = c.ink,
+                                ),
                             )
                         }
                     }

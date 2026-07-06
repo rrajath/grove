@@ -194,6 +194,48 @@ class OrgMutationsTest {
     }
 
     @Test
+    fun `insertSiblingAbove lands right before the note at the same level`() {
+        val (text, line) = OrgMutations.insertSiblingAbove(doc, h("Second child"), "New above")
+        val redoc = OrgParser.parse(text)
+        val fresh = redoc.findByTitle("New above")!!
+        assertEquals(line, fresh.lineIndex)
+        assertEquals(2, fresh.level)
+        assertEquals("First", redoc.parent(fresh)!!.title)
+        assertEquals(
+            listOf("Child task", "New above", "Second child"),
+            redoc.directChildren(redoc.findByTitle("First")!!).map { it.title },
+        )
+    }
+
+    @Test
+    fun `insertSiblingBelow lands right after the note's whole subtree`() {
+        val (text, line) = OrgMutations.insertSiblingBelow(doc, h("Child task"), "New below")
+        val redoc = OrgParser.parse(text)
+        val fresh = redoc.findByTitle("New below")!!
+        assertEquals(line, fresh.lineIndex)
+        assertEquals(2, fresh.level)
+        assertEquals(
+            listOf("Child task", "New below", "Second child"),
+            redoc.directChildren(redoc.findByTitle("First")!!).map { it.title },
+        )
+        // Child task's own body must stay intact, ahead of the new sibling.
+        assertTrue(text.contains("child body"))
+    }
+
+    @Test
+    fun `insertSiblingBelow at top level appends after the whole subtree`() {
+        val (text, line) = OrgMutations.insertSiblingBelow(doc, h("First"), "New top-level")
+        val redoc = OrgParser.parse(text)
+        val fresh = redoc.findByTitle("New top-level")!!
+        assertEquals(line, fresh.lineIndex)
+        assertEquals(1, fresh.level)
+        assertEquals(
+            listOf("First", "New top-level", "Last"),
+            redoc.headlines.filter { it.level == 1 }.map { it.title },
+        )
+    }
+
+    @Test
     fun `headlineLine formatting`() {
         assertEquals("** TODO [#A] Title  :a:b:", OrgMutations.headlineLine(2, "TODO", 'A', "Title", listOf("a", "b")))
         assertEquals("* Title", OrgMutations.headlineLine(1, null, null, "Title", emptyList()))
