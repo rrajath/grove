@@ -3,7 +3,6 @@ package com.rrajath.grove.ui.editor
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -17,7 +16,6 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
@@ -44,7 +42,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.TextFieldValue
@@ -53,15 +50,14 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rrajath.grove.org.LineEditing
-import com.rrajath.grove.org.OrgTimestamp
 import com.rrajath.grove.ui.components.GroveTopBar
+import com.rrajath.grove.ui.components.autoScrollWhileDragging
 import com.rrajath.grove.ui.components.SegmentedControl
 import com.rrajath.grove.ui.screens.IconGlyph
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
 import com.rrajath.grove.ui.vault.NoteRef
-import java.time.LocalDateTime
 
 /**
  * Raw org editor (design spec §6): syntax-highlighted subtree editing with
@@ -117,10 +113,12 @@ fun EditNoteScreen(
         }
     }
     val transformation = remember(c, state.keywords) { OrgVisualTransformation(c, state.keywords) }
+    val autosaveCounter = remember { KeystrokeCounter() }
 
     fun applyEdit(newValue: TextFieldValue) {
         value = newValue
         viewModel.onBufferChange(newValue.text)
+        if (autosaveCounter.tick()) viewModel.save()
     }
 
     fun onTextChange(newValue: TextFieldValue) {
@@ -190,7 +188,7 @@ fun EditNoteScreen(
             // BoxWithConstraints gives the current viewport height so the
             // LaunchedEffect below can scroll the cursor into view when typing
             // near the bottom or when the keyboard appears.
-            BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
+            BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().autoScrollWhileDragging(scrollState)) {
                 val density = LocalDensity.current
                 val viewportHeightPx = remember(maxHeight, density) {
                     with(density) { maxHeight.toPx() }.toInt()
@@ -359,112 +357,3 @@ private fun StaleFileBanner(onOverwrite: () -> Unit, onReload: () -> Unit) {
     }
 }
 
-@Composable
-private fun EditorToolbar(
-    onWrap: (Char) -> Unit,
-    onInsert: (String) -> Unit,
-    onLink: () -> Unit,
-    onHeading: () -> Unit,
-    onIndent: (Int) -> Unit,
-) {
-    val c = MaterialTheme.grove
-    // Scrolls horizontally so the enlarged buttons never clip on narrow screens.
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .background(c.surface)
-            .border(1.dp, c.line)
-            .horizontalScroll(rememberScrollState())
-            .padding(horizontal = 4.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        ToolButton("B", c.ink, bold = true) { onWrap('*') }
-        ToolButton("I", c.ink, italic = true) { onWrap('/') }
-        ToolButton("U", c.ink, underline = true) { onWrap('_') }
-        ToolButton("</>", c.ink) { onWrap('~') }
-        Box(Modifier.width(1.dp).height(24.dp).background(c.line))
-        ToolButton("[[]]", c.synLink) { onLink() }
-        // The clock glyph is drawn smaller than the letters at a given size, so
-        // bump its font so it reads at the same height as the other buttons.
-        ToolButton("◷", c.synTs, fontSize = 27.sp) {
-            val now = LocalDateTime.now()
-            onInsert(OrgTimestamp(now.toLocalDate(), time = now.toLocalTime().withSecond(0).withNano(0)).format())
-        }
-        ToolButton("*", c.synStar, bold = true) { onHeading() }
-        // List indent: « promotes a sub-list item, » demotes into a sub-list.
-        ToolButton("«", c.ink) { onIndent(-1) }
-        ToolButton("»", c.ink) { onIndent(+1) }
-    }
-}
-
-@Composable
-private fun ToolButton(
-    label: String,
-    color: androidx.compose.ui.graphics.Color,
-    bold: Boolean = false,
-    italic: Boolean = false,
-    underline: Boolean = false,
-    fontSize: androidx.compose.ui.unit.TextUnit = 20.sp,
-    onClick: () -> Unit,
-) {
-    Box(
-        Modifier
-            .clip(RoundedCornerShape(8.dp))
-            .clickable(onClick = onClick)
-            // Uniform square slot; wider labels like "[[]]" expand past the minimum.
-            .sizeIn(minWidth = 44.dp, minHeight = 44.dp)
-            .padding(horizontal = 6.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            label,
-            fontFamily = PlexMono,
-            fontWeight = if (bold) FontWeight.Bold else FontWeight.Normal,
-            fontStyle = if (italic) FontStyle.Italic else null,
-            textDecoration = if (underline) androidx.compose.ui.text.style.TextDecoration.Underline else null,
-            fontSize = fontSize,
-            color = color,
-        )
-    }
-}
-
-/** Wrap the selection in emphasis markers, or insert a pair at the cursor. */
-internal fun wrapSelection(value: TextFieldValue, marker: Char): TextFieldValue {
-    val sel = value.selection
-    val text = value.text
-    return if (sel.collapsed) {
-        val insert = "$marker$marker"
-        TextFieldValue(
-            text.substring(0, sel.start) + insert + text.substring(sel.start),
-            TextRange(sel.start + 1),
-        )
-    } else {
-        val selected = text.substring(sel.min, sel.max)
-        TextFieldValue(
-            text.substring(0, sel.min) + marker + selected + marker + text.substring(sel.max),
-            TextRange(sel.max + 2),
-        )
-    }
-}
-
-internal fun insertAtCursor(value: TextFieldValue, snippet: String): TextFieldValue {
-    val at = value.selection.start
-    return TextFieldValue(
-        value.text.substring(0, at) + snippet + value.text.substring(at),
-        TextRange(at + snippet.length),
-    )
-}
-
-/**
- * Insert an org link template with named placeholders and pre-select "link" so
- * the user can type the URL over it, then move to "description".
- */
-internal fun insertLinkTemplate(value: TextFieldValue): TextFieldValue {
-    val at = value.selection.start
-    val template = "[[link][description]]"
-    val linkStart = at + 2 // just inside the opening "[["
-    return TextFieldValue(
-        value.text.substring(0, at) + template + value.text.substring(at),
-        TextRange(linkStart, linkStart + "link".length),
-    )
-}

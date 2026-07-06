@@ -223,6 +223,16 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
         OrgMutations.newChild(doc, headline, "", options)
     }
 
+    /** Insert menu: blank sibling note immediately above [headline] (same level). */
+    fun insertSiblingAbove(headline: OrgHeadline, onCreated: (Int) -> Unit) = newNote(onCreated) { doc, options ->
+        OrgMutations.insertSiblingAbove(doc, headline, "", options)
+    }
+
+    /** Insert menu: blank sibling note immediately below [headline]'s subtree (same level). */
+    fun insertSiblingBelow(headline: OrgHeadline, onCreated: (Int) -> Unit) = newNote(onCreated) { doc, options ->
+        OrgMutations.insertSiblingBelow(doc, headline, "", options)
+    }
+
     /** Outline FAB: add a blank top-level note to this notebook (PRD §5.3). */
     fun newTopLevelNote(onCreated: (Int) -> Unit) = newNote(onCreated) { doc, options ->
         OrgMutations.newTopLevel(doc, "", options)

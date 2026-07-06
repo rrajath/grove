@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -41,6 +42,8 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -59,7 +62,13 @@ import com.rrajath.grove.org.LineEditing
 import com.rrajath.grove.org.OrgTimestamp
 import com.rrajath.grove.ui.components.GroveTopBar
 import com.rrajath.grove.ui.components.Pill
+import com.rrajath.grove.ui.components.autoScrollWhileDragging
+import com.rrajath.grove.ui.editor.EditorToolbar
+import com.rrajath.grove.ui.editor.KeystrokeCounter
 import com.rrajath.grove.ui.editor.OrgVisualTransformation
+import com.rrajath.grove.ui.editor.insertAtCursor
+import com.rrajath.grove.ui.editor.insertLinkTemplate
+import com.rrajath.grove.ui.editor.wrapSelection
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
@@ -141,12 +150,25 @@ fun CaptureEditorScreen(
     }
     val focusRequester = remember { FocusRequester() }
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
+    val scrollState = rememberScrollState()
+    var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
+    val autosaveCounter = remember(template) { KeystrokeCounter() }
 
     var showDiscardDialog by remember { mutableStateOf(false) }
     var showEmptyHeadingAlert by remember { mutableStateOf(false) }
 
     fun tryClose() {
         if (value.text != initialText) showDiscardDialog = true else onClose()
+    }
+
+    fun discard() {
+        viewModel.discardDraft(template)
+        onClose()
+    }
+
+    fun applyEdit(newValue: TextFieldValue) {
+        value = newValue
+        if (autosaveCounter.tick()) viewModel.autosave(template, newValue.text, context)
     }
 
     fun trySave() {
@@ -199,7 +221,33 @@ fun CaptureEditorScreen(
                     modifier = Modifier.padding(horizontal = 18.dp, vertical = 6.dp),
                 )
             }
-            Box(Modifier.weight(1f).fillMaxWidth()) {
+            BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().autoScrollWhileDragging(scrollState)) {
+                val density = LocalDensity.current
+                val viewportHeightPx = remember(maxHeight, density) {
+                    with(density) { maxHeight.toPx() }.toInt()
+                }
+                val editorPaddingPx = remember(density) {
+                    with(density) { 20.dp.toPx() }.toInt()
+                }
+
+                LaunchedEffect(value.selection, textLayoutResult, viewportHeightPx) {
+                    val layout = textLayoutResult ?: return@LaunchedEffect
+                    if (value.text.isEmpty()) return@LaunchedEffect
+                    // Track selection.end so dragging a selection also scrolls.
+                    val offset = value.selection.end.coerceIn(0, value.text.length)
+                    val rect = layout.getCursorRect(offset)
+                    val cursorTop = editorPaddingPx + rect.top.toInt()
+                    val cursorBottom = editorPaddingPx + rect.bottom.toInt()
+                    val buffer = 56 // px breathing room above/below cursor
+
+                    when {
+                        cursorBottom > scrollState.value + viewportHeightPx - buffer ->
+                            scrollState.animateScrollTo(cursorBottom - viewportHeightPx + buffer)
+                        cursorTop < scrollState.value + buffer ->
+                            scrollState.animateScrollTo(maxOf(0, cursorTop - buffer))
+                    }
+                }
+
                 BasicTextField(
                     value = value,
                     onValueChange = { newValue ->
@@ -212,9 +260,10 @@ fun CaptureEditorScreen(
                         val capitalized = LineEditing.capitalizeHeadingOnType(
                             value.text, effective.text, effective.selection.start,
                         )
-                        value =
+                        applyEdit(
                             if (capitalized != null) TextFieldValue(capitalized.text, TextRange(capitalized.cursor))
                             else effective
+                        )
                     },
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                     textStyle = TextStyle(
@@ -223,8 +272,10 @@ fun CaptureEditorScreen(
                     ),
                     cursorBrush = SolidColor(c.accent),
                     visualTransformation = remember(c, keywords) { OrgVisualTransformation(c, keywords) },
+                    onTextLayout = { textLayoutResult = it },
                     modifier = Modifier
                         .fillMaxSize()
+                        .verticalScroll(scrollState)
                         .padding(start = 20.dp, top = 20.dp, end = 20.dp, bottom = 80.dp)
                         .focusRequester(focusRequester),
                 )
@@ -248,13 +299,19 @@ fun CaptureEditorScreen(
                     )
                 }
             }
-            ToolbarRow(
-                onInsert = { snippet ->
-                    val sel = value.selection.start
-                    val newText = value.text.substring(0, sel) + snippet + value.text.substring(sel)
-                    value = TextFieldValue(newText, TextRange(sel + snippet.length))
+            EditorToolbar(
+                onWrap = { marker -> applyEdit(wrapSelection(value, marker)) },
+                onInsert = { snippet -> applyEdit(insertAtCursor(value, snippet)) },
+                onLink = { applyEdit(insertLinkTemplate(value)) },
+                onHeading = {
+                    val edit = LineEditing.insertHeadingStar(value.text, value.selection.start)
+                    applyEdit(TextFieldValue(edit.text, TextRange(edit.cursor)))
                 },
-                now = now,
+                onIndent = { delta ->
+                    LineEditing.changeListIndent(value.text, value.selection.start, delta)?.let {
+                        applyEdit(TextFieldValue(it.text, TextRange(it.cursor)))
+                    }
+                },
             )
         }
     }
@@ -285,7 +342,7 @@ fun CaptureEditorScreen(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showDiscardDialog = false; onClose() }) {
+                TextButton(onClick = { showDiscardDialog = false; discard() }) {
                     Text("Discard", color = c.red)
                 }
             },
@@ -363,122 +420,6 @@ private fun DatetreeBreadcrumb(template: CaptureTemplate, today: LocalDate) {
         Spacer(Modifier.width(8.dp))
         Pill("auto-created", fg = c.green, bg = c.greenSoft)
     }
-}
-
-@Composable
-private fun ToolbarRow(onInsert: (String) -> Unit, now: LocalDateTime) {
-    val c = MaterialTheme.grove
-    var showPlaceholderInfo by remember { mutableStateOf(false) }
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .background(c.surface)
-            .border(1.dp, c.line)
-            .padding(horizontal = 10.dp, vertical = 7.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        ToolbarButton("B", FontWeight.Bold, c.ink) { onInsert("*bold*") }
-        ToolbarButton("I", FontWeight.Normal, c.ink, italic = true) { onInsert("/italic/") }
-        ToolbarButton("◷", FontWeight.Normal, c.synTs, fontSize = 18.sp) {
-            onInsert(OrgTimestamp(now.toLocalDate(), time = now.toLocalTime().withSecond(0).withNano(0)).format())
-        }
-        Spacer(Modifier.weight(1f))
-        Box(
-            Modifier
-                .clip(RoundedCornerShape(6.dp))
-                .clickable { showPlaceholderInfo = true }
-                .padding(horizontal = 8.dp, vertical = 4.dp),
-        ) {
-            Text(
-                "%placeholders expanded",
-                fontFamily = PlexMono, fontSize = 11.5.sp, color = c.ink2,
-            )
-        }
-    }
-    if (showPlaceholderInfo) {
-        PlaceholderInfoDialog(onDismiss = { showPlaceholderInfo = false })
-    }
-}
-
-@Composable
-private fun ToolbarButton(
-    label: String,
-    weight: FontWeight,
-    color: androidx.compose.ui.graphics.Color,
-    italic: Boolean = false,
-    fontSize: androidx.compose.ui.unit.TextUnit = 14.sp,
-    onClick: () -> Unit,
-) {
-    Box(
-        Modifier
-            .clip(RoundedCornerShape(8.dp))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 13.dp, vertical = 7.dp),
-    ) {
-        Text(
-            label,
-            fontFamily = PlexMono, fontWeight = weight, fontSize = fontSize, color = color,
-            fontStyle = if (italic) androidx.compose.ui.text.font.FontStyle.Italic else null,
-        )
-    }
-}
-
-private val PLACEHOLDER_DOCS = listOf(
-    "%U" to "Active datetime stamp: <date time>",
-    "%u" to "Inactive datetime stamp: [date time]",
-    "%T" to "Active date stamp: <date>",
-    "%t" to "Inactive date stamp: [date]",
-    "%date" to "ISO date: YYYY-MM-DD",
-    "%time" to "Current time: HH:MM",
-    "%day" to "Day of week: Monday, …",
-    "%month" to "Month name: January, …",
-    "%year" to "4-digit year",
-    "%clipboard" to "Clipboard contents",
-    "%shared_text" to "Shared text",
-    "%shared_url" to "Shared URL",
-    "%cursor / %?" to "Place cursor here",
-    "%^{Prompt}" to "Ask for user input",
-)
-
-@Composable
-private fun PlaceholderInfoDialog(onDismiss: () -> Unit) {
-    val c = MaterialTheme.grove
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = c.surface,
-        title = {
-            Text(
-                "Placeholders",
-                fontFamily = PlexSans, fontWeight = FontWeight.SemiBold, color = c.ink,
-            )
-        },
-        text = {
-            Column(Modifier.verticalScroll(rememberScrollState())) {
-                PLACEHOLDER_DOCS.forEach { (key, desc) ->
-                    Row(
-                        Modifier.padding(vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            key,
-                            fontFamily = PlexMono, fontSize = 12.sp, color = c.accent,
-                            modifier = Modifier.width(120.dp),
-                        )
-                        Text(
-                            desc,
-                            fontFamily = PlexSans, fontSize = 12.sp, color = c.ink2,
-                            modifier = Modifier.weight(1f),
-                        )
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("OK", color = c.accent, fontWeight = FontWeight.SemiBold)
-            }
-        },
-    )
 }
 
 @Composable

@@ -261,4 +261,55 @@ class CaptureInserterTest {
         val result = insert("", TargetLocation.DatetreeDate, typed)
         assertTrue(result.newText.contains("*** 2025-06-11 Wednesday\n**** My day\nIt went well"))
     }
+
+    // --- autosave draft replacement (entryLineCount / removeInsertion) ---
+
+    @Test
+    fun `entryLineCount reports the number of lines the entry occupies`() {
+        val single = insert("* First\n", TargetLocation.BottomOfFile, "* New entry")
+        assertEquals(1, single.entryLineCount)
+
+        val multi = insert("* First\n", TargetLocation.BottomOfFile, "* New entry\nline two\nline three")
+        assertEquals(3, multi.entryLineCount)
+    }
+
+    @Test
+    fun `removeInsertion strips exactly the previously spliced lines`() {
+        val doc = "* First\nbody\n"
+        val first = insert(doc, TargetLocation.BottomOfFile, "* Draft\nmore text")
+        assertTrue(first.newText.contains("* Draft\nmore text"))
+
+        val stripped = CaptureInserter.removeInsertion(first.newText, first)
+        assertEquals(doc, stripped)
+    }
+
+    @Test
+    fun `autosave replace cycle never duplicates the draft`() {
+        val doc = "* Inbox\n"
+        var current = doc
+        var previous: CaptureInserter.Insertion? = null
+        for (draftText in listOf("* Buy milk", "* Buy milk and eggs", "* Buy milk, eggs and bread")) {
+            val base = previous?.let { CaptureInserter.removeInsertion(current, it) } ?: current
+            val result = insert(base, TargetLocation.BottomOfFile, draftText)
+            current = result.newText
+            previous = result
+        }
+        assertEquals(1, Regex("\\* Buy milk").findAll(current).count())
+        assertTrue(current.contains("* Buy milk, eggs and bread"))
+    }
+
+    @Test
+    fun `datetree autosave replace only strips the entry, not the day tree`() {
+        var current = ""
+        var previous: CaptureInserter.Insertion? = null
+        for (draftText in listOf("14:00 Draft one", "14:00 Draft one updated")) {
+            val base = previous?.let { CaptureInserter.removeInsertion(current, it) } ?: current
+            val result = insert(base, TargetLocation.DatetreeDatetime, draftText)
+            current = result.newText
+            previous = result
+        }
+        assertEquals(1, Regex("\\*\\*\\* 2025-06-11 Wednesday").findAll(current).count())
+        assertTrue(current.contains("14:00 Draft one updated"))
+        assertTrue(!current.contains("14:00 Draft one\n"))
+    }
 }

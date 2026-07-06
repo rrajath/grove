@@ -28,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -75,6 +76,7 @@ fun TemplateEditScreen(
         mutableStateOf((existing?.location as? TargetLocation.UnderHeading)?.customId ?: "")
     }
     var templateText by remember(existing) { mutableStateOf(existing?.template ?: "* %^{Title}\n%cursor") }
+    var showPlaceholderHelp by remember { mutableStateOf(false) }
 
     fun buildLocation(): TargetLocation = when (locationIdx) {
         0 -> TargetLocation.TopOfFile
@@ -215,13 +217,20 @@ fun TemplateEditScreen(
                 textStyle = TextStyle(fontFamily = PlexMono, fontSize = 13.5.sp),
             )
             Text(
-                "Placeholders: %t %T %u %U %date %time %day %year %month " +
-                        "%cursor %? %^{prompt} %clipboard %shared_text %shared_url",
-                fontFamily = PlexMono, fontSize = 11.5.sp, color = c.ink3,
-                modifier = Modifier.padding(vertical = 10.dp),
+                "placeholder help",
+                fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
+                fontSize = 12.5.sp, color = c.accent,
+                textDecoration = TextDecoration.Underline,
+                modifier = Modifier
+                    .clickable { showPlaceholderHelp = true }
+                    .padding(vertical = 10.dp),
             )
             Spacer(Modifier.height(30.dp))
         }
+    }
+
+    if (showPlaceholderHelp) {
+        PlaceholderInfoDialog(onDismiss = { showPlaceholderHelp = false })
     }
 }
 

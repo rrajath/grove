@@ -58,3 +58,20 @@ fun annotateOrgInline(
         }
     }
 }
+
+/** A link's character range within the string [annotateOrgInline] renders, and its target. */
+data class InlineLink(val range: IntRange, val target: String)
+
+/** Every link's rendered character range in [text] once tokenized (labels shown, not raw syntax). */
+fun orgInlineLinks(text: String): List<InlineLink> {
+    var offset = 0
+    val links = mutableListOf<InlineLink>()
+    for (token in InlineTokenizer.tokenize(text)) {
+        val start = offset
+        offset += token.text.length
+        if (token.type == InlineType.LINK) {
+            links += InlineLink(start until offset, token.target ?: token.text)
+        }
+    }
+    return links
+}

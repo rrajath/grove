@@ -268,6 +268,16 @@ fun OutlineScreen(
                                             onCreateNote(NoteRef(notebookId, line))
                                         }
                                     },
+                                    onInsertAbove = {
+                                        viewModel.insertSiblingAbove(h) { line ->
+                                            onCreateNote(NoteRef(notebookId, line))
+                                        }
+                                    },
+                                    onInsertBelow = {
+                                        viewModel.insertSiblingBelow(h) { line ->
+                                            onCreateNote(NoteRef(notebookId, line))
+                                        }
+                                    },
                                     onCycleState = { viewModel.cycleState(h) },
                                     onMoveUp = { viewModel.moveUp(h) },
                                     onMoveDown = { viewModel.moveDown(h) },
@@ -291,6 +301,8 @@ fun OutlineScreen(
 data class NodeOps(
     val onEdit: () -> Unit,
     val onNewChild: () -> Unit,
+    val onInsertAbove: () -> Unit,
+    val onInsertBelow: () -> Unit,
     val onCycleState: () -> Unit,
     val onMoveUp: () -> Unit,
     val onMoveDown: () -> Unit,
@@ -334,6 +346,7 @@ private fun OutlineNode(
     val childCount = remember(doc, headline) { doc.directChildren(headline).size }
     val isDone = headline.keyword != null && doc.keywords.isDone(headline.keyword)
     var menuOpen by remember { mutableStateOf(false) }
+    var insertMenuOpen by remember { mutableStateOf(false) }
     // Tokenizing the title allocates a new AnnotatedString; rows recompose on
     // scroll and swipe, so keep it across recompositions.
     val titleAnnotated = remember(headline.title, c) { annotateOrgInline(headline.title, c) }
@@ -363,6 +376,12 @@ private fun OutlineNode(
         NodeMenu(
             expanded = menuOpen,
             onDismiss = { menuOpen = false },
+            onInsert = { menuOpen = false; insertMenuOpen = true },
+            ops = ops,
+        )
+        InsertMenu(
+            expanded = insertMenuOpen,
+            onDismiss = { insertMenuOpen = false },
             ops = ops,
         )
     androidx.compose.material3.SwipeToDismissBox(
@@ -521,7 +540,7 @@ private fun OutlineNode(
 }
 
 @Composable
-private fun NodeMenu(expanded: Boolean, onDismiss: () -> Unit, ops: NodeOps) {
+private fun NodeMenu(expanded: Boolean, onDismiss: () -> Unit, onInsert: () -> Unit, ops: NodeOps) {
     val c = MaterialTheme.grove
     androidx.compose.material3.DropdownMenu(
         expanded = expanded,
@@ -536,7 +555,10 @@ private fun NodeMenu(expanded: Boolean, onDismiss: () -> Unit, ops: NodeOps) {
             )
         }
         item("Edit", action = ops.onEdit)
-        item("New sub-note", action = ops.onNewChild)
+        androidx.compose.material3.DropdownMenuItem(
+            text = { Text("Insert ›", fontFamily = PlexSans, fontSize = 14.sp, color = c.ink) },
+            onClick = onInsert,
+        )
         item("Cycle state", action = ops.onCycleState)
         item("Move up", action = ops.onMoveUp)
         item("Move down", action = ops.onMoveDown)
@@ -546,5 +568,27 @@ private fun NodeMenu(expanded: Boolean, onDismiss: () -> Unit, ops: NodeOps) {
         item("Show in context", action = ops.onNarrow)
         item("Favorite", action = ops.onFavorite)
         item("Delete", color = c.red, action = ops.onDelete)
+    }
+}
+
+/** Sub-menu for the outline node's "Insert" action (design ask: below / above / sub-note). */
+@Composable
+private fun InsertMenu(expanded: Boolean, onDismiss: () -> Unit, ops: NodeOps) {
+    val c = MaterialTheme.grove
+    androidx.compose.material3.DropdownMenu(
+        expanded = expanded,
+        onDismissRequest = onDismiss,
+        containerColor = c.surface,
+    ) {
+        @Composable
+        fun item(label: String, action: () -> Unit) {
+            androidx.compose.material3.DropdownMenuItem(
+                text = { Text(label, fontFamily = PlexSans, fontSize = 14.sp, color = c.ink) },
+                onClick = { onDismiss(); action() },
+            )
+        }
+        item("Insert below", action = ops.onInsertBelow)
+        item("Insert above", action = ops.onInsertAbove)
+        item("Insert sub-note", action = ops.onNewChild)
     }
 }
