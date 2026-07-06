@@ -6,6 +6,8 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
+
+    id("io.sentry.android.gradle") version "6.14.0"
 }
 
 // Version is derived from git at build time — nothing is hardcoded or written
@@ -169,4 +171,13 @@ dependencies {
 // truth: `./gradlew -q printVersionName` → "1.0.123".
 tasks.register("printVersionName") {
     doLast { println(semanticVersion) }
+}
+
+sentry {
+    org.set("rajath-ramakrishna")
+    projectName.set("grove")
+
+    // this will upload your source code to Sentry to show it as part of the stack traces
+    // disable if you don't want to expose your sources
+    includeSourceContext.set(true)
 }

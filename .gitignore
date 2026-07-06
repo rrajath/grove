@@ -16,3 +16,6 @@ local.properties
 # from repo secrets (see .github/workflows/build.yml).
 *.keystore
 *.jks
+
+# Sentry Config File
+sentry.properties
