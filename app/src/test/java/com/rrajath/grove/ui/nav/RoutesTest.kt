@@ -13,10 +13,17 @@ class RoutesTest {
     }
 
     @Test
-    fun `note route defaults to read mode and isNew false`() {
-        assertEquals("note/abc-123?mode=read&isNew=false", Routes.note("abc-123"))
-        assertEquals("note/abc-123?mode=edit&isNew=false", Routes.note("abc-123", mode = "edit"))
-        assertEquals("note/abc-123?mode=edit&isNew=true", Routes.note("abc-123", mode = "edit", isNew = true))
+    fun `note route defaults to read mode, isNew false, no cursor`() {
+        assertEquals("note/abc-123?mode=read&isNew=false&cursor=-1", Routes.note("abc-123"))
+        assertEquals("note/abc-123?mode=edit&isNew=false&cursor=-1", Routes.note("abc-123", mode = "edit"))
+        assertEquals(
+            "note/abc-123?mode=edit&isNew=true&cursor=-1",
+            Routes.note("abc-123", mode = "edit", isNew = true),
+        )
+        assertEquals(
+            "note/abc-123?mode=edit&isNew=false&cursor=42",
+            Routes.note("abc-123", mode = "edit", cursor = 42),
+        )
     }
 
     @Test

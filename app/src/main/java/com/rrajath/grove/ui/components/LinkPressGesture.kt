@@ -5,6 +5,7 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.text.TextLayoutResult
 import kotlinx.coroutines.withTimeoutOrNull
 
@@ -21,7 +22,7 @@ fun Modifier.linkPressHandler(
     links: List<InlineLink>,
     layoutResult: () -> TextLayoutResult?,
     onTap: (String) -> Unit,
-    onLongPress: (String) -> Unit,
+    onLongPress: (String, androidx.compose.ui.geometry.Offset) -> Unit,
 ): Modifier {
     if (links.isEmpty()) return this
     return this.pointerInput(links) {
@@ -59,7 +60,7 @@ fun Modifier.linkPressHandler(
             } == null
 
             when {
-                timedOut -> onLongPress(link.target) // held past the threshold, still down & stationary
+                timedOut -> onLongPress(link.target, down.position) // held past the threshold, still down & stationary
                 outcome == "tap" -> onTap(link.target)
                 else -> {} // moved beyond touch slop, or the pointer stream ended: do nothing
             }

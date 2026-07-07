@@ -36,6 +36,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rrajath.grove.org.OrgDocument
@@ -376,13 +377,18 @@ private fun OutlineNode(
         NodeMenu(
             expanded = menuOpen,
             onDismiss = { menuOpen = false },
-            onInsert = { menuOpen = false; insertMenuOpen = true },
+            onInsert = { insertMenuOpen = true },
             ops = ops,
         )
         InsertMenu(
             expanded = insertMenuOpen,
             onDismiss = { insertMenuOpen = false },
+            onAction = {
+                insertMenuOpen = false
+                menuOpen = false
+            },
             ops = ops,
+            offset = DpOffset(x = 200.dp, y = 48.dp),
         )
     androidx.compose.material3.SwipeToDismissBox(
         state = swipeState,
@@ -573,18 +579,25 @@ private fun NodeMenu(expanded: Boolean, onDismiss: () -> Unit, onInsert: () -> U
 
 /** Sub-menu for the outline node's "Insert" action (design ask: below / above / sub-note). */
 @Composable
-private fun InsertMenu(expanded: Boolean, onDismiss: () -> Unit, ops: NodeOps) {
+private fun InsertMenu(
+    expanded: Boolean,
+    onDismiss: () -> Unit,
+    onAction: () -> Unit,
+    ops: NodeOps,
+    offset: DpOffset = DpOffset(0.dp, 0.dp),
+) {
     val c = MaterialTheme.grove
     androidx.compose.material3.DropdownMenu(
         expanded = expanded,
         onDismissRequest = onDismiss,
         containerColor = c.surface,
+        offset = offset,
     ) {
         @Composable
         fun item(label: String, action: () -> Unit) {
             androidx.compose.material3.DropdownMenuItem(
                 text = { Text(label, fontFamily = PlexSans, fontSize = 14.sp, color = c.ink) },
-                onClick = { onDismiss(); action() },
+                onClick = { onAction(); action() },
             )
         }
         item("Insert below", action = ops.onInsertBelow)

@@ -159,6 +159,8 @@ private fun GroveNavigation(settings: GroveSettings, viewModel: AppViewModel) {
                 val noteId = entry.arguments?.getString("noteId").orEmpty()
                 val mode = entry.arguments?.getString("mode") ?: "read"
                 val isNew = entry.arguments?.getString("isNew") == "true"
+                val cursorArg = entry.arguments?.getString("cursor")?.toIntOrNull()
+                val initialCursor = cursorArg?.takeIf { it >= 0 }
                 val ref = NoteRef.decode(noteId)
                 if (ref == null) {
                     navController.popBackStack()
@@ -166,6 +168,7 @@ private fun GroveNavigation(settings: GroveSettings, viewModel: AppViewModel) {
                     EditNoteScreen(
                         noteRef = ref,
                         isNewNote = isNew,
+                        initialCursor = initialCursor,
                         onBack = { navController.popBackStack() },
                         onSwitchToRead = {
                             navController.navigate(Routes.note(ref.encode(), "read")) {
@@ -178,8 +181,8 @@ private fun GroveNavigation(settings: GroveSettings, viewModel: AppViewModel) {
                         noteRef = ref,
                         onBack = { navController.popBackStack() },
                         onOpenNote = { target -> navController.navigate(Routes.note(target.encode())) },
-                        onEdit = {
-                            navController.navigate(Routes.note(ref.encode(), "edit")) {
+                        onEdit = { tappedOffset ->
+                            navController.navigate(Routes.note(ref.encode(), "edit", cursor = tappedOffset)) {
                                 popUpTo(Routes.NOTE) { inclusive = true }
                             }
                         },

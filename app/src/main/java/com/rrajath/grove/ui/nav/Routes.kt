@@ -10,7 +10,7 @@ object Routes {
     const val ONBOARDING = "onboarding"
     const val NOTEBOOKS = "notebooks"
     const val OUTLINE = "outline/{notebookId}"
-    const val NOTE = "note/{noteId}?mode={mode}&isNew={isNew}"
+    const val NOTE = "note/{noteId}?mode={mode}&isNew={isNew}&cursor={cursor}"
     const val CAPTURE = "capture"
     const val CAPTURE_TEMPLATE = "capture/{templateId}"
     const val SEARCH = "search?q={q}"
@@ -25,8 +25,14 @@ object Routes {
     fun encode(id: String): String = URLEncoder.encode(id, "UTF-8")
 
     fun outline(notebookId: String) = "outline/${encode(notebookId)}"
-    fun note(noteId: String, mode: String = "read", isNew: Boolean = false) =
-        "note/${encode(noteId)}?mode=$mode&isNew=$isNew"
+    /**
+     * [cursor] is the raw-file character offset to place the edit-mode cursor
+     * at when opening straight into edit mode (e.g. from a double-tap in read
+     * mode) — null means "no specific position" (editor falls back to its
+     * default of the end of the heading line).
+     */
+    fun note(noteId: String, mode: String = "read", isNew: Boolean = false, cursor: Int? = null) =
+        "note/${encode(noteId)}?mode=$mode&isNew=$isNew&cursor=${cursor ?: -1}"
     fun capture(templateId: String? = null) =
         if (templateId == null) CAPTURE else "capture/${encode(templateId)}"
     fun conflict(notebookId: String) = "conflict/${encode(notebookId)}"

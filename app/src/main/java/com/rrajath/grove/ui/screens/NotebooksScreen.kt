@@ -2,6 +2,7 @@ package com.rrajath.grove.ui.screens
 
 import android.content.Intent
 import android.text.format.DateUtils
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -25,7 +26,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -102,9 +108,11 @@ fun NotebooksScreen(
                     )
                 },
                 actions = {
-                    if (state is NotebooksUiState.Loaded) {
+                    val loadedState = state as? NotebooksUiState.Loaded
+                    if (loadedState != null) {
                         IconGlyph("＋", onClick = { showCreateDialog = true })
                         IconGlyph("↻", onClick = { viewModel.requestSync() })
+                        SyncStatusIcon(loadedState, context)
                     }
                     IconGlyph("⌕", onClick = onOpenSearch)
                 },
@@ -141,7 +149,6 @@ fun NotebooksScreen(
                     NoVaultState(onChooseFolder = { folderPicker.launch(null) })
 
                 is NotebooksUiState.Loaded -> {
-                    SyncStatusStrip(s, onConflictTap = { name -> onOpenConflict(name) })
                     if (s.notebooks.isEmpty()) {
                         CenterMessage("✦", "No .org files here yet", "Capture a note or create a notebook with ＋")
                     } else {
@@ -289,43 +296,51 @@ private fun IconStyleDialog(
     )
 }
 
+/**
+ * Sync status indicator in the top app bar. Shows a green check when the last sync
+ * completed successfully, or a warning glyph when there is an active sync error.
+ * Tapping either shows a toast with the sync status detail.
+ */
 @Composable
-private fun SyncStatusStrip(state: NotebooksUiState.Loaded, onConflictTap: (String) -> Unit) {
+private fun SyncStatusIcon(state: NotebooksUiState.Loaded, context: android.content.Context) {
     val c = MaterialTheme.grove
-    val conflicts = state.notebooks.filter { it.hasConflict }
-    val (glyph, glyphColor, text) = when (val sync = state.syncState) {
-        is SyncState.Checking -> Triple("↻", c.blue, "Checking…")
-        is SyncState.Pulling -> Triple("↻", c.blue, "Syncing ${sync.fileName}…")
-        is SyncState.Error -> Triple("✗", c.red, sync.message)
-        else -> {
-            val ago = state.lastSyncAt
-                ?.let { DateUtils.getRelativeTimeSpanString(it).toString() }
-                ?: "not yet"
-            Triple("✓", c.green, "Synced $ago · Local folder")
+    when (val sync = state.syncState) {
+        is SyncState.Error -> {
+            IconButton(
+                onClick = {
+                    Toast.makeText(context, "Sync issue: ${sync.message}", Toast.LENGTH_SHORT).show()
+                },
+            ) {
+                Icon(Icons.Default.Warning, contentDescription = "Sync issue", tint = c.amber)
+            }
         }
-    }
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(11.dp))
-            .background(c.surface)
-            .border(1.dp, c.line, RoundedCornerShape(11.dp))
-            .padding(horizontal = 13.dp, vertical = 9.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(glyph, fontFamily = PlexMono, fontSize = 13.sp, color = glyphColor)
-        Spacer(Modifier.width(8.dp))
-        Text(
-            text,
-            fontFamily = PlexSans, fontSize = 12.5.sp, color = c.ink2,
-            modifier = Modifier.weight(1f),
-        )
-        if (conflicts.isNotEmpty()) {
-            Pill(
-                "${conflicts.size} conflict${if (conflicts.size > 1) "s" else ""}",
-                fg = c.amber, bg = c.amberSoft,
-                onClick = { onConflictTap(conflicts.first().fileName) },
-            )
+        is SyncState.Checking -> {
+            IconButton(
+                onClick = { Toast.makeText(context, "Checking for changes…", Toast.LENGTH_SHORT).show() },
+            ) {
+                Icon(Icons.Default.Sync, contentDescription = "Checking sync", tint = c.ink2)
+            }
+        }
+        is SyncState.Pulling -> {
+            IconButton(
+                onClick = {
+                    Toast.makeText(context, "Syncing ${sync.fileName}…", Toast.LENGTH_SHORT).show()
+                },
+            ) {
+                Icon(Icons.Default.Sync, contentDescription = "Syncing", tint = c.ink2)
+            }
+        }
+        else -> {
+            IconButton(
+                onClick = {
+                    val minutes = state.lastSyncAt
+                        ?.let { ((System.currentTimeMillis() - it) / 60_000L).coerceAtLeast(0) }
+                    val message = if (minutes != null) "Synced $minutes minutes ago" else "Not synced yet"
+                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                },
+            ) {
+                Icon(Icons.Default.Check, contentDescription = "Synced", tint = c.green)
+            }
         }
     }
 }

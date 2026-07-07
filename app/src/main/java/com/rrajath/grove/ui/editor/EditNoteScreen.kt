@@ -1,5 +1,6 @@
 package com.rrajath.grove.ui.editor
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -23,6 +24,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -38,6 +42,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextRange
@@ -51,13 +56,16 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rrajath.grove.org.LineEditing
 import com.rrajath.grove.ui.components.GroveTopBar
-import com.rrajath.grove.ui.components.autoScrollWhileDragging
+import com.rrajath.grove.ui.components.chaseSelectionEdge
+import com.rrajath.grove.ui.components.ScrollJumpButtons
 import com.rrajath.grove.ui.components.SegmentedControl
 import com.rrajath.grove.ui.screens.IconGlyph
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
 import com.rrajath.grove.ui.vault.NoteRef
+import kotlinx.coroutines.delay
+import java.time.LocalTime
 
 /**
  * Raw org editor (design spec §6): syntax-highlighted subtree editing with
@@ -71,14 +79,22 @@ fun EditNoteScreen(
     onSwitchToRead: () -> Unit,
     /** True when the note was just created (e.g. via the outline + button). */
     isNewNote: Boolean = false,
+    /** Raw-buffer char offset to place the cursor at on open — e.g. from a
+     * double-tap in read mode. Null falls back to the default (end of the
+     * heading line). */
+    initialCursor: Int? = null,
     viewModel: EditorViewModel = viewModel(factory = EditorViewModel.Factory),
 ) {
     val c = MaterialTheme.grove
+    val context = LocalContext.current
     val state by viewModel.state.collectAsState()
     var value by remember { mutableStateOf(TextFieldValue("")) }
     var metadataOpen by remember { mutableStateOf(false) }
     var confirmLeave by remember { mutableStateOf(false) }
     var showEmptyHeadingAlert by remember { mutableStateOf(false) }
+    // Timestamp of the most recent auto-save, shown as a tappable check mark
+    // in the top bar once the note has been saved at least once.
+    var lastAutoSavedAt by remember { mutableStateOf<LocalTime?>(null) }
 
     /** Validate heading before saving; shows alert if blank, otherwise saves. */
     fun trySave(onSaved: () -> Unit) {
@@ -103,7 +119,11 @@ fun EditNoteScreen(
     LaunchedEffect(noteRef) { viewModel.load(noteRef) }
     LaunchedEffect(state.loading) {
         if (!state.loading && state.error == null) {
-            value = TextFieldValue(state.buffer, TextRange(state.buffer.length.coerceAtMost(state.buffer.indexOf('\n').let { if (it == -1) state.buffer.length else it })))
+            val cursor = initialCursor?.coerceIn(0, state.buffer.length)
+                ?: state.buffer.length.coerceAtMost(
+                    state.buffer.indexOf('\n').let { if (it == -1) state.buffer.length else it },
+                )
+            value = TextFieldValue(state.buffer, TextRange(cursor))
         }
     }
     // Metadata-sheet mutations rewrite the buffer outside the text field.
@@ -113,12 +133,24 @@ fun EditNoteScreen(
         }
     }
     val transformation = remember(c, state.keywords) { OrgVisualTransformation(c, state.keywords) }
-    val autosaveCounter = remember { KeystrokeCounter() }
 
     fun applyEdit(newValue: TextFieldValue) {
         value = newValue
         viewModel.onBufferChange(newValue.text)
-        if (autosaveCounter.tick()) viewModel.save()
+    }
+
+    // Idle auto-save: wait for a 5s pause in typing, then save if the buffer
+    // still has unsaved changes. Re-keying on the buffer text resets the
+    // debounce timer on every edit; an unchanged buffer (or one already saved
+    // by another path, e.g. save-on-exit) is a no-op via the `dirty` check.
+    LaunchedEffect(state.buffer) {
+        delay(5_000)
+        if (state.dirty) {
+            viewModel.save {
+                lastAutoSavedAt = LocalTime.now()
+                Toast.makeText(context, "Note auto saved", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     fun onTextChange(newValue: TextFieldValue) {
@@ -151,6 +183,24 @@ fun EditNoteScreen(
             GroveTopBar(
                 leading = {
                     IconGlyph("←", onClick = ::leave)
+                    lastAutoSavedAt?.let { savedAt ->
+                        Icon(
+                            Icons.Default.Check,
+                            contentDescription = "Auto saved",
+                            tint = c.green,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(10.dp))
+                                .clickable {
+                                    val formatted = AutoSaveTimestamp.format(savedAt)
+                                    Toast.makeText(
+                                        context,
+                                        "The note was auto saved at: $formatted",
+                                        Toast.LENGTH_SHORT,
+                                    ).show()
+                                }
+                                .padding(10.dp),
+                        )
+                    }
                 },
                 title = {},
                 actions = {
@@ -186,9 +236,9 @@ fun EditNoteScreen(
                 )
             }
             // BoxWithConstraints gives the current viewport height so the
-            // LaunchedEffect below can scroll the cursor into view when typing
-            // near the bottom or when the keyboard appears.
-            BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().autoScrollWhileDragging(scrollState)) {
+            // LaunchedEffect below can scroll the cursor/selection into view
+            // both while typing and while dragging to select.
+            BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
                 val density = LocalDensity.current
                 val viewportHeightPx = remember(maxHeight, density) {
                     with(density) { maxHeight.toPx() }.toInt()
@@ -196,22 +246,33 @@ fun EditNoteScreen(
                 val editorPaddingPx = remember(density) {
                     with(density) { 18.dp.toPx() }.toInt()
                 }
+                val edgePx = remember(density) { with(density) { 56.dp.toPx() } }
 
-                LaunchedEffect(value.selection, textLayoutResult, viewportHeightPx) {
-                    val layout = textLayoutResult ?: return@LaunchedEffect
-                    if (value.text.isEmpty()) return@LaunchedEffect
-                    // Track selection.end so dragging a selection also scrolls.
-                    val offset = value.selection.end.coerceIn(0, value.text.length)
-                    val rect = layout.getCursorRect(offset)
-                    val cursorTop = editorPaddingPx + rect.top.toInt()
-                    val cursorBottom = editorPaddingPx + rect.bottom.toInt()
-                    val buffer = 56 // px breathing room above/below cursor
+                // Selection-driven auto-scroll: continuously nudges the caret (or
+                // whichever selection edge is being dragged) back into view as it
+                // nears the top/bottom edge. Driven by TextFieldValue.selection
+                // rather than raw touch, this is what makes it work even while
+                // dragging a selection *handle* — handles render in their own
+                // Popup window, so their touches never reach a pointerInput on
+                // this content (see AutoScroll.kt's kdoc) but they do keep
+                // updating `value.selection` live, which is all this needs.
+                LaunchedEffect(scrollState) {
+                    chaseSelectionEdge(
+                        scrollState = scrollState,
+                        edgePx = edgePx,
+                        viewportHeightPx = { viewportHeightPx },
+                    ) {
+                        val layout = textLayoutResult
+                        if (layout == null || value.text.isEmpty()) return@chaseSelectionEdge null
+                        fun yOf(offset: Int): Float =
+                            editorPaddingPx + layout.getCursorRect(offset.coerceIn(0, value.text.length))
+                                .center.y - scrollState.value
+                        fun overflow(y: Float): Float =
+                            maxOf(edgePx - y, y - (viewportHeightPx - edgePx), 0f)
 
-                    when {
-                        cursorBottom > scrollState.value + viewportHeightPx - buffer ->
-                            scrollState.animateScrollTo(cursorBottom - viewportHeightPx + buffer)
-                        cursorTop < scrollState.value + buffer ->
-                            scrollState.animateScrollTo(maxOf(0, cursorTop - buffer))
+                        val startY = yOf(value.selection.start)
+                        val endY = yOf(value.selection.end)
+                        if (overflow(startY) >= overflow(endY)) startY else endY
                     }
                 }
 
@@ -230,6 +291,12 @@ fun EditNoteScreen(
                         .fillMaxSize()
                         .verticalScroll(scrollState)
                         .padding(18.dp),
+                )
+                ScrollJumpButtons(
+                    scrollState = scrollState,
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(16.dp),
                 )
             }
             EditorToolbar(
