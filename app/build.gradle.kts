@@ -33,6 +33,15 @@ fun gitOutput(args: List<String>): String? {
 val gitCommitCount = gitOutput(listOf("rev-list", "--count", "HEAD"))?.toIntOrNull() ?: 1
 val semanticVersion = "$versionMajor.$versionMinor.$gitCommitCount"
 
+// The release string the Sentry SDK reports at runtime (crash/event "release"
+// tag). Kept identical to the GitHub Release tag (see
+// .github/workflows/build.yml, which tags "v$semanticVersion") so a Sentry
+// issue's release always resolves to a real, findable GitHub Release. The
+// Sentry Android Gradle plugin has no env-var hook for this (unlike its JS/
+// fastlane counterparts) — the only override point is this manifest
+// placeholder, consumed by the io.sentry.release meta-data below.
+val sentryRelease = "v$semanticVersion"
+
 // Release signing comes from the environment (CI secrets). We validate the
 // keystore and alias up front so a missing or misconfigured secret degrades to
 // an unsigned release build instead of failing packaging — and a local
@@ -83,6 +92,7 @@ android {
         targetSdk = 36
         versionCode = gitCommitCount
         versionName = semanticVersion
+        manifestPlaceholders["sentryRelease"] = sentryRelease
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
