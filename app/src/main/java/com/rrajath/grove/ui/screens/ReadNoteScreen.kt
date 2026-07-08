@@ -58,7 +58,6 @@ import com.rrajath.grove.ui.components.GroveTopBar
 import com.rrajath.grove.ui.components.Pill
 import com.rrajath.grove.ui.components.SegmentedControl
 import com.rrajath.grove.ui.components.annotateOrgInline
-import com.rrajath.grove.ui.components.autoScrollWhileDragging
 import com.rrajath.grove.ui.components.doubleTapToEdit
 import com.rrajath.grove.ui.components.linkPressHandler
 import com.rrajath.grove.ui.components.orgInlineLinks
@@ -81,10 +80,8 @@ fun ReadNoteScreen(
     noteRef: NoteRef,
     onBack: () -> Unit,
     onOpenNote: (NoteRef) -> Unit,
-    /** Double-tap anywhere switches to edit mode; the raw-file char offset
-     * nearest the tap is passed when it could be determined (see
-     * [rawOffsetForTitleTap] / [rawOffsetForParagraphTap] etc.), else null. */
-    onEdit: (Int?) -> Unit,
+    /** Double-tap anywhere switches to edit mode. */
+    onEdit: () -> Unit,
     viewModel: DocumentViewModel = viewModel(factory = DocumentViewModel.Factory),
 ) {
     val c = MaterialTheme.grove
@@ -113,7 +110,7 @@ fun ReadNoteScreen(
                     SegmentedControl(
                         options = listOf("Read", "Edit"),
                         selectedIndex = 0,
-                        onSelect = { if (it == 1) onEdit(null) },
+                        onSelect = { if (it == 1) onEdit() },
                         modifier = Modifier.width(140.dp),
                     )
                 },
@@ -147,17 +144,15 @@ fun ReadNoteScreen(
                                 modifier = Modifier
                                     .fillMaxSize()
                                     // Fallback: double-tap on blank space (not over any
-                                    // rendered text run) still switches to edit mode, just
-                                    // without a mapped cursor position. Taps that land on
-                                    // actual text are handled per-run below (doubleTapToEdit
-                                    // on each OrgText/line), which both wins the gesture race
-                                    // against SelectionContainer's own double-tap-select-word
-                                    // and can compute a real offset — so in practice this
-                                    // outer catch-all only ever fires for empty margins.
+                                    // rendered text run) still switches to edit mode. Taps
+                                    // that land on actual text are handled per-run below
+                                    // (doubleTapToEdit on each OrgText/line), which wins the
+                                    // gesture race against SelectionContainer's own
+                                    // double-tap-select-word — so in practice this outer
+                                    // catch-all only ever fires for empty margins.
                                     .pointerInput(Unit) {
-                                        detectTapGestures(onDoubleTap = { onEdit(null) })
+                                        detectTapGestures(onDoubleTap = { onEdit() })
                                     }
-                                    .autoScrollWhileDragging(scrollState)
                                     .verticalScroll(scrollState)
                                     .padding(horizontal = 24.dp),
                                 onOpenNote = onOpenNote,
@@ -184,7 +179,7 @@ private fun NoteContent(
     headline: OrgHeadline,
     fileName: String,
     onOpenNote: (NoteRef) -> Unit,
-    onEditAt: (Int?) -> Unit,
+    onEditAt: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val c = MaterialTheme.grove
@@ -229,9 +224,7 @@ private fun NoteContent(
             }
             OrgText(
                 headline.title, onOpenLink = openLink, onLinkLongPress = onLinkLongPress,
-                onDoubleTapAt = { renderedOffset ->
-                    onEditAt(doc.rawOffsetForTitleTap(headline, renderedOffset))
-                },
+                onDoubleTapAt = onEditAt,
                 style = TextStyle(
                     fontFamily = PlexSerif, fontWeight = FontWeight.SemiBold,
                     fontSize = 25.sp, color = c.ink, lineHeight = 1.3.em,
@@ -269,9 +262,7 @@ private fun NoteContent(
                     }
                     OrgText(
                         child.title, onOpenLink = openLink, onLinkLongPress = onLinkLongPress,
-                        onDoubleTapAt = { renderedOffset ->
-                            onEditAt(doc.rawOffsetForTitleTap(child, renderedOffset))
-                        },
+                        onDoubleTapAt = onEditAt,
                         style = TextStyle(
                             fontFamily = PlexSerif, fontWeight = FontWeight.SemiBold,
                             fontSize = when (rel) {
@@ -317,11 +308,9 @@ private fun OrgText(
     style: TextStyle = TextStyle.Default,
     maxLines: Int = Int.MAX_VALUE,
     overflow: TextOverflow = TextOverflow.Clip,
-    /** Double-tap anywhere in this run switches to edit mode; reports the
-     * tapped offset into the *rendered* [text] (not raw org markup) so
-     * callers can map it back to a raw-file offset. Word-selection via
-     * long-press, and link taps, are unaffected — see [doubleTapToEdit]. */
-    onDoubleTapAt: ((Int) -> Unit)? = null,
+    /** Double-tap anywhere in this run switches to edit mode. Word-selection
+     * via long-press, and link taps, are unaffected — see [doubleTapToEdit]. */
+    onDoubleTapAt: (() -> Unit)? = null,
 ) {
     val c = MaterialTheme.grove
     val annotated = remember(text, c) { annotateOrgInline(text, c, onOpenLink) }
@@ -346,7 +335,7 @@ private fun OrgText(
                 layoutResult = { layout },
                 links = links,
                 enabled = onDoubleTapAt != null,
-                onDoubleTap = { offset -> onDoubleTapAt?.invoke(offset) },
+                onDoubleTap = { onDoubleTapAt?.invoke() },
             )
             .linkPressHandler(
                 links = links,
@@ -404,7 +393,7 @@ private fun BodyBlocks(
     fileName: String,
     onOpenNote: (NoteRef) -> Unit,
     onLinkLongPress: (String, Offset, LayoutCoordinates) -> Unit,
-    onEditAt: (Int?) -> Unit,
+    onEditAt: () -> Unit,
 ) {
     val c = MaterialTheme.grove
     val context = LocalContext.current
@@ -417,9 +406,7 @@ private fun BodyBlocks(
                 OrgText(
                     block.lines.joinToString(" ") { it.trim() },
                     onOpenLink = openTarget, onLinkLongPress = onLinkLongPress,
-                    onDoubleTapAt = { renderedOffset ->
-                        onEditAt(doc.rawOffsetForParagraphTap(headline, block, renderedOffset))
-                    },
+                    onDoubleTapAt = onEditAt,
                     style = TextStyle(fontFamily = PlexSerif, fontSize = 16.sp, lineHeight = 1.65.em, color = c.ink),
                 )
                 Spacer(Modifier.height(12.dp))
@@ -442,9 +429,7 @@ private fun BodyBlocks(
                             OrgText(
                                 item.text,
                                 onOpenLink = openTarget, onLinkLongPress = onLinkLongPress,
-                                onDoubleTapAt = { renderedOffset ->
-                                    onEditAt(doc.rawOffsetForListItemTap(headline, item, renderedOffset))
-                                },
+                                onDoubleTapAt = onEditAt,
                                 style = TextStyle(
                                     fontFamily = PlexSerif, fontSize = 16.sp,
                                     lineHeight = 1.55.em, color = c.ink,
@@ -464,12 +449,10 @@ private fun BodyBlocks(
                         .background(c.surface2)
                         .padding(12.dp),
                 ) {
-                    block.lines.forEachIndexed { i, line ->
+                    block.lines.forEach { line ->
                         PlainTappableLine(
                             line, fontFamily = PlexMono, fontSize = 13.sp, color = c.ink,
-                            onDoubleTapAt = { renderedOffset ->
-                                onEditAt(doc.offsetAt(headline.bodyStart + block.startLine + i, renderedOffset))
-                            },
+                            onDoubleTapAt = onEditAt,
                         )
                     }
                 }
@@ -485,12 +468,10 @@ private fun BodyBlocks(
                         .background(c.surface)
                         .padding(10.dp),
                 ) {
-                    block.lines.forEachIndexed { i, line ->
+                    block.lines.forEach { line ->
                         PlainTappableLine(
                             line, fontFamily = PlexMono, fontSize = 12.5.sp, color = c.ink,
-                            onDoubleTapAt = { renderedOffset ->
-                                onEditAt(doc.offsetAt(headline.bodyStart + block.startLine + i, renderedOffset))
-                            },
+                            onDoubleTapAt = onEditAt,
                         )
                     }
                     Text(
@@ -513,7 +494,7 @@ private fun PlainTappableLine(
     fontFamily: androidx.compose.ui.text.font.FontFamily,
     fontSize: androidx.compose.ui.unit.TextUnit,
     color: Color,
-    onDoubleTapAt: (Int) -> Unit,
+    onDoubleTapAt: () -> Unit,
 ) {
     var layout by remember { mutableStateOf<TextLayoutResult?>(null) }
     Text(
@@ -525,61 +506,6 @@ private fun PlainTappableLine(
             onDoubleTap = onDoubleTapAt,
         ),
     )
-}
-
-/** Raw-file char offset for line [lineIndex], clamped to that line's length. */
-private fun OrgDocument.offsetAt(lineIndex: Int, column: Int): Int {
-    if (lineIndex !in lines.indices) return text.length
-    var offset = 0
-    for (i in 0 until lineIndex) offset += lines[i].length + 1
-    return (offset + column.coerceIn(0, lines[lineIndex].length))
-}
-
-/** Maps a tap in a rendered headline title back to that title's raw line. */
-private fun OrgDocument.rawOffsetForTitleTap(headline: OrgHeadline, renderedOffset: Int): Int {
-    val raw = lines.getOrNull(headline.lineIndex) ?: return offsetAt(headline.lineIndex, renderedOffset)
-    val titleStart = raw.indexOf(headline.title)
-    val column = if (titleStart >= 0) titleStart + renderedOffset.coerceIn(0, headline.title.length) else renderedOffset
-    return offsetAt(headline.lineIndex, column)
-}
-
-/**
- * Maps a tap in a rendered paragraph (raw lines joined with " ", each
- * trimmed) back to a raw line + column. Approximate: inline markup stripped
- * by [annotateOrgInline] means the rendered offset isn't byte-identical to
- * the raw one, but it lands on the right line and very close to the right
- * column in the common case (plain prose with little/no inline markup).
- */
-private fun OrgDocument.rawOffsetForParagraphTap(
-    headline: OrgHeadline,
-    block: OrgBlock.Paragraph,
-    renderedOffset: Int,
-): Int {
-    var remaining = renderedOffset
-    block.lines.forEachIndexed { relIndex, raw ->
-        val trimmed = raw.trim()
-        if (remaining <= trimmed.length) {
-            val leadingWs = raw.length - raw.trimStart().length
-            return offsetAt(headline.bodyStart + block.startLine + relIndex, leadingWs + remaining)
-        }
-        remaining -= trimmed.length + 1 // + the joining space
-    }
-    val lastRel = block.lines.lastIndex.coerceAtLeast(0)
-    val lastLine = block.lines.getOrNull(lastRel).orEmpty()
-    return offsetAt(headline.bodyStart + block.startLine + lastRel, lastLine.length)
-}
-
-/** Maps a tap in a rendered list item's text back to its raw line + column. */
-private fun OrgDocument.rawOffsetForListItemTap(
-    headline: OrgHeadline,
-    item: OrgBlock.ListItem,
-    renderedOffset: Int,
-): Int {
-    val absoluteLine = headline.bodyStart + item.line
-    val raw = lines.getOrNull(absoluteLine) ?: return offsetAt(absoluteLine, renderedOffset)
-    val textStart = raw.indexOf(item.text)
-    val column = if (textStart >= 0) textStart + renderedOffset.coerceIn(0, item.text.length) else renderedOffset
-    return offsetAt(absoluteLine, column)
 }
 
 /** Resolve an org link target: internal id/custom-id jumps to the note, else opens externally. */

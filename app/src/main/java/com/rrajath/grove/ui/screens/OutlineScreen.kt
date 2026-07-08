@@ -44,6 +44,7 @@ import com.rrajath.grove.org.OrgHeadline
 import com.rrajath.grove.settings.OutlineToggle
 import com.rrajath.grove.ui.components.GroveTopBar
 import com.rrajath.grove.ui.components.Pill
+import com.rrajath.grove.ui.components.ScrollJumpButtons
 import com.rrajath.grove.ui.components.annotateOrgInline
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
@@ -244,6 +245,7 @@ fun OutlineScreen(
                             )
                         }
                     }
+                    Box(Modifier.fillMaxSize()) {
                     LazyColumn(
                         state = listState,
                         modifier = Modifier
@@ -291,6 +293,15 @@ fun OutlineScreen(
                                 ),
                             )
                         }
+                    }
+                    ScrollJumpButtons(
+                        listState = listState,
+                        // Stacked above the FAB (54.dp + its own padding) so the two
+                        // never overlap.
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(bottom = 86.dp, end = 16.dp),
+                    )
                     }
                 }
             }

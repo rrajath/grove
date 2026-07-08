@@ -9,11 +9,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextLayoutResult
 
 /**
- * Detects a double-tap on rendered org text and reports the tapped *rendered*
- * character offset (i.e. an index into the [AnnotatedString][androidx.compose.ui.text.AnnotatedString]
- * actually shown, not the raw org markup) — callers map that back to a raw
- * file offset themselves, since the mapping differs per block type (see
- * ReadNoteScreen).
+ * Detects a double-tap on rendered org text and invokes [onDoubleTap].
  *
  * Unlike a plain `detectTapGestures(onDoubleTap = ...)`, this never consumes
  * the *first* tap of a pair: it only watches (at [PointerEventPass.Final], the
@@ -33,7 +29,7 @@ fun Modifier.doubleTapToEdit(
     layoutResult: () -> TextLayoutResult?,
     links: List<InlineLink> = emptyList(),
     enabled: Boolean = true,
-    onDoubleTap: (Int) -> Unit,
+    onDoubleTap: () -> Unit,
 ): Modifier {
     if (!enabled) return this
     return this.pointerInput(Unit) {
@@ -85,7 +81,7 @@ fun Modifier.doubleTapToEdit(
                     change.consume()
                     if (!change.pressed) break
                 }
-                onDoubleTap(charOffset)
+                onDoubleTap()
             }
         }
     }

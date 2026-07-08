@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
@@ -57,6 +58,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rrajath.grove.sync.SyncState
 import com.rrajath.grove.ui.components.GroveTopBar
 import com.rrajath.grove.ui.components.Pill
+import com.rrajath.grove.ui.components.ScrollJumpButtons
 import com.rrajath.grove.ui.theme.GroveColors
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
@@ -152,20 +154,32 @@ fun NotebooksScreen(
                     if (s.notebooks.isEmpty()) {
                         CenterMessage("✦", "No .org files here yet", "Capture a note or create a notebook with ＋")
                     } else {
-                        LazyColumn(Modifier.fillMaxSize().testTag("notebooks_list")) {
-                            items(s.notebooks, key = { it.fileName }) { nb ->
-                                NotebookRow(
-                                    notebook = nb,
-                                    onClick = { onOpenNotebook(nb.fileName) },
-                                    onOpenConflict = { onOpenConflict(nb.fileName) },
-                                    onRename = { renameTarget = nb.fileName },
-                                    onChangeIcon = { styleTarget = nb.fileName },
-                                    onDelete = { viewModel.trashNotebook(nb.fileName) },
-                                    onForceReload = { viewModel.forceReload(nb.fileName) },
-                                    onPin = { viewModel.pinNotebook(nb.fileName) },
-                                    onUnpin = { viewModel.unpinNotebook(nb.fileName) },
-                                )
+                        val listState = rememberLazyListState()
+                        Box(Modifier.fillMaxSize()) {
+                            LazyColumn(
+                                state = listState,
+                                modifier = Modifier.fillMaxSize().testTag("notebooks_list"),
+                            ) {
+                                items(s.notebooks, key = { it.fileName }) { nb ->
+                                    NotebookRow(
+                                        notebook = nb,
+                                        onClick = { onOpenNotebook(nb.fileName) },
+                                        onOpenConflict = { onOpenConflict(nb.fileName) },
+                                        onRename = { renameTarget = nb.fileName },
+                                        onChangeIcon = { styleTarget = nb.fileName },
+                                        onDelete = { viewModel.trashNotebook(nb.fileName) },
+                                        onForceReload = { viewModel.forceReload(nb.fileName) },
+                                        onPin = { viewModel.pinNotebook(nb.fileName) },
+                                        onUnpin = { viewModel.unpinNotebook(nb.fileName) },
+                                    )
+                                }
                             }
+                            ScrollJumpButtons(
+                                listState = listState,
+                                modifier = Modifier
+                                    .align(Alignment.BottomEnd)
+                                    .padding(bottom = 86.dp, end = 16.dp),
+                            )
                         }
                     }
                 }
