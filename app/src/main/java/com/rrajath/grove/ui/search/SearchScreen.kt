@@ -14,7 +14,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.AlertDialog
@@ -46,6 +48,7 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rrajath.grove.ui.components.Pill
+import com.rrajath.grove.ui.components.ScrollJumpButtons
 import com.rrajath.grove.ui.screens.IconGlyph
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
@@ -69,6 +72,7 @@ fun SearchScreen(
     var advancedOpen by remember { mutableStateOf(false) }
     var saveDialogOpen by remember { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
+    val listState = rememberLazyListState()
 
     LaunchedEffect(initialQuery) {
         if (!initialQuery.isNullOrBlank()) viewModel.submit(initialQuery)
@@ -152,10 +156,18 @@ fun SearchScreen(
                 })
             }
 
-            when {
-                state.query.isBlank() -> HistoryList(state.history, onTap = viewModel::submit)
-                state.agenda != null -> AgendaList(state.agenda!!, onOpenNote)
-                else -> ResultsList(state.results, onOpenNote)
+            Box(Modifier.weight(1f).fillMaxWidth()) {
+                when {
+                    state.query.isBlank() -> HistoryList(listState, state.history, onTap = viewModel::submit)
+                    state.agenda != null -> AgendaList(listState, state.agenda!!, onOpenNote)
+                    else -> ResultsList(listState, state.results, onOpenNote)
+                }
+                ScrollJumpButtons(
+                    listState = listState,
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(16.dp),
+                )
             }
         }
     }
@@ -233,9 +245,9 @@ private fun OpChip(label: String, onTap: (String) -> Unit) {
 }
 
 @Composable
-private fun HistoryList(history: List<String>, onTap: (String) -> Unit) {
+private fun HistoryList(listState: LazyListState, history: List<String>, onTap: (String) -> Unit) {
     val c = MaterialTheme.grove
-    LazyColumn(Modifier.fillMaxSize().padding(horizontal = 14.dp)) {
+    LazyColumn(state = listState, modifier = Modifier.fillMaxSize().padding(horizontal = 14.dp)) {
         if (history.isNotEmpty()) {
             items(history) { entry ->
                 Row(
@@ -256,8 +268,8 @@ private fun HistoryList(history: List<String>, onTap: (String) -> Unit) {
 }
 
 @Composable
-private fun ResultsList(results: List<SearchResult>, onOpenNote: (NoteRef) -> Unit) {
-    LazyColumn(Modifier.fillMaxSize().padding(horizontal = 14.dp, vertical = 4.dp)) {
+private fun ResultsList(listState: LazyListState, results: List<SearchResult>, onOpenNote: (NoteRef) -> Unit) {
+    LazyColumn(state = listState, modifier = Modifier.fillMaxSize().padding(horizontal = 14.dp, vertical = 4.dp)) {
         items(results, key = { "${it.fileName}@${it.lineIndex}" }) { result ->
             ResultRow(result, onOpenNote)
             HorizontalDivider(
@@ -269,10 +281,10 @@ private fun ResultsList(results: List<SearchResult>, onOpenNote: (NoteRef) -> Un
 }
 
 @Composable
-private fun AgendaList(agenda: List<AgendaDay>, onOpenNote: (NoteRef) -> Unit) {
+private fun AgendaList(listState: LazyListState, agenda: List<AgendaDay>, onOpenNote: (NoteRef) -> Unit) {
     val c = MaterialTheme.grove
     val formatter = remember { DateTimeFormatter.ofPattern("EEEE, MMM d", Locale.ENGLISH) }
-    LazyColumn(Modifier.fillMaxSize().padding(horizontal = 14.dp, vertical = 4.dp)) {
+    LazyColumn(state = listState, modifier = Modifier.fillMaxSize().padding(horizontal = 14.dp, vertical = 4.dp)) {
         agenda.forEach { day ->
             item(key = day.date.toString()) {
                 Text(

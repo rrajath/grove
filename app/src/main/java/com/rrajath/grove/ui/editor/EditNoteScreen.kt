@@ -5,7 +5,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
@@ -43,8 +42,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -56,7 +53,6 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rrajath.grove.org.LineEditing
 import com.rrajath.grove.ui.components.GroveTopBar
-import com.rrajath.grove.ui.components.chaseSelectionEdge
 import com.rrajath.grove.ui.components.ScrollJumpButtons
 import com.rrajath.grove.ui.components.SegmentedControl
 import com.rrajath.grove.ui.screens.IconGlyph
@@ -79,10 +75,6 @@ fun EditNoteScreen(
     onSwitchToRead: () -> Unit,
     /** True when the note was just created (e.g. via the outline + button). */
     isNewNote: Boolean = false,
-    /** Raw-buffer char offset to place the cursor at on open — e.g. from a
-     * double-tap in read mode. Null falls back to the default (end of the
-     * heading line). */
-    initialCursor: Int? = null,
     viewModel: EditorViewModel = viewModel(factory = EditorViewModel.Factory),
 ) {
     val c = MaterialTheme.grove
@@ -119,10 +111,9 @@ fun EditNoteScreen(
     LaunchedEffect(noteRef) { viewModel.load(noteRef) }
     LaunchedEffect(state.loading) {
         if (!state.loading && state.error == null) {
-            val cursor = initialCursor?.coerceIn(0, state.buffer.length)
-                ?: state.buffer.length.coerceAtMost(
-                    state.buffer.indexOf('\n').let { if (it == -1) state.buffer.length else it },
-                )
+            val cursor = state.buffer.length.coerceAtMost(
+                state.buffer.indexOf('\n').let { if (it == -1) state.buffer.length else it },
+            )
             value = TextFieldValue(state.buffer, TextRange(cursor))
         }
     }
@@ -169,9 +160,7 @@ fun EditNoteScreen(
         )
     }
 
-    // Scroll state and layout result used for cursor-tracking auto-scroll.
     val scrollState = rememberScrollState()
-    var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
 
     Scaffold(
         containerColor = c.bg,
@@ -235,47 +224,7 @@ fun EditNoteScreen(
                     onReload = { viewModel.dismissStale(); viewModel.load(noteRef) },
                 )
             }
-            // BoxWithConstraints gives the current viewport height so the
-            // LaunchedEffect below can scroll the cursor/selection into view
-            // both while typing and while dragging to select.
-            BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
-                val density = LocalDensity.current
-                val viewportHeightPx = remember(maxHeight, density) {
-                    with(density) { maxHeight.toPx() }.toInt()
-                }
-                val editorPaddingPx = remember(density) {
-                    with(density) { 18.dp.toPx() }.toInt()
-                }
-                val edgePx = remember(density) { with(density) { 56.dp.toPx() } }
-
-                // Selection-driven auto-scroll: continuously nudges the caret (or
-                // whichever selection edge is being dragged) back into view as it
-                // nears the top/bottom edge. Driven by TextFieldValue.selection
-                // rather than raw touch, this is what makes it work even while
-                // dragging a selection *handle* — handles render in their own
-                // Popup window, so their touches never reach a pointerInput on
-                // this content (see AutoScroll.kt's kdoc) but they do keep
-                // updating `value.selection` live, which is all this needs.
-                LaunchedEffect(scrollState) {
-                    chaseSelectionEdge(
-                        scrollState = scrollState,
-                        edgePx = edgePx,
-                        viewportHeightPx = { viewportHeightPx },
-                    ) {
-                        val layout = textLayoutResult
-                        if (layout == null || value.text.isEmpty()) return@chaseSelectionEdge null
-                        fun yOf(offset: Int): Float =
-                            editorPaddingPx + layout.getCursorRect(offset.coerceIn(0, value.text.length))
-                                .center.y - scrollState.value
-                        fun overflow(y: Float): Float =
-                            maxOf(edgePx - y, y - (viewportHeightPx - edgePx), 0f)
-
-                        val startY = yOf(value.selection.start)
-                        val endY = yOf(value.selection.end)
-                        if (overflow(startY) >= overflow(endY)) startY else endY
-                    }
-                }
-
+            Box(Modifier.weight(1f).fillMaxWidth()) {
                 BasicTextField(
                     value = value,
                     onValueChange = ::onTextChange,
@@ -286,7 +235,6 @@ fun EditNoteScreen(
                         lineHeight = 1.85.em, color = c.ink,
                     ),
                     cursorBrush = SolidColor(c.accent),
-                    onTextLayout = { textLayoutResult = it },
                     modifier = Modifier
                         .fillMaxSize()
                         .verticalScroll(scrollState)

@@ -19,7 +19,6 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import kotlin.coroutines.coroutineContext
 import kotlinx.coroutines.isActive
 
 /**
@@ -65,9 +64,7 @@ private suspend fun ScrollState.nudge(urgency: Float) {
  * appeared and the user grabs it for a fresh touch, Compose renders that
  * handle in its own [androidx.compose.ui.window.Popup] — a separate Android
  * window — so its drag events never reach this (or any) modifier on the
- * underlying content; this modifier can't help there. For BasicTextField,
- * [chaseSelectionEdge] fixes that case too, by watching the selection's value
- * instead of raw touches. See that function's kdoc.
+ * underlying content; this modifier can't help there.
  */
 fun Modifier.autoScrollWhileDragging(scrollState: ScrollState, edgeSize: Dp = 56.dp): Modifier = composed {
     val density = LocalDensity.current
@@ -100,40 +97,4 @@ fun Modifier.autoScrollWhileDragging(scrollState: ScrollState, edgeSize: Dp = 56
                 pointerY = null
             }
         }
-}
-
-/**
- * Continuously auto-scrolls [scrollState] to follow a text selection's active
- * edge as it nears the top/bottom of the viewport — including while the user
- * is dragging a selection *handle*, whose touch events [autoScrollWhileDragging]
- * can't see (they land in a separate Popup window; see its kdoc).
- *
- * Unlike raw pointer tracking, this is driven purely by the selection's
- * current value, which BasicTextField/SelectionContainer keep updating live
- * as the user drags — including handle drags — regardless of which window
- * the touch itself is delivered to. [edgeYProvider] should return the current
- * viewport-local Y (already adjusted for [scrollState]'s current offset — see
- * call site) of whichever selection edge is more "urgently" past a viewport
- * edge, or null when there's no active/measurable selection.
- *
- * Practical note: like standard Android text selection, this needs the
- * selection value to keep changing (i.e. the finger to keep moving, even
- * slightly) to keep scrolling — a perfectly motionless finger parked past the
- * edge won't continue to scroll on its own, matching native `EditText`
- * behavior (which is likewise driven by `ACTION_MOVE`, not a timer).
- */
-suspend fun chaseSelectionEdge(
-    scrollState: ScrollState,
-    edgePx: Float,
-    viewportHeightPx: () -> Int,
-    edgeYProvider: () -> Float?,
-) {
-    while (coroutineContext.isActive) {
-        val h = viewportHeightPx()
-        val y = edgeYProvider()
-        if (y != null && h > 0) {
-            scrollState.nudge(edgeUrgency(y, h, edgePx))
-        }
-        withFrameNanos {}
-    }
 }
