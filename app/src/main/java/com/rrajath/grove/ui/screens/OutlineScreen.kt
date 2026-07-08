@@ -32,6 +32,9 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
@@ -359,6 +362,7 @@ private fun OutlineNode(
     val isDone = headline.keyword != null && doc.keywords.isDone(headline.keyword)
     var menuOpen by remember { mutableStateOf(false) }
     var insertMenuOpen by remember { mutableStateOf(false) }
+    var insertMenuOffsetPx by remember { mutableStateOf(0 to 0) }
     // Tokenizing the title allocates a new AnnotatedString; rows recompose on
     // scroll and swipe, so keep it across recompositions.
     val titleAnnotated = remember(headline.title, c) { annotateOrgInline(headline.title, c) }
@@ -385,11 +389,13 @@ private fun OutlineNode(
     }
 
     Box {
+        val density = LocalDensity.current
         NodeMenu(
             expanded = menuOpen,
             onDismiss = { menuOpen = false },
             onInsert = { insertMenuOpen = true },
             ops = ops,
+            onInsertRowLayout = { widthPx, insertYPx -> insertMenuOffsetPx = widthPx to insertYPx },
         )
         InsertMenu(
             expanded = insertMenuOpen,
@@ -399,7 +405,9 @@ private fun OutlineNode(
                 menuOpen = false
             },
             ops = ops,
-            offset = DpOffset(x = 200.dp, y = 48.dp),
+            offset = with(density) {
+                DpOffset(x = insertMenuOffsetPx.first.toDp(), y = insertMenuOffsetPx.second.toDp())
+            },
         )
     androidx.compose.material3.SwipeToDismissBox(
         state = swipeState,
@@ -557,13 +565,28 @@ private fun OutlineNode(
 }
 
 @Composable
-private fun NodeMenu(expanded: Boolean, onDismiss: () -> Unit, onInsert: () -> Unit, ops: NodeOps) {
+private fun NodeMenu(
+    expanded: Boolean,
+    onDismiss: () -> Unit,
+    onInsert: () -> Unit,
+    ops: NodeOps,
+    // Reports this menu's measured width and the "Insert" row's vertical
+    // position within it, in px, so the Insert sub-menu can be anchored
+    // right beside it instead of using a guessed fixed offset.
+    onInsertRowLayout: (widthPx: Int, insertYPx: Int) -> Unit = { _, _ -> },
+) {
     val c = MaterialTheme.grove
     androidx.compose.material3.DropdownMenu(
         expanded = expanded,
         onDismissRequest = onDismiss,
         containerColor = c.surface,
     ) {
+        var menuWidthPx by remember { mutableStateOf(0) }
+        var insertRowYPx by remember { mutableStateOf(0) }
+        LaunchedEffect(menuWidthPx, insertRowYPx) {
+            onInsertRowLayout(menuWidthPx, insertRowYPx)
+        }
+
         @Composable
         fun item(label: String, color: androidx.compose.ui.graphics.Color = c.ink, action: () -> Unit) {
             androidx.compose.material3.DropdownMenuItem(
@@ -571,20 +594,27 @@ private fun NodeMenu(expanded: Boolean, onDismiss: () -> Unit, onInsert: () -> U
                 onClick = { onDismiss(); action() },
             )
         }
-        item("Edit", action = ops.onEdit)
-        androidx.compose.material3.DropdownMenuItem(
-            text = { Text("Insert ›", fontFamily = PlexSans, fontSize = 14.sp, color = c.ink) },
-            onClick = onInsert,
-        )
-        item("Cycle state", action = ops.onCycleState)
-        item("Move up", action = ops.onMoveUp)
-        item("Move down", action = ops.onMoveDown)
-        item("Cut", action = ops.onCut)
-        item("Copy", action = ops.onCopy)
-        ops.onPaste?.let { item("Paste under", action = it) }
-        item("Show in context", action = ops.onNarrow)
-        item("Favorite", action = ops.onFavorite)
-        item("Delete", color = c.red, action = ops.onDelete)
+        Column(
+            Modifier.onGloballyPositioned { menuWidthPx = it.size.width },
+        ) {
+            item("Edit", action = ops.onEdit)
+            androidx.compose.material3.DropdownMenuItem(
+                text = { Text("Insert ›", fontFamily = PlexSans, fontSize = 14.sp, color = c.ink) },
+                onClick = onInsert,
+                modifier = Modifier.onGloballyPositioned {
+                    insertRowYPx = it.positionInParent().y.toInt()
+                },
+            )
+            item("Cycle state", action = ops.onCycleState)
+            item("Move up", action = ops.onMoveUp)
+            item("Move down", action = ops.onMoveDown)
+            item("Cut", action = ops.onCut)
+            item("Copy", action = ops.onCopy)
+            ops.onPaste?.let { item("Paste under", action = it) }
+            item("Show in context", action = ops.onNarrow)
+            item("Favorite", action = ops.onFavorite)
+            item("Delete", color = c.red, action = ops.onDelete)
+        }
     }
 }
 

@@ -64,7 +64,7 @@ import com.rrajath.grove.ui.components.GroveTopBar
 import com.rrajath.grove.ui.components.Pill
 import com.rrajath.grove.ui.components.autoScrollWhileDragging
 import com.rrajath.grove.ui.editor.EditorToolbar
-import com.rrajath.grove.ui.editor.KeystrokeCounter
+import kotlinx.coroutines.delay
 import com.rrajath.grove.ui.editor.OrgVisualTransformation
 import com.rrajath.grove.ui.editor.insertAtCursor
 import com.rrajath.grove.ui.editor.insertLinkTemplate
@@ -152,7 +152,6 @@ fun CaptureEditorScreen(
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
     val scrollState = rememberScrollState()
     var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
-    val autosaveCounter = remember(template) { KeystrokeCounter() }
 
     var showDiscardDialog by remember { mutableStateOf(false) }
     var showEmptyHeadingAlert by remember { mutableStateOf(false) }
@@ -168,7 +167,18 @@ fun CaptureEditorScreen(
 
     fun applyEdit(newValue: TextFieldValue) {
         value = newValue
-        if (autosaveCounter.tick()) viewModel.autosave(template, newValue.text, context)
+    }
+
+    // Idle auto-save: wait for a 5s pause in typing before persisting the
+    // draft. A note with no heading yet (just the auto-inserted "* ") is
+    // skipped rather than saved — the same blank-heading state that blocks
+    // the explicit Save button in trySave() below, so autosave never writes
+    // a heading-less entry the user hasn't confirmed.
+    LaunchedEffect(value.text) {
+        delay(5_000)
+        if (value.text != initialText && !CaptureInserter.hasBlankHeading(value.text)) {
+            viewModel.autosave(template, value.text, context)
+        }
     }
 
     fun trySave() {

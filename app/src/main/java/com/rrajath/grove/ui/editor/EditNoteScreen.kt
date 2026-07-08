@@ -1,10 +1,13 @@
 package com.rrajath.grove.ui.editor
 
 import android.widget.Toast
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
@@ -39,9 +42,12 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -87,6 +93,10 @@ fun EditNoteScreen(
     // Timestamp of the most recent auto-save, shown as a tappable check mark
     // in the top bar once the note has been saved at least once.
     var lastAutoSavedAt by remember { mutableStateOf<LocalTime?>(null) }
+    // Blinks the check mark twice on each auto-save instead of a toast; tapping
+    // the check mark still shows the "saved at" toast on demand.
+    val checkAlpha = remember { Animatable(1f) }
+    var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
 
     /** Validate heading before saving; shows alert if blank, otherwise saves. */
     fun trySave(onSaved: () -> Unit) {
@@ -139,8 +149,16 @@ fun EditNoteScreen(
         if (state.dirty) {
             viewModel.save {
                 lastAutoSavedAt = LocalTime.now()
-                Toast.makeText(context, "Note auto saved", Toast.LENGTH_SHORT).show()
             }
+        }
+    }
+
+    // Blink the check mark twice in quick succession on each auto-save.
+    LaunchedEffect(lastAutoSavedAt) {
+        if (lastAutoSavedAt == null) return@LaunchedEffect
+        repeat(2) {
+            checkAlpha.animateTo(0.15f, tween(120))
+            checkAlpha.animateTo(1f, tween(120))
         }
     }
 
@@ -178,6 +196,7 @@ fun EditNoteScreen(
                             contentDescription = "Auto saved",
                             tint = c.green,
                             modifier = Modifier
+                                .alpha(checkAlpha.value)
                                 .clip(RoundedCornerShape(10.dp))
                                 .clickable {
                                     val formatted = AutoSaveTimestamp.format(savedAt)
@@ -225,21 +244,51 @@ fun EditNoteScreen(
                 )
             }
             Box(Modifier.weight(1f).fillMaxWidth()) {
-                BasicTextField(
-                    value = value,
-                    onValueChange = ::onTextChange,
-                    visualTransformation = transformation,
-                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-                    textStyle = TextStyle(
-                        fontFamily = PlexMono, fontSize = 13.5.sp,
-                        lineHeight = 1.85.em, color = c.ink,
-                    ),
-                    cursorBrush = SolidColor(c.accent),
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(scrollState)
-                        .padding(18.dp),
-                )
+                BoxWithConstraints(Modifier.fillMaxSize()) {
+                    val density = LocalDensity.current
+                    val viewportHeightPx = remember(maxHeight, density) {
+                        with(density) { maxHeight.toPx() }.toInt()
+                    }
+                    val editorPaddingPx = remember(density) {
+                        with(density) { 18.dp.toPx() }.toInt()
+                    }
+
+                    // Keep the cursor in view when it's near the bottom edge and
+                    // the keyboard is covering it — the keyboard shrinks the
+                    // viewport but doesn't itself trigger a scroll.
+                    LaunchedEffect(value.selection, textLayoutResult, viewportHeightPx) {
+                        val layout = textLayoutResult ?: return@LaunchedEffect
+                        if (value.text.isEmpty()) return@LaunchedEffect
+                        val offset = value.selection.end.coerceIn(0, value.text.length)
+                        val rect = layout.getCursorRect(offset)
+                        val cursorTop = editorPaddingPx + rect.top.toInt()
+                        val cursorBottom = editorPaddingPx + rect.bottom.toInt()
+                        val buffer = 56
+                        when {
+                            cursorBottom > scrollState.value + viewportHeightPx - buffer ->
+                                scrollState.animateScrollTo(cursorBottom - viewportHeightPx + buffer)
+                            cursorTop < scrollState.value + buffer ->
+                                scrollState.animateScrollTo(maxOf(0, cursorTop - buffer))
+                        }
+                    }
+
+                    BasicTextField(
+                        value = value,
+                        onValueChange = ::onTextChange,
+                        visualTransformation = transformation,
+                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                        textStyle = TextStyle(
+                            fontFamily = PlexMono, fontSize = 13.5.sp,
+                            lineHeight = 1.85.em, color = c.ink,
+                        ),
+                        cursorBrush = SolidColor(c.accent),
+                        onTextLayout = { textLayoutResult = it },
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(scrollState)
+                            .padding(18.dp),
+                    )
+                }
                 ScrollJumpButtons(
                     scrollState = scrollState,
                     modifier = Modifier
