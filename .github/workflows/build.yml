@@ -46,6 +46,18 @@ jobs:
       - name: Run unit tests
         run: ./gradlew testDebugUnitTest
 
+      # Computed once here and reused for the GitHub Release tag/title below.
+      # build.gradle.kts derives versionName and the Sentry release
+      # (io.sentry.release manifest placeholder) from the same git commit
+      # count independently, so all three agree without needing to thread a
+      # value through the build step — the Sentry Android Gradle plugin has
+      # no env-var hook to receive one.
+      - name: Compute version
+        run: |
+          set -euo pipefail
+          VERSION="$(./gradlew -q printVersionName | tail -n1)"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+
       - name: Decode release keystore
         if: env.HAS_SIGNING == 'true'
         env:
@@ -81,16 +93,17 @@ jobs:
           if-no-files-found: error
 
       # Publish a GitHub Release with both APKs on every push to the default
-      # branch. The tag is the git-derived versionName (v1.0.<commit-count>),
-      # which is unique and monotonic per commit. Re-runs of the same commit
-      # re-upload the assets instead of failing on an existing tag.
+      # branch. The tag is "v$VERSION" — the same VERSION computed once above,
+      # and the same format build.gradle.kts uses for the Sentry release — so
+      # GitHub and Sentry always agree on what a given build is called.
+      # Re-runs of the same commit re-upload the assets instead of failing on
+      # an existing tag.
       - name: Publish GitHub Release
         if: github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          VERSION="$(./gradlew -q printVersionName | tail -n1)"
           TAG="v$VERSION"
           # The release APK is app-release.apk when signed, app-release-unsigned.apk otherwise.
           ASSETS=$(ls app/build/outputs/apk/debug/*.apk app/build/outputs/apk/release/*.apk)

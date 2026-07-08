@@ -396,8 +396,6 @@ private fun DatetreeBreadcrumb(template: CaptureTemplate, today: LocalDate) {
             .padding(horizontal = 18.dp, vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text("inserts under", fontFamily = PlexMono, fontSize = 11.5.sp, color = c.ink3, maxLines = 1)
-        Spacer(Modifier.width(7.dp))
         // The breadcrumb shares the row with the trailing pill; only the file
         // name may shrink (ellipsized), so nothing ever wraps vertically.
         Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
