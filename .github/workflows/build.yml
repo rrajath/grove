@@ -60,6 +60,10 @@ jobs:
           SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
           SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
           SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+          # Read by the Sentry Gradle plugin's upload tasks (proguard mappings,
+          # source bundle). sentry.properties is gitignored and never present
+          # in CI, so auth must come from the environment instead.
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
         run: ./gradlew assembleDebug assembleRelease
 
       - name: Upload debug APK

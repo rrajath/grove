@@ -173,11 +173,18 @@ tasks.register("printVersionName") {
     doLast { println(semanticVersion) }
 }
 
+// Upload tasks need SENTRY_AUTH_TOKEN (sentry-cli reads it from the
+// environment). It's absent for fork PRs and local builds without
+// sentry.properties, so uploads are disabled rather than failing the build.
+val hasSentryAuthToken = (System.getenv("SENTRY_AUTH_TOKEN")?.isNotBlank() == true) ||
+    rootProject.file("sentry.properties").exists()
+
 sentry {
     org.set("rajath-ramakrishna")
     projectName.set("grove")
 
     // this will upload your source code to Sentry to show it as part of the stack traces
     // disable if you don't want to expose your sources
-    includeSourceContext.set(true)
+    includeSourceContext.set(hasSentryAuthToken)
+    autoUploadProguardMapping.set(hasSentryAuthToken)
 }
