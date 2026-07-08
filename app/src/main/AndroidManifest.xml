@@ -86,6 +86,8 @@
 
     <!-- set up releases -->
     <meta-data android:name="io.sentry.release" android:value="io.example@1.1.0" />
+    <!-- set up sentry session tracking -->
+    <meta-data android:name="io.sentry.session-tracking.timeout-interval-millis" android:value="60000" />
     <!-- enable automatic breadcrumbs for user interactions (clicks, swipes, scrolls) -->
     <meta-data android:name="io.sentry.traces.user-interaction.enable" android:value="true" />
     <!-- enable screenshot for crashes (could contain sensitive/PII data) -->
