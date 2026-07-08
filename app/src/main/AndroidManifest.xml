@@ -84,6 +84,8 @@
     <!-- Required: set your sentry.io project identifier (DSN) -->
     <meta-data android:name="io.sentry.dsn" android:value="https://22613e1316854dcc4634e34bd7964521@o4504759805476864.ingest.us.sentry.io/4511700837138432" />
 
+    <!-- set up releases -->
+    <meta-data android:name="io.sentry.release" android:value="io.example@1.1.0" />
     <!-- enable automatic breadcrumbs for user interactions (clicks, swipes, scrolls) -->
     <meta-data android:name="io.sentry.traces.user-interaction.enable" android:value="true" />
     <!-- enable screenshot for crashes (could contain sensitive/PII data) -->
