@@ -3,13 +3,17 @@ package com.rrajath.grove.settings
 // Pure-Kotlin preference enums (no android imports) so mapping logic is JVM-testable.
 
 enum class ThemePreference(val storageKey: String) {
-    SYSTEM("system"),
     LIGHT("light"),
-    DARK("dark");
+    DARK("dark"),
+    TOKYONIGHT("tokyonight"),
+    SYNTHWAVE("synthwave"),
+    DRACULA("dracula"),
+    CATPPUCCIN("catppuccin"),
+    NORD("nord");
 
     companion object {
         fun fromStorage(value: String?): ThemePreference =
-            entries.firstOrNull { it.storageKey == value } ?: SYSTEM
+            entries.firstOrNull { it.storageKey == value } ?: LIGHT
     }
 }
 

@@ -14,7 +14,7 @@ import kotlinx.coroutines.flow.map
 private val Context.settingsDataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 
 data class GroveSettings(
-    val theme: ThemePreference = ThemePreference.SYSTEM,
+    val theme: ThemePreference = ThemePreference.LIGHT,
     val fontSize: FontSizePreference = FontSizePreference.MEDIUM,
     val defaultNoteOpenMode: NoteOpenMode = NoteOpenMode.READ,
     val onboardingDone: Boolean = false,

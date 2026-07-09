@@ -34,7 +34,7 @@ object SettingsSerialization {
 @Serializable
 data class SettingsExport(
     val version: Int = CURRENT_VERSION,
-    val theme: String = ThemePreference.SYSTEM.storageKey,
+    val theme: String = ThemePreference.LIGHT.storageKey,
     val fontSize: String = FontSizePreference.MEDIUM.storageKey,
     val defaultNoteOpenMode: String = NoteOpenMode.READ.storageKey,
     val syncMode: String = SyncMode.ON_OPEN_CLOSE.storageKey,

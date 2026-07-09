@@ -44,6 +44,7 @@ import com.rrajath.grove.settings.SyncMode
 import com.rrajath.grove.settings.ThemePreference
 import com.rrajath.grove.ui.components.GroveTopBar
 import com.rrajath.grove.ui.components.SegmentedControl
+import com.rrajath.grove.ui.components.ThemeSwatchPicker
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
@@ -139,12 +140,17 @@ fun SettingsScreen(
         ) {
             SectionLabel("APPEARANCE")
             SettingsGroup {
-                SettingsRow(label = "Theme") {
-                    SegmentedControl(
-                        options = listOf("System", "Light", "Dark"),
-                        selectedIndex = settings.theme.ordinal,
-                        onSelect = { onSetTheme(ThemePreference.entries[it]) },
-                        modifier = Modifier.width(220.dp),
+                Column(Modifier.padding(horizontal = 15.dp, vertical = 10.dp)) {
+                    Text(
+                        "Theme",
+                        fontFamily = PlexSans, fontWeight = FontWeight.Medium,
+                        fontSize = 14.5.sp, color = c.ink,
+                        modifier = Modifier.padding(bottom = 10.dp),
+                    )
+                    ThemeSwatchPicker(
+                        selected = settings.theme,
+                        onSelect = onSetTheme,
+                        modifier = Modifier.fillMaxWidth(),
                     )
                 }
                 RowDivider()
