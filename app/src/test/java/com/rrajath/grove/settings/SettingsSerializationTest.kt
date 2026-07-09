@@ -84,7 +84,7 @@ class SettingsSerializationTest {
         val json = """{ "theme": "sepia", "fontSize": "huge", "syncMode": "warp" }"""
         val restored = SettingsSerialization.import(json, GroveSettings())
 
-        assertEquals(ThemePreference.SYSTEM, restored.theme)
+        assertEquals(ThemePreference.LIGHT, restored.theme)
         assertEquals(FontSizePreference.MEDIUM, restored.fontSize)
         assertEquals(SyncMode.ON_OPEN_CLOSE, restored.syncMode)
     }

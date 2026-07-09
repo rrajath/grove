@@ -13,9 +13,9 @@ class PreferencesTest {
     }
 
     @Test
-    fun `unknown or missing theme falls back to system`() {
-        assertEquals(ThemePreference.SYSTEM, ThemePreference.fromStorage(null))
-        assertEquals(ThemePreference.SYSTEM, ThemePreference.fromStorage("sepia"))
+    fun `unknown or missing theme falls back to light`() {
+        assertEquals(ThemePreference.LIGHT, ThemePreference.fromStorage(null))
+        assertEquals(ThemePreference.LIGHT, ThemePreference.fromStorage("sepia"))
     }
 
     @Test

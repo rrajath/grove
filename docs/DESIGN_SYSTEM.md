@@ -84,6 +84,24 @@ cycling through: **green → blue → amber → red → violet → accent** and 
 val starColor = MaterialTheme.grove.starColor(headingLevel)
 ```
 
+### Additional Themes
+
+Beyond Light/Dark, `GroveColors` ships five more curated palettes (all dark-family, `isDark = true`),
+each a full-opacity port of the named community theme. Full token values live in `ui/theme/Color.kt`
+(`GroveTokyoNightColors`, `GroveSynthwaveColors`, `GroveDraculaColors`, `GroveCatppuccinColors`,
+`GroveNordColors`) — this table covers the core tokens only.
+
+| Theme | `bg` | `surface` | `ink` | `accent` | `green` | `amber` | `red` | `blue` | `violet` |
+|---|---|---|---|---|---|---|---|---|---|
+| Tokyo Night | `#1a1b26` | `#1f2335` | `#c0caf5` | `#7aa2f7` | `#9ece6a` | `#e0af68` | `#f7768e` | `#7dcfff` | `#bb9af7` |
+| Synthwave | `#262335` | `#2a2140` | `#f8f8f2` | `#ff7edb` | `#72f1b8` | `#fede5d` | `#fe4450` | `#03edf9` | `#b967ff`* |
+| Dracula | `#282a36` | `#2d2f3d` | `#f8f8f2` | `#bd93f9` | `#50fa7b` | `#ffb86c` | `#ff5555` | `#8be9fd` | `#bd93f9` |
+| Catppuccin | `#1e1e2e` | `#292a3d` | `#cdd6f4` | `#cba6f7` | `#a6e3a1` | `#fab387` | `#f38ba8` | `#89b4fa` | `#f5c2e7` |
+| Nord | `#2e3440` | `#333b4a` | `#eceff4` | `#88c0d0` | `#a3be8c` | `#ebcb8b` | `#bf616a` | `#81a1c1` | `#b48ead` |
+
+\* Synthwave has no purple/violet in its source palette — this value is derived (blended between
+its accent pink and blue) to keep the heading-star cycle's 5th color visually distinct.
+
 ### Material ColorScheme Mapping
 
 `GroveTheme` bridges the custom tokens into Material 3 automatically:
@@ -338,6 +356,29 @@ transparent bg + `ink2` text.
 
 ---
 
+### `ThemeSwatchPicker` — `ui/components/Common.kt`
+
+Wrapping 7-chip theme picker (Settings → Appearance → Theme). Each chip previews its theme:
+own `bg` fill, 11dp corner radius, 3 small (9dp) accent/green/blue-ish dots, and its label in
+the theme's `ink` color. The active chip gets a 2dp border in its first dot color; inactive
+chips get a neutral `rgba(128,128,128,0.22)` border.
+
+```kotlin
+ThemeSwatchPicker(
+    selected = settings.theme,
+    onSelect = onSetTheme,
+    modifier = Modifier.fillMaxWidth(),
+)
+```
+
+Preview colors (bg/ink/dots) are hardcoded per theme rather than derived from `GroveColors`,
+matching `design/GroveThemes.dc.html`'s `themeList()` — notably the Dark theme's chip uses its
+`surface` color, not `bg`, for legibility against the picker's own surface background.
+
+**When to use**: the single Settings theme picker. Not a general-purpose swatch component.
+
+---
+
 ### `GroveTopBar` — `ui/components/Common.kt`
 
 Edge-to-edge app bar that consumes the status bar inset.
@@ -403,7 +444,7 @@ use `OrgVisualTransformation` instead.
 | Capture Editor | `capture/{templateId}` | `GroveTopBar`, `monoBody()`, formatting toolbar |
 | Search | `search` | `GroveTopBar`, `annotateOrgInline`, `Pill` ("Advanced") |
 | Conflict | `conflict/{notebookId}` | `GroveTopBar`, warning banner, diff cards, action buttons |
-| Settings | `settings` | `GroveTopBar`, `SegmentedControl` (theme/font), keyword chips, `Pill` ("default") |
+| Settings | `settings` | `GroveTopBar`, `ThemeSwatchPicker` (theme), `SegmentedControl` (font), keyword chips, `Pill` ("default") |
 
 ---
 
@@ -413,11 +454,14 @@ Wrap every screen in `GroveTheme`. It is already applied at the root in `MainAct
 
 ```kotlin
 GroveTheme(
-    theme = ThemePreference.SYSTEM,   // SYSTEM | LIGHT | DARK
+    theme = ThemePreference.LIGHT,   // LIGHT | DARK | TOKYONIGHT | SYNTHWAVE | DRACULA | CATPPUCCIN | NORD
     fontSize = FontSizePreference.MEDIUM, // SMALL | MEDIUM | LARGE
 ) {
     GroveApp()
 }
 ```
+
+There is no "follow system" option — the app always uses the explicitly selected `ThemePreference`,
+picked via `ThemeSwatchPicker` on the Settings screen and persisted through `SettingsRepository`.
 
 Inside any composable: `MaterialTheme.grove` → full `GroveColors` token set.

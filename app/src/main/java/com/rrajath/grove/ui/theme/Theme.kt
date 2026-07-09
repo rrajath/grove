@@ -1,6 +1,5 @@
 package com.rrajath.grove.ui.theme
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
@@ -45,16 +44,19 @@ private fun materialScheme(c: GroveColors): ColorScheme {
 
 @Composable
 fun GroveTheme(
-    theme: ThemePreference = ThemePreference.SYSTEM,
+    theme: ThemePreference = ThemePreference.LIGHT,
     fontSize: FontSizePreference = FontSizePreference.MEDIUM,
     content: @Composable () -> Unit,
 ) {
-    val dark = when (theme) {
-        ThemePreference.SYSTEM -> isSystemInDarkTheme()
-        ThemePreference.LIGHT -> false
-        ThemePreference.DARK -> true
+    val groveColors = when (theme) {
+        ThemePreference.LIGHT -> GroveLightColors
+        ThemePreference.DARK -> GroveDarkColors
+        ThemePreference.TOKYONIGHT -> GroveTokyoNightColors
+        ThemePreference.SYNTHWAVE -> GroveSynthwaveColors
+        ThemePreference.DRACULA -> GroveDraculaColors
+        ThemePreference.CATPPUCCIN -> GroveCatppuccinColors
+        ThemePreference.NORD -> GroveNordColors
     }
-    val groveColors = if (dark) GroveDarkColors else GroveLightColors
     CompositionLocalProvider(LocalGroveColors provides groveColors) {
         MaterialTheme(
             colorScheme = materialScheme(groveColors),
