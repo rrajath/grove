@@ -100,6 +100,27 @@ class OrgDocument(
         return result.toList()
     }
 
+    /**
+     * [inheritedTags] for every headline (indexed by [OrgHeadline.index]) in a
+     * single forward pass with an ancestor stack. Indexing a whole file via
+     * repeated [inheritedTags]/[parent] calls is O(n²); this is O(n·depth).
+     */
+    fun inheritedTagsAll(): List<List<String>> {
+        val result = ArrayList<List<String>>(headlines.size)
+        // (level, own tags + ancestor tags nearest-first) along the current path.
+        val stack = ArrayDeque<Pair<Int, List<String>>>()
+        for (h in headlines) {
+            while (stack.isNotEmpty() && stack.last().first >= h.level) stack.removeLast()
+            val parentChain = stack.lastOrNull()?.second ?: emptyList()
+            val dedup = LinkedHashSet(h.tags)
+            dedup.addAll(parentChain)
+            dedup.addAll(fileTags)
+            result.add(dedup.toList())
+            stack.addLast(h.level to h.tags + parentChain)
+        }
+        return result
+    }
+
     /** Body lines belonging to the headline itself (planning/properties excluded). */
     fun bodyOf(h: OrgHeadline): List<String> {
         val end = minOf(h.contentEnd, headlines.getOrNull(h.index + 1)?.lineIndex ?: lines.size)

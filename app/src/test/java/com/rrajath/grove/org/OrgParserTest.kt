@@ -80,6 +80,15 @@ class OrgParserTest {
     }
 
     @Test
+    fun `inheritedTagsAll matches per-headline inheritedTags`() {
+        val doc = OrgParser.parse(golden("travel.org"))
+        val all = doc.inheritedTagsAll()
+        doc.headlines.forEachIndexed { i, h ->
+            assertEquals(doc.inheritedTags(h), all[i])
+        }
+    }
+
+    @Test
     fun `body excludes planning and properties`() {
         val doc = OrgParser.parse(golden("travel.org"))
         val ryokan = doc.findByTitle("Book Kyoto ryokan")!!

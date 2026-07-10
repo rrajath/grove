@@ -25,7 +25,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -88,7 +88,7 @@ fun ReadNoteScreen(
     viewModel: DocumentViewModel = viewModel(factory = DocumentViewModel.Factory),
 ) {
     val c = MaterialTheme.grove
-    val state by viewModel.state.collectAsState()
+    val state by viewModel.state.collectAsStateWithLifecycle()
     // Reload whenever the screen comes back to the foreground (e.g. returning
     // from the editor) so saved edits show immediately.
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current

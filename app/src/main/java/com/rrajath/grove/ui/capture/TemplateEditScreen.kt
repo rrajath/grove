@@ -19,7 +19,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -60,7 +60,7 @@ fun TemplateEditScreen(
     viewModel: TemplatesViewModel = viewModel(factory = TemplatesViewModel.Factory),
 ) {
     val c = MaterialTheme.grove
-    val templates by viewModel.templates.collectAsState()
+    val templates by viewModel.templates.collectAsStateWithLifecycle()
     val existing = templates.firstOrNull { it.id == templateId }
 
     var name by remember(existing) { mutableStateOf(existing?.name ?: "") }

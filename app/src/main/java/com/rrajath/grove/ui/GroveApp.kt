@@ -9,7 +9,7 @@ import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
@@ -42,7 +42,7 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun GroveApp(viewModel: AppViewModel = viewModel(factory = AppViewModel.Factory)) {
-    val settings by viewModel.settings.collectAsState()
+    val settings by viewModel.settings.collectAsStateWithLifecycle()
     // Wait for the first DataStore emission so theme and start destination don't flash.
     val loaded = settings ?: return
     GroveTheme(theme = loaded.theme, fontSize = loaded.fontSize) {
@@ -75,7 +75,7 @@ private fun GroveNavigation(settings: GroveSettings, viewModel: AppViewModel) {
 
     // Shared-into-Grove content is appended to the configured file directly
     // (PRD §10) — observed so it works even when the app was already running.
-    val pendingShare by app.pendingShare.collectAsState()
+    val pendingShare by app.pendingShare.collectAsStateWithLifecycle()
     LaunchedEffect(pendingShare) {
         if (pendingShare != null) viewModel.consumeSharedContent()
     }
@@ -96,8 +96,8 @@ private fun GroveNavigation(settings: GroveSettings, viewModel: AppViewModel) {
                 GroveDrawerContent(
                     currentRoute = currentRoute,
                     vaultPath = vaultDisplayPath(settings.vaultTreeUri),
-                    savedSearches = viewModel.savedSearches.collectAsState().value,
-                    favorites = viewModel.favorites.collectAsState().value,
+                    savedSearches = viewModel.savedSearches.collectAsStateWithLifecycle().value,
+                    favorites = viewModel.favorites.collectAsStateWithLifecycle().value,
                     onNavigate = { route -> closeDrawerAnd { navController.navigate(route) } },
                     onDeleteSavedSearch = { viewModel.deleteSavedSearch(it.id) },
                 )

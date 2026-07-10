@@ -24,7 +24,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -52,7 +52,7 @@ fun MetadataSheet(
     onDismiss: () -> Unit,
 ) {
     val c = MaterialTheme.grove
-    val state by viewModel.state.collectAsState()
+    val state by viewModel.state.collectAsStateWithLifecycle()
     // Derive the headline from the observed buffer so the sheet recomposes when
     // a chip mutates state — reading state.buffer here (not the off-band
     // viewModel.currentHeadline) is what subscribes this scope to the change.

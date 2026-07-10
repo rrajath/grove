@@ -21,7 +21,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -79,7 +79,7 @@ fun OutlineScreen(
     viewModel: DocumentViewModel = viewModel(factory = DocumentViewModel.Factory),
 ) {
     val c = MaterialTheme.grove
-    val state by viewModel.state.collectAsState()
+    val state by viewModel.state.collectAsStateWithLifecycle()
     LaunchedEffect(notebookId) { viewModel.load(notebookId) }
 
     // Collapsed line-indices and scroll survive navigating into a note and back

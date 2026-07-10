@@ -24,7 +24,8 @@ class RoomNoteIndex(
         conflictFileName: String?,
     ) {
         val doc = OrgParser.parse(text, keywords())
-        val notes = doc.headlines.map { h ->
+        val inheritedTagsAll = doc.inheritedTagsAll()
+        val notes = doc.headlines.mapIndexed { i, h ->
             NoteEntity(
                 fileName = fileName,
                 lineIndex = h.lineIndex,
@@ -33,7 +34,7 @@ class RoomNoteIndex(
                 keyword = h.keyword,
                 priority = h.priority?.toString(),
                 tags = h.tags.joinToString(":"),
-                inheritedTags = doc.inheritedTags(h).joinToString(":"),
+                inheritedTags = inheritedTagsAll[i].joinToString(":"),
                 scheduled = h.planning.scheduled?.format(),
                 deadline = h.planning.deadline?.format(),
                 closed = h.planning.closed?.format(),

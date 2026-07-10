@@ -41,7 +41,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.ui.res.painterResource
 import com.rrajath.grove.R
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -78,7 +78,7 @@ fun NotebooksScreen(
     viewModel: NotebooksViewModel = viewModel(factory = NotebooksViewModel.Factory),
 ) {
     val c = MaterialTheme.grove
-    val state by viewModel.state.collectAsState()
+    val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var showCreateDialog by remember { mutableStateOf(false) }
     var renameTarget by remember { mutableStateOf<String?>(null) }

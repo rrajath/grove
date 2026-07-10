@@ -30,7 +30,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -88,13 +88,13 @@ fun CaptureEditorScreen(
     viewModel: CaptureViewModel = viewModel(factory = CaptureViewModel.Factory),
 ) {
     val c = MaterialTheme.grove
-    val templates by viewModel.templates.collectAsState()
-    val saveState by viewModel.saveState.collectAsState()
+    val templates by viewModel.templates.collectAsStateWithLifecycle()
+    val saveState by viewModel.saveState.collectAsStateWithLifecycle()
     val clipboard = LocalClipboardManager.current
     val template = templates.firstOrNull { it.id == templateId }
     val app = androidx.compose.ui.platform.LocalContext.current.applicationContext
             as com.rrajath.grove.GroveApplication
-    val keywords by app.keywords.collectAsState()
+    val keywords by app.keywords.collectAsStateWithLifecycle()
 
     LaunchedEffect(saveState) {
         if (saveState is SaveState.Saved) {

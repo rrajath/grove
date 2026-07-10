@@ -14,7 +14,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -43,8 +43,8 @@ fun SyncLogScreen(
     viewModel: SyncLogViewModel = viewModel(factory = SyncLogViewModel.Factory),
 ) {
     val c = MaterialTheme.grove
-    val entries by viewModel.entries.collectAsState()
-    val total by viewModel.total.collectAsState()
+    val entries by viewModel.entries.collectAsStateWithLifecycle()
+    val total by viewModel.total.collectAsStateWithLifecycle()
 
     Scaffold(
         containerColor = c.bg,

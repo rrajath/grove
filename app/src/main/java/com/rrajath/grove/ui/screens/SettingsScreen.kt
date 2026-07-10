@@ -21,7 +21,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -74,7 +74,7 @@ fun SettingsScreen(
 ) {
     val c = MaterialTheme.grove
     val context = androidx.compose.ui.platform.LocalContext.current
-    val templates by templatesViewModel.templates.collectAsState()
+    val templates by templatesViewModel.templates.collectAsStateWithLifecycle()
     var keywordsText by remember(settings.todoKeywords) {
         mutableStateOf(settings.todoKeywords)
     }
