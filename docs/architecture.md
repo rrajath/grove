@@ -79,14 +79,16 @@ Capture is reachable from the notebook-list FAB, a Glance home-screen widget, th
 
 Matching runs **in memory over the Room index** rather than SQLite FTS — simpler, fully unit-testable, and fast at v1 scale. The candidate-generation step is isolated so FTS can be swapped in later without changing the query API.
 
+`SearchViewModel` keeps the mapped `NoteMeta` list cached in memory and rebuilds it only when Room invalidates the notes table (i.e. after a sync), so a keystroke costs one in-memory filter pass, not a full-table query + re-map. `NoteMeta` lazily caches its parsed scheduled/deadline/closed/created dates; sorting and the agenda view use those instead of re-running the timestamp regex per comparison.
+
 ## UI (`ui/`)
 
 Jetpack Compose throughout; no XML layouts and no WebViews.
 
 - **Navigation**: a single `NavHost` (`Routes`) with `ModalNavigationDrawer`; deep links for `grove://note/{id}` and `grove://capture`. A note is addressed by `NoteRef` = `"file.org@headlineLineIndex"` until cross-file IDs land.
-- **State**: ViewModels expose `StateFlow`s assembled with `combine` from the vault, the Room index, the sync manager, and settings. `GroveApplication` is the composition root — manual DI, app-scoped singletons wired with flows (e.g. changing the vault folder swaps the `FileStore`, which re-attaches the sync engine; changing TODO keywords clears and rebuilds the index).
-- **Editor**: a `BasicTextField` with `OrgVisualTransformation` — highlight-only spans with `OffsetMapping.Identity`, so the text is never altered and cursor math stays trivial. The editor edits one note's subtree, not the whole file; saving splices the subtree back via `OrgMutations.replaceSubtree`, guarded by a revision check (stale-file banner → Overwrite or Reload).
-- **Read mode**: a custom `AnnotatedString` renderer over the org AST (`BlockParser`/`InlineTokenizer`); tables render as monospace plain text in v1.
+- **State**: ViewModels expose `StateFlow`s assembled with `combine` from the vault, the Room index, the sync manager, and settings. Screens collect with `collectAsStateWithLifecycle()`, so collection (and the upstream combine work) pauses while the app is backgrounded. Fast-ticking inputs (per-file sync progress) are combined downstream of the expensive list mapping/sorting, which sits behind `distinctUntilChanged`. `GroveApplication` is the composition root — manual DI, app-scoped singletons wired with flows (e.g. changing the vault folder swaps the `FileStore`, which re-attaches the sync engine; changing TODO keywords clears and rebuilds the index).
+- **Editor**: a `BasicTextField` with `OrgVisualTransformation` — highlight-only spans with `OffsetMapping.Identity`, so the text is never altered and cursor math stays trivial. Highlighting is memoized per line content, so a keystroke re-tokenizes only the edited line rather than the whole buffer. The editor edits one note's subtree, not the whole file; saving splices the subtree back via `OrgMutations.replaceSubtree`, guarded by a revision check (stale-file banner → Overwrite or Reload).
+- **Read mode**: a custom `AnnotatedString` renderer over the org AST (`BlockParser`/`InlineTokenizer`); the note subtree renders in a `LazyColumn` (one item per child heading) so long notes compose lazily, with document traversals memoized per document. Tables render as monospace plain text in v1.
 - **Theme**: the full design-token palette from `design/README.md` lives in `GroveColors` (light + dark), exposed as `MaterialTheme.grove` alongside the Material color scheme, including the `syn-*` org syntax tokens and the 6-color heading-star cycle.
 
 ## Threading
