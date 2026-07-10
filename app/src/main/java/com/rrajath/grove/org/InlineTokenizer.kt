@@ -48,11 +48,16 @@ object InlineTokenizer {
     /** Tokenize [line] into non-overlapping spans covering the whole string. */
     fun tokenize(line: String): List<InlineToken> {
         val found = mutableListOf<InlineToken>()
+        // Chars already claimed by an earlier (higher-priority) token — O(1)
+        // overlap test instead of scanning the accumulated token list per match.
+        val claimed = BooleanArray(line.length)
 
         fun addAll(regex: Regex, build: (MatchResult) -> InlineToken?) {
-            for (m in regex.findAll(line)) {
-                if (found.none { it.range.overlaps(m.range) }) {
-                    build(m)?.let { found.add(it) }
+            matches@ for (m in regex.findAll(line)) {
+                for (i in m.range) if (claimed[i]) continue@matches
+                build(m)?.let { token ->
+                    found.add(token)
+                    for (i in m.range) claimed[i] = true
                 }
             }
         }
@@ -96,7 +101,4 @@ object InlineTokenizer {
         }
         return result
     }
-
-    private fun IntRange.overlaps(other: IntRange): Boolean =
-        first <= other.last && other.first <= last
 }

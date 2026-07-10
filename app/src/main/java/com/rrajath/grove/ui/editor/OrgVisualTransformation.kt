@@ -25,11 +25,16 @@ class OrgVisualTransformation(
     private val keywords: OrgKeywords,
 ) : VisualTransformation {
 
+    /** Span styles relative to the start of one line — cacheable across edits. */
+    private data class LineSpan(val style: SpanStyle, val start: Int, val end: Int)
+
     // Compose calls filter() repeatedly (often several times per frame) with the
-    // same text. Highlighting re-tokenizes every line, so cache the last result
-    // and return it when the raw text is unchanged.
+    // same text; cache the last full result. Across keystrokes only one line
+    // changes, so tokenization results are additionally cached per line content —
+    // a keystroke re-tokenizes the edited line, not the whole buffer.
     private var cachedRaw: String? = null
     private var cachedResult: TransformedText? = null
+    private var lineCache = HashMap<String, List<LineSpan>>()
 
     override fun filter(text: AnnotatedString): TransformedText {
         val raw = text.text
@@ -42,88 +47,102 @@ class OrgVisualTransformation(
 
     fun highlight(raw: String): AnnotatedString = buildAnnotatedString {
         append(raw)
+        // Rebuilt each pass from the previous cache so entries for deleted
+        // lines don't accumulate over a long editing session.
+        val next = HashMap<String, List<LineSpan>>()
         var lineStart = 0
         for (line in raw.lineSequence()) {
-            styleLine(line, lineStart)
+            val spans = next[line] ?: lineCache[line] ?: styleLine(line)
+            next[line] = spans
+            for (s in spans) addStyle(s.style, lineStart + s.start, lineStart + s.end)
             lineStart += line.length + 1
         }
+        lineCache = next
     }
 
-    private fun AnnotatedString.Builder.styleLine(line: String, start: Int) {
+    private fun styleLine(line: String): List<LineSpan> {
+        val spans = mutableListOf<LineSpan>()
         val headline = HEADLINE.matchEntire(line)
         when {
-            headline != null -> styleHeadline(line, start, headline)
-            isPlanning(line) -> stylePlanning(line, start)
-            isDrawerLine(line) -> addStyle(SpanStyle(color = colors.synProp), start, start + line.length)
-            PROPERTY.matchEntire(line) != null -> styleProperty(line, start)
-            else -> styleInline(line, start)
+            headline != null -> spans.styleHeadline(line, headline)
+            isPlanning(line) -> spans.stylePlanning(line)
+            isDrawerLine(line) -> spans.add(LineSpan(SpanStyle(color = colors.synProp), 0, line.length))
+            PROPERTY.matchEntire(line) != null -> spans.styleProperty(line)
+            else -> spans.styleInline(line)
         }
+        return spans
     }
 
-    private fun AnnotatedString.Builder.styleHeadline(line: String, start: Int, m: MatchResult) {
+    private fun MutableList<LineSpan>.styleHeadline(line: String, m: MatchResult) {
         val stars = m.groupValues[1]
-        addStyle(
-            SpanStyle(color = colors.starColor(stars.length), fontWeight = FontWeight.SemiBold),
-            start, start + stars.length,
+        add(
+            LineSpan(
+                SpanStyle(color = colors.starColor(stars.length), fontWeight = FontWeight.SemiBold),
+                0, stars.length,
+            )
         )
         // Heading text: ink, semibold. Applied first so the keyword and tag spans
         // below layer on top (previously these were applied, fully overwritten by
         // this span, then re-applied — pure wasted work).
-        addStyle(
-            SpanStyle(color = colors.ink, fontWeight = FontWeight.SemiBold),
-            start + stars.length + 1,
-            start + line.length,
+        add(
+            LineSpan(
+                SpanStyle(color = colors.ink, fontWeight = FontWeight.SemiBold),
+                stars.length + 1, line.length,
+            )
         )
         val rest = m.groupValues[2]
         val firstWord = rest.substringBefore(' ')
         if (firstWord in keywords.all) {
             val color = if (keywords.isDone(firstWord)) colors.synDone else colors.synTodo
-            val kwStart = start + stars.length + 1
-            addStyle(SpanStyle(color = color, fontWeight = FontWeight.Bold), kwStart, kwStart + firstWord.length)
+            val kwStart = stars.length + 1
+            add(LineSpan(SpanStyle(color = color, fontWeight = FontWeight.Bold), kwStart, kwStart + firstWord.length))
         }
         TAGS_AT_END.find(line)?.let { tags ->
-            addStyle(
-                SpanStyle(color = colors.synTag, fontWeight = FontWeight.Normal),
-                start + tags.range.first, start + tags.range.last + 1,
+            add(
+                LineSpan(
+                    SpanStyle(color = colors.synTag, fontWeight = FontWeight.Normal),
+                    tags.range.first, tags.range.last + 1,
+                )
             )
         }
     }
 
-    private fun AnnotatedString.Builder.stylePlanning(line: String, start: Int) {
-        addStyle(SpanStyle(color = colors.synKw), start, start + line.length)
+    private fun MutableList<LineSpan>.stylePlanning(line: String) {
+        add(LineSpan(SpanStyle(color = colors.synKw), 0, line.length))
         for (m in TIMESTAMP.findAll(line)) {
-            addStyle(SpanStyle(color = colors.synTs), start + m.range.first, start + m.range.last + 1)
+            add(LineSpan(SpanStyle(color = colors.synTs), m.range.first, m.range.last + 1))
         }
         for (m in PLANNING_KW.findAll(line)) {
-            addStyle(
-                SpanStyle(color = colors.synKw, fontWeight = FontWeight.SemiBold),
-                start + m.range.first, start + m.range.last + 1,
+            add(
+                LineSpan(
+                    SpanStyle(color = colors.synKw, fontWeight = FontWeight.SemiBold),
+                    m.range.first, m.range.last + 1,
+                )
             )
         }
     }
 
-    private fun AnnotatedString.Builder.styleProperty(line: String, start: Int) {
-        val m = PROPERTY.matchEntire(line) ?: return
+    private fun MutableList<LineSpan>.styleProperty(line: String) {
         val keyEnd = line.indexOf(':', line.indexOf(':') + 1) + 1
-        addStyle(SpanStyle(color = colors.synKw), start, start + keyEnd)
-        addStyle(SpanStyle(color = colors.synProp), start + keyEnd, start + line.length)
+        add(LineSpan(SpanStyle(color = colors.synKw), 0, keyEnd))
+        add(LineSpan(SpanStyle(color = colors.synProp), keyEnd, line.length))
     }
 
-    private fun AnnotatedString.Builder.styleInline(line: String, start: Int) {
+    private fun MutableList<LineSpan>.styleInline(line: String) {
         for (token in InlineTokenizer.tokenize(line)) {
-            val s = start + token.range.first
-            val e = start + token.range.last + 1
+            val s = token.range.first
+            val e = token.range.last + 1
             when (token.type) {
                 InlineType.TEXT -> {}
-                InlineType.BOLD -> addStyle(SpanStyle(color = colors.synTag, fontWeight = FontWeight.SemiBold), s, e)
-                InlineType.ITALIC -> addStyle(SpanStyle(color = colors.green, fontStyle = FontStyle.Italic), s, e)
-                InlineType.UNDERLINE -> addStyle(SpanStyle(textDecoration = TextDecoration.Underline), s, e)
-                InlineType.CODE -> addStyle(SpanStyle(color = colors.accent, background = colors.surface2), s, e)
-                InlineType.VERBATIM -> addStyle(SpanStyle(color = colors.accent, background = colors.surface2), s, e)
-                InlineType.LINK -> addStyle(
-                    SpanStyle(color = colors.synLink, textDecoration = TextDecoration.Underline), s, e,
+                InlineType.BOLD -> add(LineSpan(SpanStyle(color = colors.synTag, fontWeight = FontWeight.SemiBold), s, e))
+                InlineType.ITALIC -> add(LineSpan(SpanStyle(color = colors.green, fontStyle = FontStyle.Italic), s, e))
+                InlineType.UNDERLINE -> add(LineSpan(SpanStyle(textDecoration = TextDecoration.Underline), s, e))
+                InlineType.CODE -> add(LineSpan(SpanStyle(color = colors.accent, background = colors.surface2), s, e))
+                InlineType.VERBATIM -> add(LineSpan(SpanStyle(color = colors.accent, background = colors.surface2), s, e))
+                InlineType.LINK -> add(
+                    LineSpan(SpanStyle(color = colors.synLink, textDecoration = TextDecoration.Underline), s, e)
                 )
-                InlineType.TIMESTAMP -> addStyle(SpanStyle(color = colors.synTs), s, e)
+                InlineType.TIMESTAMP -> add(LineSpan(SpanStyle(color = colors.synTs), s, e))
             }
         }
     }
