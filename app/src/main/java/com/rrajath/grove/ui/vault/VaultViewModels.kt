@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -48,33 +49,41 @@ sealed class NotebooksUiState {
 
 class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
 
-    val state: StateFlow<NotebooksUiState> = combine(
+    // Built separately from the sync banner inputs: syncManager.state ticks once
+    // per pulled file during a sync, and must not re-map/re-sort the whole list.
+    private val notebookItems = combine(
         app.vault,
         app.database.indexDao().notebooksFlow(),
+        app.settingsRepository.settings,
+    ) { vault, notebooks, settings ->
+        if (vault == null) null else notebooks
+            .map {
+                NotebookItem(
+                    fileName = it.fileName,
+                    noteCount = it.noteCount,
+                    lastModified = it.lastModified,
+                    hasConflict = it.conflictFileName != null,
+                    icon = settings.notebookIcons[it.fileName],
+                    color = settings.notebookColors[it.fileName],
+                    pinnedIndex = settings.pinnedNotebooks.indexOf(it.fileName),
+                )
+            }
+            .sortedWith(
+                compareBy<NotebookItem> { if (it.isPinned) it.pinnedIndex else Int.MAX_VALUE }
+                    .thenBy { it.fileName.lowercase() }
+            )
+    }.distinctUntilChanged()
+
+    val state: StateFlow<NotebooksUiState> = combine(
+        notebookItems,
         app.syncManager.state,
         app.syncManager.lastResult,
-        app.settingsRepository.settings,
-    ) { vault, notebooks, syncState, lastResult, settings ->
-        if (vault == null) {
+    ) { notebooks, syncState, lastResult ->
+        if (notebooks == null) {
             NotebooksUiState.NoVault
         } else {
             NotebooksUiState.Loaded(
-                notebooks = notebooks
-                    .map {
-                        NotebookItem(
-                            fileName = it.fileName,
-                            noteCount = it.noteCount,
-                            lastModified = it.lastModified,
-                            hasConflict = it.conflictFileName != null,
-                            icon = settings.notebookIcons[it.fileName],
-                            color = settings.notebookColors[it.fileName],
-                            pinnedIndex = settings.pinnedNotebooks.indexOf(it.fileName),
-                        )
-                    }
-                    .sortedWith(
-                        compareBy<NotebookItem> { if (it.isPinned) it.pinnedIndex else Int.MAX_VALUE }
-                            .thenBy { it.fileName.lowercase() }
-                    ),
+                notebooks = notebooks,
                 syncState = syncState,
                 lastSyncAt = lastResult?.completedAt,
             )

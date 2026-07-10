@@ -86,7 +86,7 @@ interface IndexDao {
     suspend fun allTagStrings(): List<String>
 
     @Query("SELECT * FROM notes")
-    suspend fun allNotes(): List<NoteEntity>
+    fun allNotes(): Flow<List<NoteEntity>>
 
     @Insert
     suspend fun insertNotes(notes: List<NoteEntity>)

@@ -15,7 +15,12 @@ import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -51,15 +56,28 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
 
     private val queryFlow = MutableStateFlow("")
 
+    // Mapped once per index change (Room invalidation), not per keystroke;
+    // NoteMeta also caches its parsed dates, so repeated searches reuse both.
+    private val metas = MutableStateFlow<List<NoteMeta>?>(null)
+
     init {
         viewModelScope.launch {
             app.searchRepository.history.collect { history ->
                 _state.value = _state.value.copy(history = history)
             }
         }
+        viewModelScope.launch {
+            app.database.indexDao().allNotes()
+                .map { rows -> rows.map { it.toMeta() } }
+                .flowOn(Dispatchers.Default)
+                .collect { metas.value = it }
+        }
         @OptIn(FlowPreview::class)
         viewModelScope.launch {
-            queryFlow.debounce(300).collect { runSearch(it) }
+            // Re-runs on new keystrokes and when the index changes under an
+            // active query (e.g. a sync finishing while the search screen is up).
+            combine(queryFlow.debounce(300), metas.filterNotNull()) { q, m -> q to m }
+                .collect { (q, m) -> runSearch(q, m) }
         }
     }
 
@@ -73,7 +91,7 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
         _state.value = _state.value.copy(query = query)
         queryFlow.value = query
         viewModelScope.launch {
-            runSearch(query)
+            runSearch(query, metas.filterNotNull().first())
             app.searchRepository.recordHistory(query)
         }
     }
@@ -88,18 +106,17 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
         viewModelScope.launch { app.searchRepository.deleteSearch(id) }
     }
 
-    private suspend fun runSearch(raw: String) {
+    private suspend fun runSearch(raw: String, notes: List<NoteMeta>) {
         if (raw.isBlank()) {
             _state.value = _state.value.copy(results = emptyList(), agenda = null, notebookCount = 0)
             return
         }
-        // Room runs the query off-main, but the mapping/filtering/snippet work is
-        // pure CPU and would otherwise block the UI thread on every keystroke.
-        val notes = app.database.indexDao().allNotes()
+        // The filtering/snippet work is pure CPU and would otherwise block the
+        // UI thread on every keystroke.
         withContext(Dispatchers.Default) {
             val query = QueryParser.parse(raw)
             val today = LocalDate.now()
-            val matched = QueryMatcher.filter(notes.map { it.toMeta() }, query, today)
+            val matched = QueryMatcher.filter(notes, query, today)
             val terms = query.textTerms
 
             fun toResult(meta: NoteMeta) = SearchResult(

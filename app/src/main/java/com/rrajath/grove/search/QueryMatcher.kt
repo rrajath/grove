@@ -20,7 +20,18 @@ data class NoteMeta(
     val lastModified: Long,
     /** Heading + body text for plain-term matching. */
     val searchText: String,
-)
+) {
+    // Parsed once per instance; matching, sorting, and the agenda view would
+    // otherwise re-run the timestamp regex per comparison / per agenda day.
+    val scheduledDate: LocalDate? by dateOf(scheduled)
+    val deadlineDate: LocalDate? by dateOf(deadline)
+    val closedDate: LocalDate? by dateOf(closed)
+    val createdDate: LocalDate? by dateOf(createdAt)
+
+    private fun dateOf(raw: String?) = lazy(LazyThreadSafetyMode.PUBLICATION) {
+        raw?.let { OrgTimestamp.parse(it)?.date }
+    }
+}
 
 object QueryMatcher {
 
@@ -52,30 +63,27 @@ object QueryMatcher {
             is Condition.Priority ->
                 note.priority?.equals(c.priority, ignoreCase = true) == true
 
-            is Condition.Scheduled -> withinFuture(note.scheduled, c.period, today)
-            is Condition.Deadline -> withinFuture(note.deadline, c.period, today)
-            is Condition.Closed -> withinPast(note.closed, c.period, today)
-            is Condition.Created -> withinPast(note.createdAt, c.period, today)
+            is Condition.Scheduled -> withinFuture(note.scheduledDate, c.period, today)
+            is Condition.Deadline -> withinFuture(note.deadlineDate, c.period, today)
+            is Condition.Closed -> withinPast(note.closedDate, c.period, today)
+            is Condition.Created -> withinPast(note.createdDate, c.period, today)
         }
         return result != term.negated
     }
 
     /** s./d.: has a timestamp on or before the period pivot (includes overdue). */
-    private fun withinFuture(raw: String?, period: Period, today: LocalDate): Boolean {
-        val date = parseDate(raw) ?: return false
+    private fun withinFuture(date: LocalDate?, period: Period, today: LocalDate): Boolean {
+        if (date == null) return false
         val pivot = period.pivot(today) ?: return false
         return !date.isAfter(pivot)
     }
 
     /** c./cr.: timestamp within [pastPivot, today]. */
-    private fun withinPast(raw: String?, period: Period, today: LocalDate): Boolean {
-        val date = parseDate(raw) ?: return false
+    private fun withinPast(date: LocalDate?, period: Period, today: LocalDate): Boolean {
+        if (date == null) return false
         val pivot = period.pastPivot(today) ?: return false
         return !date.isBefore(pivot) && !date.isAfter(today)
     }
-
-    private fun parseDate(raw: String?): LocalDate? =
-        raw?.let { OrgTimestamp.parse(it)?.date }
 
     // --- ranking ---
 
@@ -89,9 +97,9 @@ object QueryMatcher {
             for (key in query.sortBy) {
                 val next: Comparator<NoteMeta> = when (key) {
                     "priority", "p" -> compareBy { it.priority ?: "Z" }
-                    "scheduled", "s" -> compareBy { parseDate(it.scheduled) ?: LocalDate.MAX }
-                    "deadline", "d" -> compareBy { parseDate(it.deadline) ?: LocalDate.MAX }
-                    "created", "cr" -> compareBy { parseDate(it.createdAt) ?: LocalDate.MAX }
+                    "scheduled", "s" -> compareBy { it.scheduledDate ?: LocalDate.MAX }
+                    "deadline", "d" -> compareBy { it.deadlineDate ?: LocalDate.MAX }
+                    "created", "cr" -> compareBy { it.createdDate ?: LocalDate.MAX }
                     "title" -> compareBy { it.title.lowercase() }
                     "notebook", "b" -> compareBy { it.fileName.lowercase() }
                     else -> continue
@@ -125,7 +133,7 @@ object QueryMatcher {
         val range = (0 until days.coerceAtLeast(1)).map { today.plusDays(it.toLong()) }
         return range.mapNotNull { day ->
             val dayNotes = notes.filter { note ->
-                listOfNotNull(parseDate(note.scheduled), parseDate(note.deadline)).any { date ->
+                listOfNotNull(note.scheduledDate, note.deadlineDate).any { date ->
                     date == day || (day == today && date.isBefore(today) && !note.isDoneKeyword)
                 }
             }
