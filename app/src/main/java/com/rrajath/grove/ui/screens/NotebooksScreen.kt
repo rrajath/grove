@@ -449,7 +449,12 @@ private fun NotebookRow(
             if (notebook.hasConflict) {
                 Pill("Conflict", fg = c.amber, bg = c.amberSoft, onClick = onOpenConflict)
             } else {
-                Text("✓", fontFamily = PlexMono, fontSize = 13.sp, color = c.green)
+                Icon(
+                    Icons.Default.Check,
+                    contentDescription = "Synced",
+                    tint = c.green,
+                    modifier = Modifier.size(14.dp),
+                )
             }
         }
         DropdownMenu(

@@ -3,15 +3,13 @@ package com.rrajath.grove.ui.editor
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -44,32 +42,33 @@ fun EditorToolbar(
     onIndent: (Int) -> Unit,
 ) {
     val c = MaterialTheme.grove
-    // Scrolls horizontally so the enlarged buttons never clip on narrow screens.
+    // Each button gets equal width (RowScope.weight) so the row always fits
+    // the screen exactly, with no scrolling and identical spacing between
+    // every icon regardless of how wide its glyph happens to be.
     Row(
         Modifier
             .fillMaxWidth()
             .background(c.surface)
             .border(1.dp, c.line)
-            .horizontalScroll(rememberScrollState())
             .padding(horizontal = 4.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        ToolButton("B", c.ink, bold = true) { onWrap('*') }
-        ToolButton("I", c.ink, italic = true) { onWrap('/') }
-        ToolButton("U", c.ink, underline = true) { onWrap('_') }
-        ToolButton("</>", c.ink) { onWrap('~') }
+        ToolButton("B", c.ink, Modifier.weight(1f), bold = true) { onWrap('*') }
+        ToolButton("I", c.ink, Modifier.weight(1f), italic = true) { onWrap('/') }
+        ToolButton("U", c.ink, Modifier.weight(1f), underline = true) { onWrap('_') }
+        ToolButton("</>", c.ink, Modifier.weight(1f)) { onWrap('~') }
         Box(Modifier.width(1.dp).height(24.dp).background(c.line))
-        ToolButton("[[]]", c.synLink) { onLink() }
+        ToolButton("[[]]", c.synLink, Modifier.weight(1f)) { onLink() }
         // The clock glyph is drawn smaller than the letters at a given size, so
         // bump its font so it reads at the same height as the other buttons.
-        ToolButton("◷", c.synTs, fontSize = 27.sp) {
+        ToolButton("◷", c.synTs, Modifier.weight(1f), fontSize = 27.sp) {
             val now = LocalDateTime.now()
             onInsert(OrgTimestamp(now.toLocalDate(), time = now.toLocalTime().withSecond(0).withNano(0)).format())
         }
-        ToolButton("*", c.synStar, bold = true) { onHeading() }
+        ToolButton("*", c.synStar, Modifier.weight(1f), bold = true) { onHeading() }
         // List indent: « promotes a sub-list item, » demotes into a sub-list.
-        ToolButton("«", c.ink) { onIndent(-1) }
-        ToolButton("»", c.ink) { onIndent(+1) }
+        ToolButton("«", c.ink, Modifier.weight(1f)) { onIndent(-1) }
+        ToolButton("»", c.ink, Modifier.weight(1f)) { onIndent(+1) }
     }
 }
 
@@ -77,6 +76,7 @@ fun EditorToolbar(
 private fun ToolButton(
     label: String,
     color: androidx.compose.ui.graphics.Color,
+    modifier: Modifier = Modifier,
     bold: Boolean = false,
     italic: Boolean = false,
     underline: Boolean = false,
@@ -84,11 +84,10 @@ private fun ToolButton(
     onClick: () -> Unit,
 ) {
     Box(
-        Modifier
+        modifier
             .clip(RoundedCornerShape(8.dp))
             .clickable(onClick = onClick)
-            // Uniform square slot; wider labels like "[[]]" expand past the minimum.
-            .sizeIn(minWidth = 44.dp, minHeight = 44.dp)
+            .heightIn(min = 44.dp)
             .padding(horizontal = 6.dp),
         contentAlignment = Alignment.Center,
     ) {

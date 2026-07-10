@@ -1,5 +1,8 @@
 package com.rrajath.grove.ui.capture
 
+import android.widget.Toast
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -22,7 +25,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -37,11 +43,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextRange
@@ -63,6 +71,7 @@ import com.rrajath.grove.org.OrgTimestamp
 import com.rrajath.grove.ui.components.GroveTopBar
 import com.rrajath.grove.ui.components.Pill
 import com.rrajath.grove.ui.components.autoScrollWhileDragging
+import com.rrajath.grove.ui.editor.AutoSaveTimestamp
 import com.rrajath.grove.ui.editor.EditorToolbar
 import kotlinx.coroutines.delay
 import com.rrajath.grove.ui.editor.OrgVisualTransformation
@@ -74,6 +83,7 @@ import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
 import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.LocalTime
 
 /**
  * Capture editor (design spec §8): prompts for `%^{…}` values, then a
@@ -156,6 +166,22 @@ fun CaptureEditorScreen(
     var showDiscardDialog by remember { mutableStateOf(false) }
     var showEmptyHeadingAlert by remember { mutableStateOf(false) }
 
+    // Mirrors the note editor's auto-save indicator: a tappable check mark
+    // in the top bar once the draft has been auto-saved at least once.
+    var lastAutoSavedAt by remember { mutableStateOf<LocalTime?>(null) }
+    // Blinks the check mark twice on each auto-save instead of a toast;
+    // tapping the check mark still shows a "saved at" toast on demand.
+    val checkAlpha = remember { Animatable(1f) }
+    val toastContext = LocalContext.current
+
+    LaunchedEffect(lastAutoSavedAt) {
+        if (lastAutoSavedAt == null) return@LaunchedEffect
+        repeat(2) {
+            checkAlpha.animateTo(0.15f, tween(120))
+            checkAlpha.animateTo(1f, tween(120))
+        }
+    }
+
     fun tryClose() {
         if (value.text != initialText) showDiscardDialog = true else onClose()
     }
@@ -178,6 +204,7 @@ fun CaptureEditorScreen(
         delay(5_000)
         if (value.text != initialText && !CaptureInserter.hasBlankHeading(value.text)) {
             viewModel.autosave(template, value.text, context)
+            lastAutoSavedAt = LocalTime.now()
         }
     }
 
@@ -202,6 +229,25 @@ fun CaptureEditorScreen(
                             .padding(12.dp),
                     ) {
                         Text("×", fontFamily = PlexSans, fontSize = 22.sp, color = c.ink)
+                    }
+                    lastAutoSavedAt?.let { savedAt ->
+                        Icon(
+                            Icons.Default.Check,
+                            contentDescription = "Auto saved",
+                            tint = c.green,
+                            modifier = Modifier
+                                .alpha(checkAlpha.value)
+                                .clip(RoundedCornerShape(10.dp))
+                                .clickable {
+                                    val formatted = AutoSaveTimestamp.format(savedAt)
+                                    Toast.makeText(
+                                        toastContext,
+                                        "The note auto saved at: $formatted",
+                                        Toast.LENGTH_SHORT,
+                                    ).show()
+                                }
+                                .padding(10.dp),
+                        )
                     }
                 },
                 title = {
