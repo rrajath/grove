@@ -249,7 +249,7 @@ private fun HistoryList(listState: LazyListState, history: List<String>, onTap: 
     val c = MaterialTheme.grove
     LazyColumn(state = listState, modifier = Modifier.fillMaxSize().padding(horizontal = 14.dp)) {
         if (history.isNotEmpty()) {
-            items(history) { entry ->
+            items(history, key = { it }) { entry ->
                 Row(
                     Modifier
                         .fillMaxWidth()
@@ -270,7 +270,7 @@ private fun HistoryList(listState: LazyListState, history: List<String>, onTap: 
 @Composable
 private fun ResultsList(listState: LazyListState, results: List<SearchResult>, onOpenNote: (NoteRef) -> Unit) {
     LazyColumn(state = listState, modifier = Modifier.fillMaxSize().padding(horizontal = 14.dp, vertical = 4.dp)) {
-        items(results, key = { "${it.fileName}@${it.lineIndex}" }) { result ->
+        items(results, key = { "${it.fileName}@${it.lineIndex}" }, contentType = { "result" }) { result ->
             ResultRow(result, onOpenNote)
             HorizontalDivider(
                 color = MaterialTheme.grove.line,
@@ -286,7 +286,7 @@ private fun AgendaList(listState: LazyListState, agenda: List<AgendaDay>, onOpen
     val formatter = remember { DateTimeFormatter.ofPattern("EEEE, MMM d", Locale.ENGLISH) }
     LazyColumn(state = listState, modifier = Modifier.fillMaxSize().padding(horizontal = 14.dp, vertical = 4.dp)) {
         agenda.forEach { day ->
-            item(key = day.date.toString()) {
+            item(key = day.date.toString(), contentType = "day-header") {
                 Text(
                     day.date.format(formatter),
                     fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
@@ -294,7 +294,11 @@ private fun AgendaList(listState: LazyListState, agenda: List<AgendaDay>, onOpen
                     modifier = Modifier.padding(top = 14.dp, bottom = 4.dp),
                 )
             }
-            items(day.results, key = { "${day.date}-${it.fileName}@${it.lineIndex}" }) { result ->
+            items(
+                day.results,
+                key = { "${day.date}-${it.fileName}@${it.lineIndex}" },
+                contentType = { "result" },
+            ) { result ->
                 ResultRow(result, onOpenNote)
             }
         }
@@ -327,13 +331,15 @@ private fun ResultRow(result: SearchResult, onOpenNote: (NoteRef) -> Unit) {
             )
         }
         if (result.snippet.text.isNotEmpty()) {
-            val highlighted = buildAnnotatedString {
-                append(result.snippet.text)
-                result.snippet.highlight?.let { range ->
-                    addStyle(
-                        SpanStyle(color = c.amber, background = c.amberSoft, fontWeight = FontWeight.SemiBold),
-                        range.first, (range.last + 1).coerceAtMost(result.snippet.text.length),
-                    )
+            val highlighted = remember(result.snippet, c) {
+                buildAnnotatedString {
+                    append(result.snippet.text)
+                    result.snippet.highlight?.let { range ->
+                        addStyle(
+                            SpanStyle(color = c.amber, background = c.amberSoft, fontWeight = FontWeight.SemiBold),
+                            range.first, (range.last + 1).coerceAtMost(result.snippet.text.length),
+                        )
+                    }
                 }
             }
             Text(

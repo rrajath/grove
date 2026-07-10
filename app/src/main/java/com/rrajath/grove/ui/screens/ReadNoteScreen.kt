@@ -13,10 +13,13 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -135,33 +138,30 @@ fun ReadNoteScreen(
                         contentAlignment = Alignment.Center,
                     ) { Text("Note not found", color = c.ink2) }
                 } else {
-                    val scrollState = rememberScrollState()
+                    val listState = rememberLazyListState()
                     Box(Modifier.fillMaxSize().padding(padding)) {
-                        SelectionContainer {
-                            NoteContent(
-                                doc = doc,
-                                headline = headline,
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    // Fallback: double-tap on blank space (not over any
-                                    // rendered text run) still switches to edit mode. Taps
-                                    // that land on actual text are handled per-run below
-                                    // (doubleTapToEdit on each OrgText/line), which wins the
-                                    // gesture race against SelectionContainer's own
-                                    // double-tap-select-word — so in practice this outer
-                                    // catch-all only ever fires for empty margins.
-                                    .pointerInput(Unit) {
-                                        detectTapGestures(onDoubleTap = { onEdit() })
-                                    }
-                                    .verticalScroll(scrollState)
-                                    .padding(horizontal = 24.dp),
-                                onOpenNote = onOpenNote,
-                                fileName = noteRef.fileName,
-                                onEditAt = onEdit,
-                            )
-                        }
+                        NoteContent(
+                            doc = doc,
+                            headline = headline,
+                            listState = listState,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                // Fallback: double-tap on blank space (not over any
+                                // rendered text run) still switches to edit mode. Taps
+                                // that land on actual text are handled per-run below
+                                // (doubleTapToEdit on each OrgText/line), which wins the
+                                // gesture race against SelectionContainer's own
+                                // double-tap-select-word — so in practice this outer
+                                // catch-all only ever fires for empty margins.
+                                .pointerInput(Unit) {
+                                    detectTapGestures(onDoubleTap = { onEdit() })
+                                },
+                            onOpenNote = onOpenNote,
+                            fileName = noteRef.fileName,
+                            onEditAt = onEdit,
+                        )
                         ScrollJumpButtons(
-                            scrollState = scrollState,
+                            listState = listState,
                             modifier = Modifier
                                 .align(Alignment.BottomEnd)
                                 .padding(16.dp),
@@ -180,104 +180,140 @@ private fun NoteContent(
     fileName: String,
     onOpenNote: (NoteRef) -> Unit,
     onEditAt: () -> Unit,
+    listState: LazyListState,
     modifier: Modifier = Modifier,
 ) {
     val c = MaterialTheme.grove
     val context = LocalContext.current
-    val openLink: (String) -> Unit = { openOrgTarget(it, doc, fileName, context, onOpenNote) }
     var boxCoords by remember { mutableStateOf<LayoutCoordinates?>(null) }
     var linkMenuState by remember { mutableStateOf<Pair<String, IntOffset>?>(null) }
-    val onLinkLongPress: (String, Offset, LayoutCoordinates) -> Unit = { target, textLocalPos, textCoords ->
-        // Convert text-local position to outer-Box-local position
-        boxCoords?.let {
-            val boxLocalPos = it.localPositionOf(textCoords, textLocalPos)
-            linkMenuState = target to IntOffset(boxLocalPos.x.toInt(), boxLocalPos.y.toInt())
+    // Remembered so rows keep stable callbacks and can skip recomposition —
+    // e.g. opening the link menu (state change below) must not re-render rows.
+    val openLink: (String) -> Unit = remember(doc, fileName, context, onOpenNote) {
+        { openOrgTarget(it, doc, fileName, context, onOpenNote) }
+    }
+    val onLinkLongPress: (String, Offset, LayoutCoordinates) -> Unit = remember {
+        { target, textLocalPos, textCoords ->
+            // Convert text-local position to outer-Box-local position
+            boxCoords?.let {
+                val boxLocalPos = it.localPositionOf(textCoords, textLocalPos)
+                linkMenuState = target to IntOffset(boxLocalPos.x.toInt(), boxLocalPos.y.toInt())
+            }
         }
+    }
+
+    // O(document) traversals, computed once per document instead of per
+    // recomposition. Children are paired with their body lines up front so the
+    // lazy items below stay cheap.
+    val tags = remember(doc, headline) { doc.inheritedTags(headline) }
+    val ownBody = remember(doc, headline) { doc.bodyOf(headline) }
+    val children = remember(doc, headline) {
+        doc.subtree(headline).map { it to doc.bodyOf(it) }
     }
 
     Box(
         Modifier.onGloballyPositioned { boxCoords = it }
     ) {
-        Column(modifier) {
-            Spacer(Modifier.height(8.dp))
+        LazyColumn(
+            state = listState,
+            modifier = modifier,
+            contentPadding = PaddingValues(horizontal = 24.dp),
+        ) {
+            item(key = "header", contentType = "header") {
+                SelectionContainer {
+                    Column {
+                        Spacer(Modifier.height(8.dp))
 
-            // Tag chips
-            val tags = doc.inheritedTags(headline)
-            if (tags.isNotEmpty()) {
-                Row {
-                    tags.forEach { tag ->
-                        Pill(tag, fg = c.accent, bg = c.accentSoft)
-                        Spacer(Modifier.width(7.dp))
+                        // Tag chips
+                        if (tags.isNotEmpty()) {
+                            Row {
+                                tags.forEach { tag ->
+                                    Pill(tag, fg = c.accent, bg = c.accentSoft)
+                                    Spacer(Modifier.width(7.dp))
+                                }
+                            }
+                            Spacer(Modifier.height(12.dp))
+                        }
+
+                        // Title
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            headline.keyword?.let { kw ->
+                                val (fg, bg) = if (doc.keywords.isDone(kw)) c.green to c.greenSoft
+                                else c.amber to c.amberSoft
+                                Pill(kw, fg = fg, bg = bg)
+                                Spacer(Modifier.width(8.dp))
+                            }
+                        }
+                        OrgText(
+                            headline.title, onOpenLink = openLink, onLinkLongPress = onLinkLongPress,
+                            onDoubleTapAt = onEditAt,
+                            style = TextStyle(
+                                fontFamily = PlexSerif, fontWeight = FontWeight.SemiBold,
+                                fontSize = 25.sp, color = c.ink, lineHeight = 1.3.em,
+                            ),
+                        )
+
+                        // Created / planning metadata
+                        headline.properties["CREATED"]?.let { created ->
+                            Spacer(Modifier.height(6.dp))
+                            Text("Created $created", fontFamily = PlexMono, fontSize = 12.5.sp, color = c.ink3)
+                        }
+                        headline.planning.scheduled?.let {
+                            Spacer(Modifier.height(6.dp))
+                            PlanningChip("SCHEDULED: ${it.format()}", fg = c.blue, bg = c.blueSoft)
+                        }
+                        headline.planning.deadline?.let {
+                            Spacer(Modifier.height(6.dp))
+                            PlanningChip("DEADLINE: ${it.format()}", fg = c.red, bg = c.redSoft)
+                        }
+                        Spacer(Modifier.height(16.dp))
+
+                        // Own body
+                        BodyBlocks(ownBody, openLink, onLinkLongPress, onEditAt)
                     }
                 }
-                Spacer(Modifier.height(12.dp))
             }
-
-            // Title
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                headline.keyword?.let { kw ->
-                    val (fg, bg) = if (doc.keywords.isDone(kw)) c.green to c.greenSoft
-                    else c.amber to c.amberSoft
-                    Pill(kw, fg = fg, bg = bg)
-                    Spacer(Modifier.width(8.dp))
-                }
-            }
-            OrgText(
-                headline.title, onOpenLink = openLink, onLinkLongPress = onLinkLongPress,
-                onDoubleTapAt = onEditAt,
-                style = TextStyle(
-                    fontFamily = PlexSerif, fontWeight = FontWeight.SemiBold,
-                    fontSize = 25.sp, color = c.ink, lineHeight = 1.3.em,
-                ),
-            )
-
-            // Created / planning metadata
-            headline.properties["CREATED"]?.let { created ->
-                Spacer(Modifier.height(6.dp))
-                Text("Created $created", fontFamily = PlexMono, fontSize = 12.5.sp, color = c.ink3)
-            }
-            headline.planning.scheduled?.let {
-                Spacer(Modifier.height(6.dp))
-                PlanningChip("SCHEDULED: ${it.format()}", fg = c.blue, bg = c.blueSoft)
-            }
-            headline.planning.deadline?.let {
-                Spacer(Modifier.height(6.dp))
-                PlanningChip("DEADLINE: ${it.format()}", fg = c.red, bg = c.redSoft)
-            }
-            Spacer(Modifier.height(16.dp))
-
-            // Own body
-            BodyBlocks(doc, headline, doc.bodyOf(headline), fileName, onOpenNote, onLinkLongPress, onEditAt)
 
             // Subtree rendered inline, headings sized by relative depth
-            doc.subtree(headline).forEach { child ->
-                Spacer(Modifier.height(20.dp))
-                val rel = (child.level - headline.level).coerceAtLeast(1)
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    child.keyword?.let { kw ->
-                        val (fg, bg) = if (doc.keywords.isDone(kw)) c.green to c.greenSoft
-                        else c.amber to c.amberSoft
-                        Pill(kw, fg = fg, bg = bg)
-                        Spacer(Modifier.width(8.dp))
+            items(
+                children,
+                key = { (child, _) -> child.lineIndex },
+                contentType = { "child" },
+            ) { (child, body) ->
+                SelectionContainer {
+                    Column {
+                        Spacer(Modifier.height(20.dp))
+                        val rel = (child.level - headline.level).coerceAtLeast(1)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            child.keyword?.let { kw ->
+                                val (fg, bg) = if (doc.keywords.isDone(kw)) c.green to c.greenSoft
+                                else c.amber to c.amberSoft
+                                Pill(kw, fg = fg, bg = bg)
+                                Spacer(Modifier.width(8.dp))
+                            }
+                            OrgText(
+                                child.title, onOpenLink = openLink, onLinkLongPress = onLinkLongPress,
+                                onDoubleTapAt = onEditAt,
+                                style = TextStyle(
+                                    fontFamily = PlexSerif, fontWeight = FontWeight.SemiBold,
+                                    fontSize = when (rel) {
+                                        1 -> 19.sp
+                                        2 -> 17.sp
+                                        else -> 16.sp
+                                    },
+                                    color = c.ink,
+                                ),
+                            )
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        BodyBlocks(body, openLink, onLinkLongPress, onEditAt)
                     }
-                    OrgText(
-                        child.title, onOpenLink = openLink, onLinkLongPress = onLinkLongPress,
-                        onDoubleTapAt = onEditAt,
-                        style = TextStyle(
-                            fontFamily = PlexSerif, fontWeight = FontWeight.SemiBold,
-                            fontSize = when (rel) {
-                                1 -> 19.sp
-                                2 -> 17.sp
-                                else -> 16.sp
-                            },
-                            color = c.ink,
-                        ),
-                    )
                 }
-                Spacer(Modifier.height(8.dp))
-                BodyBlocks(doc, child, doc.bodyOf(child), fileName, onOpenNote, onLinkLongPress, onEditAt)
             }
-            Spacer(Modifier.height(40.dp))
+
+            item(key = "footer", contentType = "footer") {
+                Spacer(Modifier.height(40.dp))
+            }
         }
 
         // Zero-size anchor Box at the press location; DropdownMenu anchors to it
@@ -313,7 +349,7 @@ private fun OrgText(
     onDoubleTapAt: (() -> Unit)? = null,
 ) {
     val c = MaterialTheme.grove
-    val annotated = remember(text, c) { annotateOrgInline(text, c, onOpenLink) }
+    val annotated = remember(text, c, onOpenLink) { annotateOrgInline(text, c, onOpenLink) }
     val links = remember(text) { orgInlineLinks(text) }
     var layout by remember { mutableStateOf<TextLayoutResult?>(null) }
     var textCoords by remember { mutableStateOf<LayoutCoordinates?>(null) }
@@ -387,18 +423,13 @@ private fun PlanningChip(text: String, fg: Color, bg: Color) {
 
 @Composable
 private fun BodyBlocks(
-    doc: OrgDocument,
-    headline: OrgHeadline,
     bodyLines: List<String>,
-    fileName: String,
-    onOpenNote: (NoteRef) -> Unit,
+    openTarget: (String) -> Unit,
     onLinkLongPress: (String, Offset, LayoutCoordinates) -> Unit,
     onEditAt: () -> Unit,
 ) {
     val c = MaterialTheme.grove
-    val context = LocalContext.current
     val blocks = remember(bodyLines) { BlockParser.parse(bodyLines) }
-    val openTarget: (String) -> Unit = { openOrgTarget(it, doc, fileName, context, onOpenNote) }
 
     blocks.forEach { block ->
         when (block) {

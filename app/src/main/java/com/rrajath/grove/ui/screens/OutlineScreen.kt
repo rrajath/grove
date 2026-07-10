@@ -95,7 +95,9 @@ fun OutlineScreen(
     // (the flag is saved alongside `collapsed`), so the user's later expanding
     // and collapsing is preserved across navigating into a note and back.
     var defaultCollapseApplied by rememberSaveable(notebookId) { mutableStateOf(false) }
-    LaunchedEffect(state, defaultCollapseApplied) {
+    // Keyed on the loaded *transition*, not the state object itself — every
+    // document emission is a new state instance and would relaunch this effect.
+    LaunchedEffect(state is DocumentUiState.Loaded, defaultCollapseApplied) {
         if (!defaultCollapseApplied) {
             (state as? DocumentUiState.Loaded)?.let { loaded ->
                 collapsed = loaded.document.headlines
@@ -120,8 +122,11 @@ fun OutlineScreen(
                             fontSize = 17.sp, color = c.ink,
                         )
                         (state as? DocumentUiState.Loaded)?.let {
+                            val noteCount = remember(it.document) {
+                                it.document.headlines.count { h -> h.level == 1 }
+                            }
                             Text(
-                                "${it.document.headlines.count { h -> h.level == 1 }} notes",
+                                "$noteCount notes",
                                 fontFamily = PlexSans, fontSize = 11.5.sp, color = c.ink2,
                             )
                         }
