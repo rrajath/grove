@@ -9,7 +9,13 @@
       "Bash(JAVA_HOME=$\\(/usr/libexec/java_home -v 17 \\) ./gradlew clean compileDebugKotlin --no-build-cache --rerun-tasks)",
       "Bash(/usr/libexec/java_home -V)",
       "Bash(./gradlew compileDebugKotlin)",
-      "Bash(gh repo *)"
+      "Bash(gh repo *)",
+      "Bash(git add *)",
+      "Bash(jj new *)",
+      "Bash(jj log *)",
+      "Bash(git reset *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)"
     ]
   }
 }
