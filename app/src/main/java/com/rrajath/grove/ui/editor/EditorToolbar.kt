@@ -1,5 +1,6 @@
 package com.rrajath.grove.ui.editor
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -11,16 +12,19 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.rrajath.grove.org.OrgTimestamp
@@ -72,6 +76,7 @@ fun EditorToolbar(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ToolButton(
     label: String,
@@ -88,17 +93,24 @@ private fun ToolButton(
             .clip(RoundedCornerShape(8.dp))
             .clickable(onClick = onClick)
             .heightIn(min = 44.dp)
-            .padding(horizontal = 6.dp),
+            .padding(horizontal = 3.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Text(
+        // autoSize shrinks the glyph to whatever fits the button's equal-width
+        // slot, and maxLines/softWrap keep multi-char labels ("</>", "[[]]")
+        // from wrapping onto a second line on narrow screens.
+        BasicText(
             label,
-            fontFamily = PlexMono,
-            fontWeight = if (bold) FontWeight.Bold else FontWeight.Normal,
-            fontStyle = if (italic) FontStyle.Italic else null,
-            textDecoration = if (underline) androidx.compose.ui.text.style.TextDecoration.Underline else null,
-            fontSize = fontSize,
-            color = color,
+            style = TextStyle(
+                fontFamily = PlexMono,
+                fontWeight = if (bold) FontWeight.Bold else FontWeight.Normal,
+                fontStyle = if (italic) FontStyle.Italic else null,
+                textDecoration = if (underline) TextDecoration.Underline else null,
+                color = color,
+            ),
+            maxLines = 1,
+            softWrap = false,
+            autoSize = TextAutoSize.StepBased(minFontSize = 10.sp, maxFontSize = fontSize),
         )
     }
 }
