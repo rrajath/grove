@@ -7,10 +7,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.TextAutoSize
@@ -61,7 +59,6 @@ fun EditorToolbar(
         ToolButton("I", c.ink, Modifier.weight(1f), italic = true) { onWrap('/') }
         ToolButton("U", c.ink, Modifier.weight(1f), underline = true) { onWrap('_') }
         ToolButton("</>", c.ink, Modifier.weight(1f)) { onWrap('~') }
-        Box(Modifier.width(1.dp).height(24.dp).background(c.line))
         ToolButton("[[]]", c.synLink, Modifier.weight(1f)) { onLink() }
         // The clock glyph is drawn smaller than the letters at a given size, so
         // bump its font so it reads at the same height as the other buttons.
