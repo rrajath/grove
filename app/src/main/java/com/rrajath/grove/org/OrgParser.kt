@@ -237,11 +237,6 @@ object OrgParser {
         )
     }
 
-    private fun isPlanningLine(line: String): Boolean {
-        val t = line.trimStart()
-        return t.startsWith("SCHEDULED:") || t.startsWith("DEADLINE:") || t.startsWith("CLOSED:")
-    }
-
     private fun parsePlanning(line: String): Planning {
         var scheduled: OrgTimestamp? = null
         var deadline: OrgTimestamp? = null
@@ -259,4 +254,10 @@ object OrgParser {
         }
         return Planning(scheduled, deadline, closed)
     }
+}
+
+/** Shared by [OrgParser] and [OrgMutations]. */
+internal fun isPlanningLine(line: String): Boolean {
+    val t = line.trimStart()
+    return t.startsWith("SCHEDULED:") || t.startsWith("DEADLINE:") || t.startsWith("CLOSED:")
 }

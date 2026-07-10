@@ -17,7 +17,8 @@ private class FakeIndex : NoteIndex {
     val conflicts = mutableMapOf<String, String?>()
     val indexedOrder = mutableListOf<String>()
 
-    override suspend fun knownRevisions(): Map<String, String> = revisions.toMap()
+    override suspend fun knownNotebooks(): Map<String, KnownNotebook> =
+        revisions.mapValues { (name, rev) -> KnownNotebook(rev, conflicts[name]) }
 
     override suspend fun indexNotebook(
         fileName: String,

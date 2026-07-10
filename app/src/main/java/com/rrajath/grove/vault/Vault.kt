@@ -24,7 +24,9 @@ class Vault(
 ) {
     private data class CacheKey(val name: String, val mtime: Long, val size: Long)
 
-    private val cache = LinkedHashMap<CacheKey, OrgDocument>()
+    // accessOrder = true → iteration starts at the least-recently-used entry,
+    // so the size-cap eviction in document() drops the LRU parse, not the oldest.
+    private val cache = LinkedHashMap<CacheKey, OrgDocument>(16, 0.75f, true)
 
     suspend fun notebooks(): List<Notebook> {
         val entries = store.list()

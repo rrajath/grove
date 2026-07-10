@@ -61,6 +61,13 @@ data class SyncLogEntity(
     val message: String,
 )
 
+/** Projection of the notebook columns the sync engine diffs against disk. */
+data class NotebookSyncState(
+    val fileName: String,
+    val revision: String,
+    val conflictFileName: String?,
+)
+
 @Dao
 interface IndexDao {
     @Query("SELECT * FROM notebooks")
@@ -69,11 +76,11 @@ interface IndexDao {
     @Query("SELECT * FROM notebooks")
     fun notebooksFlow(): Flow<List<NotebookEntity>>
 
-    @Query("SELECT * FROM notes WHERE orgId = :orgId LIMIT 1")
-    suspend fun noteByOrgId(orgId: String): NoteEntity?
+    @Query("SELECT fileName, revision, conflictFileName FROM notebooks")
+    suspend fun notebookSyncStates(): List<NotebookSyncState>
 
-    @Query("SELECT * FROM notes WHERE customId = :customId LIMIT 1")
-    suspend fun noteByCustomId(customId: String): NoteEntity?
+    @Query("SELECT conflictFileName FROM notebooks WHERE fileName = :fileName")
+    suspend fun conflictFileNameFor(fileName: String): String?
 
     @Query("SELECT DISTINCT tags FROM notes WHERE tags != ''")
     suspend fun allTagStrings(): List<String>

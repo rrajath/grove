@@ -77,8 +77,3 @@ fun groveTypography(scale: Float = 1f): Typography {
         ),
     )
 }
-
-/** Mono Body — raw org editor, file names, timestamps (13.5sp). */
-fun monoBody(scale: Float = 1f) = TextStyle(
-    fontFamily = PlexMono, fontWeight = FontWeight.Normal, fontSize = (13.5 * scale).sp,
-)

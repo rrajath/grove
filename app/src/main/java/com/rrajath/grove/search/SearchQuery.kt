@@ -50,7 +50,7 @@ data class Period(val raw: String) {
             "tomorrow" -> today.plusDays(1)
             "yesterday" -> today.minusDays(1)
             else -> {
-                val m = Regex("""(\d+)([dwm])""").matchEntire(t) ?: return null
+                val m = RELATIVE.matchEntire(t) ?: return null
                 val n = m.groupValues[1].toLong()
                 when (m.groupValues[2]) {
                     "d" -> today.plusDays(n)
@@ -67,6 +67,10 @@ data class Period(val raw: String) {
         val p = pivot(today) ?: return null
         val delta = java.time.temporal.ChronoUnit.DAYS.between(today, p)
         return today.minusDays(kotlin.math.abs(delta))
+    }
+
+    private companion object {
+        val RELATIVE = Regex("""(\d+)([dwm])""")
     }
 }
 

@@ -213,14 +213,6 @@ class SettingsRepository(private val context: Context) {
         }
     }
 
-    suspend fun setNotebookMode(fileName: String, mode: NoteOpenMode) {
-        context.settingsDataStore.edit { prefs ->
-            val current = decodeModes(prefs[Keys.notebookModes]).toMutableMap()
-            current[fileName] = mode.storageKey
-            prefs[Keys.notebookModes] = encodeModes(current)
-        }
-    }
-
     suspend fun setNotebookIcon(fileName: String, glyph: String) {
         setMapEntry(Keys.notebookIcons, fileName, glyph)
     }

@@ -64,6 +64,8 @@ data class OrgTimestamp(
             """([<\[])(\d{4})-(\d{2})-(\d{2})(?:\s+([^\s\d>\]]+))?(?:\s+(\d{1,2}):(\d{2})(?:-(\d{1,2}):(\d{2}))?)?((?:\s+[.+]?\+\d+[hdwmy])?)((?:\s+-{1,2}\d+[hdwmy])?)\s*([>\]])""",
         )
 
+        private val REPEATER = Regex("""([.+]?\+)(\d+)([hdwmy])""")
+
         private fun formatTime(t: LocalTime): String =
             "%d:%02d".format(t.hour, t.minute)
 
@@ -90,7 +92,7 @@ data class OrgTimestamp(
             val endTime = m.groupValues[8].takeIf { it.isNotEmpty() }
                 ?.let { LocalTime.of(it.toInt(), m.groupValues[9].toInt()) }
             val repeater = m.groupValues[10].trim().takeIf { it.isNotEmpty() }?.let { rep ->
-                val repMatch = Regex("""([.+]?\+)(\d+)([hdwmy])""").matchEntire(rep) ?: return@let null
+                val repMatch = REPEATER.matchEntire(rep) ?: return@let null
                 val type = RepeaterType.fromMarker(repMatch.groupValues[1]) ?: return@let null
                 Repeater(type, repMatch.groupValues[2].toInt(), repMatch.groupValues[3][0])
             }

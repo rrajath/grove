@@ -529,12 +529,3 @@ private fun uriDisplayName(uri: String): String {
     val last = java.net.URLDecoder.decode(uri.substringAfterLast("/"), "UTF-8")
     return last.substringAfterLast(':').ifEmpty { last }
 }
-
-@Composable
-private fun PlaceholderRow(text: String) {
-    Text(
-        text,
-        fontFamily = PlexSans, fontSize = 13.sp, color = MaterialTheme.grove.ink3,
-        modifier = Modifier.padding(15.dp),
-    )
-}

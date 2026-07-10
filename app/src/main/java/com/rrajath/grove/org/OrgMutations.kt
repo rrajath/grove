@@ -31,9 +31,6 @@ object OrgMutations {
     fun setTags(doc: OrgDocument, h: OrgHeadline, tags: List<String>): String =
         replaceLine(doc, h.lineIndex, headlineLine(h.level, h.keyword, h.priority, h.title, tags))
 
-    fun setTitle(doc: OrgDocument, h: OrgHeadline, title: String): String =
-        replaceLine(doc, h.lineIndex, headlineLine(h.level, h.keyword, h.priority, title, h.tags))
-
     // --- planning edits ---
 
     fun setScheduled(doc: OrgDocument, h: OrgHeadline, ts: OrgTimestamp?): String =
@@ -195,10 +192,10 @@ object OrgMutations {
     /** Paste a cut/copied subtree as the last child of [h], releveled. */
     fun pasteUnder(doc: OrgDocument, h: OrgHeadline, subtree: String): String {
         val subtreeLines = subtree.trimEnd('\n').split("\n")
-        val srcLevel = Regex("""^(\*+)\s""").find(subtreeLines.first())?.groupValues?.get(1)?.length ?: 1
+        val srcLevel = STARS_PREFIX.find(subtreeLines.first())?.groupValues?.get(1)?.length ?: 1
         val shift = (h.level + 1) - srcLevel
         val releveled = subtreeLines.map { line ->
-            val m = Regex("""^(\*+)(\s.*)$""").matchEntire(line)
+            val m = STARS_LINE.matchEntire(line)
             if (m != null) {
                 val newLevel = (m.groupValues[1].length + shift).coerceAtLeast(1)
                 "*".repeat(newLevel) + m.groupValues[2]
@@ -253,10 +250,8 @@ object OrgMutations {
         return lines.joinToString("\n")
     }
 
-    private fun isPlanningLine(line: String): Boolean {
-        val t = line.trimStart()
-        return t.startsWith("SCHEDULED:") || t.startsWith("DEADLINE:") || t.startsWith("CLOSED:")
-    }
+    private val STARS_PREFIX = Regex("""^(\*+)\s""")
+    private val STARS_LINE = Regex("""^(\*+)(\s.*)$""")
 
     private fun replaceLine(doc: OrgDocument, lineIndex: Int, newLine: String): String {
         val lines = doc.lines.toMutableList()

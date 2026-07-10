@@ -30,10 +30,13 @@ data class SyncResult(
     val completedAt: Long,
 )
 
+/** Indexed state the engine diffs against the store. */
+data class KnownNotebook(val revision: String, val conflictFileName: String?)
+
 /** Persistence boundary so the engine is unit-testable without Room. */
 interface NoteIndex {
-    /** Last indexed revision per notebook file name. */
-    suspend fun knownRevisions(): Map<String, String>
+    /** Last indexed state per notebook file name. */
+    suspend fun knownNotebooks(): Map<String, KnownNotebook>
 
     suspend fun indexNotebook(
         fileName: String,
@@ -74,16 +77,16 @@ class SyncEngine(
                         !ignore.isIgnored(it.name)
             }
 
-            val known = index.knownRevisions()
+            val known = index.knownNotebooks()
             val current = notebooks.associateBy({ it.name }, revision)
-            val changed = notebooks.filter { known[it.name] != revision(it) }
+            val changed = notebooks.filter { known[it.name]?.revision != current[it.name] }
             val removed = (known.keys - current.keys).toList()
 
             changed.forEachIndexed { i, entry ->
                 _state.value = SyncState.Pulling(entry.name, i + 1, changed.size)
                 index.indexNotebook(
                     fileName = entry.name,
-                    revision = revision(entry),
+                    revision = current.getValue(entry.name),
                     text = store.read(entry.name),
                     lastModified = entry.lastModified,
                     conflictFileName = conflicts[entry.name],
@@ -96,8 +99,11 @@ class SyncEngine(
             }
             // Conflict markers can change without the file content changing
             // (Syncthing dropping a .sync-conflict copy next to it).
-            notebooks.filter { it !in changed }.forEach {
-                index.setConflict(it.name, conflicts[it.name])
+            val changedNames = changed.mapTo(HashSet()) { it.name }
+            notebooks.forEach { nb ->
+                if (nb.name !in changedNames && known[nb.name]?.conflictFileName != conflicts[nb.name]) {
+                    index.setConflict(nb.name, conflicts[nb.name])
+                }
             }
             conflicts.forEach { (base, copy) -> log("conflict: $base vs $copy") }
 

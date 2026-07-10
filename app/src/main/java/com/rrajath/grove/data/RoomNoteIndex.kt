@@ -2,6 +2,7 @@ package com.rrajath.grove.data
 
 import com.rrajath.grove.org.OrgKeywords
 import com.rrajath.grove.org.OrgParser
+import com.rrajath.grove.sync.KnownNotebook
 import com.rrajath.grove.sync.NoteIndex
 
 /** [NoteIndex] over Room: parses notebook text into row entities. */
@@ -10,8 +11,10 @@ class RoomNoteIndex(
     private val keywords: () -> OrgKeywords = { OrgKeywords.DEFAULT },
 ) : NoteIndex {
 
-    override suspend fun knownRevisions(): Map<String, String> =
-        dao.notebooks().associate { it.fileName to it.revision }
+    override suspend fun knownNotebooks(): Map<String, KnownNotebook> =
+        dao.notebookSyncStates().associate {
+            it.fileName to KnownNotebook(it.revision, it.conflictFileName)
+        }
 
     override suspend fun indexNotebook(
         fileName: String,

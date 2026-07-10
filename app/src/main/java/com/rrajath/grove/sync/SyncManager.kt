@@ -81,6 +81,7 @@ class SyncManager(
                     log("sync done: ${result.pulled.size} pulled, ${result.conflicts.size} conflicts")
                     if (result.conflicts.isNotEmpty()) notifyConflicts(result.conflicts.keys)
                 }
+                database.syncLogDao().trim()
             }
         }
     }
@@ -89,15 +90,13 @@ class SyncManager(
 
     suspend fun conflictTexts(baseName: String): Pair<String, String>? {
         val store = store ?: return null
-        val copy = database.indexDao().notebooks()
-            .firstOrNull { it.fileName == baseName }?.conflictFileName ?: return null
+        val copy = database.indexDao().conflictFileNameFor(baseName) ?: return null
         return store.read(baseName) to store.read(copy)
     }
 
     suspend fun resolveConflict(baseName: String, resolution: ConflictResolution) {
         val store = store ?: return
-        val copyName = database.indexDao().notebooks()
-            .firstOrNull { it.fileName == baseName }?.conflictFileName ?: return
+        val copyName = database.indexDao().conflictFileNameFor(baseName) ?: return
         when (resolution) {
             ConflictResolution.KEEP_CURRENT -> Unit
             ConflictResolution.KEEP_CONFLICT_COPY ->
@@ -173,7 +172,6 @@ class SyncManager(
             database.syncLogDao().insert(
                 SyncLogEntity(timestamp = System.currentTimeMillis(), level = "info", message = message)
             )
-            database.syncLogDao().trim()
         }
     }
 
