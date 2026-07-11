@@ -10,6 +10,7 @@ class SettingsSerializationTest {
 
     private val sample = GroveSettings(
         theme = ThemePreference.DARK,
+        syncAppIconWithTheme = true,
         fontSize = FontSizePreference.LARGE,
         defaultNoteOpenMode = NoteOpenMode.EDIT,
         syncMode = SyncMode.PERIODIC,
@@ -27,6 +28,8 @@ class SettingsSerializationTest {
         showTimestampsInOutline = false,
         showKeywordsInOutline = true,
         pinnedNotebooks = listOf("pinned-first.org", "pinned-second.org"),
+        showHeaderTags = false,
+        showPropertyDrawers = false,
         // Device-specific fields that must NOT travel with an export.
         vaultTreeUri = "content://com.android.externalstorage/tree/primary%3Aorg",
         onboardingDone = true,
@@ -39,6 +42,7 @@ class SettingsSerializationTest {
         val restored = SettingsSerialization.import(json, GroveSettings())
 
         assertEquals(sample.theme, restored.theme)
+        assertEquals(sample.syncAppIconWithTheme, restored.syncAppIconWithTheme)
         assertEquals(sample.fontSize, restored.fontSize)
         assertEquals(sample.defaultNoteOpenMode, restored.defaultNoteOpenMode)
         assertEquals(sample.syncMode, restored.syncMode)
@@ -56,6 +60,8 @@ class SettingsSerializationTest {
         assertEquals(sample.showTimestampsInOutline, restored.showTimestampsInOutline)
         assertEquals(sample.showKeywordsInOutline, restored.showKeywordsInOutline)
         assertEquals(sample.pinnedNotebooks, restored.pinnedNotebooks)
+        assertEquals(sample.showHeaderTags, restored.showHeaderTags)
+        assertEquals(sample.showPropertyDrawers, restored.showPropertyDrawers)
     }
 
     @Test

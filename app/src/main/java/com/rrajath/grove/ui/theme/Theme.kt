@@ -42,21 +42,26 @@ private fun materialScheme(c: GroveColors): ColorScheme {
     )
 }
 
+/** The full [GroveColors] token set for a given [ThemePreference], shared by the
+ *  app theme and anything (icon preview, drawer logo) that needs a theme's
+ *  colors outside of the currently active `MaterialTheme`. */
+fun groveColorsFor(theme: ThemePreference): GroveColors = when (theme) {
+    ThemePreference.LIGHT -> GroveLightColors
+    ThemePreference.DARK -> GroveDarkColors
+    ThemePreference.TOKYONIGHT -> GroveTokyoNightColors
+    ThemePreference.SYNTHWAVE -> GroveSynthwaveColors
+    ThemePreference.DRACULA -> GroveDraculaColors
+    ThemePreference.CATPPUCCIN -> GroveCatppuccinColors
+    ThemePreference.NORD -> GroveNordColors
+}
+
 @Composable
 fun GroveTheme(
     theme: ThemePreference = ThemePreference.LIGHT,
     fontSize: FontSizePreference = FontSizePreference.MEDIUM,
     content: @Composable () -> Unit,
 ) {
-    val groveColors = when (theme) {
-        ThemePreference.LIGHT -> GroveLightColors
-        ThemePreference.DARK -> GroveDarkColors
-        ThemePreference.TOKYONIGHT -> GroveTokyoNightColors
-        ThemePreference.SYNTHWAVE -> GroveSynthwaveColors
-        ThemePreference.DRACULA -> GroveDraculaColors
-        ThemePreference.CATPPUCCIN -> GroveCatppuccinColors
-        ThemePreference.NORD -> GroveNordColors
-    }
+    val groveColors = groveColorsFor(theme)
     CompositionLocalProvider(LocalGroveColors provides groveColors) {
         MaterialTheme(
             colorScheme = materialScheme(groveColors),

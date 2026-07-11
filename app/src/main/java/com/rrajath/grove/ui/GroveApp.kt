@@ -8,7 +8,11 @@ import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
@@ -19,6 +23,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.rrajath.grove.icon.AppIconManager
 import com.rrajath.grove.settings.GroveSettings
 import com.rrajath.grove.ui.capture.CaptureEditorScreen
 import com.rrajath.grove.ui.editor.EditNoteScreen
@@ -45,6 +50,21 @@ fun GroveApp(viewModel: AppViewModel = viewModel(factory = AppViewModel.Factory)
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     // Wait for the first DataStore emission so theme and start destination don't flash.
     val loaded = settings ?: return
+    val context = androidx.compose.ui.platform.LocalContext.current
+    // Switching the enabled launcher alias closes the app's task, so defer it
+    // until the app goes to the background (ON_STOP) instead of applying it live.
+    val syncIcon by rememberUpdatedState(loaded.syncAppIconWithTheme)
+    val iconTheme by rememberUpdatedState(loaded.theme)
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP) {
+                AppIconManager.applyIcon(context, syncIcon, iconTheme)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
     GroveTheme(theme = loaded.theme, fontSize = loaded.fontSize) {
         GroveNavigation(loaded, viewModel)
     }
@@ -98,6 +118,7 @@ private fun GroveNavigation(settings: GroveSettings, viewModel: AppViewModel) {
                     vaultPath = vaultDisplayPath(settings.vaultTreeUri),
                     savedSearches = viewModel.savedSearches.collectAsStateWithLifecycle().value,
                     favorites = viewModel.favorites.collectAsStateWithLifecycle().value,
+                    logoFollowsTheme = settings.syncAppIconWithTheme,
                     onNavigate = { route -> closeDrawerAnd { navController.navigate(route) } },
                     onDeleteSavedSearch = { viewModel.deleteSavedSearch(it.id) },
                 )
@@ -183,6 +204,8 @@ private fun GroveNavigation(settings: GroveSettings, viewModel: AppViewModel) {
                                 popUpTo(Routes.NOTE) { inclusive = true }
                             }
                         },
+                        showHeaderTags = settings.showHeaderTags,
+                        showPropertyDrawers = settings.showPropertyDrawers,
                     )
                 }
             }
@@ -245,6 +268,9 @@ private fun GroveNavigation(settings: GroveSettings, viewModel: AppViewModel) {
                     settings = settings,
                     onBack = { navController.popBackStack() },
                     onSetTheme = viewModel::setTheme,
+                    onSetSyncAppIconWithTheme = viewModel::setSyncAppIconWithTheme,
+                    onSetShowHeaderTags = viewModel::setShowHeaderTags,
+                    onSetShowPropertyDrawers = viewModel::setShowPropertyDrawers,
                     onSetFontSize = viewModel::setFontSize,
                     onSetNoteOpenMode = viewModel::setDefaultNoteOpenMode,
                     onEditTemplate = { id ->

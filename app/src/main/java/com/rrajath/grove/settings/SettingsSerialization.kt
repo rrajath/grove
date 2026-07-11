@@ -35,6 +35,7 @@ object SettingsSerialization {
 data class SettingsExport(
     val version: Int = CURRENT_VERSION,
     val theme: String = ThemePreference.LIGHT.storageKey,
+    val syncAppIconWithTheme: Boolean = false,
     val fontSize: String = FontSizePreference.MEDIUM.storageKey,
     val defaultNoteOpenMode: String = NoteOpenMode.READ.storageKey,
     val syncMode: String = SyncMode.ON_OPEN_CLOSE.storageKey,
@@ -52,10 +53,13 @@ data class SettingsExport(
     val showTimestampsInOutline: Boolean = true,
     val showKeywordsInOutline: Boolean = true,
     val pinnedNotebooks: List<String> = emptyList(),
+    val showHeaderTags: Boolean = true,
+    val showPropertyDrawers: Boolean = true,
 ) {
     /** Map back onto [base], using the enums' tolerant `fromStorage` fallbacks. */
     fun applyTo(base: GroveSettings): GroveSettings = base.copy(
         theme = ThemePreference.fromStorage(theme),
+        syncAppIconWithTheme = syncAppIconWithTheme,
         fontSize = FontSizePreference.fromStorage(fontSize),
         defaultNoteOpenMode = NoteOpenMode.fromStorage(defaultNoteOpenMode),
         syncMode = SyncMode.fromStorage(syncMode),
@@ -73,6 +77,8 @@ data class SettingsExport(
         showTimestampsInOutline = showTimestampsInOutline,
         showKeywordsInOutline = showKeywordsInOutline,
         pinnedNotebooks = pinnedNotebooks,
+        showHeaderTags = showHeaderTags,
+        showPropertyDrawers = showPropertyDrawers,
     )
 
     companion object {
@@ -80,6 +86,7 @@ data class SettingsExport(
 
         fun fromSettings(s: GroveSettings): SettingsExport = SettingsExport(
             theme = s.theme.storageKey,
+            syncAppIconWithTheme = s.syncAppIconWithTheme,
             fontSize = s.fontSize.storageKey,
             defaultNoteOpenMode = s.defaultNoteOpenMode.storageKey,
             syncMode = s.syncMode.storageKey,
@@ -97,6 +104,8 @@ data class SettingsExport(
             showTimestampsInOutline = s.showTimestampsInOutline,
             showKeywordsInOutline = s.showKeywordsInOutline,
             pinnedNotebooks = s.pinnedNotebooks,
+            showHeaderTags = s.showHeaderTags,
+            showPropertyDrawers = s.showPropertyDrawers,
         )
     }
 }

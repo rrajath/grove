@@ -289,7 +289,10 @@ soft variant of the chosen color (`greenSoft`, `accentSoft`, `blueSoft`, `redSof
 
 ### BrandMark (App Asterisk)
 
-The Grove asterisk — three rounded bars at 0°/60°/120° — is drawn via `BrandMark` composable.
+The Grove asterisk — five rounded spokes radiating from center at 36°/108°/180°/252°/324°
+(spoke reach = half the mark canvas, width = 7/32 of it; same geometry as the launcher
+foregrounds, where spokes are 4.2×15dp on the 108dp adaptive-icon canvas) — is drawn via
+the `BrandMark` composable.
 Use it wherever the brand identity is needed (onboarding, nav drawer header, app icon).
 Never substitute a Unicode character or bitmap.
 
@@ -299,7 +302,7 @@ Never substitute a Unicode character or bitmap.
 
 ### `BrandMark` — `ui/components/BrandMark.kt`
 
-Three-bar asterisk in a squircle tile, drawn on Canvas.
+Five-spoke asterisk in a squircle tile, drawn on Canvas.
 
 ```kotlin
 BrandMark(tileSize = 74.dp)                    // onboarding, large
@@ -353,6 +356,33 @@ Internally: `surface2` container background, 10dp container radius, 3dp internal
 transparent bg + `ink2` text.
 
 **When to use**: binary mode toggle. Only place currently: Read ↔ Edit in the note app bar.
+
+---
+
+### `CollapsibleKvSection` — `ui/screens/ReadNoteScreen.kt` (private)
+
+Collapsed-by-default, faded monospace key/value box used in Read mode for file-level
+`#+` keyword lines and `:PROPERTIES:` drawers (design/Grove.dc.html lines 499-552, 1682+).
+
+```kotlin
+CollapsibleKvSection(
+    label = "#+ header tags",           // or ":PROPERTIES:"
+    entries = listOf("#+TITLE:" to "Kyoto — Day 2"),
+    expanded = expanded,
+    onToggle = { expanded = !expanded },
+)
+```
+
+Internally: `surface2` background, 10dp corner radius, whole section at 66% opacity.
+Header row (only tap target) is 8dp/12dp padding, 8dp gap, with a 10sp `ink3` caret
+that rotates 90° on expand (animated), a 12sp `ink3` label, and a right-aligned 11sp
+`ink3` count. Body (when expanded): 30dp/12dp/10dp padding, 3dp row gap, 12sp rows —
+key in `synKw`, value in `ink2`. Expansion state is per-section, in-memory, reset when
+the viewed note changes.
+
+**When to use**: Read-mode-only, display-only metadata that shouldn't compete visually
+with note content — never mutates the underlying `.org` file. Controlled by the
+"Show header tags" / "Show property drawers" Settings toggles.
 
 ---
 

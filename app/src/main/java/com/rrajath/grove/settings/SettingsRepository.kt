@@ -15,6 +15,8 @@ private val Context.settingsDataStore: DataStore<Preferences> by preferencesData
 
 data class GroveSettings(
     val theme: ThemePreference = ThemePreference.LIGHT,
+    /** When true, the launcher icon and drawer logo follow [theme]; otherwise they stay the default light mark. */
+    val syncAppIconWithTheme: Boolean = false,
     val fontSize: FontSizePreference = FontSizePreference.MEDIUM,
     val defaultNoteOpenMode: NoteOpenMode = NoteOpenMode.READ,
     val onboardingDone: Boolean = false,
@@ -43,6 +45,10 @@ data class GroveSettings(
     val showKeywordsInOutline: Boolean = true,
     /** Ordered list of pinned notebook file names; first = topmost. */
     val pinnedNotebooks: List<String> = emptyList(),
+    /** Read mode: show a collapsible section for file-level `#+` keyword lines. */
+    val showHeaderTags: Boolean = true,
+    /** Read mode: show collapsible sections for `:PROPERTIES:` drawers. */
+    val showPropertyDrawers: Boolean = true,
 ) {
     companion object {
         const val DEFAULT_TODO_KEYWORDS = "TODO IN-PROGRESS | DONE CANCELLED"
@@ -54,6 +60,7 @@ class SettingsRepository(private val context: Context) {
 
     private object Keys {
         val theme = stringPreferencesKey("theme")
+        val syncAppIconWithTheme = booleanPreferencesKey("sync_app_icon_with_theme")
         val fontSize = stringPreferencesKey("font_size")
         val noteOpenMode = stringPreferencesKey("note_open_mode")
         val onboardingDone = booleanPreferencesKey("onboarding_done")
@@ -73,11 +80,14 @@ class SettingsRepository(private val context: Context) {
         val showTimestampsInOutline = booleanPreferencesKey("show_timestamps_in_outline")
         val showKeywordsInOutline = booleanPreferencesKey("show_keywords_in_outline")
         val pinnedNotebooks = stringPreferencesKey("pinned_notebooks")
+        val showHeaderTags = booleanPreferencesKey("show_header_tags")
+        val showPropertyDrawers = booleanPreferencesKey("show_property_drawers")
     }
 
     val settings: Flow<GroveSettings> = context.settingsDataStore.data.map { prefs ->
         GroveSettings(
             theme = ThemePreference.fromStorage(prefs[Keys.theme]),
+            syncAppIconWithTheme = prefs[Keys.syncAppIconWithTheme] ?: false,
             fontSize = FontSizePreference.fromStorage(prefs[Keys.fontSize]),
             defaultNoteOpenMode = NoteOpenMode.fromStorage(prefs[Keys.noteOpenMode]),
             onboardingDone = prefs[Keys.onboardingDone] ?: false,
@@ -97,6 +107,8 @@ class SettingsRepository(private val context: Context) {
             showTimestampsInOutline = prefs[Keys.showTimestampsInOutline] ?: true,
             showKeywordsInOutline = prefs[Keys.showKeywordsInOutline] ?: true,
             pinnedNotebooks = decodePinnedList(prefs[Keys.pinnedNotebooks]),
+            showHeaderTags = prefs[Keys.showHeaderTags] ?: true,
+            showPropertyDrawers = prefs[Keys.showPropertyDrawers] ?: true,
         )
     }
 
@@ -126,6 +138,7 @@ class SettingsRepository(private val context: Context) {
     suspend fun applyImported(s: GroveSettings) {
         context.settingsDataStore.edit { p ->
             p[Keys.theme] = s.theme.storageKey
+            p[Keys.syncAppIconWithTheme] = s.syncAppIconWithTheme
             p[Keys.fontSize] = s.fontSize.storageKey
             p[Keys.noteOpenMode] = s.defaultNoteOpenMode.storageKey
             p[Keys.syncMode] = s.syncMode.storageKey
@@ -143,11 +156,17 @@ class SettingsRepository(private val context: Context) {
             p[Keys.showTagsInOutline] = s.showTagsInOutline
             p[Keys.showTimestampsInOutline] = s.showTimestampsInOutline
             p[Keys.showKeywordsInOutline] = s.showKeywordsInOutline
+            p[Keys.showHeaderTags] = s.showHeaderTags
+            p[Keys.showPropertyDrawers] = s.showPropertyDrawers
         }
     }
 
     suspend fun setTheme(theme: ThemePreference) {
         context.settingsDataStore.edit { it[Keys.theme] = theme.storageKey }
+    }
+
+    suspend fun setSyncAppIconWithTheme(enabled: Boolean) {
+        context.settingsDataStore.edit { it[Keys.syncAppIconWithTheme] = enabled }
     }
 
     suspend fun setFontSize(fontSize: FontSizePreference) {
@@ -211,6 +230,14 @@ class SettingsRepository(private val context: Context) {
                 }
             ] = enabled
         }
+    }
+
+    suspend fun setShowHeaderTags(enabled: Boolean) {
+        context.settingsDataStore.edit { it[Keys.showHeaderTags] = enabled }
+    }
+
+    suspend fun setShowPropertyDrawers(enabled: Boolean) {
+        context.settingsDataStore.edit { it[Keys.showPropertyDrawers] = enabled }
     }
 
     suspend fun setNotebookIcon(fileName: String, glyph: String) {

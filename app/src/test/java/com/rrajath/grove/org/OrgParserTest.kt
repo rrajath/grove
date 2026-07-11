@@ -51,6 +51,27 @@ class OrgParserTest {
     }
 
     @Test
+    fun `preambleKeywords extracts file-level keyword lines in file order`() {
+        val doc = OrgParser.parse(golden("travel.org"))
+        assertEquals(
+            listOf("#+TITLE:" to "Travel plans", "#+FILETAGS:" to ":trip:"),
+            doc.preambleKeywords,
+        )
+    }
+
+    @Test
+    fun `preambleKeywords is empty when the file has no keyword lines`() {
+        val doc = OrgParser.parse("* just a heading\nbody text\n")
+        assertTrue(doc.preambleKeywords.isEmpty())
+    }
+
+    @Test
+    fun `preambleKeywords ignores keyword-looking lines after the first headline`() {
+        val doc = OrgParser.parse("#+TITLE: Foo\n* Heading\n#+NOT_PREAMBLE: bar\n")
+        assertEquals(listOf("#+TITLE:" to "Foo"), doc.preambleKeywords)
+    }
+
+    @Test
     fun `parses keyword priority and planning`() {
         val doc = OrgParser.parse(golden("travel.org"))
 

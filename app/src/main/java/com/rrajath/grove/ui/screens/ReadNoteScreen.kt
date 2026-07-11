@@ -1,7 +1,9 @@
 package com.rrajath.grove.ui.screens
 
 import android.content.Intent
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -13,6 +15,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
@@ -27,9 +30,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.rotate
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.runtime.mutableStateOf
@@ -85,6 +91,10 @@ fun ReadNoteScreen(
     onOpenNote: (NoteRef) -> Unit,
     /** Double-tap anywhere switches to edit mode. */
     onEdit: () -> Unit,
+    /** Settings toggle: show a collapsible section for file-level `#+` keywords. */
+    showHeaderTags: Boolean = true,
+    /** Settings toggle: show collapsible sections for `:PROPERTIES:` drawers. */
+    showPropertyDrawers: Boolean = true,
     viewModel: DocumentViewModel = viewModel(factory = DocumentViewModel.Factory),
 ) {
     val c = MaterialTheme.grove
@@ -159,6 +169,8 @@ fun ReadNoteScreen(
                             onOpenNote = onOpenNote,
                             fileName = noteRef.fileName,
                             onEditAt = onEdit,
+                            showHeaderTags = showHeaderTags,
+                            showPropertyDrawers = showPropertyDrawers,
                         )
                         ScrollJumpButtons(
                             listState = listState,
@@ -182,9 +194,14 @@ private fun NoteContent(
     onEditAt: () -> Unit,
     listState: LazyListState,
     modifier: Modifier = Modifier,
+    showHeaderTags: Boolean = true,
+    showPropertyDrawers: Boolean = true,
 ) {
     val c = MaterialTheme.grove
     val context = LocalContext.current
+    // Per-section collapse state, reset when the viewed note changes; all
+    // sections start collapsed (design/Grove.dc.html lines 499-552).
+    val collapsibleExpanded = remember(fileName, headline.lineIndex) { mutableStateMapOf<String, Boolean>() }
     var boxCoords by remember { mutableStateOf<LayoutCoordinates?>(null) }
     var linkMenuState by remember { mutableStateOf<Pair<String, IntOffset>?>(null) }
     // Remembered so rows keep stable callbacks and can skip recomposition —
@@ -222,6 +239,21 @@ private fun NoteContent(
             item(key = "header", contentType = "header") {
                 SelectionContainer {
                     Column {
+                        // File-level `#+` keyword lines, only when this note is the
+                        // file's own root headline (index 0) — the only view that
+                        // sees the preamble.
+                        if (showHeaderTags && headline.index == 0 && doc.preambleKeywords.isNotEmpty()) {
+                            CollapsibleKvSection(
+                                label = "#+ header tags",
+                                entries = doc.preambleKeywords,
+                                expanded = collapsibleExpanded["header"] == true,
+                                onToggle = {
+                                    collapsibleExpanded["header"] = collapsibleExpanded["header"] != true
+                                },
+                            )
+                            Spacer(Modifier.height(16.dp))
+                        }
+
                         Spacer(Modifier.height(8.dp))
 
                         // Tag chips
@@ -258,6 +290,21 @@ private fun NoteContent(
                             Spacer(Modifier.height(6.dp))
                             Text("Created $created", fontFamily = PlexMono, fontSize = 12.5.sp, color = c.ink3)
                         }
+
+                        // Note's own :PROPERTIES: drawer.
+                        if (showPropertyDrawers && headline.properties.isNotEmpty()) {
+                            Spacer(Modifier.height(10.dp))
+                            CollapsibleKvSection(
+                                label = ":PROPERTIES:",
+                                entries = headline.properties.map { (k, v) -> ":$k:" to v },
+                                expanded = collapsibleExpanded["own"] == true,
+                                onToggle = {
+                                    collapsibleExpanded["own"] = collapsibleExpanded["own"] != true
+                                },
+                            )
+                            Spacer(Modifier.height(20.dp))
+                        }
+
                         headline.planning.scheduled?.let {
                             Spacer(Modifier.height(6.dp))
                             PlanningChip("SCHEDULED: ${it.format()}", fg = c.blue, bg = c.blueSoft)
@@ -305,7 +352,21 @@ private fun NoteContent(
                                 ),
                             )
                         }
-                        Spacer(Modifier.height(8.dp))
+                        if (showPropertyDrawers && child.properties.isNotEmpty()) {
+                            Spacer(Modifier.height(10.dp))
+                            CollapsibleKvSection(
+                                label = ":PROPERTIES:",
+                                entries = child.properties.map { (k, v) -> ":$k:" to v },
+                                expanded = collapsibleExpanded["child:${child.lineIndex}"] == true,
+                                onToggle = {
+                                    val key = "child:${child.lineIndex}"
+                                    collapsibleExpanded[key] = collapsibleExpanded[key] != true
+                                },
+                            )
+                            Spacer(Modifier.height(14.dp))
+                        } else {
+                            Spacer(Modifier.height(8.dp))
+                        }
                         BodyBlocks(body, openLink, onLinkLongPress, onEditAt)
                     }
                 }
@@ -418,6 +479,62 @@ private fun PlanningChip(text: String, fg: Color, bg: Color) {
             .padding(horizontal = 8.dp, vertical = 3.dp),
     ) {
         Text(text, fontFamily = PlexMono, fontSize = 12.5.sp, color = fg)
+    }
+}
+
+/**
+ * Collapsible, faded (66% alpha), monospace key-value section for file-level
+ * `#+` keyword lines or a `:PROPERTIES:` drawer (design/Grove.dc.html lines
+ * 499-552, style block at 1682+). Header row is the only tap target; body is
+ * hidden unless [expanded]. Display-only — never mutates the source file.
+ */
+@Composable
+private fun CollapsibleKvSection(
+    label: String,
+    entries: List<Pair<String, String>>,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val c = MaterialTheme.grove
+    val caretRotation by animateFloatAsState(if (expanded) 90f else 0f, label = "collapsibleCaret")
+    Column(
+        modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .background(c.surface2)
+            .alpha(0.66f),
+    ) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onToggle)
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                "▸",
+                fontFamily = PlexMono, fontSize = 10.sp, color = c.ink3,
+                modifier = Modifier.width(10.dp).rotate(caretRotation),
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(label, fontFamily = PlexMono, fontSize = 12.sp, color = c.ink3)
+            Spacer(Modifier.weight(1f))
+            Text(entries.size.toString(), fontFamily = PlexMono, fontSize = 11.sp, color = c.ink3)
+        }
+        if (expanded) {
+            Column(
+                Modifier.padding(start = 30.dp, end = 12.dp, bottom = 10.dp),
+                verticalArrangement = Arrangement.spacedBy(3.dp),
+            ) {
+                entries.forEach { (key, value) ->
+                    Row {
+                        Text("$key ", fontFamily = PlexMono, fontSize = 12.sp, lineHeight = 1.5.em, color = c.synKw)
+                        Text(value, fontFamily = PlexMono, fontSize = 12.sp, lineHeight = 1.5.em, color = c.ink2)
+                    }
+                }
+            }
+        }
     }
 }
 

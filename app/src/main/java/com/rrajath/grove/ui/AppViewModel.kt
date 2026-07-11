@@ -57,6 +57,11 @@ class AppViewModel(private val app: GroveApplication) : ViewModel() {
     fun setTheme(theme: ThemePreference) =
         viewModelScope.launch { settingsRepository.setTheme(theme) }
 
+    fun setSyncAppIconWithTheme(enabled: Boolean) = viewModelScope.launch {
+        settingsRepository.setSyncAppIconWithTheme(enabled)
+        if (enabled) toast("Restart the app for the icon change to take effect")
+    }
+
     fun setFontSize(fontSize: FontSizePreference) =
         viewModelScope.launch { settingsRepository.setFontSize(fontSize) }
 
@@ -142,6 +147,12 @@ class AppViewModel(private val app: GroveApplication) : ViewModel() {
 
     fun setOutlineToggle(toggle: OutlineToggle, enabled: Boolean) =
         viewModelScope.launch { settingsRepository.setOutlineToggle(toggle, enabled) }
+
+    fun setShowHeaderTags(enabled: Boolean) =
+        viewModelScope.launch { settingsRepository.setShowHeaderTags(enabled) }
+
+    fun setShowPropertyDrawers(enabled: Boolean) =
+        viewModelScope.launch { settingsRepository.setShowPropertyDrawers(enabled) }
 
     /** Write the current preferences as a JSON document to the user-picked [uri]. */
     fun exportSettings(uri: android.net.Uri) = viewModelScope.launch {

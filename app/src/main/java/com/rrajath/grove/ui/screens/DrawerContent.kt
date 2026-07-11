@@ -31,6 +31,7 @@ import com.rrajath.grove.data.FavoriteNote
 import com.rrajath.grove.search.SavedSearch
 import com.rrajath.grove.ui.components.BrandMark
 import com.rrajath.grove.ui.nav.Routes
+import com.rrajath.grove.ui.theme.GroveLightColors
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
@@ -43,6 +44,8 @@ fun GroveDrawerContent(
     vaultPath: String,
     savedSearches: List<SavedSearch>,
     favorites: List<FavoriteNote> = emptyList(),
+    /** When false, the header logo stays the default light mark regardless of the active theme. */
+    logoFollowsTheme: Boolean = true,
     onNavigate: (String) -> Unit,
     onDeleteSavedSearch: (SavedSearch) -> Unit,
 ) {
@@ -51,7 +54,15 @@ fun GroveDrawerContent(
     Column(Modifier.fillMaxWidth()) {
         // Header
         Column(Modifier.padding(22.dp)) {
-            BrandMark(tileSize = 42.dp)
+            if (logoFollowsTheme) {
+                BrandMark(tileSize = 42.dp)
+            } else {
+                BrandMark(
+                    tileSize = 42.dp,
+                    tileColor = GroveLightColors.accentSoft,
+                    barColor = GroveLightColors.accent,
+                )
+            }
             Spacer(Modifier.height(10.dp))
             Text("Grove", fontFamily = PlexSans, fontWeight = FontWeight.SemiBold, fontSize = 18.sp, color = c.ink)
             Text(vaultPath, fontFamily = PlexMono, fontSize = 12.sp, color = c.ink2)

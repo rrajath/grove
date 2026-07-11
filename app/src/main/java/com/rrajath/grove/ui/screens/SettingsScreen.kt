@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -29,6 +30,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -55,6 +58,9 @@ fun SettingsScreen(
     settings: GroveSettings,
     onBack: () -> Unit,
     onSetTheme: (ThemePreference) -> Unit,
+    onSetSyncAppIconWithTheme: (Boolean) -> Unit,
+    onSetShowHeaderTags: (Boolean) -> Unit,
+    onSetShowPropertyDrawers: (Boolean) -> Unit,
     onSetFontSize: (FontSizePreference) -> Unit,
     onSetNoteOpenMode: (NoteOpenMode) -> Unit,
     onEditTemplate: (String?) -> Unit,
@@ -153,6 +159,26 @@ fun SettingsScreen(
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
+                RowDivider()
+                SyncAppIconRow(
+                    checked = settings.syncAppIconWithTheme,
+                    theme = settings.theme,
+                    onToggle = onSetSyncAppIconWithTheme,
+                )
+                RowDivider()
+                ToggleRow(
+                    label = "Show header tags",
+                    description = "Display file-level #+ keywords in org files",
+                    checked = settings.showHeaderTags,
+                    onToggle = onSetShowHeaderTags,
+                )
+                RowDivider()
+                ToggleRow(
+                    label = "Show property drawers",
+                    description = "Display :PROPERTIES: drawers in org files",
+                    checked = settings.showPropertyDrawers,
+                    onToggle = onSetShowPropertyDrawers,
+                )
                 RowDivider()
                 SettingsRow(label = "Font size") {
                     SegmentedControl(
@@ -496,7 +522,12 @@ private fun SmallAction(glyph: String, enabled: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-private fun ToggleRow(label: String, checked: Boolean, onToggle: (Boolean) -> Unit) {
+private fun ToggleRow(
+    label: String,
+    checked: Boolean,
+    description: String? = null,
+    onToggle: (Boolean) -> Unit,
+) {
     val c = MaterialTheme.grove
     Row(
         Modifier
@@ -505,12 +536,20 @@ private fun ToggleRow(label: String, checked: Boolean, onToggle: (Boolean) -> Un
             .padding(horizontal = 15.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            label,
-            fontFamily = PlexSans, fontWeight = FontWeight.Medium,
-            fontSize = 14.5.sp, color = c.ink,
-            modifier = Modifier.weight(1f),
-        )
+        Column(Modifier.weight(1f)) {
+            Text(
+                label,
+                fontFamily = PlexSans, fontWeight = FontWeight.Medium,
+                fontSize = 14.5.sp, color = c.ink,
+            )
+            if (description != null) {
+                Text(
+                    description,
+                    fontFamily = PlexSans, fontSize = 12.sp, color = c.ink2,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
+            }
+        }
         androidx.compose.material3.Switch(
             checked = checked,
             onCheckedChange = onToggle,
@@ -523,6 +562,84 @@ private fun ToggleRow(label: String, checked: Boolean, onToggle: (Boolean) -> Un
         )
     }
 }
+
+/**
+ * "Sync App Icon with Theme" toggle row plus a live 60x60 launcher-icon preview
+ * (design/Grove.dc.html lines 827-841 — the tile mirrors `iconSpokesLauncher`,
+ * `spokeSet(16, 7)`). The preview shows [theme]'s colors when [checked], the
+ * default light mark otherwise.
+ */
+@Composable
+private fun SyncAppIconRow(
+    checked: Boolean,
+    theme: ThemePreference,
+    onToggle: (Boolean) -> Unit,
+) {
+    val c = MaterialTheme.grove
+    val previewColors = if (checked) com.rrajath.grove.ui.theme.groveColorsFor(theme) else com.rrajath.grove.ui.theme.GroveLightColors
+    Column(Modifier.padding(horizontal = 15.dp, vertical = 12.dp)) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .clickable { onToggle(!checked) },
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                "Sync App Icon with Theme",
+                fontFamily = PlexSans, fontWeight = FontWeight.Medium,
+                fontSize = 14.5.sp, color = c.ink,
+                modifier = Modifier.weight(1f),
+            )
+            androidx.compose.material3.Switch(
+                checked = checked,
+                onCheckedChange = onToggle,
+                colors = androidx.compose.material3.SwitchDefaults.colors(
+                    checkedTrackColor = c.accent,
+                    checkedThumbColor = c.accentInk,
+                    uncheckedTrackColor = c.surface3,
+                    uncheckedThumbColor = c.surface,
+                ),
+            )
+        }
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .padding(top = 16.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Box(
+                Modifier
+                    .size(60.dp)
+                    .shadow(3.dp, RoundedCornerShape(16.dp), clip = false, ambientColor = ShadowColor, spotColor = ShadowColor)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(previewColors.accentSoft)
+                    .border(1.dp, previewColors.line, RoundedCornerShape(16.dp)),
+                contentAlignment = Alignment.Center,
+            ) {
+                androidx.compose.foundation.Canvas(Modifier.size(32.dp)) {
+                    val spokeLength = size.minDimension / 2f
+                    val spokeWidth = size.minDimension * (7f / 32f)
+                    val centerOffset = androidx.compose.ui.geometry.Offset(size.width / 2f, size.height / 2f)
+                    val topLeft = androidx.compose.ui.geometry.Offset(centerOffset.x - spokeWidth / 2f, centerOffset.y)
+                    val spokeSize = androidx.compose.ui.geometry.Size(spokeWidth, spokeLength)
+                    val cornerRadius = androidx.compose.ui.geometry.CornerRadius(spokeWidth / 2f)
+                    for (angle in listOf(36f, 108f, 180f, 252f, 324f)) {
+                        rotate(angle, pivot = centerOffset) {
+                            drawRoundRect(
+                                color = previewColors.accent,
+                                topLeft = topLeft,
+                                size = spokeSize,
+                                cornerRadius = cornerRadius,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private val ShadowColor = androidx.compose.ui.graphics.Color(0x243C2D19) // rgba(60,45,25,0.14)
 
 /** Friendly folder name from a SAF tree URI ("content://…/tree/primary%3Aorg" → "org"). */
 private fun uriDisplayName(uri: String): String {

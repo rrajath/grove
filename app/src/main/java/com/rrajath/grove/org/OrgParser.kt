@@ -49,6 +49,19 @@ class OrgDocument(
     /** Line index where the first headline starts; preamble is lines before it. */
     val preambleEnd: Int = headlines.firstOrNull()?.lineIndex ?: lines.size
 
+    /**
+     * File-level `#+KEY: value` lines from the preamble (before the first
+     * headline), in file order. Key is rendered exactly as written, e.g.
+     * "#+TITLE:" — casing/format preserved.
+     */
+    val preambleKeywords: List<Pair<String, String>> by lazy {
+        lines.subList(0, preambleEnd).mapNotNull { line ->
+            OrgParser.PREAMBLE_KEYWORD.matchEntire(line.trim())?.let { m ->
+                "#+${m.groupValues[1]}:" to m.groupValues[2].trim()
+            }
+        }
+    }
+
     fun serialize(): String = text
 
     /**
@@ -147,6 +160,7 @@ object OrgParser {
     private val FILETAGS = Regex("""^#\+(?i:FILETAGS):\s*(.*)$""")
     private val PROPERTY_LINE = Regex("""^\s*:([^:\s]+):\s*(.*)$""")
     private val PLANNING_PART = Regex("""(SCHEDULED|DEADLINE|CLOSED):\s*""")
+    internal val PREAMBLE_KEYWORD = Regex("""^#\+([A-Za-z][A-Za-z0-9_-]*):(.*)$""")
 
     fun parse(text: String, keywords: OrgKeywords = OrgKeywords.DEFAULT): OrgDocument {
         val lines = text.split("\n")

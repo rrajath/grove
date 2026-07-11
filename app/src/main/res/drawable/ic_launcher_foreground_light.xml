@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Grove mark: five rounded-cap spokes (4.2x15dp) radiating from center,
-     rotated 36/108/180/252/324 (matches design/Grove.dc.html spokeSet(16,7)).
-     Color = golden accent #cb9d62 on dark background. -->
+<!-- Themed Grove mark: five rounded-cap spokes (4.2x15dp) radiating from center,
+     rotated 36/108/180/252/324 (matches design/Grove.dc.html spokeSet(16,7)). -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
@@ -9,27 +8,27 @@
     android:viewportHeight="108">
     <group android:rotation="36" android:pivotX="54" android:pivotY="54">
         <path
-            android:fillColor="#cb9d62"
+            android:fillColor="#8A5A2B"
             android:pathData="M49.8,54 A4.2,4.2 0 0 1 58.2,54 L58.2,69 A4.2,4.2 0 0 1 49.8,69 Z" />
     </group>
     <group android:rotation="108" android:pivotX="54" android:pivotY="54">
         <path
-            android:fillColor="#cb9d62"
+            android:fillColor="#8A5A2B"
             android:pathData="M49.8,54 A4.2,4.2 0 0 1 58.2,54 L58.2,69 A4.2,4.2 0 0 1 49.8,69 Z" />
     </group>
     <group android:rotation="180" android:pivotX="54" android:pivotY="54">
         <path
-            android:fillColor="#cb9d62"
+            android:fillColor="#8A5A2B"
             android:pathData="M49.8,54 A4.2,4.2 0 0 1 58.2,54 L58.2,69 A4.2,4.2 0 0 1 49.8,69 Z" />
     </group>
     <group android:rotation="252" android:pivotX="54" android:pivotY="54">
         <path
-            android:fillColor="#cb9d62"
+            android:fillColor="#8A5A2B"
             android:pathData="M49.8,54 A4.2,4.2 0 0 1 58.2,54 L58.2,69 A4.2,4.2 0 0 1 49.8,69 Z" />
     </group>
     <group android:rotation="324" android:pivotX="54" android:pivotY="54">
         <path
-            android:fillColor="#cb9d62"
+            android:fillColor="#8A5A2B"
             android:pathData="M49.8,54 A4.2,4.2 0 0 1 58.2,54 L58.2,69 A4.2,4.2 0 0 1 49.8,69 Z" />
     </group>
 </vector>

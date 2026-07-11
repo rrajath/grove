@@ -21,8 +21,9 @@ import androidx.compose.ui.unit.dp
 import com.rrajath.grove.ui.theme.grove
 
 /**
- * The Grove org-asterisk mark: three rounded bars rotated 0°/60°/120°
- * (design/README.md "App icon mark"), centered in a squircle tile.
+ * The Grove org-asterisk mark: five rounded spokes radiating from center at
+ * 36°/108°/180°/252°/324° (design/Grove.dc.html `spokeSet(16, 7)`, same
+ * geometry as the launcher icon), centered in a squircle tile.
  */
 @Composable
 fun BrandMark(
@@ -46,14 +47,15 @@ fun BrandMark(
 }
 
 private fun DrawScope.drawAsterisk(color: Color) {
-    val barLength = size.height
-    val barWidth = barLength * 0.19f
-    val topLeft = Offset((size.width - barWidth) / 2f, 0f)
-    val barSize = Size(barWidth, barLength)
-    val radius = CornerRadius(barWidth / 2f)
-    for (angle in listOf(0f, 60f, 120f)) {
-        rotate(angle) {
-            drawRoundRect(color = color, topLeft = topLeft, size = barSize, cornerRadius = radius)
+    val spokeLength = size.minDimension / 2f
+    val spokeWidth = size.minDimension * (7f / 32f)
+    val center = Offset(size.width / 2f, size.height / 2f)
+    val topLeft = Offset(center.x - spokeWidth / 2f, center.y)
+    val spokeSize = Size(spokeWidth, spokeLength)
+    val radius = CornerRadius(spokeWidth / 2f)
+    for (angle in listOf(36f, 108f, 180f, 252f, 324f)) {
+        rotate(angle, pivot = center) {
+            drawRoundRect(color = color, topLeft = topLeft, size = spokeSize, cornerRadius = radius)
         }
     }
 }

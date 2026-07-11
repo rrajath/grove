@@ -29,6 +29,7 @@
     --shadow:0 2px 10px rgba(60,45,25,0.10), 0 1px 2px rgba(60,45,25,0.06);
     --canvas:#e6dcc8; --canvas-2:#ddd0b7;
     --tile-light:#f0e7d6; --tile-dark:#332518;
+    --fab-shadow:0 6px 18px rgba(138,90,43,0.4); --scrim:rgba(20,14,6,0.42);
   }
   [data-grove][data-theme="dark"] {
     --bg:#16130e; --surface:#201c15; --surface-2:#2a251b; --surface-3:#352f23;
@@ -44,11 +45,93 @@
     --shadow:0 6px 22px rgba(0,0,0,0.45), 0 1px 3px rgba(0,0,0,0.35);
     --canvas:#100d09; --canvas-2:#080604;
     --tile-light:#f0e7d6; --tile-dark:#2c2016;
+    --fab-shadow:0 6px 20px rgba(203,157,98,0.42); --scrim:rgba(0,0,0,0.55);
+  }
+  [data-grove][data-theme="tokyonight"] {
+    --bg:#1a1b26; --surface:#1f2335; --surface-2:#24283b; --surface-3:#292e42;
+    --ink:#c0caf5; --ink-2:#9aa5ce; --ink-3:#565f89;
+    --line:#232741; --line-2:#2f344d;
+    --accent:#7aa2f7; --accent-ink:#16161e; --accent-soft:rgba(122,162,247,0.16);
+    --green:#9ece6a; --green-soft:rgba(158,206,106,0.16);
+    --amber:#e0af68; --amber-soft:rgba(224,175,104,0.16);
+    --red:#f7768e; --red-soft:rgba(247,118,142,0.16);
+    --blue:#7dcfff; --blue-soft:rgba(125,207,255,0.16);
+    --syn-star:#bb9af7; --syn-todo:#e0af68; --syn-done:#9ece6a; --syn-kw:#7dcfff;
+    --syn-ts:#73daca; --syn-tag:#bb9af7; --syn-link:#7aa2f7; --syn-prop:#565f89;
+    --shadow:0 6px 22px rgba(0,0,0,0.5), 0 1px 3px rgba(0,0,0,0.4);
+    --canvas:#16161e; --canvas-2:#0f0f14;
+    --tile-light:#c0caf5; --tile-dark:#1a1b26;
+    --fab-shadow:0 6px 22px rgba(122,162,247,0.5); --scrim:rgba(11,11,18,0.62);
+  }
+  [data-grove][data-theme="synthwave"] {
+    --bg:#262335; --surface:#2a2140; --surface-2:#34294d; --surface-3:#3f3159;
+    --ink:#f8f8f2; --ink-2:#c4b7e0; --ink-3:#8b7dae;
+    --line:#3a2f52; --line-2:#4a3d68;
+    --accent:#ff7edb; --accent-ink:#1a1226; --accent-soft:rgba(255,126,219,0.16);
+    --green:#72f1b8; --green-soft:rgba(114,241,184,0.16);
+    --amber:#fede5d; --amber-soft:rgba(254,222,93,0.16);
+    --red:#fe4450; --red-soft:rgba(254,68,80,0.16);
+    --blue:#03edf9; --blue-soft:rgba(3,237,249,0.16);
+    --syn-star:#fede5d; --syn-todo:#ff8b39; --syn-done:#72f1b8; --syn-kw:#ff7edb;
+    --syn-ts:#03edf9; --syn-tag:#ff7edb; --syn-link:#03edf9; --syn-prop:#8b7dae;
+    --shadow:0 6px 26px rgba(0,0,0,0.55), 0 1px 3px rgba(0,0,0,0.45);
+    --canvas:#1c162b; --canvas-2:#120d1c;
+    --tile-light:#f8f8f2; --tile-dark:#262335;
+    --fab-shadow:0 4px 24px rgba(255,126,219,0.6); --scrim:rgba(10,6,20,0.64);
+  }
+  [data-grove][data-theme="dracula"] {
+    --bg:#282a36; --surface:#2d2f3d; --surface-2:#343746; --surface-3:#44475a;
+    --ink:#f8f8f2; --ink-2:#c3c6d4; --ink-3:#6272a4;
+    --line:#383b4a; --line-2:#44475a;
+    --accent:#bd93f9; --accent-ink:#21222c; --accent-soft:rgba(189,147,249,0.16);
+    --green:#50fa7b; --green-soft:rgba(80,250,123,0.15);
+    --amber:#ffb86c; --amber-soft:rgba(255,184,108,0.16);
+    --red:#ff5555; --red-soft:rgba(255,85,85,0.15);
+    --blue:#8be9fd; --blue-soft:rgba(139,233,253,0.16);
+    --syn-star:#bd93f9; --syn-todo:#ffb86c; --syn-done:#50fa7b; --syn-kw:#ff79c6;
+    --syn-ts:#8be9fd; --syn-tag:#50fa7b; --syn-link:#8be9fd; --syn-prop:#6272a4;
+    --shadow:0 6px 22px rgba(0,0,0,0.5), 0 1px 3px rgba(0,0,0,0.4);
+    --canvas:#21222c; --canvas-2:#191a21;
+    --tile-light:#f8f8f2; --tile-dark:#282a36;
+    --fab-shadow:0 6px 22px rgba(189,147,249,0.5); --scrim:rgba(10,10,16,0.6);
+  }
+  [data-grove][data-theme="catppuccin"] {
+    --bg:#1e1e2e; --surface:#292a3d; --surface-2:#313244; --surface-3:#45475a;
+    --ink:#cdd6f4; --ink-2:#a6adc8; --ink-3:#6c7086;
+    --line:#2c2d40; --line-2:#3a3c50;
+    --accent:#cba6f7; --accent-ink:#181825; --accent-soft:rgba(203,166,247,0.16);
+    --green:#a6e3a1; --green-soft:rgba(166,227,161,0.16);
+    --amber:#fab387; --amber-soft:rgba(250,179,135,0.16);
+    --red:#f38ba8; --red-soft:rgba(243,139,168,0.16);
+    --blue:#89b4fa; --blue-soft:rgba(137,180,250,0.16);
+    --syn-star:#cba6f7; --syn-todo:#fab387; --syn-done:#a6e3a1; --syn-kw:#f5c2e7;
+    --syn-ts:#94e2d5; --syn-tag:#cba6f7; --syn-link:#89b4fa; --syn-prop:#6c7086;
+    --shadow:0 6px 22px rgba(0,0,0,0.5), 0 1px 3px rgba(0,0,0,0.4);
+    --canvas:#181825; --canvas-2:#11111b;
+    --tile-light:#cdd6f4; --tile-dark:#1e1e2e;
+    --fab-shadow:0 6px 22px rgba(203,166,247,0.5); --scrim:rgba(8,8,14,0.6);
+  }
+  [data-grove][data-theme="nord"] {
+    --bg:#2e3440; --surface:#333b4a; --surface-2:#3b4252; --surface-3:#434c5e;
+    --ink:#eceff4; --ink-2:#d8dee9; --ink-3:#7b88a1;
+    --line:#3b4252; --line-2:#4c566a;
+    --accent:#88c0d0; --accent-ink:#2e3440; --accent-soft:rgba(136,192,208,0.18);
+    --green:#a3be8c; --green-soft:rgba(163,190,140,0.17);
+    --amber:#ebcb8b; --amber-soft:rgba(235,203,139,0.17);
+    --red:#bf616a; --red-soft:rgba(191,97,106,0.17);
+    --blue:#81a1c1; --blue-soft:rgba(129,161,193,0.17);
+    --syn-star:#88c0d0; --syn-todo:#ebcb8b; --syn-done:#a3be8c; --syn-kw:#81a1c1;
+    --syn-ts:#8fbcbb; --syn-tag:#b48ead; --syn-link:#88c0d0; --syn-prop:#7b88a1;
+    --shadow:0 6px 22px rgba(0,0,0,0.45), 0 1px 3px rgba(0,0,0,0.35);
+    --canvas:#272c36; --canvas-2:#1f232b;
+    --tile-light:#eceff4; --tile-dark:#2e3440;
+    --fab-shadow:0 6px 22px rgba(136,192,208,0.5); --scrim:rgba(20,24,30,0.62);
   }
   @keyframes groveScrim { from { opacity:0; } to { opacity:1; } }
   @keyframes groveDrawer { from { transform:translateX(-100%); } to { transform:translateX(0); } }
   @keyframes groveSheet { from { transform:translateY(100%); } to { transform:translateY(0); } }
   @keyframes groveFade { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+  @keyframes grovePop { from { opacity:0; transform:scale(.94) translateY(-5px); } to { opacity:1; transform:scale(1) translateY(0); } }
   ::-webkit-scrollbar { width:0; height:0; }
 </style>
 </helmet>
@@ -60,9 +143,7 @@
     <div style="display:flex; align-items:center; gap:13px;">
       <div style="width:34px; height:34px; border-radius:9px; background:var(--accent-soft); border:1px solid var(--line); position:relative; display:grid; place-items:center;">
         <div style="position:relative; width:18px; height:18px;">
-          <div style="position:absolute; inset:0; margin:auto; width:3.4px; height:18px; border-radius:2px; background:var(--accent);"></div>
-          <div style="position:absolute; inset:0; margin:auto; width:3.4px; height:18px; border-radius:2px; background:var(--accent); transform:rotate(60deg);"></div>
-          <div style="position:absolute; inset:0; margin:auto; width:3.4px; height:18px; border-radius:2px; background:var(--accent); transform:rotate(120deg);"></div>
+          <sc-for list="{{ iconSpokesLogo }}" as="sp" hint-placeholder-count="5"><div style="{{ sp }}"></div></sc-for>
         </div>
       </div>
       <div style="display:flex; flex-direction:column; line-height:1.1;">
@@ -70,9 +151,15 @@
         <span style="font-size:11.5px; color:var(--ink-2);">Android · org-mode notes — interactive mockup</span>
       </div>
     </div>
-    <div style="display:flex; align-items:center; gap:6px; background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:4px;">
-      <div onClick="{{ setLight }}" style="{{ segLightStyle }}">Light</div>
-      <div onClick="{{ setDark }}" style="{{ segDarkStyle }}">Dark</div>
+    <div style="display:flex; align-items:center; gap:7px; flex-wrap:wrap; justify-content:flex-end; max-width:660px;">
+      <sc-for list="{{ themes }}" as="t" hint-placeholder-count="7">
+        <div onClick="{{ t.onClick }}" style="{{ t.style }}">
+          <div style="{{ t.dotsWrap }}">
+            <sc-for list="{{ t.dots }}" as="d" hint-placeholder-count="3"><div style="{{ d }}"></div></sc-for>
+          </div>
+          <span style="{{ t.label }}">{{ t.name }}</span>
+        </div>
+      </sc-for>
     </div>
   </div>
 
@@ -82,6 +169,7 @@
     <div onClick="{{ goOnboarding }}" style="{{ chipOnboarding }}">Onboarding</div>
     <div onClick="{{ goHome }}" style="{{ chipHome }}">Notebooks</div>
     <div onClick="{{ goOutline }}" style="{{ chipOutline }}">Outline</div>
+    <div onClick="{{ goGestures }}" style="{{ chipGestures }}">Gestures</div>
     <div onClick="{{ goRead }}" style="{{ chipRead }}">Read mode</div>
     <div onClick="{{ goEditor }}" style="{{ chipEditor }}">Editor</div>
     <div onClick="{{ goCapturePicker }}" style="{{ chipCapture }}">Capture</div>
@@ -256,7 +344,7 @@
           </div>
 
           <!-- FAB -->
-          <div onClick="{{ goCapturePicker }}" style="position:absolute; right:18px; bottom:22px; height:54px; padding:0 20px 0 18px; border-radius:17px; background:var(--accent); color:var(--accent-ink); display:flex; align-items:center; gap:9px; box-shadow:0 6px 18px rgba(138,90,43,0.4); cursor:pointer; font-weight:600; font-size:15px;" style-active="opacity:.92;">
+          <div onClick="{{ goCapturePicker }}" style="position:absolute; right:18px; bottom:22px; height:54px; padding:0 20px 0 18px; border-radius:17px; background:var(--accent); color:var(--accent-ink); display:flex; align-items:center; gap:9px; box-shadow:var(--fab-shadow); cursor:pointer; font-weight:600; font-size:15px;" style-active="opacity:.92;">
             <span style="font-size:21px; line-height:1; margin-top:-2px;">+</span>
             <span>Capture</span>
           </div>
@@ -264,7 +352,7 @@
           <!-- drawer -->
           <sc-if value="{{ drawerOpen }}" hint-placeholder-val="{{ false }}">
             <div style="position:absolute; inset:0; z-index:10;">
-              <div onClick="{{ closeDrawer }}" style="position:absolute; inset:0; background:rgba(20,14,6,0.42); animation:groveScrim .2s ease;"></div>
+              <div onClick="{{ closeDrawer }}" style="position:absolute; inset:0; background:var(--scrim); animation:groveScrim .2s ease;"></div>
               <div style="position:absolute; top:0; left:0; bottom:0; width:300px; background:var(--surface); box-shadow:6px 0 26px rgba(0,0,0,0.22); animation:groveDrawer .24s cubic-bezier(.2,.8,.2,1); display:flex; flex-direction:column; padding:0 0 14px;">
                 <div style="padding:24px 22px 18px; border-bottom:1px solid var(--line);">
                   <div style="width:42px; height:42px; border-radius:12px; background:var(--accent-soft); display:grid; place-items:center; margin-bottom:11px;">
@@ -390,7 +478,7 @@
             </div>
           </div>
 
-          <div onClick="{{ goCaptureEditor }}" style="position:absolute; right:18px; bottom:22px; width:54px; height:54px; border-radius:18px; background:var(--accent); color:var(--accent-ink); display:grid; place-items:center; box-shadow:0 6px 18px rgba(138,90,43,0.4); cursor:pointer; font-size:26px;" style-active="opacity:.92;">+</div>
+          <div onClick="{{ goCaptureEditor }}" style="position:absolute; right:18px; bottom:22px; width:54px; height:54px; border-radius:18px; background:var(--accent); color:var(--accent-ink); display:grid; place-items:center; box-shadow:var(--fab-shadow); cursor:pointer; font-size:26px;" style-active="opacity:.92;">+</div>
         </div>
       </sc-if>
 
@@ -408,16 +496,60 @@
           </div>
 
           <div style="flex:1; overflow-y:auto; padding:24px 24px 60px;">
+            <sc-if value="{{ showHeaderTags }}" hint-placeholder-val="{{ true }}">
+              <div style="{{ collBoxStyle }} margin-bottom:16px;">
+                <div onClick="{{ toggleHdr }}" style="{{ collHeadStyle }}">
+                  <span style="{{ collCaretHdr }}">▸</span>
+                  <span style="{{ collLabelStyle }}">#+ header tags</span>
+                  <span style="{{ collHintStyle }}">4</span>
+                </div>
+                <sc-if value="{{ hdrOpen }}" hint-placeholder-val="{{ false }}">
+                  <div style="{{ collBodyStyle }}">
+                    <div><span style="{{ kvKeyStyle }}">#+TITLE:</span> <span style="{{ kvValStyle }}">Kyoto — Day 2</span></div>
+                    <div><span style="{{ kvKeyStyle }}">#+FILETAGS:</span> <span style="{{ kvValStyle }}">:trip:kyoto:</span></div>
+                    <div><span style="{{ kvKeyStyle }}">#+CATEGORY:</span> <span style="{{ kvValStyle }}">travel</span></div>
+                    <div><span style="{{ kvKeyStyle }}">#+STARTUP:</span> <span style="{{ kvValStyle }}">overview</span></div>
+                  </div>
+                </sc-if>
+              </div>
+            </sc-if>
             <div style="display:flex; gap:7px; margin-bottom:14px;">
               <span style="font-size:11px; font-weight:600; color:var(--accent); background:var(--accent-soft); padding:3px 9px; border-radius:20px;">trip</span>
               <span style="font-size:11px; font-weight:600; color:var(--accent); background:var(--accent-soft); padding:3px 9px; border-radius:20px;">kyoto</span>
             </div>
             <h1 style="font-family:'IBM Plex Serif',serif; font-size:25px; font-weight:600; margin:0 0 6px; letter-spacing:-0.01em; line-height:1.2;">Kyoto — Day 2</h1>
-            <div style="font-size:12.5px; color:var(--ink-3); font-family:'IBM Plex Mono',monospace; margin-bottom:20px;">Created Mon, Apr 14 2025</div>
+            <div style="font-size:12.5px; color:var(--ink-3); font-family:'IBM Plex Mono',monospace; margin-bottom:14px;">Created Mon, Apr 14 2025</div>
+
+            <div style="{{ collBoxStyle }} margin-bottom:20px;">
+              <div onClick="{{ toggleFileProp }}" style="{{ collHeadStyle }}">
+                <span style="{{ collCaretFile }}">▸</span>
+                <span style="{{ collLabelStyle }}">:PROPERTIES:</span>
+                <span style="{{ collHintStyle }}">2</span>
+              </div>
+              <sc-if value="{{ filePropOpen }}" hint-placeholder-val="{{ false }}">
+                <div style="{{ collBodyStyle }}">
+                  <div><span style="{{ kvKeyStyle }}">:CREATED:</span> <span style="{{ kvValStyle }}">[2025-04-14 Mon]</span></div>
+                  <div><span style="{{ kvKeyStyle }}">:ID:</span> <span style="{{ kvValStyle }}">4f9a-kyoto-d2-91c</span></div>
+                </div>
+              </sc-if>
+            </div>
 
             <p style="font-family:'IBM Plex Serif',serif; font-size:16px; line-height:1.65; color:var(--ink); margin:0 0 14px;">Woke up early for <strong style="font-weight:600;">Fushimi Inari</strong> before the crowds. The <em style="font-style:italic;">senbon torii</em> path is endless — did the full loop in about two hours.</p>
 
             <h2 style="font-family:'IBM Plex Serif',serif; font-size:19px; font-weight:600; margin:24px 0 10px;">Lunch</h2>
+            <div style="{{ collBoxStyle }} margin-bottom:14px;">
+              <div onClick="{{ toggleSubProp }}" style="{{ collHeadStyle }}">
+                <span style="{{ collCaretSub }}">▸</span>
+                <span style="{{ collLabelStyle }}">:PROPERTIES:</span>
+                <span style="{{ collHintStyle }}">2</span>
+              </div>
+              <sc-if value="{{ subPropOpen }}" hint-placeholder-val="{{ false }}">
+                <div style="{{ collBodyStyle }}">
+                  <div><span style="{{ kvKeyStyle }}">:VISITED:</span> <span style="{{ kvValStyle }}">[2025-04-14 Mon]</span></div>
+                  <div><span style="{{ kvKeyStyle }}">:COST:</span> <span style="{{ kvValStyle }}">¥1,200</span></div>
+                </div>
+              </sc-if>
+            </div>
             <p style="font-family:'IBM Plex Serif',serif; font-size:16px; line-height:1.65; color:var(--ink); margin:0 0 14px;">Tiny soba place near the base. Noted the name as <code style="font-family:'IBM Plex Mono',monospace; font-size:13.5px; background:var(--surface-2); padding:2px 6px; border-radius:5px; color:var(--accent);">Vermillion Cafe</code> — <a style="color:var(--syn-link); text-decoration:underline; text-decoration-color:var(--line-2); cursor:pointer;">on the map ↗</a>.</p>
 
             <div style="background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:15px 16px; margin-top:18px;">
@@ -491,7 +623,7 @@
       <!-- ========== CAPTURE PICKER ========== -->
       <sc-if value="{{ isCapturePicker }}" hint-placeholder-val="{{ true }}">
         <div style="position:absolute; inset:0;">
-          <div onClick="{{ goHome }}" style="position:absolute; inset:0; background:rgba(20,14,6,0.5); animation:groveScrim .2s ease;"></div>
+          <div onClick="{{ goHome }}" style="position:absolute; inset:0; background:var(--scrim); animation:groveScrim .2s ease;"></div>
           <div style="position:absolute; left:0; right:0; bottom:0; background:var(--surface); border-radius:24px 24px 0 0; padding:10px 0 26px; animation:groveSheet .26s cubic-bezier(.2,.85,.25,1); box-shadow:0 -8px 30px rgba(0,0,0,0.22);">
             <div style="width:38px; height:4px; border-radius:3px; background:var(--line-2); margin:6px auto 14px;"></div>
             <div style="padding:0 22px 14px; display:flex; align-items:center; justify-content:space-between;">
@@ -674,10 +806,46 @@
             <div style="font-size:12px; text-transform:uppercase; letter-spacing:0.07em; color:var(--accent); font-weight:600; margin:0 4px 10px;">Appearance</div>
             <div style="background:var(--surface); border:1px solid var(--line); border-radius:15px; overflow:hidden; margin-bottom:24px;">
               <div style="padding:14px 15px; border-bottom:1px solid var(--line);">
-                <div style="font-size:14.5px; font-weight:500; margin-bottom:10px;">Theme</div>
-                <div style="display:flex; background:var(--surface-2); border-radius:10px; padding:3px;">
-                  <div onClick="{{ setLight }}" style="{{ themeRowLight }}">Light</div>
-                  <div onClick="{{ setDark }}" style="{{ themeRowDark }}">Dark</div>
+                <div style="font-size:14.5px; font-weight:500; margin-bottom:11px;">Theme</div>
+                <div onClick="{{ toggleThemeDropdown }}" style="{{ themeTriggerStyle }}">
+                  <div style="{{ themeTriggerDotsWrap }}"><sc-for list="{{ themeTriggerDots }}" as="d" hint-placeholder-count="3"><div style="{{ d }}"></div></sc-for></div>
+                  <span style="flex:1; font-size:14px; font-weight:500;">{{ themeTriggerName }}</span>
+                  <span style="{{ themeChevronStyle }}">▾</span>
+                </div>
+                <sc-if value="{{ themeDropdownOpen }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex; flex-direction:column; gap:4px; margin-top:8px; padding:6px; background:var(--surface-2); border-radius:13px; max-height:280px; overflow-y:auto;">
+                    <sc-for list="{{ themes }}" as="t" hint-placeholder-count="7">
+                      <div onClick="{{ t.onClick }}" style="{{ t.rowStyle }}">
+                        <div style="{{ t.dotsWrap }}"><sc-for list="{{ t.dots }}" as="d" hint-placeholder-count="3"><div style="{{ d }}"></div></sc-for></div>
+                        <span style="{{ t.rowLabelStyle }}">{{ t.name }}</span>
+                        <sc-if value="{{ t.active }}" hint-placeholder-val="{{ false }}"><span style="{{ t.checkStyle }}">✓</span></sc-if>
+                      </div>
+                    </sc-for>
+                  </div>
+                </sc-if>
+              </div>
+              <div style="padding:14px 15px; border-bottom:1px solid var(--line);">
+                <div style="display:flex; align-items:center; gap:12px;">
+                  <span style="flex:1; font-size:14.5px; font-weight:500;">Sync App Icon with Theme</span>
+                  <div onClick="{{ toggleSyncIcon }}" style="{{ syncTrackStyle }}">
+                    <div style="{{ syncKnobStyle }}"></div>
+                  </div>
+                </div>
+                <div style="display:flex; justify-content:center; margin-top:16px;">
+                  <div data-grove data-theme="{{ appIcon }}" style="width:60px; height:60px; border-radius:16px; background:var(--accent-soft); border:1px solid var(--line); box-shadow:0 3px 10px rgba(60,45,25,0.14); display:grid; place-items:center;">
+                    <div style="position:relative; width:32px; height:32px;">
+                      <sc-for list="{{ iconSpokesLauncher }}" as="sp" hint-placeholder-count="5"><div style="{{ sp }}"></div></sc-for>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div style="padding:14px 15px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:12px;">
+                <div style="flex:1;">
+                  <div style="font-size:14.5px; font-weight:500;">Show header tags</div>
+                  <div style="font-size:12px; color:var(--ink-2); margin-top:2px;">Display file-level <span style="font-family:'IBM Plex Mono',monospace;">#+</span> keywords in org files</div>
+                </div>
+                <div onClick="{{ toggleHeaderTags }}" style="{{ hdrTrackStyle }}">
+                  <div style="{{ hdrKnobStyle }}"></div>
                 </div>
               </div>
               <div style="padding:14px 15px; border-bottom:1px solid var(--line);">
@@ -758,6 +926,200 @@
         </div>
       </sc-if>
 
+      <!-- ========== GESTURES DEMO ========== -->
+      <sc-if value="{{ isGestures }}" hint-placeholder-val="{{ false }}">
+        <div data-gscreen data-screen-label="Gestures" style="position:absolute; inset:0; display:flex; flex-direction:column;">
+
+          <!-- structure command bar (concept A, when a note is focused) -->
+          <sc-if value="{{ gStructureBar }}" hint-placeholder-val="{{ false }}">
+            <div style="height:56px; flex:0 0 56px; display:flex; align-items:center; padding:0 6px; gap:2px; background:var(--accent-soft); border-bottom:1px solid var(--line);">
+              <div onClick="{{ gExitFocus }}" style="width:40px; height:40px; display:grid; place-items:center; border-radius:50%; cursor:pointer; font-size:19px; color:var(--accent);" style-hover="background:var(--surface-2);">✕</div>
+              <span style="flex:1; margin-left:2px; font-size:13.5px; font-weight:600; color:var(--accent);">Move &amp; indent</span>
+              <div onClick="{{ gMoveUp }}" style="width:38px; height:38px; display:grid; place-items:center; border-radius:10px; cursor:pointer; font-size:18px; color:var(--ink);" style-hover="background:var(--surface-2);">↑</div>
+              <div onClick="{{ gMoveDown }}" style="width:38px; height:38px; display:grid; place-items:center; border-radius:10px; cursor:pointer; font-size:18px; color:var(--ink);" style-hover="background:var(--surface-2);">↓</div>
+              <div onClick="{{ gPromote }}" style="width:38px; height:38px; display:grid; place-items:center; border-radius:10px; cursor:pointer; font-size:18px; color:var(--ink);" style-hover="background:var(--surface-2);">⇤</div>
+              <div onClick="{{ gDemote }}" style="width:38px; height:38px; display:grid; place-items:center; border-radius:10px; cursor:pointer; font-size:18px; color:var(--ink);" style-hover="background:var(--surface-2);">⇥</div>
+              <div onClick="{{ gExitFocus }}" style="width:38px; height:38px; display:grid; place-items:center; border-radius:10px; cursor:pointer; font-size:17px; color:var(--accent-ink); background:var(--accent);">✓</div>
+            </div>
+          </sc-if>
+
+          <!-- normal app bar -->
+          <sc-if value="{{ gNormalBar }}" hint-placeholder-val="{{ true }}">
+            <div style="height:56px; flex:0 0 56px; display:flex; align-items:center; padding:0 6px 0 4px; gap:2px; border-bottom:1px solid var(--line);">
+              <div onClick="{{ goHome }}" style="width:40px; height:40px; display:grid; place-items:center; border-radius:50%; cursor:pointer; font-size:21px; color:var(--ink);" style-hover="background:var(--surface-2);">←</div>
+              <div style="flex:1; margin-left:4px; display:flex; flex-direction:column; line-height:1.15;">
+                <span style="font-size:17px; font-weight:600; font-family:'IBM Plex Mono',monospace;">travel.org</span>
+                <span style="font-size:11.5px; color:var(--ink-2);">gestures demo · try swipe &amp; long-press</span>
+              </div>
+              <div style="width:40px; height:40px; display:grid; place-items:center; border-radius:50%; cursor:pointer; font-size:20px;" style-hover="background:var(--surface-2);">⋮</div>
+            </div>
+          </sc-if>
+
+          <!-- concept switcher -->
+          <div style="padding:10px 12px; border-bottom:1px solid var(--line); background:var(--surface);">
+            <div style="display:flex; gap:6px; overflow-x:auto; padding-bottom:2px;">
+              <sc-for list="{{ gPills }}" as="p" hint-placeholder-count="4"><div onClick="{{ p.onClick }}" style="{{ p.style }}">{{ p.label }}</div></sc-for>
+            </div>
+            <div style="margin-top:9px; font-size:11.5px; color:var(--ink-2); display:flex; align-items:center; gap:6px;"><span style="color:var(--accent); font-size:12px;">✦</span><span>Swipe ← structure · → state · {{ gHint }}</span></div>
+          </div>
+
+          <!-- note list -->
+          <div style="flex:1; overflow-y:auto; padding:4px 0 96px;">
+            <sc-for list="{{ viewNotes }}" as="n" hint-placeholder-count="7">
+              <div style="{{ n.wrapStyle }}">
+                <!-- state actions (revealed on right-swipe) -->
+                <div style="position:absolute; top:0; left:0; bottom:0; width:184px; display:flex; z-index:0;">
+                  <div onClick="{{ n.cyc }}" style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; background:var(--amber-soft); cursor:pointer;"><span style="font-size:17px; color:var(--amber);">⟳</span><span style="font-size:9px; color:var(--ink-2);">State</span></div>
+                  <div onClick="{{ n.schd }}" style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; background:var(--blue-soft); cursor:pointer;"><span style="font-size:16px; color:var(--blue);">◷</span><span style="font-size:9px; color:var(--ink-2);">Schedule</span></div>
+                  <div onClick="{{ n.dl }}" style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; background:var(--red-soft); cursor:pointer;"><span style="font-size:16px; color:var(--red);">⚑</span><span style="font-size:9px; color:var(--ink-2);">Deadline</span></div>
+                  <div onClick="{{ n.favi }}" style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; background:var(--accent-soft); cursor:pointer;"><span style="font-size:15px; color:var(--accent);">★</span><span style="font-size:9px; color:var(--ink-2);">Favorite</span></div>
+                </div>
+                <!-- structure actions (revealed on left-swipe) -->
+                <div style="position:absolute; top:0; right:0; bottom:0; width:184px; display:flex; z-index:0;">
+                  <div onClick="{{ n.insAbove }}" style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; background:var(--blue-soft); cursor:pointer;"><span style="font-size:15px; color:var(--blue); font-family:'IBM Plex Mono',monospace;">↑+</span><span style="font-size:9px; color:var(--ink-2);">Above</span></div>
+                  <div onClick="{{ n.insBelow }}" style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; background:var(--blue-soft); cursor:pointer;"><span style="font-size:15px; color:var(--blue); font-family:'IBM Plex Mono',monospace;">↓+</span><span style="font-size:9px; color:var(--ink-2);">Below</span></div>
+                  <div onClick="{{ n.insSub }}" style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; background:var(--green-soft); cursor:pointer;"><span style="font-size:16px; color:var(--green); font-family:'IBM Plex Mono',monospace;">↳</span><span style="font-size:9px; color:var(--ink-2);">Sub-note</span></div>
+                  <div onClick="{{ n.doRefile }}" style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; background:var(--accent-soft); cursor:pointer;"><span style="font-size:16px; color:var(--accent);">➜</span><span style="font-size:9px; color:var(--ink-2);">Refile</span></div>
+                </div>
+                <!-- the note card -->
+                <div onPointerDown="{{ n.onDown }}" onPointerMove="{{ n.onMove }}" onPointerUp="{{ n.onUp }}" onPointerCancel="{{ n.onUp }}" style="{{ n.cardStyle }}">
+                  <sc-if value="{{ n.selecting }}" hint-placeholder-val="{{ false }}"><div style="{{ n.checkStyle }}">{{ n.checkMark }}</div></sc-if>
+                  <span style="font-family:'IBM Plex Mono',monospace; color:var(--syn-star); font-weight:600; margin-top:2px; flex:0 0 auto;">{{ n.stars }}</span>
+                  <div style="flex:1; min-width:0;">
+                    <div style="display:flex; align-items:baseline; gap:7px; flex-wrap:wrap;">
+                      <sc-if value="{{ n.hasTodo }}" hint-placeholder-val="{{ false }}"><span style="{{ n.todoStyle }}">{{ n.todo }}</span></sc-if>
+                      <sc-if value="{{ n.hasPrio }}" hint-placeholder-val="{{ false }}"><span style="font-size:11px; font-weight:700; color:var(--red); font-family:'IBM Plex Mono',monospace;">{{ n.prio }}</span></sc-if>
+                      <span style="{{ n.titleStyle }}">{{ n.title }}</span>
+                      <sc-if value="{{ n.hasCount }}" hint-placeholder-val="{{ false }}"><span style="font-size:11px; color:var(--ink-3);">{{ n.count }}</span></sc-if>
+                    </div>
+                    <sc-if value="{{ n.hasMeta }}" hint-placeholder-val="{{ false }}">
+                      <div style="margin-top:5px; display:flex; align-items:center; gap:7px; flex-wrap:wrap;">
+                        <sc-if value="{{ n.hasSched }}" hint-placeholder-val="{{ false }}"><span style="font-size:11px; color:var(--blue); font-family:'IBM Plex Mono',monospace;">◷ {{ n.sched }}</span></sc-if>
+                        <sc-if value="{{ n.hasDeadline }}" hint-placeholder-val="{{ false }}"><span style="font-size:11px; color:var(--red); font-family:'IBM Plex Mono',monospace; background:var(--red-soft); padding:2px 7px; border-radius:5px;">DEADLINE: {{ n.deadline }}</span></sc-if>
+                      </div>
+                    </sc-if>
+                  </div>
+                  <sc-if value="{{ n.fav }}" hint-placeholder-val="{{ false }}"><span style="color:var(--amber); font-size:14px; margin-top:2px; flex:0 0 auto;">★</span></sc-if>
+                  <sc-if value="{{ n.hasTag }}" hint-placeholder-val="{{ false }}"><span style="font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--syn-tag); margin-top:3px; flex:0 0 auto;">{{ n.tag }}</span></sc-if>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+
+          <!-- popover (concept B) -->
+          <sc-if value="{{ gPopoverOpen }}" hint-placeholder-val="{{ false }}">
+            <div onClick="{{ gClosePopover }}" style="position:absolute; inset:0; z-index:35;"></div>
+            <div style="{{ gPopoverStyle }}">
+              <div style="font-size:11px; color:var(--ink-3); margin:0 2px 9px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ gPopTitle }}</div>
+              <div style="display:flex; gap:7px; margin-bottom:8px;">
+                <div onClick="{{ gPopUp }}" style="flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; padding:9px 0; border-radius:10px; background:var(--surface-2); cursor:pointer;"><span style="font-size:17px; color:var(--ink);">↑</span><span style="font-size:9.5px; color:var(--ink-2);">Move up</span></div>
+                <div onClick="{{ gPopDown }}" style="flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; padding:9px 0; border-radius:10px; background:var(--surface-2); cursor:pointer;"><span style="font-size:17px; color:var(--ink);">↓</span><span style="font-size:9.5px; color:var(--ink-2);">Move down</span></div>
+                <div onClick="{{ gPopPromote }}" style="flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; padding:9px 0; border-radius:10px; background:var(--surface-2); cursor:pointer;"><span style="font-size:17px; color:var(--ink);">⇤</span><span style="font-size:9.5px; color:var(--ink-2);">Promote</span></div>
+                <div onClick="{{ gPopDemote }}" style="flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; padding:9px 0; border-radius:10px; background:var(--surface-2); cursor:pointer;"><span style="font-size:17px; color:var(--ink);">⇥</span><span style="font-size:9.5px; color:var(--ink-2);">Demote</span></div>
+              </div>
+              <div style="display:flex; gap:7px;">
+                <div onClick="{{ gPopInsert }}" style="flex:1; text-align:center; padding:10px; border-radius:10px; background:var(--surface-2); cursor:pointer; font-size:12.5px; font-weight:600; color:var(--ink);">＋ Insert below</div>
+                <div onClick="{{ gPopRefile }}" style="flex:1; text-align:center; padding:10px; border-radius:10px; background:var(--accent); color:var(--accent-ink); cursor:pointer; font-size:12.5px; font-weight:600;">➜ Refile</div>
+              </div>
+            </div>
+          </sc-if>
+
+          <!-- multi-select batch bar (concept C) -->
+          <sc-if value="{{ gSelectMode }}" hint-placeholder-val="{{ false }}">
+            <div style="position:absolute; left:0; right:0; bottom:0; z-index:36; background:var(--surface); border-top:1px solid var(--line); padding:11px 12px 14px; box-shadow:0 -4px 16px rgba(0,0,0,0.14); animation:groveSheet .2s ease both;">
+              <div style="display:flex; align-items:center; gap:10px;">
+                <div onClick="{{ gSelExit }}" style="width:34px; height:34px; display:grid; place-items:center; border-radius:50%; cursor:pointer; font-size:17px; color:var(--ink);" style-hover="background:var(--surface-2);">✕</div>
+                <span style="flex:1; font-size:14px; font-weight:600;">{{ gSelLabel }}</span>
+              </div>
+              <div style="display:flex; gap:6px; margin-top:10px;">
+                <div onClick="{{ gSelRefile }}" style="flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; padding:9px 0; border-radius:10px; background:var(--surface-2); cursor:pointer;"><span style="font-size:16px; color:var(--accent);">➜</span><span style="font-size:9.5px; color:var(--ink-2);">Refile</span></div>
+                <div onClick="{{ gSelCut }}" style="flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; padding:9px 0; border-radius:10px; background:var(--surface-2); cursor:pointer;"><span style="font-size:16px; color:var(--ink);">✂</span><span style="font-size:9.5px; color:var(--ink-2);">Cut</span></div>
+                <div onClick="{{ gSelCopy }}" style="flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; padding:9px 0; border-radius:10px; background:var(--surface-2); cursor:pointer;"><span style="font-size:15px; color:var(--ink);">⧉</span><span style="font-size:9.5px; color:var(--ink-2);">Copy</span></div>
+                <div onClick="{{ gSelFav }}" style="flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; padding:9px 0; border-radius:10px; background:var(--surface-2); cursor:pointer;"><span style="font-size:15px; color:var(--amber);">★</span><span style="font-size:9.5px; color:var(--ink-2);">Favorite</span></div>
+                <div onClick="{{ gSelDelete }}" style="flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; padding:9px 0; border-radius:10px; background:var(--red-soft); cursor:pointer;"><span style="font-size:15px; color:var(--red);">🗑</span><span style="font-size:9.5px; color:var(--red);">Delete</span></div>
+              </div>
+            </div>
+          </sc-if>
+
+          <!-- action sheet (concept D) -->
+          <sc-if value="{{ gSheetOpen }}" hint-placeholder-val="{{ false }}">
+            <div onClick="{{ gCloseSheet }}" style="position:absolute; inset:0; z-index:37; background:var(--scrim); animation:groveScrim .18s ease both;"></div>
+            <div style="position:absolute; left:0; right:0; bottom:0; z-index:38; max-height:84%; overflow-y:auto; background:var(--surface); border-top-left-radius:20px; border-top-right-radius:20px; box-shadow:0 -8px 30px rgba(0,0,0,0.28); animation:groveSheet .24s cubic-bezier(.22,1,.36,1) both;">
+              <div style="display:grid; place-items:center; padding:10px 0 4px;"><div style="width:40px; height:4px; border-radius:3px; background:var(--line-2);"></div></div>
+              <div style="display:flex; align-items:center; gap:9px; padding:6px 18px 12px; border-bottom:1px solid var(--line);">
+                <span style="font-family:'IBM Plex Mono',monospace; color:var(--syn-star); font-weight:600;">{{ gSheetStars }}</span>
+                <span style="flex:1; font-size:15px; font-weight:600;">{{ gSheetTitle }}</span>
+                <sc-if value="{{ gSheetHasTag }}" hint-placeholder-val="{{ false }}"><span style="font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--syn-tag);">{{ gSheetTag }}</span></sc-if>
+              </div>
+              <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.07em; color:var(--accent); font-weight:600; padding:12px 18px 4px;">Structure</div>
+              <div onClick="{{ gShInsAbove }}" style="display:flex; align-items:center; gap:13px; padding:11px 18px; cursor:pointer;" style-hover="background:var(--surface-2);"><span style="flex:0 0 24px; text-align:center; font-family:'IBM Plex Mono',monospace; color:var(--ink-2); font-size:15px;">↑+</span><span style="font-size:14.5px;">Insert above</span></div>
+              <div onClick="{{ gShInsBelow }}" style="display:flex; align-items:center; gap:13px; padding:11px 18px; cursor:pointer;" style-hover="background:var(--surface-2);"><span style="flex:0 0 24px; text-align:center; font-family:'IBM Plex Mono',monospace; color:var(--ink-2); font-size:15px;">↓+</span><span style="font-size:14.5px;">Insert below</span></div>
+              <div onClick="{{ gShInsSub }}" style="display:flex; align-items:center; gap:13px; padding:11px 18px; cursor:pointer;" style-hover="background:var(--surface-2);"><span style="flex:0 0 24px; text-align:center; font-family:'IBM Plex Mono',monospace; color:var(--ink-2); font-size:15px;">↳</span><span style="font-size:14.5px;">Insert sub-note</span></div>
+              <div onClick="{{ gShUp }}" style="display:flex; align-items:center; gap:13px; padding:11px 18px; cursor:pointer;" style-hover="background:var(--surface-2);"><span style="flex:0 0 24px; text-align:center; color:var(--ink-2); font-size:16px;">↑</span><span style="font-size:14.5px;">Move up</span></div>
+              <div onClick="{{ gShDown }}" style="display:flex; align-items:center; gap:13px; padding:11px 18px; cursor:pointer;" style-hover="background:var(--surface-2);"><span style="flex:0 0 24px; text-align:center; color:var(--ink-2); font-size:16px;">↓</span><span style="font-size:14.5px;">Move down</span></div>
+              <div onClick="{{ gShPromote }}" style="display:flex; align-items:center; gap:13px; padding:11px 18px; cursor:pointer;" style-hover="background:var(--surface-2);"><span style="flex:0 0 24px; text-align:center; color:var(--ink-2); font-size:16px;">⇤</span><span style="font-size:14.5px;">Promote heading</span></div>
+              <div onClick="{{ gShDemote }}" style="display:flex; align-items:center; gap:13px; padding:11px 18px; cursor:pointer;" style-hover="background:var(--surface-2);"><span style="flex:0 0 24px; text-align:center; color:var(--ink-2); font-size:16px;">⇥</span><span style="font-size:14.5px;">Demote heading</span></div>
+              <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.07em; color:var(--accent); font-weight:600; padding:12px 18px 4px; border-top:1px solid var(--line); margin-top:4px;">State</div>
+              <div onClick="{{ gShCycle }}" style="display:flex; align-items:center; gap:13px; padding:11px 18px; cursor:pointer;" style-hover="background:var(--surface-2);"><span style="flex:0 0 24px; text-align:center; color:var(--amber); font-size:16px;">⟳</span><span style="font-size:14.5px;">Cycle TODO state</span></div>
+              <div onClick="{{ gShSched }}" style="display:flex; align-items:center; gap:13px; padding:11px 18px; cursor:pointer;" style-hover="background:var(--surface-2);"><span style="flex:0 0 24px; text-align:center; color:var(--blue); font-size:15px;">◷</span><span style="font-size:14.5px;">Set schedule</span></div>
+              <div onClick="{{ gShDeadline }}" style="display:flex; align-items:center; gap:13px; padding:11px 18px; cursor:pointer;" style-hover="background:var(--surface-2);"><span style="flex:0 0 24px; text-align:center; color:var(--red); font-size:15px;">⚑</span><span style="font-size:14.5px;">Set deadline</span></div>
+              <div onClick="{{ gShPriority }}" style="display:flex; align-items:center; gap:13px; padding:11px 18px; cursor:pointer;" style-hover="background:var(--surface-2);"><span style="flex:0 0 24px; text-align:center; font-family:'IBM Plex Mono',monospace; color:var(--red); font-size:13px;">[#A]</span><span style="font-size:14.5px;">Set priority</span></div>
+              <div onClick="{{ gShFav }}" style="display:flex; align-items:center; gap:13px; padding:11px 18px; cursor:pointer;" style-hover="background:var(--surface-2);"><span style="flex:0 0 24px; text-align:center; color:var(--amber); font-size:15px;">★</span><span style="font-size:14.5px;">Toggle favorite</span></div>
+              <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.07em; color:var(--accent); font-weight:600; padding:12px 18px 4px; border-top:1px solid var(--line); margin-top:4px;">Organize</div>
+              <div onClick="{{ gShRefile }}" style="display:flex; align-items:center; gap:13px; padding:11px 18px; cursor:pointer;" style-hover="background:var(--surface-2);"><span style="flex:0 0 24px; text-align:center; color:var(--accent); font-size:15px;">➜</span><span style="font-size:14.5px; font-weight:600; color:var(--accent);">Refile…</span></div>
+              <div onClick="{{ gShCut }}" style="display:flex; align-items:center; gap:13px; padding:11px 18px; cursor:pointer;" style-hover="background:var(--surface-2);"><span style="flex:0 0 24px; text-align:center; color:var(--ink-2); font-size:15px;">✂</span><span style="font-size:14.5px;">Cut</span></div>
+              <div onClick="{{ gShCopy }}" style="display:flex; align-items:center; gap:13px; padding:11px 18px; cursor:pointer;" style-hover="background:var(--surface-2);"><span style="flex:0 0 24px; text-align:center; color:var(--ink-2); font-size:14px;">⧉</span><span style="font-size:14.5px;">Copy</span></div>
+              <div onClick="{{ gShContext }}" style="display:flex; align-items:center; gap:13px; padding:11px 18px; cursor:pointer;" style-hover="background:var(--surface-2);"><span style="flex:0 0 24px; text-align:center; color:var(--ink-2); font-size:15px;">◎</span><span style="font-size:14.5px;">Show in context</span></div>
+              <div onClick="{{ gShDelete }}" style="display:flex; align-items:center; gap:13px; padding:11px 18px 16px; cursor:pointer;" style-hover="background:var(--surface-2);"><span style="flex:0 0 24px; text-align:center; color:var(--red); font-size:15px;">🗑</span><span style="font-size:14.5px; color:var(--red);">Delete</span></div>
+            </div>
+          </sc-if>
+
+          <!-- refile destination picker (shared) -->
+          <sc-if value="{{ gRefileOpen }}" hint-placeholder-val="{{ false }}">
+            <div onClick="{{ gCloseRefile }}" style="position:absolute; inset:0; z-index:41; background:var(--scrim); animation:groveScrim .18s ease both;"></div>
+            <div style="position:absolute; left:0; right:0; bottom:0; z-index:42; max-height:86%; display:flex; flex-direction:column; background:var(--surface); border-top-left-radius:20px; border-top-right-radius:20px; box-shadow:0 -8px 30px rgba(0,0,0,0.28); animation:groveSheet .24s cubic-bezier(.22,1,.36,1) both;">
+              <div style="display:grid; place-items:center; padding:10px 0 4px;"><div style="width:40px; height:4px; border-radius:3px; background:var(--line-2);"></div></div>
+              <div style="display:flex; align-items:center; gap:10px; padding:6px 16px 12px; border-bottom:1px solid var(--line);">
+                <sc-if value="{{ gRefileStepHead }}" hint-placeholder-val="{{ false }}"><div onClick="{{ gRefileBack }}" style="width:36px; height:36px; display:grid; place-items:center; border-radius:50%; cursor:pointer; font-size:19px; color:var(--ink);" style-hover="background:var(--surface-2);">←</div></sc-if>
+                <div style="flex:1;">
+                  <div style="font-size:16px; font-weight:600;">Refile {{ gRefileCount }} note</div>
+                  <div style="font-size:12px; color:var(--ink-2); margin-top:2px;">{{ gRefileCrumb }}</div>
+                </div>
+              </div>
+              <div style="flex:1; overflow-y:auto; padding:12px 14px; display:flex; flex-direction:column; gap:8px; min-height:120px;">
+                <sc-for list="{{ gRefileItems }}" as="it" hint-placeholder-count="4">
+                  <div onClick="{{ it.onClick }}" style="{{ it.style }}">
+                    <span style="font-family:'IBM Plex Mono',monospace; color:var(--accent); font-size:15px; flex:0 0 auto;">{{ it.glyph }}</span>
+                    <div style="flex:1;">
+                      <div style="font-size:14.5px; font-weight:500; font-family:'IBM Plex Mono',monospace;">{{ it.label }}</div>
+                      <sc-if value="{{ it.hasSub }}" hint-placeholder-val="{{ false }}"><div style="font-size:11.5px; color:var(--ink-3); margin-top:2px;">{{ it.sub }}</div></sc-if>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+              <div style="display:flex; gap:10px; padding:12px 16px 18px; border-top:1px solid var(--line);">
+                <div onClick="{{ gCloseRefile }}" style="flex:0 0 auto; padding:12px 18px; border-radius:12px; border:1px solid var(--line); background:var(--surface-2); font-size:14px; font-weight:600; cursor:pointer; color:var(--ink-2);">Cancel</div>
+                <div onClick="{{ gRefileConfirm }}" style="{{ gRefileConfirmStyle }}">Refile here</div>
+              </div>
+            </div>
+          </sc-if>
+
+          <!-- snackbar (undo) -->
+          <sc-if value="{{ gSnackOpen }}" hint-placeholder-val="{{ false }}">
+            <div style="position:absolute; left:14px; right:14px; bottom:16px; z-index:45; display:flex; align-items:center; gap:12px; background:var(--ink); color:var(--bg); padding:12px 14px; border-radius:12px; box-shadow:var(--shadow); animation:groveFade .2s ease both;">
+              <span style="flex:1; font-size:13.5px;">{{ gSnack }}</span>
+              <span onClick="{{ gUndo }}" style="font-size:13px; font-weight:700; color:var(--accent); cursor:pointer; letter-spacing:0.03em;">UNDO</span>
+            </div>
+          </sc-if>
+
+          <!-- toast -->
+          <sc-if value="{{ gToastOpen }}" hint-placeholder-val="{{ false }}">
+            <div style="position:absolute; left:50%; transform:translateX(-50%); bottom:16px; z-index:44; background:var(--ink); color:var(--bg); padding:10px 16px; border-radius:20px; font-size:13px; font-weight:500; box-shadow:var(--shadow); animation:groveFade .2s ease both; white-space:nowrap; max-width:90%;">{{ gToast }}</div>
+          </sc-if>
+
+        </div>
+      </sc-if>
+
     </div>
 
     <!-- gesture pill (persistent) -->
@@ -773,29 +1135,25 @@
   <div style="width:100%; max-width:1180px; display:flex; flex-direction:column; gap:16px; margin-top:18px;">
     <div style="display:flex; align-items:baseline; gap:12px; flex-wrap:wrap;">
       <span style="font-size:18px; font-weight:600;">App icon</span>
-      <span style="font-size:13px; color:var(--ink-2);">One org-mode asterisk · adaptive squircle</span>
+      <span style="font-size:13px; color:var(--ink-2);">Five-pointed asterisk · themed to match your pick</span>
     </div>
 
     <div style="display:flex; flex-wrap:wrap; gap:14px; align-items:stretch;">
 
       <!-- big icon + scales -->
-      <div style="background:var(--surface); border:1px solid var(--line); border-radius:18px; padding:26px 30px; display:flex; align-items:center; gap:34px; flex-wrap:wrap;">
+      <div data-grove data-theme="{{ appIcon }}" style="background:var(--surface); border:1px solid var(--line); border-radius:18px; padding:26px 30px; display:flex; align-items:center; gap:34px; flex-wrap:wrap;">
         <div style="width:120px; height:120px; border-radius:30px; background:var(--accent-soft); border:1px solid var(--line); box-shadow:0 4px 14px rgba(60,45,25,0.16); display:grid; place-items:center; flex:0 0 auto;">
           <div style="position:relative; width:64px; height:64px;">
-            <div style="position:absolute; inset:0; margin:auto; width:11px; height:64px; border-radius:6px; background:var(--accent);"></div>
-            <div style="position:absolute; inset:0; margin:auto; width:11px; height:64px; border-radius:6px; background:var(--accent); transform:rotate(60deg);"></div>
-            <div style="position:absolute; inset:0; margin:auto; width:11px; height:64px; border-radius:6px; background:var(--accent); transform:rotate(120deg);"></div>
+            <sc-for list="{{ iconSpokesBig }}" as="sp" hint-placeholder-count="5"><div style="{{ sp }}"></div></sc-for>
           </div>
         </div>
         <div style="display:flex; flex-direction:column; gap:16px;">
-          <div style="font-size:13.5px; color:var(--ink-2); max-width:230px; line-height:1.5;">The same clean asterisk used across the app — wordmark, drawer and onboarding.</div>
+          <div style="font-size:13.5px; color:var(--ink-2); max-width:230px; line-height:1.5;">Pick a themed icon in Appearance — this preview follows your choice.</div>
           <div style="display:flex; align-items:flex-end; gap:18px;">
             <div style="display:flex; flex-direction:column; align-items:center; gap:7px;">
               <div style="width:56px; height:56px; border-radius:14px; background:var(--accent-soft); border:1px solid var(--line); display:grid; place-items:center;">
                 <div style="position:relative; width:30px; height:30px;">
-                  <div style="position:absolute; inset:0; margin:auto; width:5.2px; height:30px; border-radius:3px; background:var(--accent);"></div>
-                  <div style="position:absolute; inset:0; margin:auto; width:5.2px; height:30px; border-radius:3px; background:var(--accent); transform:rotate(60deg);"></div>
-                  <div style="position:absolute; inset:0; margin:auto; width:5.2px; height:30px; border-radius:3px; background:var(--accent); transform:rotate(120deg);"></div>
+                  <sc-for list="{{ iconSpokes56 }}" as="sp" hint-placeholder-count="5"><div style="{{ sp }}"></div></sc-for>
                 </div>
               </div>
               <span style="font-size:10.5px; color:var(--ink-3); font-family:'IBM Plex Mono',monospace;">56</span>
@@ -803,9 +1161,7 @@
             <div style="display:flex; flex-direction:column; align-items:center; gap:7px;">
               <div style="width:40px; height:40px; border-radius:11px; background:var(--accent-soft); border:1px solid var(--line); display:grid; place-items:center;">
                 <div style="position:relative; width:21px; height:21px;">
-                  <div style="position:absolute; inset:0; margin:auto; width:3.8px; height:21px; border-radius:2px; background:var(--accent);"></div>
-                  <div style="position:absolute; inset:0; margin:auto; width:3.8px; height:21px; border-radius:2px; background:var(--accent); transform:rotate(60deg);"></div>
-                  <div style="position:absolute; inset:0; margin:auto; width:3.8px; height:21px; border-radius:2px; background:var(--accent); transform:rotate(120deg);"></div>
+                  <sc-for list="{{ iconSpokes40 }}" as="sp" hint-placeholder-count="5"><div style="{{ sp }}"></div></sc-for>
                 </div>
               </div>
               <span style="font-size:10.5px; color:var(--ink-3); font-family:'IBM Plex Mono',monospace;">40</span>
@@ -813,9 +1169,7 @@
             <div style="display:flex; flex-direction:column; align-items:center; gap:7px;">
               <div style="width:28px; height:28px; border-radius:8px; background:var(--accent-soft); border:1px solid var(--line); display:grid; place-items:center;">
                 <div style="position:relative; width:15px; height:15px;">
-                  <div style="position:absolute; inset:0; margin:auto; width:2.8px; height:15px; border-radius:2px; background:var(--accent);"></div>
-                  <div style="position:absolute; inset:0; margin:auto; width:2.8px; height:15px; border-radius:2px; background:var(--accent); transform:rotate(60deg);"></div>
-                  <div style="position:absolute; inset:0; margin:auto; width:2.8px; height:15px; border-radius:2px; background:var(--accent); transform:rotate(120deg);"></div>
+                  <sc-for list="{{ iconSpokes28 }}" as="sp" hint-placeholder-count="5"><div style="{{ sp }}"></div></sc-for>
                 </div>
               </div>
               <span style="font-size:10.5px; color:var(--ink-3); font-family:'IBM Plex Mono',monospace;">28</span>
@@ -825,13 +1179,11 @@
       </div>
 
       <!-- launcher mock -->
-      <div style="background:var(--surface); border:1px solid var(--line); border-radius:18px; padding:26px 30px; display:flex; align-items:center; gap:30px;">
+      <div data-grove data-theme="{{ appIcon }}" style="background:var(--surface); border:1px solid var(--line); border-radius:18px; padding:26px 30px; display:flex; align-items:center; gap:30px;">
         <div style="display:flex; flex-direction:column; align-items:center; gap:9px;">
           <div style="width:60px; height:60px; border-radius:16px; background:var(--accent-soft); border:1px solid var(--line); display:grid; place-items:center;">
             <div style="position:relative; width:32px; height:32px;">
-              <div style="position:absolute; inset:0; margin:auto; width:5.6px; height:32px; border-radius:3px; background:var(--accent);"></div>
-              <div style="position:absolute; inset:0; margin:auto; width:5.6px; height:32px; border-radius:3px; background:var(--accent); transform:rotate(60deg);"></div>
-              <div style="position:absolute; inset:0; margin:auto; width:5.6px; height:32px; border-radius:3px; background:var(--accent); transform:rotate(120deg);"></div>
+              <sc-for list="{{ iconSpokesLauncher }}" as="sp" hint-placeholder-count="5"><div style="{{ sp }}"></div></sc-for>
             </div>
           </div>
           <span style="font-size:12px; color:var(--ink-2); font-weight:500;">Grove</span>
@@ -852,6 +1204,21 @@ class Component extends DCLogic {
     drawerOpen: false,
     searchAdvanced: false,
     fontSize: 'Medium',
+    notes: [
+      { id:'1', level:1, title:'Japan — Spring 2025', tag:'trip', fav:true },
+      { id:'2', level:2, todo:'TODO', title:'Book Kyoto ryokan', tag:'booking', sched:'Wed, Apr 9' },
+      { id:'3', level:2, title:'Kyoto — Day 2', tag:'kyoto', count:3 },
+      { id:'4', level:2, todo:'DONE', title:'Order JR Rail Pass' },
+      { id:'5', level:1, title:'Portugal — Summer', tag:'trip', count:6 },
+      { id:'6', level:1, title:'Weekend trips — ideas', tag:'ideas', count:4 },
+      { id:'7', level:1, todo:'TODO', prio:'A', title:'Renew passport', tag:'admin', deadline:'Fri, Jun 27' },
+    ],
+    gConcept:'A', swipeId:null, swipeDX:0, swipeOpen:null, dragging:false,
+    focusId:null, popoverId:null, popoverTop:120, selectMode:false, selected:{}, sheetId:null,
+    refileOpen:false, refileIds:null, refileNb:null, refileHeading:null,
+    toast:null, snack:null, undoSnap:null,
+    syncIcon:true, themeDropdownOpen:false,
+    showHeaderTags:true, colHdr:false, colFileProp:false, colSubProp:false,
   };
 
   go = (screen) => this.setState({ screen, drawerOpen: false });
@@ -893,11 +1260,358 @@ class Component extends DCLogic {
       + (active ? 'var(--accent)' : 'transparent') + ';';
   }
 
+  themeList() {
+    const cur = this.state.theme;
+    const defs = [
+      ['light','Grove Light','#f3ede1','#2a251f',['#8a5a2b','#4f7a3a','#3f6f86']],
+      ['dark','Grove Dark','#201c15','#ece4d5',['#cb9d62','#8fb46a','#7fb0c4']],
+      ['tokyonight','Tokyo Night','#1a1b26','#c0caf5',['#7aa2f7','#bb9af7','#7dcfff']],
+      ['synthwave','Synthwave','#262335','#f8f8f2',['#ff7edb','#03edf9','#fede5d']],
+      ['dracula','Dracula','#282a36','#f8f8f2',['#bd93f9','#ff79c6','#50fa7b']],
+      ['catppuccin','Catppuccin','#1e1e2e','#cdd6f4',['#cba6f7','#f38ba8','#a6e3a1']],
+      ['nord','Nord','#2e3440','#eceff4',['#88c0d0','#a3be8c','#b48ead']],
+    ];
+    return defs.map((d) => {
+      const id = d[0], name = d[1], bg = d[2], ink = d[3], dots = d[4];
+      const active = cur === id;
+      return {
+        id, name, active,
+        onClick: () => this.setState({ theme: id, drawerOpen: false, themeDropdownOpen: false }),
+        style: 'display:flex; align-items:center; gap:8px; padding:6px 11px 6px 9px; border-radius:11px; cursor:pointer; background:' + bg + '; border:2px solid ' + (active ? dots[0] : 'rgba(128,128,128,0.22)') + '; box-shadow:' + (active ? ('0 0 0 3px ' + dots[0] + '55') : 'none') + '; transition:box-shadow .15s ease;',
+        label: 'font-size:12px; font-weight:600; color:' + ink + '; white-space:nowrap; letter-spacing:-0.01em;',
+        dotsWrap: 'display:flex; gap:3px;',
+        dots: dots.map((c) => 'width:9px; height:9px; border-radius:50%; background:' + c + ';'),
+        rowStyle: 'display:flex; align-items:center; gap:10px; padding:9px 10px; border-radius:11px; cursor:pointer; background:' + bg + '; border:2px solid ' + (active ? dots[0] : 'transparent') + '; box-shadow:' + (active ? ('0 0 0 3px ' + dots[0] + '40') : 'none') + '; transition:box-shadow .15s ease;',
+        rowLabelStyle: 'flex:1; font-size:13.5px; font-weight:600; color:' + ink + ';',
+        checkStyle: 'color:' + dots[0] + '; font-size:15px; font-weight:700;',
+      };
+    });
+  }
+
+  iconList() {
+    const cur = this.state.appIcon;
+    const defs = [
+      ['light','Grove Light'], ['dark','Grove Dark'], ['tokyonight','Tokyo Night'],
+      ['synthwave','Synthwave'], ['dracula','Dracula'], ['catppuccin','Catppuccin'], ['nord','Nord'],
+    ];
+    return defs.map(([id, name]) => {
+      const active = cur === id;
+      return {
+        id, name, active,
+        onClick: () => this.setState({ appIcon: id, iconDropdownOpen: false }),
+        rowStyle: 'display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:12px; cursor:pointer; color:var(--ink); background:var(--bg); border:2px solid ' + (active ? 'var(--accent)' : 'transparent') + '; box-shadow:' + (active ? '0 0 0 3px var(--accent-soft)' : 'none') + '; transition:box-shadow .15s ease;',
+        rowLabelStyle: 'flex:1; font-size:13.5px; font-weight:600; color:var(--ink);',
+        swatchStyle: 'width:34px; height:34px; border-radius:10px; background:var(--accent-soft); border:1px solid var(--line); display:grid; place-items:center; flex:0 0 auto;',
+      };
+    });
+  }
+
+  trackStyle(on) {
+    return 'width:46px; height:27px; border-radius:14px; flex:0 0 auto; cursor:pointer; padding:2.5px; display:flex; background:' + (on ? 'var(--accent)' : 'var(--line-2)') + '; justify-content:' + (on ? 'flex-end' : 'flex-start') + '; transition:background .18s ease, justify-content .18s ease;';
+  }
+
+  knobStyle() {
+    return 'width:22px; height:22px; border-radius:50%; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,0.3); transition:transform .18s ease;';
+  }
+
+  spokeSet(len, sw) {
+    return [180,252,324,36,108].map((a) =>
+      'position:absolute; left:50%; top:50%; width:' + sw + 'px; height:' + len + 'px; margin-left:' + (-sw/2) + 'px; border-radius:' + (sw/2) + 'px; background:var(--accent); transform-origin:50% 0%; transform:rotate(' + a + 'deg);'
+    );
+  }
+
+  // ============ GESTURES DEMO ============
+  NBS() {
+    return [
+      { name:'travel.org', headings:['Japan — Spring 2025','Portugal — Summer','Weekend trips'] },
+      { name:'work.org', headings:['Q3 Planning','1:1 Notes','Hiring loop'] },
+      { name:'inbox.org', headings:['Unfiled captures'] },
+      { name:'someday.org', headings:['Books to read','Trip ideas','Side projects'] },
+    ];
+  }
+  gPillStyle(active) {
+    return 'flex:0 0 auto; font-size:12px; font-weight:600; padding:6px 13px; border-radius:20px; cursor:pointer; white-space:nowrap; border:1px solid '
+      + (active ? 'transparent' : 'var(--line)') + '; background:' + (active ? 'var(--accent)' : 'var(--surface)')
+      + '; color:' + (active ? 'var(--accent-ink)' : 'var(--ink-2)') + ';';
+  }
+  gRefRow(active) {
+    return 'display:flex; align-items:center; gap:11px; padding:13px 14px; border-radius:12px; cursor:pointer; border:1px solid '
+      + (active ? 'var(--accent)' : 'var(--line)') + '; background:' + (active ? 'var(--accent-soft)' : 'var(--surface)') + ';';
+  }
+  gFind(id){ return (this.state.notes||[]).find(n => n.id === id); }
+  gSnap(){ return (this.state.notes||[]).map(n => ({...n})); }
+  gUpdate(id, patch){ this.setState(st => ({ notes: st.notes.map(n => n.id===id ? {...n, ...patch} : n) })); }
+  gPushToast(msg){ clearTimeout(this._tt); this.setState({ toast: msg }); this._tt = setTimeout(() => this.setState({ toast:null }), 1900); }
+  gPushSnack(msg, snap){ clearTimeout(this._st); this.setState({ snack: msg, undoSnap: snap }); this._st = setTimeout(() => this.setState({ snack:null }), 4200); }
+  gUndo = () => { if (this.state.undoSnap){ this.setState({ notes:this.state.undoSnap, snack:null, undoSnap:null }); this.gPushToast('Undone'); } };
+  gClose(){ this.setState({ swipeId:null, swipeDX:0, swipeOpen:null, dragging:false }); }
+  gResetOverlays(patch){ this.setState(Object.assign({ swipeId:null, swipeDX:0, swipeOpen:null, dragging:false, focusId:null, popoverId:null, sheetId:null, selectMode:false, selected:{}, refileOpen:false, refileIds:null, refileNb:null, refileHeading:null }, patch||{})); }
+  gSetConcept = (k) => this.gResetOverlays({ gConcept:k });
+
+  gDown(e, id){
+    const card = e.currentTarget;
+    this._g = { id, x0:e.clientX, y0:e.clientY, moved:false, lock:null, card, pid:e.pointerId };
+    clearTimeout(this._lp);
+    this._lp = setTimeout(() => {
+      if (this._g && this._g.id===id && !this._g.moved){ this._g.lock='long'; this.gLong(id, card); }
+    }, 430);
+  }
+  gMove(e, id){
+    const g = this._g; if (!g || g.id!==id || g.lock==='long') return;
+    const dx = e.clientX - g.x0, dy = e.clientY - g.y0;
+    if (!g.lock){
+      if (Math.abs(dx) < 7 && Math.abs(dy) < 7) return;
+      g.lock = Math.abs(dx) > Math.abs(dy) ? 'h' : 'v';
+      if (g.lock==='h'){ clearTimeout(this._lp); try { g.card.setPointerCapture(g.pid); } catch(_){} }
+    }
+    if (g.lock !== 'h') return;
+    const AW = 184;
+    let nx = dx;
+    if (nx > AW) nx = AW + (nx-AW)*0.18;
+    if (nx < -AW) nx = -AW + (nx+AW)*0.18;
+    g.moved = true;
+    this.setState({ swipeId:id, swipeDX:nx, dragging:true, swipeOpen:null });
+  }
+  gUp(e, id){
+    clearTimeout(this._lp);
+    const g = this._g; this._g = null;
+    if (!g) return;
+    if (g.lock==='long') return;
+    if (!g.moved){ this.gTap(id); return; }
+    const AW = 184, TH = 66, dx = this.state.swipeDX;
+    if (dx <= -TH) this.setState({ swipeDX:-AW, swipeOpen:'left', dragging:false });
+    else if (dx >= TH) this.setState({ swipeDX:AW, swipeOpen:'right', dragging:false });
+    else this.setState({ swipeId:null, swipeDX:0, swipeOpen:null, dragging:false });
+  }
+  gTap(id){
+    const s = this.state;
+    if (s.selectMode){ this.setState(st => { const sel={...st.selected}; if(sel[id]) delete sel[id]; else sel[id]=true; return { selected:sel }; }); return; }
+    if (s.swipeOpen){ this.gClose(); return; }
+    if (s.popoverId||s.sheetId){ this.setState({ popoverId:null, sheetId:null }); return; }
+  }
+  gLong(id, card){
+    const c = this.state.gConcept;
+    if (c==='A'){ this.gResetOverlays({ focusId:id }); }
+    else if (c==='B'){
+      let top = 120;
+      try {
+        const root = card.closest('[data-gscreen]');
+        const rr = root.getBoundingClientRect(), cr = card.getBoundingClientRect();
+        top = cr.bottom - rr.top + 6;
+        if (top + 150 > rr.height - 8) top = Math.max(70, cr.top - rr.top - 156);
+      } catch(_){}
+      this.gResetOverlays({ popoverId:id, popoverTop:top });
+    }
+    else if (c==='C'){ this.gResetOverlays({ selectMode:true, selected:{[id]:true} }); }
+    else if (c==='D'){ this.gResetOverlays({ sheetId:id }); }
+  }
+
+  gAct(a, id){
+    switch(a){
+      case 'up': this.gMoveNote(id,-1); break;
+      case 'down': this.gMoveNote(id,1); break;
+      case 'promote': this.gIndent(id,-1); break;
+      case 'demote': this.gIndent(id,1); break;
+      case 'insAbove': this.gInsert(id,'above'); break;
+      case 'insBelow': this.gInsert(id,'below'); break;
+      case 'insSub': this.gInsert(id,'sub'); break;
+      case 'refile': this.gOpenRefile([id]); break;
+      case 'cycle': this.gCycle(id); break;
+      case 'sched': this.gSchedule(id); break;
+      case 'deadline': this.gDeadline(id); break;
+      case 'fav': this.gFav(id); break;
+      case 'priority': this.gUpdate(id,{prio:'A'}); this.gClose(); this.gPushToast('Priority · [#A]'); break;
+      case 'cut': this.gClose(); this.gPushToast('Cut 1 note'); break;
+      case 'copy': this.gClose(); this.gPushToast('Copied 1 note'); break;
+      case 'context': this.gClose(); this.gPushToast('Shown in travel.org'); break;
+      case 'delete': { const b=this.gSnap(); this.setState(st=>({ notes:st.notes.filter(n=>n.id!==id) })); this.gClose(); this.gPushSnack('Note deleted', b); break; }
+    }
+  }
+  gCycle(id){ const order=[null,'TODO','NEXT','DONE']; const n=this.gFind(id); const i=order.indexOf(n&&n.todo?n.todo:null); const nx=order[(i+1)%order.length]; this.gUpdate(id,{todo:nx}); this.gClose(); this.gPushToast(nx?('State → '+nx):'State cleared'); }
+  gSchedule(id){ this.gUpdate(id,{sched:'Tue, Apr 15'}); this.gClose(); this.gPushToast('Scheduled · Tue, Apr 15'); }
+  gDeadline(id){ this.gUpdate(id,{deadline:'Fri, Jun 27'}); this.gClose(); this.gPushToast('Deadline · Fri, Jun 27'); }
+  gFav(id){ const n=this.gFind(id); const v=!(n&&n.fav); this.gUpdate(id,{fav:v}); this.gClose(); this.gPushToast(v?'★ Added to favorites':'Removed favorite'); }
+  gInsert(id, where){
+    const before=this.gSnap(); const notes=this.gSnap();
+    const i=notes.findIndex(n=>n.id===id); if(i<0) return;
+    const lvl = where==='sub' ? notes[i].level+1 : notes[i].level;
+    const at = where==='above' ? i : i+1;
+    notes.splice(at, 0, { id:'n'+(Date.now()), level:lvl, title:'New note', todo:null });
+    this.setState({ notes }); this.gClose();
+    this.gPushSnack(where==='sub'?'Sub-note inserted':(where==='above'?'Note inserted above':'Note inserted below'), before);
+  }
+  gMoveNote(id, dir){
+    const before=this.gSnap(); const notes=this.gSnap();
+    const i=notes.findIndex(n=>n.id===id); const j=i+dir;
+    if(i<0||j<0||j>=notes.length){ this.gPushToast('Can’t move further'); return; }
+    const t=notes[i]; notes[i]=notes[j]; notes[j]=t;
+    this.setState({ notes }); this.gPushSnack(dir<0?'Moved up':'Moved down', before);
+  }
+  gIndent(id, d){
+    const n=this.gFind(id); if(!n) return;
+    const nl=Math.max(1, Math.min(4, n.level+d));
+    if(nl===n.level){ this.gPushToast(d<0?'Already top level':'Can’t demote further'); return; }
+    const before=this.gSnap(); this.gUpdate(id,{level:nl}); this.gPushSnack(d<0?'Promoted':'Demoted', before);
+  }
+  gPopRun = (a) => { const id=this.state.popoverId; this.setState({ popoverId:null }); if(id!=null) this.gAct(a,id); };
+  gSheetRun = (a) => { const id=this.state.sheetId; this.setState({ sheetId:null }); if(id!=null) this.gAct(a,id); };
+
+  gSelIds(){ return Object.keys(this.state.selected).filter(k=>this.state.selected[k]); }
+  gSelExit = () => this.setState({ selectMode:false, selected:{} });
+  gSelRefile = () => { const ids=this.gSelIds(); if(ids.length) this.gOpenRefile(ids); };
+  gSelCut = () => { const n=this.gSelIds().length; this.gSelExit(); this.gPushToast('Cut '+n+' note'+(n>1?'s':'')); };
+  gSelCopy = () => { const n=this.gSelIds().length; this.gSelExit(); this.gPushToast('Copied '+n+' note'+(n>1?'s':'')); };
+  gSelFav = () => { const ids=this.gSelIds(); this.setState(st=>({ notes:st.notes.map(n=>ids.includes(n.id)?{...n,fav:true}:n) })); const c=ids.length; this.gSelExit(); this.gPushToast('Favorited '+c); };
+  gSelDelete = () => { const ids=this.gSelIds(); const b=this.gSnap(); this.setState(st=>({ notes:st.notes.filter(n=>!ids.includes(n.id)), selectMode:false, selected:{} })); this.gPushSnack('Deleted '+ids.length+' notes', b); };
+
+  gOpenRefile(ids){ this.gResetOverlays({ refileOpen:true, refileIds:ids, refileNb:null, refileHeading:null }); }
+  gCloseRefile = () => this.setState({ refileOpen:false, refileIds:null, refileNb:null, refileHeading:null });
+  gRefileBack = () => this.setState({ refileNb:null, refileHeading:null });
+  gPickNb = (name) => this.setState({ refileNb:name, refileHeading:null });
+  gPickHeading = (h) => this.setState({ refileHeading:h });
+  gRefileConfirm = () => {
+    if (!this.state.refileHeading) return;
+    const ids=this.state.refileIds||[]; const dest=this.state.refileNb+' › '+this.state.refileHeading; const b=this.gSnap();
+    this.setState(st=>({ notes: st.notes.filter(n=>!ids.includes(n.id)), refileOpen:false, refileIds:null, refileNb:null, refileHeading:null, selectMode:false, selected:{} }));
+    this.gPushSnack('Refiled to '+dest, b);
+  };
+
+  gestureVals(){
+    const s = this.state;
+    const tc = { TODO:'amber', NEXT:'blue', DONE:'green' };
+    const notes = s.notes || [];
+    const viewNotes = notes.map((n) => {
+      const id = n.id;
+      const isSw = s.swipeId === id;
+      const dx = isSw ? s.swipeDX : 0;
+      const focused = s.focusId === id;
+      const trans = (s.dragging && isSw) ? 'none' : 'transform .34s cubic-bezier(.22,1,.36,1), box-shadow .2s ease';
+      let card = 'display:flex; align-items:flex-start; gap:9px; padding:12px 14px; background:var(--bg); position:relative; z-index:'+(focused?4:(isSw?3:1))+'; border-bottom:1px solid var(--line); cursor:grab; user-select:none; touch-action:pan-y; will-change:transform; transform:translateX('+dx.toFixed(1)+'px); transition:'+trans+';';
+      if (focused) card += ' outline:2px solid var(--accent); outline-offset:-2px; border-radius:12px; background:var(--surface); box-shadow:var(--shadow);';
+      const col = tc[n.todo];
+      const done = n.todo==='DONE';
+      const sel = !!s.selected[id];
+      return {
+        id,
+        wrapStyle: 'position:relative; overflow:hidden; margin-left:'+((n.level-1)*20)+'px;',
+        cardStyle: card,
+        stars: '*'.repeat(n.level),
+        hasTodo: !!n.todo, todo: n.todo||'',
+        todoStyle: n.todo ? ('font-size:11px; font-weight:700; color:var(--'+col+'); background:var(--'+col+'-soft); padding:1.5px 7px; border-radius:5px; font-family:\'IBM Plex Mono\',monospace;') : '',
+        hasPrio: !!n.prio, prio: n.prio?('[#'+n.prio+']'):'',
+        title: n.title,
+        titleStyle: 'font-size:'+(n.level===1?'15px':'14.5px')+'; font-weight:'+(n.level===1?600:500)+';'+(done?' color:var(--ink-2); text-decoration:line-through; text-decoration-color:var(--ink-3);':''),
+        hasCount: !!n.count, count: n.count?('… '+n.count):'',
+        hasMeta: !!(n.sched||n.deadline),
+        hasSched: !!n.sched, sched: n.sched||'',
+        hasDeadline: !!n.deadline, deadline: n.deadline||'',
+        fav: !!n.fav,
+        hasTag: !!n.tag, tag: n.tag?(':'+n.tag+':'):'',
+        selecting: !!s.selectMode,
+        checkStyle: 'flex:0 0 20px; width:20px; height:20px; border-radius:6px; margin-top:1px; display:grid; place-items:center; font-size:12px; border:1.5px solid '+(sel?'var(--accent)':'var(--line-2)')+'; background:'+(sel?'var(--accent)':'transparent')+'; color:var(--accent-ink);',
+        checkMark: sel?'✓':'',
+        onDown: (e)=>this.gDown(e,id),
+        onMove: (e)=>this.gMove(e,id),
+        onUp: (e)=>this.gUp(e,id),
+        insAbove: ()=>this.gInsert(id,'above'),
+        insBelow: ()=>this.gInsert(id,'below'),
+        insSub: ()=>this.gInsert(id,'sub'),
+        doRefile: ()=>this.gOpenRefile([id]),
+        cyc: ()=>this.gCycle(id),
+        schd: ()=>this.gSchedule(id),
+        dl: ()=>this.gDeadline(id),
+        favi: ()=>this.gFav(id),
+      };
+    });
+    const cm = { A:['Command bar','Long-press → move & indent toolbar'], B:['Popover','Long-press → quick action menu'], C:['Multi-select','Long-press → select multiple notes'], D:['Action sheet','Long-press → full action menu'] };
+    const gPills = ['A','B','C','D'].map(k => ({ label: cm[k][0], onClick: ()=>this.gSetConcept(k), style: this.gPillStyle(s.gConcept===k) }));
+    const cur = notes.find(n => n.id === (s.sheetId || s.popoverId));
+    const nbs = this.NBS();
+    let gRefileItems = [];
+    if (s.refileOpen){
+      if (!s.refileNb){
+        gRefileItems = nbs.map(nb => ({ label: nb.name, sub: nb.headings.length+' headings', hasSub:true, glyph:'▤', onClick: ()=>this.gPickNb(nb.name), style: this.gRefRow(false) }));
+      } else {
+        const nb = nbs.find(x => x.name===s.refileNb) || {headings:[]};
+        gRefileItems = nb.headings.map(h => ({ label: h, sub:'', hasSub:false, glyph:'✳', onClick: ()=>this.gPickHeading(h), style: this.gRefRow(s.refileHeading===h) }));
+      }
+    }
+    const selCount = this.gSelIds().length;
+    return {
+      isGestures: s.screen==='gestures',
+      goGestures: ()=>this.go('gestures'),
+      chipGestures: this.chip(s.screen==='gestures'),
+      viewNotes,
+      gPills,
+      gHint: cm[s.gConcept][1],
+      gStructureBar: s.gConcept==='A' && s.focusId!=null,
+      gNormalBar: !(s.gConcept==='A' && s.focusId!=null),
+      gExitFocus: ()=>this.setState({ focusId:null }),
+      gMoveUp: ()=>{ if(s.focusId!=null) this.gMoveNote(s.focusId,-1); },
+      gMoveDown: ()=>{ if(s.focusId!=null) this.gMoveNote(s.focusId,1); },
+      gPromote: ()=>{ if(s.focusId!=null) this.gIndent(s.focusId,-1); },
+      gDemote: ()=>{ if(s.focusId!=null) this.gIndent(s.focusId,1); },
+      gPopoverOpen: s.popoverId!=null,
+      gPopoverStyle: 'position:absolute; left:16px; right:16px; top:'+(s.popoverTop||120)+'px; z-index:40; background:var(--surface); border:1px solid var(--line); border-radius:16px; box-shadow:var(--shadow); padding:12px; animation:grovePop .16s ease both;',
+      gPopTitle: cur?cur.title:'',
+      gClosePopover: ()=>this.setState({ popoverId:null }),
+      gPopUp: ()=>this.gPopRun('up'),
+      gPopDown: ()=>this.gPopRun('down'),
+      gPopPromote: ()=>this.gPopRun('promote'),
+      gPopDemote: ()=>this.gPopRun('demote'),
+      gPopInsert: ()=>this.gPopRun('insBelow'),
+      gPopRefile: ()=>this.gPopRun('refile'),
+      gSelectMode: s.selectMode,
+      gSelLabel: selCount+(selCount===1?' note selected':' notes selected'),
+      gSelExit: this.gSelExit,
+      gSelRefile: this.gSelRefile,
+      gSelCut: this.gSelCut,
+      gSelCopy: this.gSelCopy,
+      gSelFav: this.gSelFav,
+      gSelDelete: this.gSelDelete,
+      gSheetOpen: s.sheetId!=null,
+      gSheetTitle: cur?cur.title:'',
+      gSheetStars: cur?'*'.repeat(cur.level):'',
+      gSheetHasTag: !!(cur&&cur.tag), gSheetTag: cur&&cur.tag?(':'+cur.tag+':'):'',
+      gCloseSheet: ()=>this.setState({ sheetId:null }),
+      gShInsAbove: ()=>this.gSheetRun('insAbove'),
+      gShInsBelow: ()=>this.gSheetRun('insBelow'),
+      gShInsSub: ()=>this.gSheetRun('insSub'),
+      gShUp: ()=>this.gSheetRun('up'),
+      gShDown: ()=>this.gSheetRun('down'),
+      gShPromote: ()=>this.gSheetRun('promote'),
+      gShDemote: ()=>this.gSheetRun('demote'),
+      gShCycle: ()=>this.gSheetRun('cycle'),
+      gShSched: ()=>this.gSheetRun('sched'),
+      gShDeadline: ()=>this.gSheetRun('deadline'),
+      gShPriority: ()=>this.gSheetRun('priority'),
+      gShFav: ()=>this.gSheetRun('fav'),
+      gShRefile: ()=>this.gSheetRun('refile'),
+      gShCut: ()=>this.gSheetRun('cut'),
+      gShCopy: ()=>this.gSheetRun('copy'),
+      gShContext: ()=>this.gSheetRun('context'),
+      gShDelete: ()=>this.gSheetRun('delete'),
+      gRefileOpen: s.refileOpen,
+      gCloseRefile: this.gCloseRefile,
+      gRefileItems,
+      gRefileStepHead: !!s.refileNb,
+      gRefileCrumb: s.refileNb ? (s.refileNb + (s.refileHeading?(' › '+s.refileHeading):' › choose a heading')) : 'Choose a destination notebook',
+      gRefileBack: this.gRefileBack,
+      gRefileConfirm: this.gRefileConfirm,
+      gRefileConfirmStyle: 'flex:1; text-align:center; font-size:14px; font-weight:600; padding:12px; border-radius:12px; cursor:'+(s.refileHeading?'pointer':'default')+'; background:'+(s.refileHeading?'var(--accent)':'var(--surface-2)')+'; color:'+(s.refileHeading?'var(--accent-ink)':'var(--ink-3)')+';',
+      gRefileCount: (s.refileIds?s.refileIds.length:0),
+      gToastOpen: !!s.toast, gToast: s.toast||'',
+      gSnackOpen: !!s.snack, gSnack: s.snack||'', gUndo: this.gUndo,
+    };
+  }
+
   renderVals() {
     const s = this.state;
     const sc = (n) => s.screen === n;
     return {
+      ...this.gestureVals(),
       theme: s.theme,
+      themes: this.themeList(),
       clock: '9:41',
       drawerOpen: s.drawerOpen,
       isOnboarding: sc('onboarding'),
@@ -948,6 +1662,50 @@ class Component extends DCLogic {
       setFontLarge: () => this.setState({ fontSize: 'Large' }),
       themeRowLight: this.fontPill(s.theme === 'light'),
       themeRowDark: this.fontPill(s.theme === 'dark'),
+      appIcon: s.syncIcon ? s.theme : 'light',
+      themeDropdownOpen: s.themeDropdownOpen,
+      toggleThemeDropdown: () => this.setState(p => ({ themeDropdownOpen: !p.themeDropdownOpen })),
+      toggleSyncIcon: () => this.setState(p => ({ syncIcon: !p.syncIcon })),
+      syncTrackStyle: this.trackStyle(s.syncIcon),
+      syncKnobStyle: this.knobStyle(),
+      showHeaderTags: s.showHeaderTags,
+      toggleHeaderTags: () => this.setState(p => ({ showHeaderTags: !p.showHeaderTags })),
+      hdrTrackStyle: this.trackStyle(s.showHeaderTags),
+      hdrKnobStyle: this.knobStyle(),
+      // collapsible header-tags + property drawers (org)
+      hdrOpen: s.colHdr,
+      filePropOpen: s.colFileProp,
+      subPropOpen: s.colSubProp,
+      toggleHdr: () => this.setState(p => ({ colHdr: !p.colHdr })),
+      toggleFileProp: () => this.setState(p => ({ colFileProp: !p.colFileProp })),
+      toggleSubProp: () => this.setState(p => ({ colSubProp: !p.colSubProp })),
+      collBoxStyle: 'font-family:\'IBM Plex Mono\',monospace; background:var(--surface-2); border-radius:10px; opacity:0.66; transition:opacity .15s ease;',
+      collHeadStyle: 'display:flex; align-items:center; gap:8px; padding:8px 12px; cursor:pointer; user-select:none;',
+      collLabelStyle: 'font-size:12px; color:var(--ink-3); letter-spacing:0.01em;',
+      collHintStyle: 'font-size:11px; color:var(--ink-3); margin-left:auto;',
+      collCaretHdr: 'font-size:10px; color:var(--ink-3); width:10px; transition:transform .15s ease; transform:rotate(' + (s.colHdr ? 90 : 0) + 'deg);',
+      collCaretFile: 'font-size:10px; color:var(--ink-3); width:10px; transition:transform .15s ease; transform:rotate(' + (s.colFileProp ? 90 : 0) + 'deg);',
+      collCaretSub: 'font-size:10px; color:var(--ink-3); width:10px; transition:transform .15s ease; transform:rotate(' + (s.colSubProp ? 90 : 0) + 'deg);',
+      collBodyStyle: 'padding:1px 12px 10px 30px; display:flex; flex-direction:column; gap:3px; font-size:12px; line-height:1.5;',
+      kvKeyStyle: 'color:var(--syn-kw);',
+      kvValStyle: 'color:var(--ink-2);',
+      themeTriggerStyle: 'display:flex; align-items:center; gap:10px; padding:9px 11px; border-radius:12px; cursor:pointer; background:var(--surface-2); border:1px solid ' + (s.themeDropdownOpen ? 'var(--accent)' : 'var(--line)') + ';',
+      themeChevronStyle: 'font-size:11px; color:var(--ink-3); transition:transform .15s ease; transform:rotate(' + (s.themeDropdownOpen ? 180 : 0) + 'deg);',
+      themeTriggerName: (this.themeList().find(t => t.active) || {}).name || '',
+      themeTriggerDots: (this.themeList().find(t => t.active) || {}).dots || [],
+      themeTriggerDotsWrap: 'display:flex; gap:3px;',
+      iconTriggerStyle: 'display:flex; align-items:center; gap:10px; padding:9px 11px; border-radius:12px; cursor:pointer; color:var(--ink); background:var(--surface-2); border:1px solid ' + (s.iconDropdownOpen ? 'var(--accent)' : 'var(--line)') + ';',
+      iconChevronStyle: 'font-size:11px; color:var(--ink-3); transition:transform .15s ease; transform:rotate(' + (s.iconDropdownOpen ? 180 : 0) + 'deg);',
+      iconTriggerName: (this.iconList().find(i => i.active) || {}).name || '',
+      iconTriggerSwatchStyle: 'width:28px; height:28px; border-radius:8px; background:var(--accent-soft); border:1px solid var(--line); display:grid; place-items:center; flex:0 0 auto;',
+      iconSpokesLogo: this.spokeSet(8, 3.4),
+      iconSpokesTrigger: this.spokeSet(8, 3.4),
+      iconSpokesDropdown: this.spokeSet(9, 3.6),
+      iconSpokesBig: this.spokeSet(32, 14),
+      iconSpokes56: this.spokeSet(15, 6.4),
+      iconSpokes40: this.spokeSet(11, 4.6),
+      iconSpokes28: this.spokeSet(8, 3.4),
+      iconSpokesLauncher: this.spokeSet(16, 7),
     };
   }
 }
