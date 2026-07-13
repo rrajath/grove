@@ -258,7 +258,7 @@ fun OutlineScreen(
                 LaunchedEffect(doc) { openRowLine = null }
                 val visible = remember(doc, collapsed) { visibleHeadlines(doc, collapsed) }
                 Column(Modifier.fillMaxSize().padding(padding)) {
-                    if (showHeaderTags && doc.preambleKeywords.isNotEmpty()) {
+                    if (showHeaderTags && doc.preambleKeywords.isNotEmpty() && doc.headlines.isEmpty()) {
                         CollapsibleKvSection(
                             label = "#+ header tags",
                             entries = doc.preambleKeywords,
@@ -295,6 +295,19 @@ fun OutlineScreen(
                             .padding(horizontal = 10.dp)
                             .testTag("outline_list"),
                     ) {
+                        // Scrolls away with the rest of the outline instead of
+                        // staying pinned above the list.
+                        if (showHeaderTags && doc.preambleKeywords.isNotEmpty()) {
+                            item(key = "header_tags") {
+                                CollapsibleKvSection(
+                                    label = "#+ header tags",
+                                    entries = doc.preambleKeywords,
+                                    expanded = headerTagsExpanded,
+                                    onToggle = { headerTagsExpanded = !headerTagsExpanded },
+                                    modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
+                                )
+                            }
+                        }
                         items(visible, key = { it.lineIndex }) { h ->
                             val isFavorite = h.lineIndex in favoriteLines
                             val toggleFavorite = {

@@ -288,6 +288,7 @@ private fun GroveNavigation(settings: GroveSettings, viewModel: AppViewModel) {
                     onSetSyncAppIconWithTheme = viewModel::setSyncAppIconWithTheme,
                     onSetShowHeaderTags = viewModel::setShowHeaderTags,
                     onSetShowPropertyDrawers = viewModel::setShowPropertyDrawers,
+                    onSetNotebookDisplayNameMode = viewModel::setNotebookDisplayNameMode,
                     onSetFontSize = viewModel::setFontSize,
                     onSetNoteOpenMode = viewModel::setDefaultNoteOpenMode,
                     onEditTemplate = { id ->

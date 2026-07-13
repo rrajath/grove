@@ -43,6 +43,7 @@ import com.rrajath.grove.ui.capture.TemplatesViewModel
 import com.rrajath.grove.settings.FontSizePreference
 import com.rrajath.grove.settings.GroveSettings
 import com.rrajath.grove.settings.NoteOpenMode
+import com.rrajath.grove.settings.NotebookDisplayNameMode
 import com.rrajath.grove.settings.SyncMode
 import com.rrajath.grove.settings.ThemePreference
 import com.rrajath.grove.ui.components.GroveTopBar
@@ -74,6 +75,7 @@ fun SettingsScreen(
     onSetCaptureNotification: (Boolean) -> Unit,
     onSetVaultUri: (String) -> Unit,
     onSetShareTargetFile: (String) -> Unit,
+    onSetNotebookDisplayNameMode: (NotebookDisplayNameMode) -> Unit,
     onExportSettings: (android.net.Uri) -> Unit,
     onImportSettings: (android.net.Uri) -> Unit,
     templatesViewModel: TemplatesViewModel = viewModel(factory = TemplatesViewModel.Factory),
@@ -331,6 +333,15 @@ fun SettingsScreen(
                             'A' -> 1; 'B' -> 2; 'C' -> 3; else -> 0
                         },
                         onSelect = { onSetDefaultPriority(listOf(null, 'A', 'B', 'C')[it]) },
+                        modifier = Modifier.width(200.dp),
+                    )
+                }
+                RowDivider()
+                SettingsRow(label = "Notebook display name") {
+                    SegmentedControl(
+                        options = listOf("Filename", "Title"),
+                        selectedIndex = settings.notebookDisplayNameMode.ordinal,
+                        onSelect = { onSetNotebookDisplayNameMode(NotebookDisplayNameMode.entries[it]) },
                         modifier = Modifier.width(200.dp),
                     )
                 }

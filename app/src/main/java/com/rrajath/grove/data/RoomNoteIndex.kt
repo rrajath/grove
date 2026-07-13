@@ -54,6 +54,7 @@ class RoomNoteIndex(
                 noteCount = doc.headlines.count { it.level == 1 },
                 lastModified = lastModified,
                 conflictFileName = conflictFileName,
+                title = doc.preambleKeywords.firstOrNull { it.first.equals("#+TITLE:", ignoreCase = true) }?.second,
             ),
             notes,
         )

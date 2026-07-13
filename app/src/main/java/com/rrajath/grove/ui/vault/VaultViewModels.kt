@@ -12,6 +12,7 @@ import com.rrajath.grove.org.OrgHeadline
 import com.rrajath.grove.org.OrgMutations
 import com.rrajath.grove.org.OrgParser
 import com.rrajath.grove.org.OrgTimestamp
+import com.rrajath.grove.settings.NotebookDisplayNameMode
 import com.rrajath.grove.sync.SyncState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -39,6 +40,8 @@ data class NotebookItem(
     val color: String? = null,
     /** Position in the pinned list (0 = topmost). -1 means not pinned. */
     val pinnedIndex: Int = -1,
+    /** Label to show in the notebooks list — the file name or the cached `#+TITLE:`. */
+    val displayName: String = fileName,
 ) {
     val isPinned: Boolean get() = pinnedIndex >= 0
 }
@@ -71,6 +74,10 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
                     icon = settings.notebookIcons[it.fileName],
                     color = settings.notebookColors[it.fileName],
                     pinnedIndex = settings.pinnedNotebooks.indexOf(it.fileName),
+                    displayName = if (
+                        settings.notebookDisplayNameMode == NotebookDisplayNameMode.TITLE &&
+                        !it.title.isNullOrBlank()
+                    ) it.title else it.fileName,
                 )
             }
             .sortedWith(

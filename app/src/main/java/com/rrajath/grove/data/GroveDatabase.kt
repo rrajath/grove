@@ -25,6 +25,8 @@ data class NotebookEntity(
     val lastModified: Long,
     /** Name of a Syncthing .sync-conflict file shadowing this notebook, if any. */
     val conflictFileName: String?,
+    /** Cached `#+TITLE:` preamble value, so the list doesn't re-parse files just to display it. */
+    val title: String? = null,
 )
 
 @Entity(tableName = "notes", primaryKeys = ["fileName", "lineIndex"])
@@ -148,9 +150,9 @@ interface SyncLogDao {
 
 @Database(
     entities = [NotebookEntity::class, NoteEntity::class, SyncLogEntity::class],
-    // v3: noteCount semantics changed to top-level headings only; destructive
-    // migration drops the index so the next sync rebuilds the counts.
-    version = 3,
+    // v4: added NotebookEntity.title (cached #+TITLE: preamble value); destructive
+    // migration drops the index so the next sync rebuilds it.
+    version = 4,
     exportSchema = false,
 )
 abstract class GroveDatabase : RoomDatabase() {

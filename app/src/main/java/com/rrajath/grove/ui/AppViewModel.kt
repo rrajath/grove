@@ -13,6 +13,7 @@ import com.rrajath.grove.search.SavedSearch
 import com.rrajath.grove.settings.FontSizePreference
 import com.rrajath.grove.settings.GroveSettings
 import com.rrajath.grove.settings.NoteOpenMode
+import com.rrajath.grove.settings.NotebookDisplayNameMode
 import com.rrajath.grove.settings.OutlineToggle
 import com.rrajath.grove.settings.SettingsRepository
 import com.rrajath.grove.settings.SettingsSerialization
@@ -153,6 +154,9 @@ class AppViewModel(private val app: GroveApplication) : ViewModel() {
 
     fun setShowPropertyDrawers(enabled: Boolean) =
         viewModelScope.launch { settingsRepository.setShowPropertyDrawers(enabled) }
+
+    fun setNotebookDisplayNameMode(mode: NotebookDisplayNameMode) =
+        viewModelScope.launch { settingsRepository.setNotebookDisplayNameMode(mode) }
 
     /** Write the current preferences as a JSON document to the user-picked [uri]. */
     fun exportSettings(uri: android.net.Uri) = viewModelScope.launch {
