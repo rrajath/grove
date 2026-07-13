@@ -62,6 +62,7 @@ import com.rrajath.grove.org.OrgDocument
 import com.rrajath.grove.org.OrgHeadline
 import com.rrajath.grove.org.OrgTimestamp
 import com.rrajath.grove.settings.OutlineToggle
+import com.rrajath.grove.ui.components.CollapsibleKvSection
 import com.rrajath.grove.ui.components.FavoriteStar
 import com.rrajath.grove.ui.components.GroveTopBar
 import com.rrajath.grove.ui.components.GroveToast
@@ -103,6 +104,8 @@ fun OutlineScreen(
     favoriteLines: Set<Int> = emptySet(),
     displayFlags: OutlineDisplayFlags = OutlineDisplayFlags(),
     onToggleDisplay: (OutlineToggle, Boolean) -> Unit = { _, _ -> },
+    /** Settings toggle: show a collapsible section for file-level `#+` keywords, pinned at the top. */
+    showHeaderTags: Boolean = true,
     viewModel: DocumentViewModel = viewModel(factory = DocumentViewModel.Factory),
 ) {
     val c = MaterialTheme.grove
@@ -118,6 +121,7 @@ fun OutlineScreen(
     var collapsed by rememberSaveable(notebookId, stateSaver = IntSetSaver) {
         mutableStateOf(setOf<Int>())
     }
+    var headerTagsExpanded by rememberSaveable(notebookId) { mutableStateOf(false) }
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
 
     // Only one swipe panel open at a time; any mutation snaps it shut.
@@ -253,7 +257,17 @@ fun OutlineScreen(
                 // Every mutation produces a new document — snap any open panel shut.
                 LaunchedEffect(doc) { openRowLine = null }
                 val visible = remember(doc, collapsed) { visibleHeadlines(doc, collapsed) }
-                Box(Modifier.fillMaxSize().padding(padding)) {
+                Column(Modifier.fillMaxSize().padding(padding)) {
+                    if (showHeaderTags && doc.preambleKeywords.isNotEmpty()) {
+                        CollapsibleKvSection(
+                            label = "#+ header tags",
+                            entries = doc.preambleKeywords,
+                            expanded = headerTagsExpanded,
+                            onToggle = { headerTagsExpanded = !headerTagsExpanded },
+                            modifier = Modifier.padding(start = 10.dp, top = 8.dp, end = 10.dp),
+                        )
+                    }
+                    Box(Modifier.fillMaxSize().weight(1f)) {
                     if (doc.headlines.isEmpty()) {
                         // Empty state still needs the overlays below — undoing a
                         // delete/refile of the last note happens from here.
@@ -368,6 +382,7 @@ fun OutlineScreen(
                         toast = toast,
                         modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 150.dp),
                     )
+                    }
                 }
 
                 datePickerFor?.let { (line, target) ->
@@ -413,6 +428,7 @@ fun OutlineScreen(
                         onBack = viewModel::refileBack,
                         onCancel = viewModel::refileCancel,
                         onConfirm = viewModel::refileConfirm,
+                        onArchive = viewModel::refileToArchive,
                     )
                 }
             }

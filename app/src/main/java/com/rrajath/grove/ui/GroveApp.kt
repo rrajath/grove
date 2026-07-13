@@ -185,6 +185,7 @@ private fun GroveNavigation(settings: GroveSettings, viewModel: AppViewModel) {
                         keywords = settings.showKeywordsInOutline,
                     ),
                     onToggleDisplay = viewModel::setOutlineToggle,
+                    showHeaderTags = settings.showHeaderTags,
                 )
             }
             composable(
@@ -220,7 +221,6 @@ private fun GroveNavigation(settings: GroveSettings, viewModel: AppViewModel) {
                                 popUpTo(Routes.NOTE) { inclusive = true }
                             }
                         },
-                        showHeaderTags = settings.showHeaderTags,
                         showPropertyDrawers = settings.showPropertyDrawers,
                         favoriteLines = favoriteLinesFor(favorites, ref.fileName),
                     )
