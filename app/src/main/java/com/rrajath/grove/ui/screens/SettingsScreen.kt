@@ -47,7 +47,7 @@ import com.rrajath.grove.settings.SyncMode
 import com.rrajath.grove.settings.ThemePreference
 import com.rrajath.grove.ui.components.GroveTopBar
 import com.rrajath.grove.ui.components.SegmentedControl
-import com.rrajath.grove.ui.components.ThemeSwatchPicker
+import com.rrajath.grove.ui.components.ThemeDropdownPicker
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
@@ -153,7 +153,7 @@ fun SettingsScreen(
                         fontSize = 14.5.sp, color = c.ink,
                         modifier = Modifier.padding(bottom = 10.dp),
                     )
-                    ThemeSwatchPicker(
+                    ThemeDropdownPicker(
                         selected = settings.theme,
                         onSelect = onSetTheme,
                         modifier = Modifier.fillMaxWidth(),

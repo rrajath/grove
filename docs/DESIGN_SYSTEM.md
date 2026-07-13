@@ -406,15 +406,19 @@ with note content — never mutates the underlying `.org` file. Controlled by th
 
 ---
 
-### `ThemeSwatchPicker` — `ui/components/Common.kt`
+### `ThemeDropdownPicker` — `ui/components/Common.kt`
 
-Wrapping 7-chip theme picker (Settings → Appearance → Theme). Each chip previews its theme:
-own `bg` fill, 11dp corner radius, 3 small (9dp) accent/green/blue-ish dots, and its label in
-the theme's `ink` color. The active chip gets a 2dp border in its first dot color; inactive
-chips get a neutral `rgba(128,128,128,0.22)` border.
+Theme picker (Settings → Appearance → Theme) as a collapsed trigger plus an inline expanding
+list — no popup menu. The trigger row (`surface2` fill, 12dp radius, 1dp `line` border that
+turns `accent` while open, 11×9dp padding) shows the active theme's three 9dp dots, its name
+(14sp Medium `ink`), and an 11sp `ink3` chevron that rotates 180° while open. The list expands
+in place below (8dp gap): a `surface2` container, 13dp radius, 6dp padding, 4dp row spacing,
+capped at 280dp with internal scroll. Each row previews its theme — own `bg` fill, 11dp radius,
+3 dots, label in the theme's `ink` (13.5sp SemiBold) — and the active row gets a 2dp border plus
+a trailing ✓, both in its first dot color. Selecting a row applies the theme and collapses the list.
 
 ```kotlin
-ThemeSwatchPicker(
+ThemeDropdownPicker(
     selected = settings.theme,
     onSelect = onSetTheme,
     modifier = Modifier.fillMaxWidth(),
@@ -422,10 +426,10 @@ ThemeSwatchPicker(
 ```
 
 Preview colors (bg/ink/dots) are hardcoded per theme rather than derived from `GroveColors`,
-matching `design/GroveThemes.dc.html`'s `themeList()` — notably the Dark theme's chip uses its
+matching `design/Grove.dc.html`'s `themeList()` — notably the Dark theme's row uses its
 `surface` color, not `bg`, for legibility against the picker's own surface background.
 
-**When to use**: the single Settings theme picker. Not a general-purpose swatch component.
+**When to use**: the single Settings theme picker. Not a general-purpose dropdown component.
 
 ---
 
@@ -494,7 +498,7 @@ use `OrgVisualTransformation` instead.
 | Capture Editor | `capture/{templateId}` | `GroveTopBar`, `monoBody()`, formatting toolbar |
 | Search | `search` | `GroveTopBar`, `annotateOrgInline`, `Pill` ("Advanced") |
 | Conflict | `conflict/{notebookId}` | `GroveTopBar`, warning banner, diff cards, action buttons |
-| Settings | `settings` | `GroveTopBar`, `ThemeSwatchPicker` (theme), `SegmentedControl` (font), keyword chips, `Pill` ("default") |
+| Settings | `settings` | `GroveTopBar`, `ThemeDropdownPicker` (theme), `SegmentedControl` (font), keyword chips, `Pill` ("default") |
 
 ---
 
@@ -512,6 +516,6 @@ GroveTheme(
 ```
 
 There is no "follow system" option — the app always uses the explicitly selected `ThemePreference`,
-picked via `ThemeSwatchPicker` on the Settings screen and persisted through `SettingsRepository`.
+picked via `ThemeDropdownPicker` on the Settings screen and persisted through `SettingsRepository`.
 
 Inside any composable: `MaterialTheme.grove` → full `GroveColors` token set.

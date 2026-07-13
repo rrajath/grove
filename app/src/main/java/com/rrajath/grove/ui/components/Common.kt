@@ -1,27 +1,37 @@
 package com.rrajath.grove.ui.components
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -155,38 +165,117 @@ private val ThemeSwatches = listOf(
     ThemeSwatch(ThemePreference.NORD, "Nord", Color(0xFF2E3440), Color(0xFFECEFF4), listOf(Color(0xFF88C0D0), Color(0xFFA3BE8C), Color(0xFFB48EAD))),
 )
 
-/** Wrapping 7-swatch theme picker per design spec. */
+/**
+ * Theme picker as a collapsed trigger + inline expanding list, per the Settings
+ * screen in design/Grove.dc.html (`themeTriggerStyle` / theme dropdown rows).
+ * The trigger shows the active theme's three dots, its name, and a chevron that
+ * rotates while open; the list expands in place below it (no popup).
+ */
 @Composable
-fun ThemeSwatchPicker(
+fun ThemeDropdownPicker(
     selected: ThemePreference,
     onSelect: (ThemePreference) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    FlowRow(
-        modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        ThemeSwatches.forEach { swatch ->
-            ThemeSwatchChip(swatch, active = swatch.pref == selected, onClick = { onSelect(swatch.pref) })
+    val c = MaterialTheme.grove
+    var open by rememberSaveable { mutableStateOf(false) }
+    val active = ThemeSwatches.first { it.pref == selected }
+    val chevronAngle by animateFloatAsState(if (open) 180f else 0f, label = "themeChevron")
+
+    Column(modifier) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(c.surface2)
+                .border(1.dp, if (open) c.accent else c.line, RoundedCornerShape(12.dp))
+                .clickable { open = !open }
+                .padding(horizontal = 11.dp, vertical = 9.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            ThemeDots(active.dots)
+            Text(
+                active.label,
+                color = c.ink,
+                fontFamily = PlexSans,
+                fontWeight = FontWeight.Medium,
+                fontSize = 14.sp,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                "▾",
+                color = c.ink3,
+                fontSize = 11.sp,
+                modifier = Modifier.graphicsLayer { rotationZ = chevronAngle },
+            )
+        }
+        AnimatedVisibility(open) {
+            Column(
+                Modifier
+                    .padding(top = 8.dp)
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(13.dp))
+                    .background(c.surface2)
+                    .padding(6.dp)
+                    .heightIn(max = 280.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                ThemeSwatches.forEach { swatch ->
+                    ThemeDropdownRow(
+                        swatch,
+                        active = swatch.pref == selected,
+                        onClick = {
+                            onSelect(swatch.pref)
+                            open = false
+                        },
+                    )
+                }
+            }
         }
     }
 }
 
 @Composable
-private fun ThemeSwatchChip(swatch: ThemeSwatch, active: Boolean, onClick: () -> Unit) {
-    val borderColor = if (active) swatch.dots[0] else Color(0x38808080) // rgba(128,128,128,0.22)
+private fun ThemeDropdownRow(swatch: ThemeSwatch, active: Boolean, onClick: () -> Unit) {
     Row(
         Modifier
+            .fillMaxWidth()
             .clip(RoundedCornerShape(11.dp))
             .background(swatch.bg)
-            .border(2.dp, borderColor, RoundedCornerShape(11.dp))
+            .border(2.dp, if (active) swatch.dots[0] else Color.Transparent, RoundedCornerShape(11.dp))
             .clickable(onClick = onClick)
-            .padding(horizontal = 10.dp, vertical = 8.dp),
+            .padding(horizontal = 10.dp, vertical = 9.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        swatch.dots.forEachIndexed { i, dot ->
-            if (i > 0) Box(Modifier.size(4.dp))
+        ThemeDots(swatch.dots)
+        Text(
+            swatch.label,
+            color = swatch.ink,
+            fontFamily = PlexSans,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 13.5.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        if (active) {
+            Text(
+                "✓",
+                color = swatch.dots[0],
+                fontWeight = FontWeight.Bold,
+                fontSize = 15.sp,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ThemeDots(dots: List<Color>) {
+    Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+        dots.forEach { dot ->
             Box(
                 Modifier
                     .size(9.dp)
@@ -194,15 +283,5 @@ private fun ThemeSwatchChip(swatch: ThemeSwatch, active: Boolean, onClick: () ->
                     .background(dot)
             )
         }
-        Text(
-            swatch.label,
-            color = swatch.ink,
-            fontFamily = PlexSans,
-            fontWeight = FontWeight.SemiBold,
-            fontSize = 12.sp,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(start = 2.dp),
-        )
     }
 }
