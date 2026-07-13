@@ -1,7 +1,6 @@
 package com.rrajath.grove.ui.screens
 
 import android.content.Intent
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -34,8 +33,6 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.rotate
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.runtime.mutableStateOf
@@ -63,6 +60,7 @@ import com.rrajath.grove.org.BlockParser
 import com.rrajath.grove.org.OrgBlock
 import com.rrajath.grove.org.OrgDocument
 import com.rrajath.grove.org.OrgHeadline
+import com.rrajath.grove.ui.components.CollapsibleKvSection
 import com.rrajath.grove.ui.components.FavoriteStar
 import com.rrajath.grove.ui.components.GroveTopBar
 import com.rrajath.grove.ui.components.Pill
@@ -92,8 +90,6 @@ fun ReadNoteScreen(
     onOpenNote: (NoteRef) -> Unit,
     /** Double-tap anywhere switches to edit mode. */
     onEdit: () -> Unit,
-    /** Settings toggle: show a collapsible section for file-level `#+` keywords. */
-    showHeaderTags: Boolean = true,
     /** Settings toggle: show collapsible sections for `:PROPERTIES:` drawers. */
     showPropertyDrawers: Boolean = true,
     /** Line indices of favorited headlines in this file — marked with a ★. */
@@ -172,7 +168,6 @@ fun ReadNoteScreen(
                             onOpenNote = onOpenNote,
                             fileName = noteRef.fileName,
                             onEditAt = onEdit,
-                            showHeaderTags = showHeaderTags,
                             showPropertyDrawers = showPropertyDrawers,
                             favoriteLines = favoriteLines,
                         )
@@ -198,7 +193,6 @@ private fun NoteContent(
     onEditAt: () -> Unit,
     listState: LazyListState,
     modifier: Modifier = Modifier,
-    showHeaderTags: Boolean = true,
     showPropertyDrawers: Boolean = true,
     favoriteLines: Set<Int> = emptySet(),
 ) {
@@ -244,20 +238,6 @@ private fun NoteContent(
             item(key = "header", contentType = "header") {
                 SelectionContainer {
                     Column {
-                        // File-level `#+` keyword lines — shown on every note of the
-                        // file, since the preamble applies to the whole file.
-                        if (showHeaderTags && doc.preambleKeywords.isNotEmpty()) {
-                            CollapsibleKvSection(
-                                label = "#+ header tags",
-                                entries = doc.preambleKeywords,
-                                expanded = collapsibleExpanded["header"] == true,
-                                onToggle = {
-                                    collapsibleExpanded["header"] = collapsibleExpanded["header"] != true
-                                },
-                            )
-                            Spacer(Modifier.height(16.dp))
-                        }
-
                         Spacer(Modifier.height(8.dp))
 
                         // Tag chips
@@ -497,62 +477,6 @@ private fun PlanningChip(text: String, fg: Color, bg: Color) {
             .padding(horizontal = 8.dp, vertical = 3.dp),
     ) {
         Text(text, fontFamily = PlexMono, fontSize = 12.5.sp, color = fg)
-    }
-}
-
-/**
- * Collapsible, faded (66% alpha), monospace key-value section for file-level
- * `#+` keyword lines or a `:PROPERTIES:` drawer (design/Grove.dc.html lines
- * 499-552, style block at 1682+). Header row is the only tap target; body is
- * hidden unless [expanded]. Display-only — never mutates the source file.
- */
-@Composable
-private fun CollapsibleKvSection(
-    label: String,
-    entries: List<Pair<String, String>>,
-    expanded: Boolean,
-    onToggle: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val c = MaterialTheme.grove
-    val caretRotation by animateFloatAsState(if (expanded) 90f else 0f, label = "collapsibleCaret")
-    Column(
-        modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
-            .background(c.surface2)
-            .alpha(0.66f),
-    ) {
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onToggle)
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                "▸",
-                fontFamily = PlexMono, fontSize = 10.sp, color = c.ink3,
-                modifier = Modifier.width(10.dp).rotate(caretRotation),
-            )
-            Spacer(Modifier.width(8.dp))
-            Text(label, fontFamily = PlexMono, fontSize = 12.sp, color = c.ink3)
-            Spacer(Modifier.weight(1f))
-            Text(entries.size.toString(), fontFamily = PlexMono, fontSize = 11.sp, color = c.ink3)
-        }
-        if (expanded) {
-            Column(
-                Modifier.padding(start = 30.dp, end = 12.dp, bottom = 10.dp),
-                verticalArrangement = Arrangement.spacedBy(3.dp),
-            ) {
-                entries.forEach { (key, value) ->
-                    Row {
-                        Text("$key ", fontFamily = PlexMono, fontSize = 12.sp, lineHeight = 1.5.em, color = c.synKw)
-                        Text(value, fontFamily = PlexMono, fontSize = 12.sp, lineHeight = 1.5.em, color = c.ink2)
-                    }
-                }
-            }
-        }
     }
 }
 

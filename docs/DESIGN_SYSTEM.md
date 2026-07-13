@@ -379,10 +379,13 @@ transparent bg + `ink2` text.
 
 ---
 
-### `CollapsibleKvSection` — `ui/screens/ReadNoteScreen.kt` (private)
+### `CollapsibleKvSection` — `ui/components/CollapsibleKvSection.kt`
 
-Collapsed-by-default, faded monospace key/value box used in Read mode for file-level
-`#+` keyword lines and `:PROPERTIES:` drawers (design/Grove.dc.html lines 499-552, 1682+).
+Collapsed-by-default, faded monospace key/value box (design/Grove.dc.html lines
+499-552, 1682+). Two call sites: the top of Outline for a notebook's file-level `#+`
+keyword lines (once per notebook, gated by the "Show header tags" Settings toggle), and
+Read mode for each heading's own `:PROPERTIES:` drawer (gated by "Show property
+drawers"). Read mode no longer shows file-level header tags — only its own drawer.
 
 ```kotlin
 CollapsibleKvSection(
@@ -397,12 +400,11 @@ Internally: `surface2` background, 10dp corner radius, whole section at 66% opac
 Header row (only tap target) is 8dp/12dp padding, 8dp gap, with a 10sp `ink3` caret
 that rotates 90° on expand (animated), a 12sp `ink3` label, and a right-aligned 11sp
 `ink3` count. Body (when expanded): 30dp/12dp/10dp padding, 3dp row gap, 12sp rows —
-key in `synKw`, value in `ink2`. Expansion state is per-section, in-memory, reset when
-the viewed note changes.
+key in `synKw`, value in `ink2`. Expansion state is per-section, in-memory (Outline's
+header-tags box persists its expanded state per-notebook via `rememberSaveable`).
 
-**When to use**: Read-mode-only, display-only metadata that shouldn't compete visually
-with note content — never mutates the underlying `.org` file. Controlled by the
-"Show header tags" / "Show property drawers" Settings toggles.
+**When to use**: display-only metadata that shouldn't compete visually with note
+content — never mutates the underlying `.org` file.
 
 ---
 
@@ -545,6 +547,16 @@ radius with a 1dp `line` border — `▤` glyph for notebooks, `✳` for heading
 Footer: Cancel (surface-2 / line border / ink2) + weight-1 "Refile here"
 (accent/accentInk enabled, surface-2/ink3 disabled). State machine lives in
 `DocumentViewModel` (`RefileUiState`, `startRefile` … `refileConfirm`).
+
+**Archive quick action**: when the source heading resolves an `ARCHIVE` target (its own
+`:PROPERTIES:`, the nearest ancestor's, or the file's `#+ARCHIVE:` keyword — nearest-
+ancestor-wins inheritance, see `org/ArchiveLocation.kt`), a pinned row is shown above
+everything else in the sheet: 12dp radius, filled `accentSoft` (vs. the plain-list rows'
+`line`-bordered/transparent look, so it reads as the primary action), `◆` glyph in
+`accent`, "Archive" title (PlexSans SemiBold 14sp `ink`) + resolved crumb sub-label
+("archive.org › Inbox", PlexSans 11.5sp `ink2`), trailing `→` in `accent`. One tap
+refiles immediately (no drill-down/confirm step) via `DocumentViewModel.refileToArchive()`,
+auto-creating the destination file and/or any missing heading in its path.
 
 ---
 

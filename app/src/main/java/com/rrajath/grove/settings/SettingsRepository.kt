@@ -49,6 +49,8 @@ data class GroveSettings(
     val showHeaderTags: Boolean = true,
     /** Read mode: show collapsible sections for `:PROPERTIES:` drawers. */
     val showPropertyDrawers: Boolean = true,
+    /** Notebook list label: raw file name, or the `#+TITLE:` cached in the index. */
+    val notebookDisplayNameMode: NotebookDisplayNameMode = NotebookDisplayNameMode.FILENAME,
 ) {
     companion object {
         const val DEFAULT_TODO_KEYWORDS = "TODO IN-PROGRESS | DONE CANCELLED"
@@ -82,6 +84,7 @@ class SettingsRepository(private val context: Context) {
         val pinnedNotebooks = stringPreferencesKey("pinned_notebooks")
         val showHeaderTags = booleanPreferencesKey("show_header_tags")
         val showPropertyDrawers = booleanPreferencesKey("show_property_drawers")
+        val notebookDisplayNameMode = stringPreferencesKey("notebook_display_name_mode")
     }
 
     val settings: Flow<GroveSettings> = context.settingsDataStore.data.map { prefs ->
@@ -109,6 +112,7 @@ class SettingsRepository(private val context: Context) {
             pinnedNotebooks = decodePinnedList(prefs[Keys.pinnedNotebooks]),
             showHeaderTags = prefs[Keys.showHeaderTags] ?: true,
             showPropertyDrawers = prefs[Keys.showPropertyDrawers] ?: true,
+            notebookDisplayNameMode = NotebookDisplayNameMode.fromStorage(prefs[Keys.notebookDisplayNameMode]),
         )
     }
 
@@ -156,8 +160,10 @@ class SettingsRepository(private val context: Context) {
             p[Keys.showTagsInOutline] = s.showTagsInOutline
             p[Keys.showTimestampsInOutline] = s.showTimestampsInOutline
             p[Keys.showKeywordsInOutline] = s.showKeywordsInOutline
+            p[Keys.pinnedNotebooks] = encodePinnedList(s.pinnedNotebooks)
             p[Keys.showHeaderTags] = s.showHeaderTags
             p[Keys.showPropertyDrawers] = s.showPropertyDrawers
+            p[Keys.notebookDisplayNameMode] = s.notebookDisplayNameMode.storageKey
         }
     }
 
@@ -238,6 +244,10 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setShowPropertyDrawers(enabled: Boolean) {
         context.settingsDataStore.edit { it[Keys.showPropertyDrawers] = enabled }
+    }
+
+    suspend fun setNotebookDisplayNameMode(mode: NotebookDisplayNameMode) {
+        context.settingsDataStore.edit { it[Keys.notebookDisplayNameMode] = mode.storageKey }
     }
 
     suspend fun setNotebookIcon(fileName: String, glyph: String) {

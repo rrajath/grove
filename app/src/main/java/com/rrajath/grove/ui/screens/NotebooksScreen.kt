@@ -428,7 +428,7 @@ private fun NotebookRow(
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(
-                    notebook.fileName,
+                    notebook.displayName,
                     fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
                     fontSize = 15.sp, color = c.ink,
                 )

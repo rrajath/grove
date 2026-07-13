@@ -185,6 +185,7 @@ private fun GroveNavigation(settings: GroveSettings, viewModel: AppViewModel) {
                         keywords = settings.showKeywordsInOutline,
                     ),
                     onToggleDisplay = viewModel::setOutlineToggle,
+                    showHeaderTags = settings.showHeaderTags,
                 )
             }
             composable(
@@ -220,7 +221,6 @@ private fun GroveNavigation(settings: GroveSettings, viewModel: AppViewModel) {
                                 popUpTo(Routes.NOTE) { inclusive = true }
                             }
                         },
-                        showHeaderTags = settings.showHeaderTags,
                         showPropertyDrawers = settings.showPropertyDrawers,
                         favoriteLines = favoriteLinesFor(favorites, ref.fileName),
                     )
@@ -288,6 +288,7 @@ private fun GroveNavigation(settings: GroveSettings, viewModel: AppViewModel) {
                     onSetSyncAppIconWithTheme = viewModel::setSyncAppIconWithTheme,
                     onSetShowHeaderTags = viewModel::setShowHeaderTags,
                     onSetShowPropertyDrawers = viewModel::setShowPropertyDrawers,
+                    onSetNotebookDisplayNameMode = viewModel::setNotebookDisplayNameMode,
                     onSetFontSize = viewModel::setFontSize,
                     onSetNoteOpenMode = viewModel::setDefaultNoteOpenMode,
                     onEditTemplate = { id ->

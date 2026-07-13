@@ -55,6 +55,7 @@ data class SettingsExport(
     val pinnedNotebooks: List<String> = emptyList(),
     val showHeaderTags: Boolean = true,
     val showPropertyDrawers: Boolean = true,
+    val notebookDisplayNameMode: String = NotebookDisplayNameMode.FILENAME.storageKey,
 ) {
     /** Map back onto [base], using the enums' tolerant `fromStorage` fallbacks. */
     fun applyTo(base: GroveSettings): GroveSettings = base.copy(
@@ -79,6 +80,7 @@ data class SettingsExport(
         pinnedNotebooks = pinnedNotebooks,
         showHeaderTags = showHeaderTags,
         showPropertyDrawers = showPropertyDrawers,
+        notebookDisplayNameMode = NotebookDisplayNameMode.fromStorage(notebookDisplayNameMode),
     )
 
     companion object {
@@ -106,6 +108,7 @@ data class SettingsExport(
             pinnedNotebooks = s.pinnedNotebooks,
             showHeaderTags = s.showHeaderTags,
             showPropertyDrawers = s.showPropertyDrawers,
+            notebookDisplayNameMode = s.notebookDisplayNameMode.storageKey,
         )
     }
 }

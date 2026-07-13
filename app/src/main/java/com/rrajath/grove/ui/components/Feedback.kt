@@ -88,6 +88,10 @@ fun GroveUndoSnackbar(
                 .padding(horizontal = 14.dp)
                 .clip(RoundedCornerShape(12.dp))
                 .background(c.ink)
+                // The whole bar intercepts taps (and triggers undo), not just the
+                // "UNDO" glyph — otherwise a tap that misses the small text falls
+                // through to the list item rendered underneath this overlay.
+                .clickable(onClick = onUndo)
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -101,7 +105,6 @@ fun GroveUndoSnackbar(
                 "UNDO",
                 fontFamily = PlexSans, fontWeight = FontWeight.Bold,
                 fontSize = 13.sp, color = c.accent,
-                modifier = Modifier.clickable(onClick = onUndo),
             )
         }
     }

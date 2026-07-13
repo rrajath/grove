@@ -51,3 +51,13 @@ enum class NoteOpenMode(val storageKey: String) {
             entries.firstOrNull { it.storageKey == value } ?: READ
     }
 }
+
+enum class NotebookDisplayNameMode(val storageKey: String) {
+    FILENAME("filename"),
+    TITLE("title");
+
+    companion object {
+        fun fromStorage(value: String?): NotebookDisplayNameMode =
+            entries.firstOrNull { it.storageKey == value } ?: FILENAME
+    }
+}
