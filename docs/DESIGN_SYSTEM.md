@@ -338,6 +338,26 @@ inline chip pattern.
 
 ---
 
+### `FavoriteStar` — `ui/components/Common.kt`
+
+Amber ★ marking a favorited heading.
+
+```kotlin
+FavoriteStar()                                        // drawer-style inline use
+FavoriteStar(modifier = Modifier.padding(top = 2.dp)) // nudged onto a heading's first line
+```
+
+Internally: a single `★` glyph, 12sp PlexSans in `amber`. No background, not tappable —
+favoriting happens through the outline node menu, the star is display-only.
+
+**When to use**: anywhere a favorited headline is rendered — right-aligned at the end of
+outline rows and read-mode heading lines (top-padded so it sits on the first line of a
+wrapped title). The nav drawer's Favorites section uses the same `★` glyph in its item
+rows. Don't confuse with `☆` (outline "save search" action) or `starColor()` (heading
+asterisk color cycle).
+
+---
+
 ### `SegmentedControl` — `ui/components/Common.kt`
 
 Two-option toggle for mode switching (Read / Edit).
@@ -466,9 +486,9 @@ use `OrgVisualTransformation` instead.
 |---|---|---|
 | Onboarding | `onboarding` | `BrandMark`, `Pill` ("Recommended"), primary button |
 | Notebooks | `notebooks` | `GroveTopBar`, `Pill` (sync badges), icon glyph tiles, FAB |
-| Nav Drawer | (overlay) | `BrandMark`, plain `Text` rows |
-| Outline | `outline/{notebookId}` | `GroveTopBar`, `annotateOrgInline`, keyword chips, `starColor()` |
-| Read Note | `note/{noteId}?mode=read` | `GroveTopBar`, `SegmentedControl`, `annotateOrgInline`, tag chips |
+| Nav Drawer | (overlay) | `BrandMark`, plain `Text` rows, `★` favorites glyph |
+| Outline | `outline/{notebookId}` | `GroveTopBar`, `annotateOrgInline`, keyword chips, `starColor()`, `FavoriteStar` |
+| Read Note | `note/{noteId}?mode=read` | `GroveTopBar`, `SegmentedControl`, `annotateOrgInline`, tag chips, `FavoriteStar` |
 | Edit Note | `note/{noteId}?mode=edit` | `GroveTopBar`, `SegmentedControl`, `OrgVisualTransformation`, formatting toolbar, `MetadataSheet` |
 | Capture Picker | (bottom sheet) | `ModalBottomSheet`, icon glyph tiles, `PlexMono` |
 | Capture Editor | `capture/{templateId}` | `GroveTopBar`, `monoBody()`, formatting toolbar |

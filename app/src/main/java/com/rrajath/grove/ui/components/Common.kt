@@ -57,6 +57,18 @@ fun Pill(
     }
 }
 
+/** Amber ★ marking a favorited heading (outline rows, read-mode headings). */
+@Composable
+fun FavoriteStar(modifier: Modifier = Modifier) {
+    Text(
+        "★",
+        fontFamily = PlexSans,
+        fontSize = 12.sp,
+        color = MaterialTheme.grove.amber,
+        modifier = modifier,
+    )
+}
+
 /** Segmented control per design spec (surface-2 container, accent active pill). */
 @Composable
 fun SegmentedControl(

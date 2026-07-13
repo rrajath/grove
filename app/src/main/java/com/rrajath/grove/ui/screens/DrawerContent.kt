@@ -84,7 +84,7 @@ fun GroveDrawerContent(
         if (favorites.isNotEmpty()) {
             SectionLabel("FAVORITES")
             favorites.forEach { fav ->
-                DrawerItem("♡", fav.title, active = false) {
+                DrawerItem("★", fav.title, active = false) {
                     onNavigate(Routes.note(NoteRef(fav.fileName, fav.lineIndex).encode()))
                 }
             }

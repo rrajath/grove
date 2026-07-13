@@ -63,6 +63,7 @@ import com.rrajath.grove.org.BlockParser
 import com.rrajath.grove.org.OrgBlock
 import com.rrajath.grove.org.OrgDocument
 import com.rrajath.grove.org.OrgHeadline
+import com.rrajath.grove.ui.components.FavoriteStar
 import com.rrajath.grove.ui.components.GroveTopBar
 import com.rrajath.grove.ui.components.Pill
 import com.rrajath.grove.ui.components.SegmentedControl
@@ -95,6 +96,8 @@ fun ReadNoteScreen(
     showHeaderTags: Boolean = true,
     /** Settings toggle: show collapsible sections for `:PROPERTIES:` drawers. */
     showPropertyDrawers: Boolean = true,
+    /** Line indices of favorited headlines in this file — marked with a ★. */
+    favoriteLines: Set<Int> = emptySet(),
     viewModel: DocumentViewModel = viewModel(factory = DocumentViewModel.Factory),
 ) {
     val c = MaterialTheme.grove
@@ -171,6 +174,7 @@ fun ReadNoteScreen(
                             onEditAt = onEdit,
                             showHeaderTags = showHeaderTags,
                             showPropertyDrawers = showPropertyDrawers,
+                            favoriteLines = favoriteLines,
                         )
                         ScrollJumpButtons(
                             listState = listState,
@@ -196,6 +200,7 @@ private fun NoteContent(
     modifier: Modifier = Modifier,
     showHeaderTags: Boolean = true,
     showPropertyDrawers: Boolean = true,
+    favoriteLines: Set<Int> = emptySet(),
 ) {
     val c = MaterialTheme.grove
     val context = LocalContext.current
@@ -239,10 +244,9 @@ private fun NoteContent(
             item(key = "header", contentType = "header") {
                 SelectionContainer {
                     Column {
-                        // File-level `#+` keyword lines, only when this note is the
-                        // file's own root headline (index 0) — the only view that
-                        // sees the preamble.
-                        if (showHeaderTags && headline.index == 0 && doc.preambleKeywords.isNotEmpty()) {
+                        // File-level `#+` keyword lines — shown on every note of the
+                        // file, since the preamble applies to the whole file.
+                        if (showHeaderTags && doc.preambleKeywords.isNotEmpty()) {
                             CollapsibleKvSection(
                                 label = "#+ header tags",
                                 entries = doc.preambleKeywords,
@@ -276,14 +280,21 @@ private fun NoteContent(
                                 Spacer(Modifier.width(8.dp))
                             }
                         }
-                        OrgText(
-                            headline.title, onOpenLink = openLink, onLinkLongPress = onLinkLongPress,
-                            onDoubleTapAt = onEditAt,
-                            style = TextStyle(
-                                fontFamily = PlexSerif, fontWeight = FontWeight.SemiBold,
-                                fontSize = 25.sp, color = c.ink, lineHeight = 1.3.em,
-                            ),
-                        )
+                        Row(verticalAlignment = Alignment.Top) {
+                            OrgText(
+                                headline.title, onOpenLink = openLink, onLinkLongPress = onLinkLongPress,
+                                onDoubleTapAt = onEditAt,
+                                style = TextStyle(
+                                    fontFamily = PlexSerif, fontWeight = FontWeight.SemiBold,
+                                    fontSize = 25.sp, color = c.ink, lineHeight = 1.3.em,
+                                ),
+                                modifier = Modifier.weight(1f),
+                            )
+                            if (headline.lineIndex in favoriteLines) {
+                                Spacer(Modifier.width(8.dp))
+                                FavoriteStar(modifier = Modifier.padding(top = 8.dp))
+                            }
+                        }
 
                         // Created / planning metadata
                         headline.properties["CREATED"]?.let { created ->
@@ -331,7 +342,9 @@ private fun NoteContent(
                     Column {
                         Spacer(Modifier.height(20.dp))
                         val rel = (child.level - headline.level).coerceAtLeast(1)
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        // Top-aligned so the keyword pill stays on the first line
+                        // when the title wraps.
+                        Row(verticalAlignment = Alignment.Top) {
                             child.keyword?.let { kw ->
                                 val (fg, bg) = if (doc.keywords.isDone(kw)) c.green to c.greenSoft
                                 else c.amber to c.amberSoft
@@ -350,7 +363,12 @@ private fun NoteContent(
                                     },
                                     color = c.ink,
                                 ),
+                                modifier = Modifier.weight(1f),
                             )
+                            if (child.lineIndex in favoriteLines) {
+                                Spacer(Modifier.width(8.dp))
+                                FavoriteStar(modifier = Modifier.padding(top = 2.dp))
+                            }
                         }
                         if (showPropertyDrawers && child.properties.isNotEmpty()) {
                             Spacer(Modifier.height(10.dp))

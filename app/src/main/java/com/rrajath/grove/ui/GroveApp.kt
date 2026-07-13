@@ -70,6 +70,12 @@ fun GroveApp(viewModel: AppViewModel = viewModel(factory = AppViewModel.Factory)
     }
 }
 
+/** Line indices of favorited headlines in [fileName]. */
+private fun favoriteLinesFor(
+    favorites: List<com.rrajath.grove.data.FavoriteNote>,
+    fileName: String,
+): Set<Int> = favorites.filter { it.fileName == fileName }.map { it.lineIndex }.toSet()
+
 /**
  * Human-readable form of the persisted SAF tree URI for the drawer header,
  * e.g. "primary:Documents/org" → "~/Documents/org".
@@ -90,6 +96,7 @@ private fun GroveNavigation(settings: GroveSettings, viewModel: AppViewModel) {
     val scope = rememberCoroutineScope()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
+    val favorites by viewModel.favorites.collectAsStateWithLifecycle()
     val app = androidx.compose.ui.platform.LocalContext.current.applicationContext
             as com.rrajath.grove.GroveApplication
 
@@ -117,7 +124,7 @@ private fun GroveNavigation(settings: GroveSettings, viewModel: AppViewModel) {
                     currentRoute = currentRoute,
                     vaultPath = vaultDisplayPath(settings.vaultTreeUri),
                     savedSearches = viewModel.savedSearches.collectAsStateWithLifecycle().value,
-                    favorites = viewModel.favorites.collectAsStateWithLifecycle().value,
+                    favorites = favorites,
                     logoFollowsTheme = settings.syncAppIconWithTheme,
                     onNavigate = { route -> closeDrawerAnd { navController.navigate(route) } },
                     onDeleteSavedSearch = { viewModel.deleteSavedSearch(it.id) },
@@ -153,8 +160,9 @@ private fun GroveNavigation(settings: GroveSettings, viewModel: AppViewModel) {
                 )
             }
             composable(Routes.OUTLINE) { entry ->
+                val notebookId = entry.arguments?.getString("notebookId").orEmpty()
                 OutlineScreen(
-                    notebookId = entry.arguments?.getString("notebookId").orEmpty(),
+                    notebookId = notebookId,
                     onBack = { navController.popBackStack() },
                     onOpenNote = { ref ->
                         // Always open in the mode configured in Settings.
@@ -163,6 +171,7 @@ private fun GroveNavigation(settings: GroveSettings, viewModel: AppViewModel) {
                     // A freshly created note opens straight in edit mode (blank heading).
                     onCreateNote = { ref -> navController.navigate(Routes.note(ref.encode(), "edit", isNew = true)) },
                     onFavorite = { fileName, lineIndex, title -> viewModel.addFavorite(fileName, lineIndex, title) },
+                    favoriteLines = favoriteLinesFor(favorites, notebookId),
                     displayFlags = OutlineDisplayFlags(
                         tags = settings.showTagsInOutline,
                         timestamps = settings.showTimestampsInOutline,
@@ -206,6 +215,7 @@ private fun GroveNavigation(settings: GroveSettings, viewModel: AppViewModel) {
                         },
                         showHeaderTags = settings.showHeaderTags,
                         showPropertyDrawers = settings.showPropertyDrawers,
+                        favoriteLines = favoriteLinesFor(favorites, ref.fileName),
                     )
                 }
             }

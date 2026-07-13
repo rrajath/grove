@@ -45,6 +45,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rrajath.grove.org.OrgDocument
 import com.rrajath.grove.org.OrgHeadline
 import com.rrajath.grove.settings.OutlineToggle
+import com.rrajath.grove.ui.components.FavoriteStar
 import com.rrajath.grove.ui.components.GroveTopBar
 import com.rrajath.grove.ui.components.Pill
 import com.rrajath.grove.ui.components.ScrollJumpButtons
@@ -74,6 +75,8 @@ fun OutlineScreen(
     onOpenNote: (NoteRef) -> Unit,
     onCreateNote: (NoteRef) -> Unit,
     onFavorite: (fileName: String, lineIndex: Int, title: String) -> Unit = { _, _, _ -> },
+    /** Line indices of favorited headlines in this notebook — marked with a ★. */
+    favoriteLines: Set<Int> = emptySet(),
     displayFlags: OutlineDisplayFlags = OutlineDisplayFlags(),
     onToggleDisplay: (OutlineToggle, Boolean) -> Unit = { _, _ -> },
     viewModel: DocumentViewModel = viewModel(factory = DocumentViewModel.Factory),
@@ -271,6 +274,7 @@ fun OutlineScreen(
                                     else collapsed + h.lineIndex
                                 },
                                 onOpen = { onOpenNote(NoteRef(notebookId, h.lineIndex)) },
+                                isFavorite = h.lineIndex in favoriteLines,
                                 flags = displayFlags,
                                 ops = NodeOps(
                                     onEdit = { onOpenNote(NoteRef(notebookId, h.lineIndex)) },
@@ -358,6 +362,7 @@ private fun OutlineNode(
     onToggle: () -> Unit,
     onOpen: () -> Unit,
     ops: NodeOps,
+    isFavorite: Boolean = false,
     flags: OutlineDisplayFlags = OutlineDisplayFlags(),
 ) {
     val c = MaterialTheme.grove
@@ -465,25 +470,25 @@ private fun OutlineNode(
         )
         Spacer(Modifier.width(7.dp))
         Column(Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            // Baseline-aligned so the keyword/priority chips sit on the first
+            // line when the title wraps, instead of centering on the block.
+            Row {
                 headline.keyword?.takeIf { flags.keywords }?.let { kw ->
                     val (fg, bg) = when {
                         doc.keywords.isDone(kw) -> c.green to c.greenSoft
                         kw == "IN-PROGRESS" -> c.blue to c.blueSoft
                         else -> c.amber to c.amberSoft
                     }
-                    Box(
-                        Modifier
+                    Text(
+                        kw,
+                        fontFamily = PlexMono, fontWeight = FontWeight.Bold,
+                        fontSize = 11.sp, color = fg,
+                        modifier = Modifier
+                            .alignByBaseline()
                             .clip(RoundedCornerShape(5.dp))
                             .background(bg)
                             .padding(horizontal = 5.dp, vertical = 1.dp),
-                    ) {
-                        Text(
-                            kw,
-                            fontFamily = PlexMono, fontWeight = FontWeight.Bold,
-                            fontSize = 11.sp, color = fg,
-                        )
-                    }
+                    )
                     Spacer(Modifier.width(6.dp))
                 }
                 headline.priority?.let { p ->
@@ -491,6 +496,7 @@ private fun OutlineNode(
                         "[#$p]",
                         fontFamily = PlexMono, fontWeight = FontWeight.Bold,
                         fontSize = 11.sp, color = c.red,
+                        modifier = Modifier.alignByBaseline(),
                     )
                     Spacer(Modifier.width(6.dp))
                 }
@@ -501,11 +507,14 @@ private fun OutlineNode(
                     fontSize = 14.5.sp,
                     color = if (isDone) c.ink3 else c.ink,
                     textDecoration = if (isDone) TextDecoration.LineThrough else null,
-                    modifier = Modifier.weight(1f, fill = false),
+                    modifier = Modifier.alignByBaseline().weight(1f, fill = false),
                 )
                 if (isCollapsed && childCount > 0) {
                     Spacer(Modifier.width(6.dp))
-                    Text("… $childCount", fontFamily = PlexMono, fontSize = 11.sp, color = c.ink3)
+                    Text(
+                        "… $childCount", fontFamily = PlexMono, fontSize = 11.sp, color = c.ink3,
+                        modifier = Modifier.alignByBaseline(),
+                    )
                 }
             }
             // Body preview: first two non-empty lines, keeping the line breaks
@@ -563,6 +572,10 @@ private fun OutlineNode(
                 headline.tags.joinToString(":", prefix = ":", postfix = ":"),
                 fontFamily = PlexMono, fontSize = 11.sp, color = c.synTag,
             )
+        }
+        if (isFavorite) {
+            Spacer(Modifier.width(6.dp))
+            FavoriteStar(modifier = Modifier.padding(top = 2.dp))
         }
     }
     }
