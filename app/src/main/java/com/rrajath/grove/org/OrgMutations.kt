@@ -97,10 +97,12 @@ object OrgMutations {
         return lines.joinToString("\n")
     }
 
-    /** Swap [h]'s subtree with its previous (delta=-1) or next (+1) sibling. */
-    fun moveSubtree(doc: OrgDocument, h: OrgHeadline, delta: Int): String? {
-        val siblings = doc.parent(h)?.let { doc.directChildren(it) }
-            ?: doc.headlines.filter { it.level == h.level && doc.parent(it) == null }
+    /**
+     * Swap [h]'s subtree with its previous (delta=-1) or next (+1) sibling.
+     * Returns the new text plus [h]'s new lineIndex, or null at an edge.
+     */
+    fun moveSubtree(doc: OrgDocument, h: OrgHeadline, delta: Int): Pair<String, Int>? {
+        val siblings = siblingsOf(doc, h)
         val idx = siblings.indexOfFirst { it.lineIndex == h.lineIndex }
         val other = siblings.getOrNull(idx + delta) ?: return null
 
@@ -113,7 +115,92 @@ object OrgMutations {
                 lines.subList(firstEnd, second.lineIndex) +
                 lines.subList(first.lineIndex, firstEnd) +
                 lines.subList(secondEnd, lines.size)
-        return rebuilt.joinToString("\n")
+        val newLine = if (other.lineIndex < h.lineIndex) {
+            first.lineIndex // moved up: h now starts where the previous sibling did
+        } else {
+            // moved down: everything between h's old start and the next
+            // sibling's subtree end now sits in front of h
+            first.lineIndex + (secondEnd - firstEnd)
+        }
+        return rebuilt.joinToString("\n") to newLine
+    }
+
+    /**
+     * Shift [h] and its entire subtree one level shallower.
+     * Returns null when [h] is already at level 1.
+     */
+    fun promoteSubtree(doc: OrgDocument, h: OrgHeadline): String? {
+        if (h.level == 1) return null
+        return shiftSubtreeLevels(doc, h, -1)
+    }
+
+    /**
+     * Shift [h] and its entire subtree one level deeper. Returns null when
+     * [h] has no previous same-level sibling to become its parent (demoting
+     * would create an orphaned level jump).
+     */
+    fun demoteSubtree(doc: OrgDocument, h: OrgHeadline): String? {
+        val siblings = siblingsOf(doc, h)
+        val idx = siblings.indexOfFirst { it.lineIndex == h.lineIndex }
+        if (idx <= 0) return null
+        return shiftSubtreeLevels(doc, h, +1)
+    }
+
+    /**
+     * Insert [subtree] into [doc], releveled: as the last child of [target],
+     * or appended at the end of the file at level 1 when [target] is null.
+     * Returns the new text plus the inserted root's lineIndex.
+     */
+    fun refileInsert(doc: OrgDocument, target: OrgHeadline?, subtree: String): Pair<String, Int> {
+        val releveled = relevelSubtree(subtree.trimEnd('\n').split("\n"), (target?.level ?: 0) + 1)
+        if (target == null && doc.lines.all { it.isEmpty() }) {
+            return releveled.joinToString("\n") + "\n" to 0
+        }
+        val lines = doc.lines.toMutableList()
+        var insertAt = target?.let { doc.subtreeEndLine(it) } ?: lines.size
+        if (insertAt == lines.size && lines.isNotEmpty() && lines.last().isEmpty()) insertAt--
+        lines.addAll(insertAt, releveled)
+        return lines.joinToString("\n") to insertAt
+    }
+
+    /**
+     * Refile [source]'s subtree within the same document, under the headline
+     * starting at [targetLine] (or to the top level when null). One text
+     * pipeline — the target's line is re-resolved after the delete so stale
+     * indexes can't corrupt the file. Returns null when [targetLine] falls
+     * inside [source]'s own subtree or no longer resolves to a headline.
+     */
+    fun refileWithinFile(doc: OrgDocument, source: OrgHeadline, targetLine: Int?): Pair<String, Int>? {
+        val sourceEnd = doc.subtreeEndLine(source)
+        if (targetLine != null && targetLine in source.lineIndex until sourceEnd) return null
+        val subtree = subtreeText(doc, source)
+        val redoc = OrgParser.parse(deleteSubtree(doc, source), doc.keywords)
+        val target = targetLine?.let { line ->
+            val adjusted = if (line > source.lineIndex) line - (sourceEnd - source.lineIndex) else line
+            redoc.headlines.firstOrNull { it.lineIndex == adjusted } ?: return null
+        }
+        return refileInsert(redoc, target, subtree)
+    }
+
+    private fun siblingsOf(doc: OrgDocument, h: OrgHeadline): List<OrgHeadline> =
+        doc.parent(h)?.let { doc.directChildren(it) }
+            ?: doc.headlines.filter { it.level == h.level && doc.parent(it) == null }
+
+    /**
+     * Re-star [h]'s subtree by [delta] using the parsed headline positions,
+     * so literal star lines inside blocks are never touched.
+     */
+    private fun shiftSubtreeLevels(doc: OrgDocument, h: OrgHeadline, delta: Int): String {
+        val end = doc.subtreeEndLine(h)
+        val headlineLines = doc.headlines
+            .filter { it.lineIndex in h.lineIndex until end }
+            .associateBy { it.lineIndex }
+        val lines = doc.lines.mapIndexed { i, line ->
+            val head = headlineLines[i] ?: return@mapIndexed line
+            val m = STARS_LINE.matchEntire(line) ?: return@mapIndexed line
+            "*".repeat((head.level + delta).coerceAtLeast(1)) + m.groupValues[2]
+        }
+        return lines.joinToString("\n")
     }
 
     /** Insert a new child note at the end of [h]'s subtree; returns text + new headline's line. */
@@ -191,16 +278,7 @@ object OrgMutations {
 
     /** Paste a cut/copied subtree as the last child of [h], releveled. */
     fun pasteUnder(doc: OrgDocument, h: OrgHeadline, subtree: String): String {
-        val subtreeLines = subtree.trimEnd('\n').split("\n")
-        val srcLevel = STARS_PREFIX.find(subtreeLines.first())?.groupValues?.get(1)?.length ?: 1
-        val shift = (h.level + 1) - srcLevel
-        val releveled = subtreeLines.map { line ->
-            val m = STARS_LINE.matchEntire(line)
-            if (m != null) {
-                val newLevel = (m.groupValues[1].length + shift).coerceAtLeast(1)
-                "*".repeat(newLevel) + m.groupValues[2]
-            } else line
-        }
+        val releveled = relevelSubtree(subtree.trimEnd('\n').split("\n"), h.level + 1)
         val lines = doc.lines.toMutableList()
         var insertAt = doc.subtreeEndLine(h)
         if (insertAt == lines.size && lines.isNotEmpty() && lines.last().isEmpty()) insertAt--
@@ -252,6 +330,19 @@ object OrgMutations {
 
     private val STARS_PREFIX = Regex("""^(\*+)\s""")
     private val STARS_LINE = Regex("""^(\*+)(\s.*)$""")
+
+    /** Re-star every headline line of a detached subtree so its root sits at [targetLevel]. */
+    private fun relevelSubtree(subtreeLines: List<String>, targetLevel: Int): List<String> {
+        val srcLevel = STARS_PREFIX.find(subtreeLines.first())?.groupValues?.get(1)?.length ?: 1
+        val shift = targetLevel - srcLevel
+        return subtreeLines.map { line ->
+            val m = STARS_LINE.matchEntire(line)
+            if (m != null) {
+                val newLevel = (m.groupValues[1].length + shift).coerceAtLeast(1)
+                "*".repeat(newLevel) + m.groupValues[2]
+            } else line
+        }
+    }
 
     private fun replaceLine(doc: OrgDocument, lineIndex: Int, newLine: String): String {
         val lines = doc.lines.toMutableList()

@@ -955,12 +955,9 @@
             </div>
           </sc-if>
 
-          <!-- concept switcher -->
+          <!-- hint strip -->
           <div style="padding:10px 12px; border-bottom:1px solid var(--line); background:var(--surface);">
-            <div style="display:flex; gap:6px; overflow-x:auto; padding-bottom:2px;">
-              <sc-for list="{{ gPills }}" as="p" hint-placeholder-count="4"><div onClick="{{ p.onClick }}" style="{{ p.style }}">{{ p.label }}</div></sc-for>
-            </div>
-            <div style="margin-top:9px; font-size:11.5px; color:var(--ink-2); display:flex; align-items:center; gap:6px;"><span style="color:var(--accent); font-size:12px;">✦</span><span>Swipe ← structure · → state · {{ gHint }}</span></div>
+            <div style="font-size:11.5px; color:var(--ink-2); display:flex; align-items:center; gap:6px;"><span style="color:var(--accent); font-size:12px;">✦</span><span>Swipe ← structure · → state · long-press → command bar</span></div>
           </div>
 
           <!-- note list -->
@@ -1005,74 +1002,6 @@
               </div>
             </sc-for>
           </div>
-
-          <!-- popover (concept B) -->
-          <sc-if value="{{ gPopoverOpen }}" hint-placeholder-val="{{ false }}">
-            <div onClick="{{ gClosePopover }}" style="position:absolute; inset:0; z-index:35;"></div>
-            <div style="{{ gPopoverStyle }}">
-              <div style="font-size:11px; color:var(--ink-3); margin:0 2px 9px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ gPopTitle }}</div>
-              <div style="display:flex; gap:7px; margin-bottom:8px;">
-                <div onClick="{{ gPopUp }}" style="flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; padding:9px 0; border-radius:10px; background:var(--surface-2); cursor:pointer;"><span style="font-size:17px; color:var(--ink);">↑</span><span style="font-size:9.5px; color:var(--ink-2);">Move up</span></div>
-                <div onClick="{{ gPopDown }}" style="flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; padding:9px 0; border-radius:10px; background:var(--surface-2); cursor:pointer;"><span style="font-size:17px; color:var(--ink);">↓</span><span style="font-size:9.5px; color:var(--ink-2);">Move down</span></div>
-                <div onClick="{{ gPopPromote }}" style="flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; padding:9px 0; border-radius:10px; background:var(--surface-2); cursor:pointer;"><span style="font-size:17px; color:var(--ink);">⇤</span><span style="font-size:9.5px; color:var(--ink-2);">Promote</span></div>
-                <div onClick="{{ gPopDemote }}" style="flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; padding:9px 0; border-radius:10px; background:var(--surface-2); cursor:pointer;"><span style="font-size:17px; color:var(--ink);">⇥</span><span style="font-size:9.5px; color:var(--ink-2);">Demote</span></div>
-              </div>
-              <div style="display:flex; gap:7px;">
-                <div onClick="{{ gPopInsert }}" style="flex:1; text-align:center; padding:10px; border-radius:10px; background:var(--surface-2); cursor:pointer; font-size:12.5px; font-weight:600; color:var(--ink);">＋ Insert below</div>
-                <div onClick="{{ gPopRefile }}" style="flex:1; text-align:center; padding:10px; border-radius:10px; background:var(--accent); color:var(--accent-ink); cursor:pointer; font-size:12.5px; font-weight:600;">➜ Refile</div>
-              </div>
-            </div>
-          </sc-if>
-
-          <!-- multi-select batch bar (concept C) -->
-          <sc-if value="{{ gSelectMode }}" hint-placeholder-val="{{ false }}">
-            <div style="position:absolute; left:0; right:0; bottom:0; z-index:36; background:var(--surface); border-top:1px solid var(--line); padding:11px 12px 14px; box-shadow:0 -4px 16px rgba(0,0,0,0.14); animation:groveSheet .2s ease both;">
-              <div style="display:flex; align-items:center; gap:10px;">
-                <div onClick="{{ gSelExit }}" style="width:34px; height:34px; display:grid; place-items:center; border-radius:50%; cursor:pointer; font-size:17px; color:var(--ink);" style-hover="background:var(--surface-2);">✕</div>
-                <span style="flex:1; font-size:14px; font-weight:600;">{{ gSelLabel }}</span>
-              </div>
-              <div style="display:flex; gap:6px; margin-top:10px;">
-                <div onClick="{{ gSelRefile }}" style="flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; padding:9px 0; border-radius:10px; background:var(--surface-2); cursor:pointer;"><span style="font-size:16px; color:var(--accent);">➜</span><span style="font-size:9.5px; color:var(--ink-2);">Refile</span></div>
-                <div onClick="{{ gSelCut }}" style="flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; padding:9px 0; border-radius:10px; background:var(--surface-2); cursor:pointer;"><span style="font-size:16px; color:var(--ink);">✂</span><span style="font-size:9.5px; color:var(--ink-2);">Cut</span></div>
-                <div onClick="{{ gSelCopy }}" style="flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; padding:9px 0; border-radius:10px; background:var(--surface-2); cursor:pointer;"><span style="font-size:15px; color:var(--ink);">⧉</span><span style="font-size:9.5px; color:var(--ink-2);">Copy</span></div>
-                <div onClick="{{ gSelFav }}" style="flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; padding:9px 0; border-radius:10px; background:var(--surface-2); cursor:pointer;"><span style="font-size:15px; color:var(--amber);">★</span><span style="font-size:9.5px; color:var(--ink-2);">Favorite</span></div>
-                <div onClick="{{ gSelDelete }}" style="flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; padding:9px 0; border-radius:10px; background:var(--red-soft); cursor:pointer;"><span style="font-size:15px; color:var(--red);">🗑</span><span style="font-size:9.5px; color:var(--red);">Delete</span></div>
-              </div>
-            </div>
-          </sc-if>
-
-          <!-- action sheet (concept D) -->
-          <sc-if value="{{ gSheetOpen }}" hint-placeholder-val="{{ false }}">
-            <div onClick="{{ gCloseSheet }}" style="position:absolute; inset:0; z-index:37; background:var(--scrim); animation:groveScrim .18s ease both;"></div>
-            <div style="position:absolute; left:0; right:0; bottom:0; z-index:38; max-height:84%; overflow-y:auto; background:var(--surface); border-top-left-radius:20px; border-top-right-radius:20px; box-shadow:0 -8px 30px rgba(0,0,0,0.28); animation:groveSheet .24s cubic-bezier(.22,1,.36,1) both;">
-              <div style="display:grid; place-items:center; padding:10px 0 4px;"><div style="width:40px; height:4px; border-radius:3px; background:var(--line-2);"></div></div>
-              <div style="display:flex; align-items:center; gap:9px; padding:6px 18px 12px; border-bottom:1px solid var(--line);">
-                <span style="font-family:'IBM Plex Mono',monospace; color:var(--syn-star); font-weight:600;">{{ gSheetStars }}</span>
-                <span style="flex:1; font-size:15px; font-weight:600;">{{ gSheetTitle }}</span>
-                <sc-if value="{{ gSheetHasTag }}" hint-placeholder-val="{{ false }}"><span style="font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--syn-tag);">{{ gSheetTag }}</span></sc-if>
-              </div>
-              <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.07em; color:var(--accent); font-weight:600; padding:12px 18px 4px;">Structure</div>
-              <div onClick="{{ gShInsAbove }}" style="display:flex; align-items:center; gap:13px; padding:11px 18px; cursor:pointer;" style-hover="background:var(--surface-2);"><span style="flex:0 0 24px; text-align:center; font-family:'IBM Plex Mono',monospace; color:var(--ink-2); font-size:15px;">↑+</span><span style="font-size:14.5px;">Insert above</span></div>
-              <div onClick="{{ gShInsBelow }}" style="display:flex; align-items:center; gap:13px; padding:11px 18px; cursor:pointer;" style-hover="background:var(--surface-2);"><span style="flex:0 0 24px; text-align:center; font-family:'IBM Plex Mono',monospace; color:var(--ink-2); font-size:15px;">↓+</span><span style="font-size:14.5px;">Insert below</span></div>
-              <div onClick="{{ gShInsSub }}" style="display:flex; align-items:center; gap:13px; padding:11px 18px; cursor:pointer;" style-hover="background:var(--surface-2);"><span style="flex:0 0 24px; text-align:center; font-family:'IBM Plex Mono',monospace; color:var(--ink-2); font-size:15px;">↳</span><span style="font-size:14.5px;">Insert sub-note</span></div>
-              <div onClick="{{ gShUp }}" style="display:flex; align-items:center; gap:13px; padding:11px 18px; cursor:pointer;" style-hover="background:var(--surface-2);"><span style="flex:0 0 24px; text-align:center; color:var(--ink-2); font-size:16px;">↑</span><span style="font-size:14.5px;">Move up</span></div>
-              <div onClick="{{ gShDown }}" style="display:flex; align-items:center; gap:13px; padding:11px 18px; cursor:pointer;" style-hover="background:var(--surface-2);"><span style="flex:0 0 24px; text-align:center; color:var(--ink-2); font-size:16px;">↓</span><span style="font-size:14.5px;">Move down</span></div>
-              <div onClick="{{ gShPromote }}" style="display:flex; align-items:center; gap:13px; padding:11px 18px; cursor:pointer;" style-hover="background:var(--surface-2);"><span style="flex:0 0 24px; text-align:center; color:var(--ink-2); font-size:16px;">⇤</span><span style="font-size:14.5px;">Promote heading</span></div>
-              <div onClick="{{ gShDemote }}" style="display:flex; align-items:center; gap:13px; padding:11px 18px; cursor:pointer;" style-hover="background:var(--surface-2);"><span style="flex:0 0 24px; text-align:center; color:var(--ink-2); font-size:16px;">⇥</span><span style="font-size:14.5px;">Demote heading</span></div>
-              <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.07em; color:var(--accent); font-weight:600; padding:12px 18px 4px; border-top:1px solid var(--line); margin-top:4px;">State</div>
-              <div onClick="{{ gShCycle }}" style="display:flex; align-items:center; gap:13px; padding:11px 18px; cursor:pointer;" style-hover="background:var(--surface-2);"><span style="flex:0 0 24px; text-align:center; color:var(--amber); font-size:16px;">⟳</span><span style="font-size:14.5px;">Cycle TODO state</span></div>
-              <div onClick="{{ gShSched }}" style="display:flex; align-items:center; gap:13px; padding:11px 18px; cursor:pointer;" style-hover="background:var(--surface-2);"><span style="flex:0 0 24px; text-align:center; color:var(--blue); font-size:15px;">◷</span><span style="font-size:14.5px;">Set schedule</span></div>
-              <div onClick="{{ gShDeadline }}" style="display:flex; align-items:center; gap:13px; padding:11px 18px; cursor:pointer;" style-hover="background:var(--surface-2);"><span style="flex:0 0 24px; text-align:center; color:var(--red); font-size:15px;">⚑</span><span style="font-size:14.5px;">Set deadline</span></div>
-              <div onClick="{{ gShPriority }}" style="display:flex; align-items:center; gap:13px; padding:11px 18px; cursor:pointer;" style-hover="background:var(--surface-2);"><span style="flex:0 0 24px; text-align:center; font-family:'IBM Plex Mono',monospace; color:var(--red); font-size:13px;">[#A]</span><span style="font-size:14.5px;">Set priority</span></div>
-              <div onClick="{{ gShFav }}" style="display:flex; align-items:center; gap:13px; padding:11px 18px; cursor:pointer;" style-hover="background:var(--surface-2);"><span style="flex:0 0 24px; text-align:center; color:var(--amber); font-size:15px;">★</span><span style="font-size:14.5px;">Toggle favorite</span></div>
-              <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.07em; color:var(--accent); font-weight:600; padding:12px 18px 4px; border-top:1px solid var(--line); margin-top:4px;">Organize</div>
-              <div onClick="{{ gShRefile }}" style="display:flex; align-items:center; gap:13px; padding:11px 18px; cursor:pointer;" style-hover="background:var(--surface-2);"><span style="flex:0 0 24px; text-align:center; color:var(--accent); font-size:15px;">➜</span><span style="font-size:14.5px; font-weight:600; color:var(--accent);">Refile…</span></div>
-              <div onClick="{{ gShCut }}" style="display:flex; align-items:center; gap:13px; padding:11px 18px; cursor:pointer;" style-hover="background:var(--surface-2);"><span style="flex:0 0 24px; text-align:center; color:var(--ink-2); font-size:15px;">✂</span><span style="font-size:14.5px;">Cut</span></div>
-              <div onClick="{{ gShCopy }}" style="display:flex; align-items:center; gap:13px; padding:11px 18px; cursor:pointer;" style-hover="background:var(--surface-2);"><span style="flex:0 0 24px; text-align:center; color:var(--ink-2); font-size:14px;">⧉</span><span style="font-size:14.5px;">Copy</span></div>
-              <div onClick="{{ gShContext }}" style="display:flex; align-items:center; gap:13px; padding:11px 18px; cursor:pointer;" style-hover="background:var(--surface-2);"><span style="flex:0 0 24px; text-align:center; color:var(--ink-2); font-size:15px;">◎</span><span style="font-size:14.5px;">Show in context</span></div>
-              <div onClick="{{ gShDelete }}" style="display:flex; align-items:center; gap:13px; padding:11px 18px 16px; cursor:pointer;" style-hover="background:var(--surface-2);"><span style="flex:0 0 24px; text-align:center; color:var(--red); font-size:15px;">🗑</span><span style="font-size:14.5px; color:var(--red);">Delete</span></div>
-            </div>
-          </sc-if>
 
           <!-- refile destination picker (shared) -->
           <sc-if value="{{ gRefileOpen }}" hint-placeholder-val="{{ false }}">
@@ -1390,20 +1319,7 @@ class Component extends DCLogic {
     if (s.popoverId||s.sheetId){ this.setState({ popoverId:null, sheetId:null }); return; }
   }
   gLong(id, card){
-    const c = this.state.gConcept;
-    if (c==='A'){ this.gResetOverlays({ focusId:id }); }
-    else if (c==='B'){
-      let top = 120;
-      try {
-        const root = card.closest('[data-gscreen]');
-        const rr = root.getBoundingClientRect(), cr = card.getBoundingClientRect();
-        top = cr.bottom - rr.top + 6;
-        if (top + 150 > rr.height - 8) top = Math.max(70, cr.top - rr.top - 156);
-      } catch(_){}
-      this.gResetOverlays({ popoverId:id, popoverTop:top });
-    }
-    else if (c==='C'){ this.gResetOverlays({ selectMode:true, selected:{[id]:true} }); }
-    else if (c==='D'){ this.gResetOverlays({ sheetId:id }); }
+    this.gResetOverlays({ focusId:id });
   }
 
   gAct(a, id){
@@ -1440,12 +1356,34 @@ class Component extends DCLogic {
     this.setState({ notes }); this.gClose();
     this.gPushSnack(where==='sub'?'Sub-note inserted':(where==='above'?'Note inserted above':'Note inserted below'), before);
   }
+  // subtree of the node at index i is [i, subtreeEnd) — the node plus all deeper descendants
+  gSubtreeEnd(notes, i){
+    const lvl = notes[i].level; let j = i+1;
+    while (j < notes.length && notes[j].level > lvl) j++;
+    return j;
+  }
   gMoveNote(id, dir){
     const before=this.gSnap(); const notes=this.gSnap();
-    const i=notes.findIndex(n=>n.id===id); const j=i+dir;
-    if(i<0||j<0||j>=notes.length){ this.gPushToast('Can’t move further'); return; }
-    const t=notes[i]; notes[i]=notes[j]; notes[j]=t;
-    this.setState({ notes }); this.gPushSnack(dir<0?'Moved up':'Moved down', before);
+    const i=notes.findIndex(n=>n.id===id); if(i<0) return;
+    const lvl = notes[i].level;
+    const end = this.gSubtreeEnd(notes, i);   // our block = [i, end)
+    if (dir>0){
+      // next sibling must start right after our subtree, at the same level
+      if (end>=notes.length || notes[end].level!==lvl){ this.gPushToast('Can’t move further'); return; }
+      const nextEnd = this.gSubtreeEnd(notes, end);
+      const block = notes.splice(i, end-i);
+      notes.splice(i + (nextEnd-end), 0, ...block); // drop after the next sibling's whole subtree
+      this.setState({ notes }); this.gPushSnack('Moved down', before);
+    } else {
+      // previous sibling: walk back over any deeper descendants to the node at our level
+      let k=i-1;
+      if(k<0 || notes[k].level<lvl){ this.gPushToast('Can’t move further'); return; }
+      while(k>0 && notes[k].level>lvl) k--;
+      if(notes[k].level!==lvl){ this.gPushToast('Can’t move further'); return; }
+      const block = notes.splice(i, end-i);
+      notes.splice(k, 0, ...block); // drop before the previous sibling's whole subtree
+      this.setState({ notes }); this.gPushSnack('Moved up', before);
+    }
   }
   gIndent(id, d){
     const n=this.gFind(id); if(!n) return;
@@ -1470,8 +1408,10 @@ class Component extends DCLogic {
   gPickNb = (name) => this.setState({ refileNb:name, refileHeading:null });
   gPickHeading = (h) => this.setState({ refileHeading:h });
   gRefileConfirm = () => {
-    if (!this.state.refileHeading) return;
-    const ids=this.state.refileIds||[]; const dest=this.state.refileNb+' › '+this.state.refileHeading; const b=this.gSnap();
+    if (!this.state.refileNb) return;
+    const ids=this.state.refileIds||[];
+    const dest=this.state.refileNb + (this.state.refileHeading ? (' › '+this.state.refileHeading) : ' (top level)');
+    const b=this.gSnap();
     this.setState(st=>({ notes: st.notes.filter(n=>!ids.includes(n.id)), refileOpen:false, refileIds:null, refileNb:null, refileHeading:null, selectMode:false, selected:{} }));
     this.gPushSnack('Refiled to '+dest, b);
   };
@@ -1544,8 +1484,8 @@ class Component extends DCLogic {
       viewNotes,
       gPills,
       gHint: cm[s.gConcept][1],
-      gStructureBar: s.gConcept==='A' && s.focusId!=null,
-      gNormalBar: !(s.gConcept==='A' && s.focusId!=null),
+      gStructureBar: s.focusId!=null,
+      gNormalBar: s.focusId==null,
       gExitFocus: ()=>this.setState({ focusId:null }),
       gMoveUp: ()=>{ if(s.focusId!=null) this.gMoveNote(s.focusId,-1); },
       gMoveDown: ()=>{ if(s.focusId!=null) this.gMoveNote(s.focusId,1); },
@@ -1595,10 +1535,10 @@ class Component extends DCLogic {
       gCloseRefile: this.gCloseRefile,
       gRefileItems,
       gRefileStepHead: !!s.refileNb,
-      gRefileCrumb: s.refileNb ? (s.refileNb + (s.refileHeading?(' › '+s.refileHeading):' › choose a heading')) : 'Choose a destination notebook',
+      gRefileCrumb: s.refileNb ? (s.refileNb + (s.refileHeading?(' › '+s.refileHeading):' › top level · or pick a heading')) : 'Choose a destination notebook',
       gRefileBack: this.gRefileBack,
       gRefileConfirm: this.gRefileConfirm,
-      gRefileConfirmStyle: 'flex:1; text-align:center; font-size:14px; font-weight:600; padding:12px; border-radius:12px; cursor:'+(s.refileHeading?'pointer':'default')+'; background:'+(s.refileHeading?'var(--accent)':'var(--surface-2)')+'; color:'+(s.refileHeading?'var(--accent-ink)':'var(--ink-3)')+';',
+      gRefileConfirmStyle: 'flex:1; text-align:center; font-size:14px; font-weight:600; padding:12px; border-radius:12px; cursor:'+(s.refileNb?'pointer':'default')+'; background:'+(s.refileNb?'var(--accent)':'var(--surface-2)')+'; color:'+(s.refileNb?'var(--accent-ink)':'var(--ink-3)')+';',
       gRefileCount: (s.refileIds?s.refileIds.length:0),
       gToastOpen: !!s.toast, gToast: s.toast||'',
       gSnackOpen: !!s.snack, gSnack: s.snack||'', gUndo: this.gUndo,

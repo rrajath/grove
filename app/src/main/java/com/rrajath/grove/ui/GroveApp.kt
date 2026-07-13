@@ -170,7 +170,14 @@ private fun GroveNavigation(settings: GroveSettings, viewModel: AppViewModel) {
                     },
                     // A freshly created note opens straight in edit mode (blank heading).
                     onCreateNote = { ref -> navController.navigate(Routes.note(ref.encode(), "edit", isNew = true)) },
-                    onFavorite = { fileName, lineIndex, title -> viewModel.addFavorite(fileName, lineIndex, title) },
+                    // Toggle: the outline's ★ swipe action both adds and removes.
+                    onFavorite = { fileName, lineIndex, title ->
+                        if (favorites.any { it.fileName == fileName && it.lineIndex == lineIndex }) {
+                            viewModel.removeFavorite(fileName, lineIndex)
+                        } else {
+                            viewModel.addFavorite(fileName, lineIndex, title)
+                        }
+                    },
                     favoriteLines = favoriteLinesFor(favorites, notebookId),
                     displayFlags = OutlineDisplayFlags(
                         tags = settings.showTagsInOutline,

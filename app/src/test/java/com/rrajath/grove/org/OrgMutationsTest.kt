@@ -109,7 +109,7 @@ class OrgMutationsTest {
 
     @Test
     fun `moveSubtree swaps siblings with bodies intact`() {
-        val result = OrgMutations.moveSubtree(doc, h("Child task"), +1)!!
+        val (result, newLine) = OrgMutations.moveSubtree(doc, h("Child task"), +1)!!
         val redoc = OrgParser.parse(result)
         val first = redoc.findByTitle("First")!!
         assertEquals(
@@ -117,19 +117,180 @@ class OrgMutationsTest {
             redoc.directChildren(first).map { it.title },
         )
         assertTrue(result.contains("child body"))
+        assertEquals(redoc.findByTitle("Child task")!!.lineIndex, newLine)
         // No-op at the edge
         assertNull(OrgMutations.moveSubtree(doc, h("Child task"), -1))
     }
 
     @Test
     fun `move top-level subtree`() {
-        val result = OrgMutations.moveSubtree(doc, h("Last"), -1)!!
+        val (result, newLine) = OrgMutations.moveSubtree(doc, h("Last"), -1)!!
         val redoc = OrgParser.parse(result)
         assertTrue(
             redoc.headlines.first { it.level == 1 }.title == "Last" ||
                     redoc.headlines.indexOfFirst { it.title == "Last" } <
                     redoc.headlines.indexOfFirst { it.title == "First" }
         )
+        assertEquals(redoc.findByTitle("Last")!!.lineIndex, newLine)
+    }
+
+    @Test
+    fun `moveSubtree down past a deep sibling subtree tracks the new line`() {
+        val big = OrgParser.parse(
+            """
+            * A
+            ** B
+            body b
+            *** B1
+            deep body
+            ** C
+            body c
+            """.trimIndent() + "\n"
+        )
+        val b = big.headlines.first { it.title == "B" }
+        val (text, newLine) = OrgMutations.moveSubtree(big, b, +1)!!
+        val redoc = OrgParser.parse(text)
+        assertEquals(
+            listOf("C", "B"),
+            redoc.directChildren(redoc.findByTitle("A")!!).map { it.title },
+        )
+        assertEquals(redoc.findByTitle("B")!!.lineIndex, newLine)
+        // B1 travelled with B, still its child
+        assertEquals("B", redoc.parent(redoc.findByTitle("B1")!!)!!.title)
+        // No-op moving down at the last sibling
+        assertNull(OrgMutations.moveSubtree(redoc, redoc.findByTitle("B")!!, +1))
+    }
+
+    @Test
+    fun `promoteSubtree shifts heading and descendants one level up`() {
+        val text = OrgMutations.promoteSubtree(doc, h("Child task"))!!
+        val redoc = OrgParser.parse(text)
+        assertEquals(1, redoc.findByTitle("Child task")!!.level)
+        // planning and body untouched
+        assertTrue(text.contains("SCHEDULED: <2025-06-09 Mon +1w>"))
+        assertTrue(text.contains("child body"))
+        // siblings untouched
+        assertEquals(2, redoc.findByTitle("Second child")!!.level)
+    }
+
+    @Test
+    fun `promoteSubtree carries the whole subtree`() {
+        val big = OrgParser.parse("* A\n** B\n*** B1\nbody\n** C\n")
+        val text = OrgMutations.promoteSubtree(big, big.findByTitle("B")!!)!!
+        val redoc = OrgParser.parse(text)
+        assertEquals(1, redoc.findByTitle("B")!!.level)
+        assertEquals(2, redoc.findByTitle("B1")!!.level)
+        assertEquals(2, redoc.findByTitle("C")!!.level) // sibling stays put
+    }
+
+    @Test
+    fun `promoteSubtree at level 1 returns null`() {
+        assertNull(OrgMutations.promoteSubtree(doc, h("First")))
+    }
+
+    @Test
+    fun `demoteSubtree shifts subtree deeper`() {
+        val text = OrgMutations.demoteSubtree(doc, h("Second child"))!!
+        val redoc = OrgParser.parse(text)
+        val demoted = redoc.findByTitle("Second child")!!
+        assertEquals(3, demoted.level)
+        assertEquals("Child task", redoc.parent(demoted)!!.title)
+    }
+
+    @Test
+    fun `demoteSubtree without previous sibling returns null`() {
+        assertNull(OrgMutations.demoteSubtree(doc, h("Child task"))) // first child
+        assertNull(OrgMutations.demoteSubtree(doc, h("First")))      // first top-level
+    }
+
+    @Test
+    fun `demoteSubtree of last top-level nests under previous`() {
+        val text = OrgMutations.demoteSubtree(doc, h("Last"))!!
+        val redoc = OrgParser.parse(text)
+        val demoted = redoc.findByTitle("Last")!!
+        assertEquals(2, demoted.level)
+        assertEquals("First", redoc.parent(demoted)!!.title)
+        assertTrue(text.contains("DEADLINE: <2025-06-27 Fri>"))
+    }
+
+    @Test
+    fun `refileInsert to top level appends releveled at end of file`() {
+        val subtree = OrgMutations.subtreeText(doc, h("Child task"))
+        val (text, line) = OrgMutations.refileInsert(doc, null, subtree)
+        val redoc = OrgParser.parse(text)
+        val moved = redoc.headlines.last()
+        assertEquals("Child task", moved.title)
+        assertEquals(1, moved.level)
+        assertEquals(line, moved.lineIndex)
+        assertTrue(text.contains("child body"))
+    }
+
+    @Test
+    fun `refileInsert to top level of file without trailing newline`() {
+        val dest = OrgParser.parse("* Only\nbody")
+        val (text, line) = OrgMutations.refileInsert(dest, null, "** Moved\nstuff\n")
+        val redoc = OrgParser.parse(text)
+        val moved = redoc.findByTitle("Moved")!!
+        assertEquals(1, moved.level)
+        assertEquals(line, moved.lineIndex)
+        assertEquals(listOf("Only", "Moved"), redoc.headlines.map { it.title })
+    }
+
+    @Test
+    fun `refileInsert under nested heading relevels below target`() {
+        val subtree = "* Moved\nbody m\n** Moved child\n"
+        val (text, line) = OrgMutations.refileInsert(doc, h("Second child"), subtree)
+        val redoc = OrgParser.parse(text)
+        val moved = redoc.findByTitle("Moved")!!
+        assertEquals(3, moved.level)
+        assertEquals(4, redoc.findByTitle("Moved child")!!.level)
+        assertEquals("Second child", redoc.parent(moved)!!.title)
+        assertEquals(line, moved.lineIndex)
+    }
+
+    @Test
+    fun `refileInsert into empty document`() {
+        val empty = OrgParser.parse("")
+        val (text, line) = OrgMutations.refileInsert(empty, null, "** Moved\nbody\n")
+        assertEquals("* Moved\nbody\n", text)
+        assertEquals(0, line)
+    }
+
+    @Test
+    fun `refileWithinFile moves subtree under a later heading`() {
+        val (text, line) = OrgMutations.refileWithinFile(doc, h("Child task"), h("Last").lineIndex)!!
+        val redoc = OrgParser.parse(text)
+        val moved = redoc.findByTitle("Child task")!!
+        assertEquals("Last", redoc.parent(moved)!!.title)
+        assertEquals(2, moved.level)
+        assertEquals(line, moved.lineIndex)
+        assertTrue(text.contains("child body"))
+    }
+
+    @Test
+    fun `refileWithinFile moves subtree under an earlier heading`() {
+        val (text, line) = OrgMutations.refileWithinFile(doc, h("Last"), h("Second child").lineIndex)!!
+        val redoc = OrgParser.parse(text)
+        val moved = redoc.findByTitle("Last")!!
+        assertEquals("Second child", redoc.parent(moved)!!.title)
+        assertEquals(3, moved.level)
+        assertEquals(line, moved.lineIndex)
+    }
+
+    @Test
+    fun `refileWithinFile to top level moves subtree to end`() {
+        val (text, _) = OrgMutations.refileWithinFile(doc, h("Child task"), null)!!
+        val redoc = OrgParser.parse(text)
+        val moved = redoc.findByTitle("Child task")!!
+        assertEquals(1, moved.level)
+        assertNull(redoc.parent(moved))
+        assertEquals("Child task", redoc.headlines.last().title)
+    }
+
+    @Test
+    fun `refileWithinFile into own subtree returns null`() {
+        assertNull(OrgMutations.refileWithinFile(doc, h("First"), h("Child task").lineIndex))
+        assertNull(OrgMutations.refileWithinFile(doc, h("First"), h("First").lineIndex))
     }
 
     @Test

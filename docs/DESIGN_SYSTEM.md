@@ -484,6 +484,80 @@ use `OrgVisualTransformation` instead.
 
 ---
 
+### `SwipeRevealRow` / `SwipeAction` — `ui/components/SwipeRevealRow.kt`
+
+Row that swipes horizontally to reveal a 4-cell action panel on either side
+(prototype Gestures screen physics).
+
+```kotlin
+SwipeRevealRow(
+    leftActions = listOf(SwipeAction("⟳", "State", c.amber, c.amberSoft) { /* … */ }),
+    rightActions = listOf(SwipeAction("➜", "Refile", c.accent, c.accentSoft) { /* … */ }),
+    enabled = focusedLine == null,
+    forceClose = openRowLine != h.lineIndex,
+    onOpenChanged = { open -> openRowLine = if (open) h.lineIndex else null },
+    onTap = { /* open note */ },
+    onLongPress = { /* enter focus mode */ },
+) { OutlineNode(…) }
+```
+
+Physics constants (do not change without the prototype): panel 184dp = 4 × 46dp cells,
+open threshold 66dp, rubber-band factor 0.18 past the panel, settle 340ms
+`CubicBezierEasing(0.22, 1, 0.36, 1)`. Tap on an open card closes it; action cells are
+`fg` glyph (16sp) over a 9sp Medium label on the action's `Soft` bg. The parent keeps at
+most one row open (`forceClose` + `onOpenChanged`) and snaps all rows shut on any
+document mutation.
+
+**When to use**: outline heading rows. Reuse for any future list with swipe quick actions.
+
+---
+
+### `GroveToast` / `GroveUndoSnackbar` — `ui/components/Feedback.kt`
+
+Transient feedback overlays driven by `DocumentViewModel.toast` / `.snack`
+(ViewModel owns the ~1.9s / ~4.2s timers).
+
+```kotlin
+Box(Modifier.fillMaxSize()) {
+    GroveUndoSnackbar(snack, onUndo = viewModel::undo,
+        modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 86.dp))
+    GroveToast(toast,
+        modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 150.dp))
+}
+```
+
+Toast: bottom-center pill — `ink` bg, `bg`-color 13sp Medium text, 16×10dp padding, 20dp
+radius. Snackbar: full-width with 14dp side margins, `ink` bg, 12dp radius, 13.5sp message +
+Bold 13sp `accent` "UNDO". Both are lifted above the FAB so UNDO stays tappable.
+
+**When to use**: toast for state changes and blocked ops; snackbar only for undoable
+structural ops (move, promote, demote, delete, refile).
+
+---
+
+### `RefileSheet` — `ui/screens/RefileSheet.kt`
+
+Two-step refile destination picker (`ModalBottomSheet`, 20dp top radius, `surface` bg):
+notebook list → per-level heading drill-down. Tapping a heading selects **and** drills;
+"Refile here" targets the crumb's last heading, or the file's top level. Rows are 12dp
+radius with a 1dp `line` border — `▤` glyph for notebooks, `✳` for headings (PlexMono
+15sp `accent`), label PlexMono 14.5sp Medium, "N headings" sub-label 11.5sp `ink3`.
+Footer: Cancel (surface-2 / line border / ink2) + weight-1 "Refile here"
+(accent/accentInk enabled, surface-2/ink3 disabled). State machine lives in
+`DocumentViewModel` (`RefileUiState`, `startRefile` … `refileConfirm`).
+
+---
+
+### `StructureCommandBar` — `ui/screens/OutlineScreen.kt` (private)
+
+"Move & indent" bar that replaces `GroveTopBar` while a row is focused (long-press):
+56dp on `accentSoft` with a 1dp `line` bottom rule; ✕ 40dp circle (accent glyph),
+13.5sp SemiBold accent title, 38dp/10dp-radius `surface` buttons ↑ ↓ ⇤ ⇥, ⌫ in `red`,
+and a ✓ confirm on `accent`/`accentInk`. Every handler re-resolves the focused headline
+from the current document at click time. Back gesture exits focus mode.
+
+---
+
 ## Screen Inventory
 
 | Screen | Route | Key components used |

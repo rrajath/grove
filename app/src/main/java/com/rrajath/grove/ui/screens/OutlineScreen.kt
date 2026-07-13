@@ -1,8 +1,9 @@
 package com.rrajath.grove.ui.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -12,13 +13,20 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -28,27 +36,29 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInParent
-import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rrajath.grove.org.OrgDocument
 import com.rrajath.grove.org.OrgHeadline
+import com.rrajath.grove.org.OrgTimestamp
 import com.rrajath.grove.settings.OutlineToggle
 import com.rrajath.grove.ui.components.FavoriteStar
 import com.rrajath.grove.ui.components.GroveTopBar
-import com.rrajath.grove.ui.components.Pill
+import com.rrajath.grove.ui.components.GroveToast
+import com.rrajath.grove.ui.components.GroveUndoSnackbar
 import com.rrajath.grove.ui.components.ScrollJumpButtons
+import com.rrajath.grove.ui.components.SwipeAction
+import com.rrajath.grove.ui.components.SwipeRevealRow
 import com.rrajath.grove.ui.components.annotateOrgInline
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
@@ -57,6 +67,9 @@ import com.rrajath.grove.ui.theme.starColor
 import com.rrajath.grove.ui.vault.DocumentUiState
 import com.rrajath.grove.ui.vault.DocumentViewModel
 import com.rrajath.grove.ui.vault.NoteRef
+import com.rrajath.grove.ui.vault.headlineAtLine
+import java.time.Instant
+import java.time.ZoneOffset
 
 data class OutlineDisplayFlags(
     val tags: Boolean = true,
@@ -68,6 +81,7 @@ data class OutlineDisplayFlags(
 private val IntSetSaver = listSaver<Set<Int>, Int>(save = { it.toList() }, restore = { it.toSet() })
 
 /** Outline view per design spec §4 — collapsible heading tree with node ops. */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OutlineScreen(
     notebookId: String,
@@ -83,6 +97,10 @@ fun OutlineScreen(
 ) {
     val c = MaterialTheme.grove
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val focusedLine by viewModel.focusedLine.collectAsStateWithLifecycle()
+    val toast by viewModel.toast.collectAsStateWithLifecycle()
+    val snack by viewModel.snack.collectAsStateWithLifecycle()
+    val refileState by viewModel.refile.collectAsStateWithLifecycle()
     LaunchedEffect(notebookId) { viewModel.load(notebookId) }
 
     // Collapsed line-indices and scroll survive navigating into a note and back
@@ -90,9 +108,15 @@ fun OutlineScreen(
     var collapsed by rememberSaveable(notebookId, stateSaver = IntSetSaver) {
         mutableStateOf(setOf<Int>())
     }
-    // "Show in context": narrow the view to one subtree (swipe-left in the spec)
-    var narrowedTo by rememberSaveable(notebookId) { mutableStateOf<Int?>(null) }
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+
+    // Only one swipe panel open at a time; any mutation snaps it shut.
+    var openRowLine by remember { mutableStateOf<Int?>(null) }
+    // Which headline the date-picker dialog targets: lineIndex to "scheduled"/"deadline".
+    var datePickerFor by remember { mutableStateOf<Pair<Int, String>?>(null) }
+
+    // The command bar takes over the top bar in focus mode; back exits it.
+    BackHandler(enabled = focusedLine != null) { viewModel.setFocus(null) }
 
     // A freshly opened notebook starts fully collapsed. Applied once per open
     // (the flag is saved alongside `collapsed`), so the user's later expanding
@@ -115,70 +139,79 @@ fun OutlineScreen(
     Scaffold(
         containerColor = c.bg,
         topBar = {
-            GroveTopBar(
-                leading = { IconGlyph("←", onClick = onBack) },
-                title = {
-                    Column(Modifier.padding(start = 4.dp)) {
-                        Text(
-                            notebookId,
-                            fontFamily = PlexMono, fontWeight = FontWeight.SemiBold,
-                            fontSize = 17.sp, color = c.ink,
-                        )
-                        (state as? DocumentUiState.Loaded)?.let {
-                            val noteCount = remember(it.document) {
-                                it.document.headlines.count { h -> h.level == 1 }
-                            }
+            val focused = focusedLine
+            if (focused != null) {
+                StructureCommandBar(
+                    onExit = { viewModel.setFocus(null) },
+                    resolve = { (state as? DocumentUiState.Loaded)?.document?.headlineAtLine(focused) },
+                    viewModel = viewModel,
+                )
+            } else {
+                GroveTopBar(
+                    leading = { IconGlyph("←", onClick = onBack) },
+                    title = {
+                        Column(Modifier.padding(start = 4.dp)) {
                             Text(
-                                "$noteCount notes",
-                                fontFamily = PlexSans, fontSize = 11.5.sp, color = c.ink2,
+                                notebookId,
+                                fontFamily = PlexMono, fontWeight = FontWeight.SemiBold,
+                                fontSize = 17.sp, color = c.ink,
                             )
-                        }
-                    }
-                },
-                actions = {
-                    (state as? DocumentUiState.Loaded)?.let { loaded ->
-                        val foldable = remember(loaded.document) {
-                            loaded.document.headlines
-                                .filter { loaded.document.hasDescendants(it) }
-                                .map { it.lineIndex }
-                                .toSet()
-                        }
-                        if (foldable.isNotEmpty()) {
-                            // Mirrors the per-row carets: ▸▸ = all folded (tap to
-                            // expand all), ▾▾ = expanded (tap to collapse all).
-                            val allCollapsed = collapsed.containsAll(foldable)
-                            IconGlyph(if (allCollapsed) "▸▸" else "▾▾", onClick = {
-                                collapsed = if (allCollapsed) emptySet() else foldable
-                            })
-                        }
-                    }
-                    var displayMenuOpen by remember { mutableStateOf(false) }
-                    Box {
-                        IconGlyph("⋮", onClick = { displayMenuOpen = true })
-                        androidx.compose.material3.DropdownMenu(
-                            expanded = displayMenuOpen,
-                            onDismissRequest = { displayMenuOpen = false },
-                            containerColor = c.surface,
-                        ) {
-                            @Composable
-                            fun toggleItem(label: String, value: Boolean, toggle: OutlineToggle) {
-                                androidx.compose.material3.DropdownMenuItem(
-                                    text = {
-                                        Text(
-                                            (if (value) "✓ " else "   ") + label,
-                                            fontFamily = PlexSans, fontSize = 14.sp, color = c.ink,
-                                        )
-                                    },
-                                    onClick = { onToggleDisplay(toggle, !value) },
+                            (state as? DocumentUiState.Loaded)?.let {
+                                val noteCount = remember(it.document) {
+                                    it.document.headlines.count { h -> h.level == 1 }
+                                }
+                                Text(
+                                    "$noteCount notes",
+                                    fontFamily = PlexSans, fontSize = 11.5.sp, color = c.ink2,
                                 )
                             }
-                            toggleItem("Show tags", displayFlags.tags, OutlineToggle.TAGS)
-                            toggleItem("Show timestamps", displayFlags.timestamps, OutlineToggle.TIMESTAMPS)
-                            toggleItem("Show keywords", displayFlags.keywords, OutlineToggle.KEYWORDS)
                         }
-                    }
-                },
-            )
+                    },
+                    actions = {
+                        (state as? DocumentUiState.Loaded)?.let { loaded ->
+                            val foldable = remember(loaded.document) {
+                                loaded.document.headlines
+                                    .filter { loaded.document.hasDescendants(it) }
+                                    .map { it.lineIndex }
+                                    .toSet()
+                            }
+                            if (foldable.isNotEmpty()) {
+                                // Mirrors the per-row carets: ▸▸ = all folded (tap to
+                                // expand all), ▾▾ = expanded (tap to collapse all).
+                                val allCollapsed = collapsed.containsAll(foldable)
+                                IconGlyph(if (allCollapsed) "▸▸" else "▾▾", onClick = {
+                                    collapsed = if (allCollapsed) emptySet() else foldable
+                                })
+                            }
+                        }
+                        var displayMenuOpen by remember { mutableStateOf(false) }
+                        Box {
+                            IconGlyph("⋮", onClick = { displayMenuOpen = true })
+                            androidx.compose.material3.DropdownMenu(
+                                expanded = displayMenuOpen,
+                                onDismissRequest = { displayMenuOpen = false },
+                                containerColor = c.surface,
+                            ) {
+                                @Composable
+                                fun toggleItem(label: String, value: Boolean, toggle: OutlineToggle) {
+                                    androidx.compose.material3.DropdownMenuItem(
+                                        text = {
+                                            Text(
+                                                (if (value) "✓ " else "   ") + label,
+                                                fontFamily = PlexSans, fontSize = 14.sp, color = c.ink,
+                                            )
+                                        },
+                                        onClick = { onToggleDisplay(toggle, !value) },
+                                    )
+                                }
+                                toggleItem("Show tags", displayFlags.tags, OutlineToggle.TAGS)
+                                toggleItem("Show timestamps", displayFlags.timestamps, OutlineToggle.TIMESTAMPS)
+                                toggleItem("Show keywords", displayFlags.keywords, OutlineToggle.KEYWORDS)
+                            }
+                        }
+                    },
+                )
+            }
         },
         floatingActionButton = {
             // PRD §5.3: FAB adds a new top-level note to this notebook.
@@ -207,25 +240,17 @@ fun OutlineScreen(
 
             is DocumentUiState.Loaded -> {
                 val doc = s.document
-                val visible = remember(doc, collapsed, narrowedTo) {
-                    val all = visibleHeadlines(doc, collapsed)
-                    val narrowLine = narrowedTo
-                    if (narrowLine == null) all
-                    else {
-                        val root = doc.headlines.firstOrNull { it.lineIndex == narrowLine }
-                        if (root == null) all
-                        else {
-                            val subtreeLines = (doc.subtree(root) + root).map { it.lineIndex }.toSet()
-                            all.filter { it.lineIndex in subtreeLines }
-                        }
-                    }
-                }
-                if (doc.headlines.isEmpty()) {
-                    Box(
-                        Modifier.fillMaxSize().padding(padding),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                // Every mutation produces a new document — snap any open panel shut.
+                LaunchedEffect(doc) { openRowLine = null }
+                val visible = remember(doc, collapsed) { visibleHeadlines(doc, collapsed) }
+                Box(Modifier.fillMaxSize().padding(padding)) {
+                    if (doc.headlines.isEmpty()) {
+                        // Empty state still needs the overlays below — undoing a
+                        // delete/refile of the last note happens from here.
+                        Column(
+                            Modifier.align(Alignment.Center),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
                             Text("✶", fontFamily = PlexMono, fontSize = 28.sp, color = c.ink3)
                             Spacer(Modifier.height(10.dp))
                             Text(
@@ -238,25 +263,7 @@ fun OutlineScreen(
                                 fontFamily = PlexSans, fontSize = 13.sp, color = c.ink3,
                             )
                         }
-                    }
-                    return@Scaffold
-                }
-                Column(Modifier.fillMaxSize().padding(padding)) {
-                    if (narrowedTo != null) {
-                        Row(
-                            Modifier
-                                .fillMaxWidth()
-                                .clickable { narrowedTo = null }
-                                .padding(horizontal = 14.dp, vertical = 7.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(
-                                "◂ narrowed — tap to show all",
-                                fontFamily = PlexMono, fontSize = 11.5.sp, color = c.accent,
-                            )
-                        }
-                    }
-                    Box(Modifier.fillMaxSize()) {
+                    } else {
                     LazyColumn(
                         state = listState,
                         modifier = Modifier
@@ -265,45 +272,71 @@ fun OutlineScreen(
                             .testTag("outline_list"),
                     ) {
                         items(visible, key = { it.lineIndex }) { h ->
-                            OutlineNode(
-                                doc = doc,
-                                headline = h,
-                                isCollapsed = h.lineIndex in collapsed,
-                                onToggle = {
-                                    collapsed = if (h.lineIndex in collapsed) collapsed - h.lineIndex
-                                    else collapsed + h.lineIndex
-                                },
-                                onOpen = { onOpenNote(NoteRef(notebookId, h.lineIndex)) },
-                                isFavorite = h.lineIndex in favoriteLines,
-                                flags = displayFlags,
-                                ops = NodeOps(
-                                    onEdit = { onOpenNote(NoteRef(notebookId, h.lineIndex)) },
-                                    onNewChild = {
-                                        viewModel.newChild(h) { line ->
-                                            onCreateNote(NoteRef(notebookId, line))
-                                        }
+                            val isFavorite = h.lineIndex in favoriteLines
+                            val toggleFavorite = {
+                                onFavorite(notebookId, h.lineIndex, h.title)
+                                viewModel.showToast(
+                                    if (isFavorite) "Removed favorite" else "★ Added to favorites"
+                                )
+                            }
+                            SwipeRevealRow(
+                                // Right-swipe panel: state / schedule / deadline / favorite.
+                                leftActions = listOf(
+                                    SwipeAction("⟳", "State", c.amber, c.amberSoft) {
+                                        viewModel.cycleState(h)
                                     },
-                                    onInsertAbove = {
+                                    SwipeAction("◷", "Sched", c.blue, c.blueSoft) {
+                                        datePickerFor = h.lineIndex to "scheduled"
+                                    },
+                                    SwipeAction("⚑", "Deadl", c.red, c.redSoft) {
+                                        datePickerFor = h.lineIndex to "deadline"
+                                    },
+                                    SwipeAction("★", "Fav", c.accent, c.accentSoft, toggleFavorite),
+                                ),
+                                // Left-swipe panel: insert above / below / sub-note / refile.
+                                rightActions = listOf(
+                                    SwipeAction("↑+", "Above", c.blue, c.blueSoft) {
                                         viewModel.insertSiblingAbove(h) { line ->
                                             onCreateNote(NoteRef(notebookId, line))
                                         }
                                     },
-                                    onInsertBelow = {
+                                    SwipeAction("↓+", "Below", c.blue, c.blueSoft) {
                                         viewModel.insertSiblingBelow(h) { line ->
                                             onCreateNote(NoteRef(notebookId, line))
                                         }
                                     },
-                                    onCycleState = { viewModel.cycleState(h) },
-                                    onMoveUp = { viewModel.moveUp(h) },
-                                    onMoveDown = { viewModel.moveDown(h) },
-                                    onCut = { viewModel.cutSubtree(h) },
-                                    onCopy = { viewModel.copySubtree(h) },
-                                    onPaste = if (viewModel.hasClipboard) ({ viewModel.pasteUnder(h) }) else null,
-                                    onNarrow = { narrowedTo = h.lineIndex },
-                                    onDelete = { viewModel.deleteSubtree(h) },
-                                    onFavorite = { onFavorite(notebookId, h.lineIndex, h.title) },
+                                    SwipeAction("↳", "Sub", c.green, c.greenSoft) {
+                                        viewModel.newChild(h) { line ->
+                                            onCreateNote(NoteRef(notebookId, line))
+                                        }
+                                    },
+                                    SwipeAction("➜", "Refile", c.accent, c.accentSoft) {
+                                        viewModel.startRefile(h)
+                                    },
                                 ),
-                            )
+                                enabled = focusedLine == null,
+                                forceClose = openRowLine != h.lineIndex,
+                                onOpenChanged = { open ->
+                                    if (open) openRowLine = h.lineIndex
+                                    else if (openRowLine == h.lineIndex) openRowLine = null
+                                },
+                                onTap = { onOpenNote(NoteRef(notebookId, h.lineIndex)) },
+                                onLongPress = { viewModel.setFocus(h.lineIndex) },
+                                modifier = if (focusedLine == h.lineIndex) Modifier.zIndex(1f) else Modifier,
+                            ) {
+                                OutlineNode(
+                                    doc = doc,
+                                    headline = h,
+                                    isCollapsed = h.lineIndex in collapsed,
+                                    isFocused = focusedLine == h.lineIndex,
+                                    onToggle = {
+                                        collapsed = if (h.lineIndex in collapsed) collapsed - h.lineIndex
+                                        else collapsed + h.lineIndex
+                                    },
+                                    isFavorite = isFavorite,
+                                    flags = displayFlags,
+                                )
+                            }
                         }
                     }
                     ScrollJumpButtons(
@@ -315,28 +348,141 @@ fun OutlineScreen(
                             .padding(bottom = 86.dp, end = 16.dp),
                     )
                     }
+                    // Lifted above the FAB (54.dp + insets) so UNDO stays tappable.
+                    GroveUndoSnackbar(
+                        snack = snack,
+                        onUndo = viewModel::undo,
+                        modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 86.dp),
+                    )
+                    GroveToast(
+                        toast = toast,
+                        modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 150.dp),
+                    )
+                }
+
+                datePickerFor?.let { (line, target) ->
+                    val headline = doc.headlineAtLine(line)
+                    val existing = if (target == "scheduled") headline?.planning?.scheduled
+                    else headline?.planning?.deadline
+                    val pickerState = rememberDatePickerState(
+                        initialSelectedDateMillis = existing?.date
+                            ?.atStartOfDay(ZoneOffset.UTC)?.toInstant()?.toEpochMilli(),
+                    )
+                    DatePickerDialog(
+                        onDismissRequest = { datePickerFor = null },
+                        confirmButton = {
+                            TextButton(onClick = {
+                                val millis = pickerState.selectedDateMillis
+                                if (millis != null && headline != null) {
+                                    val date = Instant.ofEpochMilli(millis)
+                                        .atZone(ZoneOffset.UTC).toLocalDate()
+                                    val ts = OrgTimestamp(date)
+                                    if (target == "scheduled") viewModel.setScheduled(headline, ts)
+                                    else viewModel.setDeadline(headline, ts)
+                                }
+                                datePickerFor = null
+                            }) { Text("Set", color = c.accent, fontWeight = FontWeight.SemiBold) }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { datePickerFor = null }) {
+                                Text("Cancel", color = c.ink2)
+                            }
+                        },
+                    ) {
+                        DatePicker(state = pickerState)
+                    }
+                }
+
+                refileState?.let { refile ->
+                    RefileSheet(
+                        state = refile,
+                        currentFileName = notebookId,
+                        currentDoc = doc,
+                        onPickNotebook = viewModel::refilePickNotebook,
+                        onDrillInto = viewModel::refileDrillInto,
+                        onBack = viewModel::refileBack,
+                        onCancel = viewModel::refileCancel,
+                        onConfirm = viewModel::refileConfirm,
+                    )
                 }
             }
         }
     }
-
 }
 
-data class NodeOps(
-    val onEdit: () -> Unit,
-    val onNewChild: () -> Unit,
-    val onInsertAbove: () -> Unit,
-    val onInsertBelow: () -> Unit,
-    val onCycleState: () -> Unit,
-    val onMoveUp: () -> Unit,
-    val onMoveDown: () -> Unit,
-    val onCut: () -> Unit,
-    val onCopy: () -> Unit,
-    val onPaste: (() -> Unit)?,
-    val onNarrow: () -> Unit,
-    val onDelete: () -> Unit,
-    val onFavorite: () -> Unit = {},
-)
+/**
+ * "Move & indent" bar that replaces the top bar in focus mode (design spec
+ * Gestures screen): 56dp, accentSoft bg. Every handler re-resolves the focused
+ * headline at click time — headlines are stale after each mutation.
+ */
+@Composable
+private fun StructureCommandBar(
+    onExit: () -> Unit,
+    resolve: () -> OrgHeadline?,
+    viewModel: DocumentViewModel,
+) {
+    val c = MaterialTheme.grove
+    // Background first so the accentSoft wash extends behind the status bar,
+    // then the inset padding (Scaffold does not pad the topBar slot).
+    Column(Modifier.background(c.accentSoft).statusBarsPadding()) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .height(56.dp)
+                .padding(horizontal = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .clickable(onClick = onExit),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text("✕", fontFamily = PlexSans, fontSize = 16.sp, color = c.accent)
+            }
+            Spacer(Modifier.width(4.dp))
+            Text(
+                "Move & indent",
+                fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
+                fontSize = 13.5.sp, color = c.accent,
+                modifier = Modifier.weight(1f),
+            )
+            CommandButton("↑", c.ink) { resolve()?.let(viewModel::moveUp) }
+            CommandButton("↓", c.ink) { resolve()?.let(viewModel::moveDown) }
+            CommandButton("⇤", c.ink) { resolve()?.let(viewModel::promote) }
+            CommandButton("⇥", c.ink) { resolve()?.let(viewModel::demote) }
+            CommandButton("⌫", c.red) { resolve()?.let(viewModel::deleteNote) }
+            Spacer(Modifier.width(2.dp))
+            Box(
+                Modifier
+                    .size(38.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(c.accent)
+                    .clickable(onClick = onExit),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text("✓", fontFamily = PlexSans, fontSize = 15.sp, color = c.accentInk)
+            }
+        }
+        Box(Modifier.fillMaxWidth().height(1.dp).background(c.line))
+    }
+}
+
+@Composable
+private fun CommandButton(glyph: String, tint: Color, onClick: () -> Unit) {
+    Box(
+        Modifier
+            .padding(horizontal = 1.dp)
+            .size(38.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(MaterialTheme.grove.surface)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(glyph, fontFamily = PlexSans, fontSize = 15.sp, color = tint)
+    }
+}
 
 private fun visibleHeadlines(doc: OrgDocument, collapsed: Set<Int>): List<OrgHeadline> {
     val result = mutableListOf<OrgHeadline>()
@@ -353,15 +499,13 @@ private fun visibleHeadlines(doc: OrgDocument, collapsed: Set<Int>): List<OrgHea
     return result
 }
 
-@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 private fun OutlineNode(
     doc: OrgDocument,
     headline: OrgHeadline,
     isCollapsed: Boolean,
+    isFocused: Boolean,
     onToggle: () -> Unit,
-    onOpen: () -> Unit,
-    ops: NodeOps,
     isFavorite: Boolean = false,
     flags: OutlineDisplayFlags = OutlineDisplayFlags(),
 ) {
@@ -370,74 +514,25 @@ private fun OutlineNode(
     // Only needed for the "… N" collapsed indicator below.
     val childCount = remember(doc, headline) { doc.directChildren(headline).size }
     val isDone = headline.keyword != null && doc.keywords.isDone(headline.keyword)
-    var menuOpen by remember { mutableStateOf(false) }
-    var insertMenuOpen by remember { mutableStateOf(false) }
-    var insertMenuOffsetPx by remember { mutableStateOf(0 to 0) }
     // Tokenizing the title allocates a new AnnotatedString; rows recompose on
     // scroll and swipe, so keep it across recompositions.
     val titleAnnotated = remember(headline.title, c) { annotateOrgInline(headline.title, c) }
 
-    // Swipe right = cycle state, swipe left = narrow to subtree (PRD §5.3).
-    // A swipe is an action, not a dismiss. We react to targetValue (the moment
-    // the swipe commits, before the row animates off-screen), run the action,
-    // and snap the row home in a detached scope. Two traps avoided: vetoing via
-    // confirmValueChange leaves the draggable stuck after one swipe; and
-    // snapping inside this effect would self-cancel (the value change restarts
-    // the effect mid-animation), stranding the row to the side.
-    val swipeState = androidx.compose.material3.rememberSwipeToDismissBoxState()
-    val currentOps by androidx.compose.runtime.rememberUpdatedState(ops)
-    val swipeScope = androidx.compose.runtime.rememberCoroutineScope()
-    LaunchedEffect(swipeState.targetValue) {
-        when (swipeState.targetValue) {
-            androidx.compose.material3.SwipeToDismissBoxValue.StartToEnd -> currentOps.onCycleState()
-            androidx.compose.material3.SwipeToDismissBoxValue.EndToStart -> currentOps.onNarrow()
-            else -> return@LaunchedEffect
-        }
-        swipeScope.launch {
-            swipeState.snapTo(androidx.compose.material3.SwipeToDismissBoxValue.Settled)
-        }
+    // Focused rows lift with a 2dp accent outline per the design spec.
+    val focusModifier = if (isFocused) {
+        Modifier
+            .shadow(6.dp, RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(12.dp))
+            .background(c.surface)
+            .border(2.dp, c.accent, RoundedCornerShape(12.dp))
+    } else {
+        Modifier.clip(RoundedCornerShape(10.dp)).background(c.bg)
     }
 
-    Box {
-        val density = LocalDensity.current
-        NodeMenu(
-            expanded = menuOpen,
-            onDismiss = { menuOpen = false },
-            onInsert = { insertMenuOpen = true },
-            ops = ops,
-            onInsertRowLayout = { widthPx, insertYPx -> insertMenuOffsetPx = widthPx to insertYPx },
-        )
-        InsertMenu(
-            expanded = insertMenuOpen,
-            onDismiss = { insertMenuOpen = false },
-            onAction = {
-                insertMenuOpen = false
-                menuOpen = false
-            },
-            ops = ops,
-            offset = with(density) {
-                DpOffset(x = insertMenuOffsetPx.first.toDp(), y = insertMenuOffsetPx.second.toDp())
-            },
-        )
-    androidx.compose.material3.SwipeToDismissBox(
-        state = swipeState,
-        backgroundContent = {
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text("↻ state", fontFamily = PlexMono, fontSize = 11.sp, color = c.amber)
-                Spacer(Modifier.weight(1f))
-                Text("narrow ◂", fontFamily = PlexMono, fontSize = 11.sp, color = c.blue)
-            }
-        },
-    ) {
     Row(
         Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
-            .background(c.bg)
-            .combinedClickable(onClick = onOpen, onLongClick = { menuOpen = true })
+            .then(focusModifier)
             .padding(
                 start = (22 * (headline.level - 1)).dp,
                 top = 9.dp, bottom = 9.dp, end = 6.dp,
@@ -577,90 +672,5 @@ private fun OutlineNode(
             Spacer(Modifier.width(6.dp))
             FavoriteStar(modifier = Modifier.padding(top = 2.dp))
         }
-    }
-    }
-    }
-}
-
-@Composable
-private fun NodeMenu(
-    expanded: Boolean,
-    onDismiss: () -> Unit,
-    onInsert: () -> Unit,
-    ops: NodeOps,
-    // Reports this menu's measured width and the "Insert" row's vertical
-    // position within it, in px, so the Insert sub-menu can be anchored
-    // right beside it instead of using a guessed fixed offset.
-    onInsertRowLayout: (widthPx: Int, insertYPx: Int) -> Unit = { _, _ -> },
-) {
-    val c = MaterialTheme.grove
-    androidx.compose.material3.DropdownMenu(
-        expanded = expanded,
-        onDismissRequest = onDismiss,
-        containerColor = c.surface,
-    ) {
-        var menuWidthPx by remember { mutableStateOf(0) }
-        var insertRowYPx by remember { mutableStateOf(0) }
-        LaunchedEffect(menuWidthPx, insertRowYPx) {
-            onInsertRowLayout(menuWidthPx, insertRowYPx)
-        }
-
-        @Composable
-        fun item(label: String, color: androidx.compose.ui.graphics.Color = c.ink, action: () -> Unit) {
-            androidx.compose.material3.DropdownMenuItem(
-                text = { Text(label, fontFamily = PlexSans, fontSize = 14.sp, color = color) },
-                onClick = { onDismiss(); action() },
-            )
-        }
-        Column(
-            Modifier.onGloballyPositioned { menuWidthPx = it.size.width },
-        ) {
-            item("Edit", action = ops.onEdit)
-            androidx.compose.material3.DropdownMenuItem(
-                text = { Text("Insert ›", fontFamily = PlexSans, fontSize = 14.sp, color = c.ink) },
-                onClick = onInsert,
-                modifier = Modifier.onGloballyPositioned {
-                    insertRowYPx = it.positionInParent().y.toInt()
-                },
-            )
-            item("Cycle state", action = ops.onCycleState)
-            item("Move up", action = ops.onMoveUp)
-            item("Move down", action = ops.onMoveDown)
-            item("Cut", action = ops.onCut)
-            item("Copy", action = ops.onCopy)
-            ops.onPaste?.let { item("Paste under", action = it) }
-            item("Show in context", action = ops.onNarrow)
-            item("Favorite", action = ops.onFavorite)
-            item("Delete", color = c.red, action = ops.onDelete)
-        }
-    }
-}
-
-/** Sub-menu for the outline node's "Insert" action (design ask: below / above / sub-note). */
-@Composable
-private fun InsertMenu(
-    expanded: Boolean,
-    onDismiss: () -> Unit,
-    onAction: () -> Unit,
-    ops: NodeOps,
-    offset: DpOffset = DpOffset(0.dp, 0.dp),
-) {
-    val c = MaterialTheme.grove
-    androidx.compose.material3.DropdownMenu(
-        expanded = expanded,
-        onDismissRequest = onDismiss,
-        containerColor = c.surface,
-        offset = offset,
-    ) {
-        @Composable
-        fun item(label: String, action: () -> Unit) {
-            androidx.compose.material3.DropdownMenuItem(
-                text = { Text(label, fontFamily = PlexSans, fontSize = 14.sp, color = c.ink) },
-                onClick = { onAction(); action() },
-            )
-        }
-        item("Insert below", action = ops.onInsertBelow)
-        item("Insert above", action = ops.onInsertAbove)
-        item("Insert sub-note", action = ops.onNewChild)
     }
 }

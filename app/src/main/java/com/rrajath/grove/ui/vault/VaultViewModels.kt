@@ -9,8 +9,10 @@ import com.rrajath.grove.org.OrgDocument
 import com.rrajath.grove.org.OrgHeadline
 import com.rrajath.grove.org.OrgMutations
 import com.rrajath.grove.org.OrgParser
+import com.rrajath.grove.org.OrgTimestamp
 import com.rrajath.grove.sync.SyncState
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -21,6 +23,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import java.util.UUID
 
 data class NotebookItem(
@@ -162,10 +165,67 @@ sealed class DocumentUiState {
     data class Error(val message: String) : DocumentUiState()
 }
 
+/** Transient bottom-center pill message (design spec: ~1.9s). */
+data class OutlineToast(val message: String, val id: Long)
+
+/** Undoable-operation snackbar (design spec: ~4.2s with an UNDO action). */
+data class OutlineSnack(val message: String, val id: Long)
+
+/** One step of refile-picker drill-down state (design spec Gestures screen). */
+data class RefileNotebook(val fileName: String, val noteCount: Int)
+
+data class RefileUiState(
+    /** Line index of the headline being refiled (in the current document). */
+    val sourceLine: Int,
+    /** Null while the notebook list is loading. */
+    val notebooks: List<RefileNotebook>? = null,
+    val pickedFile: String? = null,
+    val pickedDoc: OrgDocument? = null,
+    /** Drill-down trail of headline lineIndexes inside [pickedDoc]; empty = top level. */
+    val path: List<Int> = emptyList(),
+)
+
 class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
 
     private val _state = MutableStateFlow<DocumentUiState>(DocumentUiState.Loading)
     val state: StateFlow<DocumentUiState> = _state
+
+    private val _toast = MutableStateFlow<OutlineToast?>(null)
+    val toast: StateFlow<OutlineToast?> = _toast
+
+    private val _snack = MutableStateFlow<OutlineSnack?>(null)
+    val snack: StateFlow<OutlineSnack?> = _snack
+
+    /** Headline line the "Move & indent" command bar is acting on; null = not in focus mode. */
+    private val _focusedLine = MutableStateFlow<Int?>(null)
+    val focusedLine: StateFlow<Int?> = _focusedLine
+
+    private val _refile = MutableStateFlow<RefileUiState?>(null)
+    val refile: StateFlow<RefileUiState?> = _refile
+
+    private var eventId = 0L
+
+    fun showToast(message: String) {
+        val t = OutlineToast(message, ++eventId)
+        _toast.value = t
+        viewModelScope.launch {
+            delay(1900)
+            if (_toast.value?.id == t.id) _toast.value = null
+        }
+    }
+
+    private fun showSnack(message: String) {
+        val s = OutlineSnack(message, ++eventId)
+        _snack.value = s
+        viewModelScope.launch {
+            delay(4200)
+            if (_snack.value?.id == s.id) _snack.value = null
+        }
+    }
+
+    fun setFocus(line: Int?) {
+        _focusedLine.value = line
+    }
 
     fun load(fileName: String) {
         viewModelScope.launch {
@@ -186,46 +246,103 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
 
     // --- structural outline operations (PRD §5.3) ---
 
-    private fun mutate(block: (OrgDocument, OrgHeadline) -> String?): (OrgHeadline) -> Unit =
-        { headline ->
-            val loaded = _state.value as? DocumentUiState.Loaded
-            val vault = app.vault.value
-            if (loaded != null && vault != null) {
-                viewModelScope.launch {
-                    // Compute the new text and parse it once, off the main thread.
-                    val parsed = withContext(Dispatchers.Default) {
-                        block(loaded.document, headline)
-                            ?.let { it to OrgParser.parse(it, loaded.document.keywords) }
-                    } ?: return@launch
-                    val (newText, newDoc) = parsed
-                    // Show the result immediately from the in-memory parse; persist
-                    // and re-index in the background (no disk read + reparse round-trip).
-                    _state.value = DocumentUiState.Loaded(loaded.fileName, newDoc)
-                    vault.save(loaded.fileName, newText)
-                    app.syncManager.requestSync("outline edit")
-                }
-            }
-        }
+    /** Single-step undo: the pre-mutation text of every file the mutation touched. */
+    private data class UndoSnapshot(val files: List<Pair<String, String>>)
 
-    val moveUp = mutate { d, h -> OrgMutations.moveSubtree(d, h, -1) }
-    val moveDown = mutate { d, h -> OrgMutations.moveSubtree(d, h, +1) }
-    val deleteSubtree = mutate { d, h -> OrgMutations.deleteSubtree(d, h) }
+    private var undoSnapshot: UndoSnapshot? = null
 
-    val cutSubtree = mutate { d, h ->
-        subtreeClipboard = OrgMutations.subtreeText(d, h)
-        OrgMutations.deleteSubtree(d, h)
-    }
-
-    fun copySubtree(headline: OrgHeadline) {
+    fun undo() {
+        val snap = undoSnapshot ?: return
         val loaded = _state.value as? DocumentUiState.Loaded ?: return
-        subtreeClipboard = OrgMutations.subtreeText(loaded.document, headline)
+        val vault = app.vault.value ?: return
+        undoSnapshot = null
+        _snack.value = null
+        // The focused line indexes the pre-undo document; don't let the
+        // command bar act on whatever headline lands there after restore.
+        _focusedLine.value = null
+        viewModelScope.launch {
+            snap.files.forEach { (name, text) -> vault.save(name, text) }
+            snap.files.firstOrNull { it.first == loaded.fileName }?.let { (_, text) ->
+                val doc = withContext(Dispatchers.Default) {
+                    OrgParser.parse(text, loaded.document.keywords)
+                }
+                _state.value = DocumentUiState.Loaded(loaded.fileName, doc)
+            }
+            app.syncManager.requestSync("undo")
+            showToast("Undone")
+        }
     }
 
-    val pasteUnder = mutate { d, h ->
-        subtreeClipboard?.let { OrgMutations.pasteUnder(d, h, it) }
+    /**
+     * Apply an undoable single-file mutation: snapshot for undo, publish the
+     * in-memory parse immediately, persist and sync in the background.
+     * [newFocus] moves the command-bar focus when the headline's line changed.
+     */
+    private fun applyUndoable(
+        headline: OrgHeadline,
+        snackMessage: String,
+        blockedToast: String,
+        newFocus: (Int) -> Int? = { line -> _focusedLine.value?.let { if (it == headline.lineIndex) line else it } },
+        block: (OrgDocument, OrgHeadline) -> Pair<String, Int>?,
+    ) {
+        val loaded = _state.value as? DocumentUiState.Loaded ?: return
+        val vault = app.vault.value ?: return
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.Default) {
+                block(loaded.document, headline)
+                    ?.let { (text, line) -> Triple(text, line, OrgParser.parse(text, loaded.document.keywords)) }
+            }
+            if (result == null) {
+                showToast(blockedToast)
+                return@launch
+            }
+            val (newText, newLine, newDoc) = result
+            undoSnapshot = UndoSnapshot(listOf(loaded.fileName to loaded.document.text))
+            _focusedLine.value = newFocus(newLine)
+            _state.value = DocumentUiState.Loaded(loaded.fileName, newDoc)
+            vault.save(loaded.fileName, newText)
+            app.syncManager.requestSync("outline edit")
+            showSnack(snackMessage)
+        }
     }
 
-    val hasClipboard: Boolean get() = subtreeClipboard != null
+    fun moveUp(headline: OrgHeadline) = applyUndoable(headline, "Moved up", "Can't move further") { d, h ->
+        OrgMutations.moveSubtree(d, h, -1)
+    }
+
+    fun moveDown(headline: OrgHeadline) = applyUndoable(headline, "Moved down", "Can't move further") { d, h ->
+        OrgMutations.moveSubtree(d, h, +1)
+    }
+
+    fun promote(headline: OrgHeadline) = applyUndoable(headline, "Promoted", "Already top level") { d, h ->
+        OrgMutations.promoteSubtree(d, h)?.let { it to h.lineIndex }
+    }
+
+    fun demote(headline: OrgHeadline) = applyUndoable(headline, "Demoted", "Can't demote further") { d, h ->
+        OrgMutations.demoteSubtree(d, h)?.let { it to h.lineIndex }
+    }
+
+    fun deleteNote(headline: OrgHeadline) {
+        val loaded = _state.value as? DocumentUiState.Loaded ?: return
+        val subtreeEnd = loaded.document.subtreeEndLine(headline)
+        applyUndoable(headline, "Note deleted", "", newFocus = { null }) { d, h ->
+            OrgMutations.deleteSubtree(d, h) to h.lineIndex
+        }
+        dropFavoritesInRange(loaded.fileName, headline.lineIndex until subtreeEnd)
+    }
+
+    /**
+     * Favorites reference headlines by lineIndex; drop the ones a delete or
+     * refile removed from the file. (Remapping favorites across other
+     * structural edits is a known limitation.)
+     */
+    private fun dropFavoritesInRange(fileName: String, range: IntRange) {
+        viewModelScope.launch {
+            app.favoritesRepository.favorites.first()
+                .filter { it.fileName == fileName && it.lineIndex in range }
+                .forEach { app.favoritesRepository.removeFavorite(it.fileName, it.lineIndex) }
+        }
+    }
 
     /** Create a blank child note and report its line index so the caller can open the editor. */
     fun newChild(headline: OrgHeadline, onCreated: (Int) -> Unit) = newNote(onCreated) { doc, options ->
@@ -290,13 +407,138 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
             _state.value = DocumentUiState.Loaded(loaded.fileName, newDoc)
             vault.save(loaded.fileName, newText)
             app.syncManager.requestSync("state cycled")
+            showToast("State → ${next ?: "none"}")
+        }
+    }
+
+    fun setScheduled(headline: OrgHeadline, ts: OrgTimestamp?) =
+        setPlanning(headline, "Scheduled", ts) { d, h -> OrgMutations.setScheduled(d, h, ts) }
+
+    fun setDeadline(headline: OrgHeadline, ts: OrgTimestamp?) =
+        setPlanning(headline, "Deadline", ts) { d, h -> OrgMutations.setDeadline(d, h, ts) }
+
+    private fun setPlanning(
+        headline: OrgHeadline,
+        label: String,
+        ts: OrgTimestamp?,
+        block: (OrgDocument, OrgHeadline) -> String,
+    ) {
+        val loaded = _state.value as? DocumentUiState.Loaded ?: return
+        val vault = app.vault.value ?: return
+        viewModelScope.launch {
+            val (newText, newDoc) = withContext(Dispatchers.Default) {
+                val text = block(loaded.document, headline)
+                text to OrgParser.parse(text, loaded.document.keywords)
+            }
+            _state.value = DocumentUiState.Loaded(loaded.fileName, newDoc)
+            vault.save(loaded.fileName, newText)
+            app.syncManager.requestSync("planning edit")
+            showToast(
+                if (ts == null) "$label cleared"
+                else "$label · ${ts.date.format(DateTimeFormatter.ofPattern("EEE, MMM d"))}"
+            )
+        }
+    }
+
+    // --- refile (design spec Gestures screen) ---
+
+    fun startRefile(headline: OrgHeadline) {
+        _refile.value = RefileUiState(sourceLine = headline.lineIndex)
+        viewModelScope.launch {
+            val notebooks = app.vault.value?.notebooks().orEmpty()
+                .map { RefileNotebook(it.fileName, it.noteCount) }
+            _refile.value = _refile.value?.copy(notebooks = notebooks)
+        }
+    }
+
+    fun refilePickNotebook(fileName: String) {
+        val loaded = _state.value as? DocumentUiState.Loaded ?: return
+        viewModelScope.launch {
+            val doc = if (fileName == loaded.fileName) loaded.document
+            else app.vault.value?.open(fileName)
+            if (doc == null) {
+                showToast("Couldn't open ${fileName.removeSuffix(".org")}")
+                return@launch
+            }
+            _refile.value = _refile.value?.copy(pickedFile = fileName, pickedDoc = doc, path = emptyList())
+        }
+    }
+
+    fun refileDrillInto(line: Int) {
+        _refile.value = _refile.value?.let { it.copy(path = it.path + line) }
+    }
+
+    /** Pop one drill-down level, or return to the notebook list from a file's top level. */
+    fun refileBack() {
+        _refile.value = _refile.value?.let {
+            if (it.path.isNotEmpty()) it.copy(path = it.path.dropLast(1))
+            else it.copy(pickedFile = null, pickedDoc = null)
+        }
+    }
+
+    fun refileCancel() {
+        _refile.value = null
+    }
+
+    fun refileConfirm() {
+        val picker = _refile.value ?: return
+        val loaded = _state.value as? DocumentUiState.Loaded ?: return
+        val destFile = picker.pickedFile ?: return
+        val source = loaded.document.headlineAtLine(picker.sourceLine) ?: return
+        _refile.value = null
+        refileTo(source, destFile, picker.path.lastOrNull())
+    }
+
+    private fun refileTo(source: OrgHeadline, destFile: String, targetLine: Int?) {
+        val loaded = _state.value as? DocumentUiState.Loaded ?: return
+        val vault = app.vault.value ?: return
+        val sourceEnd = loaded.document.subtreeEndLine(source)
+        viewModelScope.launch {
+            val destLabel = destFile.removeSuffix(".org")
+            if (destFile == loaded.fileName) {
+                val targetTitle = targetLine?.let { loaded.document.headlineAtLine(it)?.title }
+                val result = withContext(Dispatchers.Default) {
+                    OrgMutations.refileWithinFile(loaded.document, source, targetLine)
+                        ?.let { (text, _) -> text to OrgParser.parse(text, loaded.document.keywords) }
+                }
+                if (result == null) {
+                    showToast("Can't refile into its own subtree")
+                    return@launch
+                }
+                undoSnapshot = UndoSnapshot(listOf(loaded.fileName to loaded.document.text))
+                _focusedLine.value = null
+                _state.value = DocumentUiState.Loaded(loaded.fileName, result.second)
+                vault.save(loaded.fileName, result.first)
+                app.syncManager.requestSync("refile")
+                showSnack("Refiled to $destLabel › ${targetTitle ?: "top level"}")
+            } else {
+                val destDoc = vault.open(destFile)
+                if (destDoc == null) {
+                    showToast("Couldn't open $destLabel")
+                    return@launch
+                }
+                val target = targetLine?.let { destDoc.headlineAtLine(it) }
+                val (newSourceText, newDestText, newSourceDoc) = withContext(Dispatchers.Default) {
+                    val subtree = OrgMutations.subtreeText(loaded.document, source)
+                    val srcText = OrgMutations.deleteSubtree(loaded.document, source)
+                    val (dstText, _) = OrgMutations.refileInsert(destDoc, target, subtree)
+                    Triple(srcText, dstText, OrgParser.parse(srcText, loaded.document.keywords))
+                }
+                undoSnapshot = UndoSnapshot(
+                    listOf(loaded.fileName to loaded.document.text, destFile to destDoc.text)
+                )
+                _focusedLine.value = null
+                _state.value = DocumentUiState.Loaded(loaded.fileName, newSourceDoc)
+                vault.save(loaded.fileName, newSourceText)
+                vault.save(destFile, newDestText)
+                app.syncManager.requestSync("refile")
+                showSnack("Refiled to $destLabel › ${target?.title ?: "top level"}")
+            }
+            dropFavoritesInRange(loaded.fileName, source.lineIndex until sourceEnd)
         }
     }
 
     companion object {
-        /** App-level cut/copy buffer for subtrees. */
-        private var subtreeClipboard: String? = null
-
         val Factory = factory { DocumentViewModel(it) }
     }
 }
