@@ -44,6 +44,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -97,6 +99,11 @@ fun EditNoteScreen(
     // the check mark still shows the "saved at" toast on demand.
     val checkAlpha = remember { Animatable(1f) }
     var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
+    val focusRequester = remember { FocusRequester() }
+    // Tracks the buffer the text field's `value` already reflects, so the
+    // external-mutation sync effect below doesn't clobber the deliberate
+    // divergence (appended blank body line) set for a fresh FAB-created note.
+    var syncedBuffer by remember { mutableStateOf<String?>(null) }
 
     /** Validate heading before saving; shows alert if blank, otherwise saves. */
     fun trySave(onSaved: () -> Unit) {
@@ -121,17 +128,29 @@ fun EditNoteScreen(
     LaunchedEffect(noteRef) { viewModel.load(noteRef) }
     LaunchedEffect(state.loading) {
         if (!state.loading && state.error == null) {
-            val cursor = state.buffer.length.coerceAtMost(
-                state.buffer.indexOf('\n').let { if (it == -1) state.buffer.length else it },
-            )
-            value = TextFieldValue(state.buffer, TextRange(cursor))
+            if (isNewNote) {
+                // FAB-created heading has no body yet (just the "* " line,
+                // plus an optional :PROPERTIES: drawer): append a blank body
+                // line and park the cursor there so the keyboard opens ready
+                // for content, instead of on the heading line.
+                val bodyText = state.buffer + "\n"
+                value = TextFieldValue(bodyText, TextRange(bodyText.length))
+            } else {
+                val cursor = state.buffer.length.coerceAtMost(
+                    state.buffer.indexOf('\n').let { if (it == -1) state.buffer.length else it },
+                )
+                value = TextFieldValue(state.buffer, TextRange(cursor))
+            }
+            syncedBuffer = state.buffer
+            if (isNewNote) focusRequester.requestFocus()
         }
     }
     // Metadata-sheet mutations rewrite the buffer outside the text field.
     LaunchedEffect(state.buffer) {
-        if (state.buffer != value.text) {
+        if (state.buffer != syncedBuffer && state.buffer != value.text) {
             value = TextFieldValue(state.buffer, TextRange(value.selection.start.coerceAtMost(state.buffer.length)))
         }
+        syncedBuffer = state.buffer
     }
     val transformation = remember(c, state.keywords) { OrgVisualTransformation(c, state.keywords) }
 
@@ -259,7 +278,10 @@ fun EditNoteScreen(
                     LaunchedEffect(value.selection, textLayoutResult, viewportHeightPx) {
                         val layout = textLayoutResult ?: return@LaunchedEffect
                         if (value.text.isEmpty()) return@LaunchedEffect
-                        val offset = value.selection.end.coerceIn(0, value.text.length)
+                        // textLayoutResult can lag one frame behind `value` (e.g. rapid
+                        // programmatic input, or the FAB new-note cursor jump) — clamp to
+                        // what the layout was actually computed against, not the live text.
+                        val offset = value.selection.end.coerceIn(0, layout.layoutInput.text.length)
                         val rect = layout.getCursorRect(offset)
                         val cursorTop = editorPaddingPx + rect.top.toInt()
                         val cursorBottom = editorPaddingPx + rect.bottom.toInt()
@@ -286,7 +308,8 @@ fun EditNoteScreen(
                         modifier = Modifier
                             .fillMaxSize()
                             .verticalScroll(scrollState)
-                            .padding(18.dp),
+                            .padding(18.dp)
+                            .focusRequester(focusRequester),
                     )
                 }
                 ScrollJumpButtons(

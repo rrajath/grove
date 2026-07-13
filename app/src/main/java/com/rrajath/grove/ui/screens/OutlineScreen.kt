@@ -19,9 +19,18 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.FormatIndentDecrease
+import androidx.compose.material.icons.filled.FormatIndentIncrease
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -41,6 +50,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
@@ -422,6 +432,7 @@ private fun StructureCommandBar(
     viewModel: DocumentViewModel,
 ) {
     val c = MaterialTheme.grove
+    var confirmDelete by remember { mutableStateOf(false) }
     // Background first so the accentSoft wash extends behind the status bar,
     // then the inset padding (Scaffold does not pad the topBar slot).
     Column(Modifier.background(c.accentSoft).statusBarsPadding()) {
@@ -448,11 +459,11 @@ private fun StructureCommandBar(
                 fontSize = 13.5.sp, color = c.accent,
                 modifier = Modifier.weight(1f),
             )
-            CommandButton("↑", c.ink) { resolve()?.let(viewModel::moveUp) }
-            CommandButton("↓", c.ink) { resolve()?.let(viewModel::moveDown) }
-            CommandButton("⇤", c.ink) { resolve()?.let(viewModel::promote) }
-            CommandButton("⇥", c.ink) { resolve()?.let(viewModel::demote) }
-            CommandButton("⌫", c.red) { resolve()?.let(viewModel::deleteNote) }
+            CommandButton(Icons.Default.KeyboardArrowUp, "Move up", c.ink) { resolve()?.let(viewModel::moveUp) }
+            CommandButton(Icons.Default.KeyboardArrowDown, "Move down", c.ink) { resolve()?.let(viewModel::moveDown) }
+            CommandButton(Icons.Default.FormatIndentDecrease, "Promote", c.ink) { resolve()?.let(viewModel::promote) }
+            CommandButton(Icons.Default.FormatIndentIncrease, "Demote", c.ink) { resolve()?.let(viewModel::demote) }
+            CommandButton(Icons.Default.Delete, "Delete", c.red) { confirmDelete = true }
             Spacer(Modifier.width(2.dp))
             Box(
                 Modifier
@@ -462,15 +473,49 @@ private fun StructureCommandBar(
                     .clickable(onClick = onExit),
                 contentAlignment = Alignment.Center,
             ) {
-                Text("✓", fontFamily = PlexSans, fontSize = 15.sp, color = c.accentInk)
+                Icon(
+                    Icons.Default.Check,
+                    contentDescription = "Done",
+                    tint = c.accentInk,
+                    modifier = Modifier.size(20.dp),
+                )
             }
         }
         Box(Modifier.fillMaxWidth().height(1.dp).background(c.line))
     }
+    if (confirmDelete) {
+        AlertDialog(
+            onDismissRequest = { confirmDelete = false },
+            containerColor = c.surface,
+            title = {
+                Text(
+                    "Delete this note?",
+                    fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
+                    fontSize = 16.sp, color = c.ink,
+                )
+            },
+            text = {
+                Text(
+                    "This will delete the heading and everything under it.",
+                    fontFamily = PlexSans, fontSize = 14.sp, color = c.ink2,
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    resolve()?.let(viewModel::deleteNote)
+                    confirmDelete = false
+                    onExit()
+                }) { Text("Delete", color = c.red, fontWeight = FontWeight.SemiBold) }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmDelete = false }) { Text("Cancel", color = c.ink2) }
+            },
+        )
+    }
 }
 
 @Composable
-private fun CommandButton(glyph: String, tint: Color, onClick: () -> Unit) {
+private fun CommandButton(icon: ImageVector, contentDescription: String, tint: Color, onClick: () -> Unit) {
     Box(
         Modifier
             .padding(horizontal = 1.dp)
@@ -480,7 +525,7 @@ private fun CommandButton(glyph: String, tint: Color, onClick: () -> Unit) {
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Text(glyph, fontFamily = PlexSans, fontSize = 15.sp, color = tint)
+        Icon(icon, contentDescription = contentDescription, tint = tint, modifier = Modifier.size(20.dp))
     }
 }
 
@@ -602,7 +647,10 @@ private fun OutlineNode(
                     fontSize = 14.5.sp,
                     color = if (isDone) c.ink3 else c.ink,
                     textDecoration = if (isDone) TextDecoration.LineThrough else null,
-                    modifier = Modifier.alignByBaseline().weight(1f, fill = false),
+                    // fill = true reserves the trailing tag/star width on every
+                    // wrapped line so they land flush at the row's right edge,
+                    // baseline-aligned to the title's first line.
+                    modifier = Modifier.alignByBaseline().weight(1f, fill = true),
                 )
                 if (isCollapsed && childCount > 0) {
                     Spacer(Modifier.width(6.dp))
@@ -610,6 +658,18 @@ private fun OutlineNode(
                         "… $childCount", fontFamily = PlexMono, fontSize = 11.sp, color = c.ink3,
                         modifier = Modifier.alignByBaseline(),
                     )
+                }
+                if (flags.tags && headline.tags.isNotEmpty()) {
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        headline.tags.joinToString(":", prefix = ":", postfix = ":"),
+                        fontFamily = PlexMono, fontSize = 11.sp, color = c.synTag,
+                        modifier = Modifier.alignByBaseline(),
+                    )
+                }
+                if (isFavorite) {
+                    Spacer(Modifier.width(6.dp))
+                    FavoriteStar(modifier = Modifier.alignByBaseline())
                 }
             }
             // Body preview: first two non-empty lines, keeping the line breaks
@@ -660,17 +720,6 @@ private fun OutlineNode(
                     )
                 }
             }
-        }
-        if (flags.tags && headline.tags.isNotEmpty()) {
-            Spacer(Modifier.width(6.dp))
-            Text(
-                headline.tags.joinToString(":", prefix = ":", postfix = ":"),
-                fontFamily = PlexMono, fontSize = 11.sp, color = c.synTag,
-            )
-        }
-        if (isFavorite) {
-            Spacer(Modifier.width(6.dp))
-            FavoriteStar(modifier = Modifier.padding(top = 2.dp))
         }
     }
 }
