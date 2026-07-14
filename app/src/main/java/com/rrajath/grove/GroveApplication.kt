@@ -6,6 +6,7 @@ import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
 import com.rrajath.grove.capture.SharedPayload
+import com.rrajath.grove.capture.ShortcutSyncer
 import com.rrajath.grove.capture.TemplatesRepository
 import com.rrajath.grove.data.FavoritesRepository
 import com.rrajath.grove.data.GroveDatabase
@@ -105,6 +106,24 @@ class GroveApplication : Application() {
                 .collect { enabled ->
                     if (enabled) CaptureNotification.show(this@GroveApplication)
                     else CaptureNotification.hide(this@GroveApplication)
+                }
+        }
+
+        appScope.launch {
+            // Long-press launcher shortcuts mirror the configured capture
+            // templates, so add/edit/delete/reorder in Settings is reflected
+            // immediately (including DataStore's initial emission on cold start).
+            // Shortcut icon colors follow the same theme + sync-with-icon gate
+            // as the launcher icon itself (AppIconManager), so both stay in sync.
+            combine(
+                templatesRepository.templates,
+                settingsRepository.settings
+                    .map { it.theme to it.syncAppIconWithTheme }
+                    .distinctUntilChanged(),
+            ) { templates, (theme, iconThemed) -> Triple(templates, theme, iconThemed) }
+                .distinctUntilChanged()
+                .collect { (templates, theme, iconThemed) ->
+                    ShortcutSyncer.sync(this@GroveApplication, templates, theme, iconThemed)
                 }
         }
 

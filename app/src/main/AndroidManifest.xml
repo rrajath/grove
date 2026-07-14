@@ -22,10 +22,6 @@
             android:label="@string/app_name"
             android:launchMode="singleTask"
             android:theme="@style/Theme.Grove">
-            <!-- Long-press launcher shortcuts: Journal and Quick Note (capture). -->
-            <meta-data
-                android:name="android.app.shortcuts"
-                android:resource="@xml/shortcuts" />
             <!-- Share sheet target: text and URLs route into capture (PRD §10) -->
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />

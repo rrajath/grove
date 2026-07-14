@@ -30,8 +30,8 @@ class RoutesTest {
 
     @Test
     fun `capture path matches launcher shortcut deep links`() {
-        // res/xml/shortcuts.xml fires grove://capture/<id>; the path after the
-        // scheme must equal the route the NavHost matches via Routes.capture(id).
+        // ShortcutSyncer publishes grove://capture/<id> per template; the path
+        // after the scheme must equal the route the NavHost matches via Routes.capture(id).
         assertEquals("capture/builtin-journal", Routes.capture("builtin-journal"))
         assertEquals("capture/builtin-quick-note", Routes.capture("builtin-quick-note"))
     }
