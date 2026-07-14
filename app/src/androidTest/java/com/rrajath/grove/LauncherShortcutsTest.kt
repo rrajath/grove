@@ -1,32 +1,37 @@
 package com.rrajath.grove
 
-import android.content.pm.ShortcutManager
+import androidx.core.content.pm.ShortcutManagerCompat
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.rrajath.grove.capture.DefaultTemplates
+import com.rrajath.grove.capture.ShortcutSyncer
+import com.rrajath.grove.settings.ThemePreference
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * Verifies the manifest-declared launcher long-press shortcuts (Journal and
- * Quick Note) are registered and labelled as declared in res/xml/shortcuts.xml.
+ * Verifies [ShortcutSyncer] publishes one dynamic launcher long-press
+ * shortcut per capture template, keyed by template id.
  *
  * A non-launcher app can't read a shortcut's intent URI, so the deep-link
- * wiring (grove://capture/<id> → Routes.capture(id) and the stable built-in
+ * wiring (grove://capture/<id> -> Routes.capture(id) and the stable built-in
  * template ids) is covered by the JVM RoutesTest / CaptureTemplateTest.
  */
 @RunWith(AndroidJUnit4::class)
 class LauncherShortcutsTest {
     @Test
-    fun manifestShortcutsAreDeclared() {
+    fun dynamicShortcutsMatchConfiguredTemplates() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
-        val manager = context.getSystemService(ShortcutManager::class.java)
-        val shortcuts = manager.manifestShortcuts.associateBy { it.id }
+        ShortcutSyncer.sync(context, DefaultTemplates.all, ThemePreference.LIGHT, iconThemed = false)
 
-        assertEquals(setOf("journal", "quick_note"), shortcuts.keys)
-        assertEquals("Journal", shortcuts.getValue("journal").shortLabel.toString())
-        assertEquals("Quick Note", shortcuts.getValue("quick_note").shortLabel.toString())
+        val shortcuts = ShortcutManagerCompat.getDynamicShortcuts(context).associateBy { it.id }
+
+        assertEquals(DefaultTemplates.all.map { it.id }.toSet(), shortcuts.keys)
+        DefaultTemplates.all.forEach { template ->
+            assertEquals(template.name, shortcuts.getValue(template.id).shortLabel.toString())
+        }
         assertTrue("shortcuts should be enabled", shortcuts.values.all { it.isEnabled })
     }
 }
