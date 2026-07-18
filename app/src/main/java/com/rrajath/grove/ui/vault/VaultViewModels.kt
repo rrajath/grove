@@ -83,7 +83,7 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
             }
             .sortedWith(
                 compareBy<NotebookItem> { if (it.isPinned) it.pinnedIndex else Int.MAX_VALUE }
-                    .thenBy { it.fileName.lowercase() }
+                    .thenBy { it.displayName.lowercase() }
             )
     }.distinctUntilChanged()
 

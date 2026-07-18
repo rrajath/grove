@@ -13,18 +13,22 @@ import org.junit.Test
  */
 class NotebookPinOrderTest {
 
-    private fun item(name: String, pinnedIndex: Int = -1) = NotebookItem(
+    private fun item(name: String, pinnedIndex: Int = -1, displayName: String = name) = NotebookItem(
         fileName = name,
         noteCount = 0,
         lastModified = 0L,
         hasConflict = false,
         pinnedIndex = pinnedIndex,
+        displayName = displayName,
     )
 
+    // Mirrors NotebooksViewModel.notebookItems' sortedWith: unpinned notebooks
+    // sort by displayName, which is already resolved to either the file name
+    // or the cached title depending on Settings' notebookDisplayNameMode.
     private fun sortedLike(items: List<NotebookItem>): List<NotebookItem> =
         items.sortedWith(
             compareBy<NotebookItem> { if (it.isPinned) it.pinnedIndex else Int.MAX_VALUE }
-                .thenBy { it.fileName.lowercase() }
+                .thenBy { it.displayName.lowercase() }
         )
 
     @Test
@@ -81,6 +85,31 @@ class NotebookPinOrderTest {
         val items = listOf(item("z.org"), item("a.org"), item("m.org"))
         val sorted = sortedLike(items)
         assertEquals(listOf("a.org", "m.org", "z.org"), sorted.map { it.fileName })
+    }
+
+    @Test
+    fun `unpinned items sort by title when display name mode is title`() {
+        // File names would sort z, a, m — but with the title display mode
+        // (NotebookDisplayNameMode.TITLE), displayName carries the #+TITLE:
+        // instead, and that's what unpinned notebooks must sort by.
+        val items = listOf(
+            item("z.org", displayName = "Alpha notes"),
+            item("a.org", displayName = "Zeta notes"),
+            item("m.org", displayName = "Middle notes"),
+        )
+        val sorted = sortedLike(items)
+        assertEquals(listOf("z.org", "m.org", "a.org"), sorted.map { it.fileName })
+    }
+
+    @Test
+    fun `pinned items keep pin order regardless of display name mode`() {
+        val items = listOf(
+            item("z.org", pinnedIndex = 0, displayName = "Zeta notes"),
+            item("a.org", pinnedIndex = 1, displayName = "Alpha notes"),
+            item("m.org", displayName = "Middle notes"),
+        )
+        val sorted = sortedLike(items)
+        assertEquals(listOf("z.org", "a.org", "m.org"), sorted.map { it.fileName })
     }
 
     @Test

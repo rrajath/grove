@@ -169,6 +169,9 @@ fun CaptureEditorScreen(
     // Mirrors the note editor's auto-save indicator: a tappable check mark
     // in the top bar once the draft has been auto-saved at least once.
     var lastAutoSavedAt by remember { mutableStateOf<LocalTime?>(null) }
+    // Text as of the last auto-save, so the check mark can tell whether the
+    // draft has drifted since then (grey) or still matches disk (green).
+    var lastAutoSavedText by remember(expanded) { mutableStateOf(initialText) }
     // Blinks the check mark twice on each auto-save instead of a toast;
     // tapping the check mark still shows a "saved at" toast on demand.
     val checkAlpha = remember { Animatable(1f) }
@@ -205,6 +208,7 @@ fun CaptureEditorScreen(
         if (value.text != initialText && !CaptureInserter.hasBlankHeading(value.text)) {
             viewModel.autosave(template, value.text, context)
             lastAutoSavedAt = LocalTime.now()
+            lastAutoSavedText = value.text
         }
     }
 
@@ -234,7 +238,10 @@ fun CaptureEditorScreen(
                         Icon(
                             Icons.Default.Check,
                             contentDescription = "Auto saved",
-                            tint = c.green,
+                            // Green while the draft matches what's on disk (and
+                            // blinks right after a save); grey again the moment a
+                            // keystroke makes it dirty, until the next auto-save.
+                            tint = if (value.text != lastAutoSavedText) c.ink3 else c.green,
                             modifier = Modifier
                                 .alpha(checkAlpha.value)
                                 .clip(RoundedCornerShape(10.dp))
