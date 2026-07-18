@@ -51,6 +51,10 @@ data class GroveSettings(
     val showPropertyDrawers: Boolean = true,
     /** Notebook list label: raw file name, or the `#+TITLE:` cached in the index. */
     val notebookDisplayNameMode: NotebookDisplayNameMode = NotebookDisplayNameMode.FILENAME,
+    /** Destination file of the most recent successful refile; null until one has happened. */
+    val lastRefileFile: String? = null,
+    /** '/'-separated heading path within [lastRefileFile]; empty = top level. */
+    val lastRefileHeadingPath: String = "",
 ) {
     companion object {
         const val DEFAULT_TODO_KEYWORDS = "TODO IN-PROGRESS | DONE CANCELLED"
@@ -85,6 +89,8 @@ class SettingsRepository(private val context: Context) {
         val showHeaderTags = booleanPreferencesKey("show_header_tags")
         val showPropertyDrawers = booleanPreferencesKey("show_property_drawers")
         val notebookDisplayNameMode = stringPreferencesKey("notebook_display_name_mode")
+        val lastRefileFile = stringPreferencesKey("last_refile_file")
+        val lastRefileHeadingPath = stringPreferencesKey("last_refile_heading_path")
     }
 
     val settings: Flow<GroveSettings> = context.settingsDataStore.data.map { prefs ->
@@ -113,6 +119,8 @@ class SettingsRepository(private val context: Context) {
             showHeaderTags = prefs[Keys.showHeaderTags] ?: true,
             showPropertyDrawers = prefs[Keys.showPropertyDrawers] ?: true,
             notebookDisplayNameMode = NotebookDisplayNameMode.fromStorage(prefs[Keys.notebookDisplayNameMode]),
+            lastRefileFile = prefs[Keys.lastRefileFile],
+            lastRefileHeadingPath = prefs[Keys.lastRefileHeadingPath] ?: "",
         )
     }
 
@@ -248,6 +256,13 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setNotebookDisplayNameMode(mode: NotebookDisplayNameMode) {
         context.settingsDataStore.edit { it[Keys.notebookDisplayNameMode] = mode.storageKey }
+    }
+
+    suspend fun setLastRefileTarget(fileName: String, headingPath: List<String>) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[Keys.lastRefileFile] = fileName
+            prefs[Keys.lastRefileHeadingPath] = headingPath.joinToString("/")
+        }
     }
 
     suspend fun setNotebookIcon(fileName: String, glyph: String) {

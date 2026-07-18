@@ -58,6 +58,7 @@ fun RefileSheet(
     onCancel: () -> Unit,
     onConfirm: () -> Unit,
     onArchive: () -> Unit,
+    onPickLastUsed: () -> Unit,
 ) {
     val c = MaterialTheme.grove
     val doc = state.pickedDoc
@@ -87,6 +88,10 @@ fun RefileSheet(
         Column(Modifier.padding(horizontal = 14.dp)) {
             state.archiveTarget?.let { target ->
                 ArchiveRow(sub = archiveCrumb(target), onClick = onArchive)
+                Spacer(Modifier.height(10.dp))
+            }
+            state.lastUsedTarget?.let { target ->
+                LastUsedRow(sub = archiveCrumb(target), onClick = onPickLastUsed)
                 Spacer(Modifier.height(10.dp))
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -220,6 +225,33 @@ private fun ArchiveRow(sub: String, onClick: () -> Unit) {
         Column(Modifier.weight(1f)) {
             Text(
                 "Archive",
+                fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
+                fontSize = 14.sp, color = c.ink,
+            )
+            Text(sub, fontFamily = PlexSans, fontSize = 11.5.sp, color = c.ink2)
+        }
+        Text("→", fontFamily = PlexSans, fontSize = 14.sp, color = c.accent)
+    }
+}
+
+/** Pinned quick action for the destination of the most recent successful refile. */
+@Composable
+private fun LastUsedRow(sub: String, onClick: () -> Unit) {
+    val c = MaterialTheme.grove
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .border(1.dp, c.line, RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text("↺", fontFamily = PlexMono, fontSize = 15.sp, color = c.accent)
+        Spacer(Modifier.width(10.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                "Last used location",
                 fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
                 fontSize = 14.sp, color = c.ink,
             )

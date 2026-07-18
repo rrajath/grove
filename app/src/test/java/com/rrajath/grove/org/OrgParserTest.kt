@@ -146,6 +146,14 @@ class OrgParserTest {
     }
 
     @Test
+    fun `tags with dashes are recognized as tags`() {
+        val doc = OrgParser.parse("* A heading :floating-note:\n")
+        val h = doc.headlines.first()
+        assertEquals("A heading", h.title)
+        assertEquals(listOf("floating-note"), h.tags)
+    }
+
+    @Test
     fun `indented or starless lines are not headlines`() {
         val doc = OrgParser.parse(golden("edge-cases.org"))
         assertNull(doc.headlines.firstOrNull { it.title.contains("Also not a heading") })
