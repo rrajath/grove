@@ -141,14 +141,19 @@ internal fun insertAtCursor(value: TextFieldValue, snippet: String): TextFieldVa
 
 /**
  * Insert an org link template with named placeholders and pre-select "link" so
- * the user can type the URL over it, then move to "description".
+ * the user can type the URL over it, then move to "description". A non-empty
+ * selection is consumed as the description instead of the "description"
+ * placeholder, so e.g. selecting "my note" and tapping link yields
+ * [[link][my note]] with "link" highlighted to type the URL over.
  */
 internal fun insertLinkTemplate(value: TextFieldValue): TextFieldValue {
-    val at = value.selection.start
-    val template = "[[link][description]]"
-    val linkStart = at + 2 // just inside the opening "[["
+    val sel = value.selection
+    val text = value.text
+    val description = if (sel.collapsed) "description" else text.substring(sel.min, sel.max)
+    val template = "[[link][$description]]"
+    val linkStart = sel.min + 2 // just inside the opening "[["
     return TextFieldValue(
-        value.text.substring(0, at) + template + value.text.substring(at),
+        text.substring(0, sel.min) + template + text.substring(sel.max),
         TextRange(linkStart, linkStart + "link".length),
     )
 }

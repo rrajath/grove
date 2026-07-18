@@ -46,7 +46,10 @@ import com.rrajath.grove.ui.theme.grove
 import kotlinx.coroutines.launch
 
 @Composable
-fun GroveApp(viewModel: AppViewModel = viewModel(factory = AppViewModel.Factory)) {
+fun GroveApp(
+    deepLinkIntent: android.content.Intent? = null,
+    viewModel: AppViewModel = viewModel(factory = AppViewModel.Factory),
+) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     // Wait for the first DataStore emission so theme and start destination don't flash.
     val loaded = settings ?: return
@@ -66,7 +69,7 @@ fun GroveApp(viewModel: AppViewModel = viewModel(factory = AppViewModel.Factory)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
     GroveTheme(theme = loaded.theme, fontSize = loaded.fontSize) {
-        GroveNavigation(loaded, viewModel)
+        GroveNavigation(loaded, viewModel, deepLinkIntent)
     }
 }
 
@@ -90,7 +93,11 @@ private fun vaultDisplayPath(treeUri: String?): String {
 }
 
 @Composable
-private fun GroveNavigation(settings: GroveSettings, viewModel: AppViewModel) {
+private fun GroveNavigation(
+    settings: GroveSettings,
+    viewModel: AppViewModel,
+    deepLinkIntent: android.content.Intent? = null,
+) {
     val navController = rememberNavController()
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
@@ -105,6 +112,16 @@ private fun GroveNavigation(settings: GroveSettings, viewModel: AppViewModel) {
     val pendingShare by app.pendingShare.collectAsStateWithLifecycle()
     LaunchedEffect(pendingShare) {
         if (pendingShare != null) viewModel.consumeSharedContent()
+    }
+
+    // Launcher shortcuts, the capture widget, and the persistent capture
+    // notification all launch grove:// VIEW intents; NavHost doesn't consume
+    // the hosting Activity's intent on its own, so route it through here on
+    // both cold start and a warm-start onNewIntent (see MainActivity).
+    LaunchedEffect(deepLinkIntent) {
+        if (deepLinkIntent?.action == android.content.Intent.ACTION_VIEW && deepLinkIntent.data != null) {
+            navController.handleDeepLink(deepLinkIntent)
+        }
     }
 
     fun closeDrawerAnd(action: () -> Unit) {

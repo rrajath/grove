@@ -213,7 +213,10 @@ fun EditNoteScreen(
                         Icon(
                             Icons.Default.Check,
                             contentDescription = "Auto saved",
-                            tint = c.green,
+                            // Green while the buffer matches what's on disk (and
+                            // blinks right after a save); grey again the moment a
+                            // keystroke makes it dirty, until the next auto-save.
+                            tint = if (state.dirty) c.ink3 else c.green,
                             modifier = Modifier
                                 .alpha(checkAlpha.value)
                                 .clip(RoundedCornerShape(10.dp))

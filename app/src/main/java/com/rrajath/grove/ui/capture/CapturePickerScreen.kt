@@ -54,6 +54,9 @@ fun CapturePickerSheet(
         sheetState = sheetState,
         containerColor = c.surface,
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+        // Cap the scrim at 80% instead of Material3's fully-opaque default
+        // scrim token, so the notebooks list stays faintly visible behind it.
+        scrimColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.8f),
     ) {
         Column(Modifier.padding(bottom = 26.dp)) {
             Row(
