@@ -442,6 +442,7 @@ fun OutlineScreen(
                         onCancel = viewModel::refileCancel,
                         onConfirm = viewModel::refileConfirm,
                         onArchive = viewModel::refileToArchive,
+                        onPickLastUsed = viewModel::refileToLastUsed,
                     )
                 }
             }

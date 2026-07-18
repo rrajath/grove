@@ -155,7 +155,7 @@ class OrgDocument(
 object OrgParser {
 
     private val HEADLINE = Regex("""^(\*+)\s+(.*)$""")
-    private val TAGS_AT_END = Regex("""\s+(:[A-Za-z0-9_@#%]+(?::[A-Za-z0-9_@#%]+)*:)\s*$""")
+    private val TAGS_AT_END = Regex("""\s+(:[A-Za-z0-9_@#%-]+(?::[A-Za-z0-9_@#%-]+)*:)\s*$""")
     private val PRIORITY = Regex("""^\[#([A-Za-z])\]\s*""")
     private val FILETAGS = Regex("""^#\+(?i:FILETAGS):\s*(.*)$""")
     private val PROPERTY_LINE = Regex("""^\s*:([^:\s]+):\s*(.*)$""")
