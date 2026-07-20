@@ -1,6 +1,7 @@
 package com.rrajath.grove.ui.screens
 
 import android.content.Intent
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -10,8 +11,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.clickable
@@ -38,7 +41,12 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.core.net.toUri
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -535,26 +543,70 @@ private fun BodyBlocks(
                     block.items.forEachIndexed { i, item ->
                         val done = item.checkbox == 'X' || item.checkbox == 'x'
                         Row(
-                            Modifier.padding(vertical = 2.dp).padding(start = (item.indent * 4).dp),
-                            verticalAlignment = Alignment.CenterVertically,
+                            Modifier.padding(vertical = 2.dp).padding(start = (item.indent * 20).dp),
+                            verticalAlignment = Alignment.Top,
                         ) {
-                            Text(
+                            // Sized to the first line's height (16sp * 1.55 line-height
+                            // below) so the glyph centers against just that line, not
+                            // the full (possibly multi-line) height of the item text.
+                            // Bullets/checkboxes are drawn on a Canvas rather than as
+                            // Unicode glyphs: PlexSerif has no •/☐/☑/◧ glyphs, so those
+                            // fall back to a different font whose vertical metrics don't
+                            // match PlexSerif's, throwing off the centering above.
+                            Box(
+                                Modifier.width(20.dp).heightIn(min = 25.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                val markColor = if (done) c.ink3 else c.ink2
                                 when {
-                                    done -> "☑"
-                                    item.checkbox == '-' -> "◧"
-                                    item.checkbox == ' ' -> "☐"
-                                    item.ordered -> "${i + 1}."
-                                    else -> "•"
-                                },
-                                fontFamily = PlexSerif, fontSize = 16.sp,
-                                color = if (done) c.ink3 else c.ink2,
-                                modifier = if (item.checkbox != null) {
-                                    Modifier
-                                        .clip(RoundedCornerShape(4.dp))
-                                        .clickable { onToggleCheckbox(lineOffset + item.line) }
-                                        .padding(4.dp)
-                                } else Modifier,
-                            )
+                                    item.checkbox != null -> {
+                                        Canvas(
+                                            Modifier
+                                                .size(18.dp)
+                                                .clip(RoundedCornerShape(4.dp))
+                                                .clickable { onToggleCheckbox(lineOffset + item.line) }
+                                                .padding(1.dp),
+                                        ) {
+                                            val stroke = 1.5.dp.toPx()
+                                            val corner = CornerRadius(3.dp.toPx())
+                                            when (item.checkbox) {
+                                                'X', 'x' -> {
+                                                    drawRoundRect(color = markColor, cornerRadius = corner)
+                                                    val check = Path().apply {
+                                                        moveTo(size.width * 0.22f, size.height * 0.52f)
+                                                        lineTo(size.width * 0.42f, size.height * 0.72f)
+                                                        lineTo(size.width * 0.78f, size.height * 0.28f)
+                                                    }
+                                                    drawPath(
+                                                        check,
+                                                        color = c.bg,
+                                                        style = Stroke(width = stroke, cap = StrokeCap.Round, join = StrokeJoin.Round),
+                                                    )
+                                                }
+                                                '-' -> {
+                                                    drawRoundRect(color = markColor, cornerRadius = corner, style = Stroke(width = stroke))
+                                                    drawLine(
+                                                        color = markColor,
+                                                        start = Offset(size.width * 0.25f, size.height / 2f),
+                                                        end = Offset(size.width * 0.75f, size.height / 2f),
+                                                        strokeWidth = stroke,
+                                                        cap = StrokeCap.Round,
+                                                    )
+                                                }
+                                                else -> {
+                                                    drawRoundRect(color = markColor, cornerRadius = corner, style = Stroke(width = stroke))
+                                                }
+                                            }
+                                        }
+                                    }
+                                    item.ordered -> {
+                                        Text("${i + 1}.", fontFamily = PlexSerif, fontSize = 16.sp, color = markColor)
+                                    }
+                                    else -> {
+                                        Canvas(Modifier.size(6.dp)) { drawCircle(color = markColor) }
+                                    }
+                                }
+                            }
                             Spacer(Modifier.width(8.dp))
                             OrgText(
                                 item.text,

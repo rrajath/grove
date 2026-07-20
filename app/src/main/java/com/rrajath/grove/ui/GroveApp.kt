@@ -1,5 +1,7 @@
 package com.rrajath.grove.ui
 
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.DrawerValue
@@ -155,6 +157,10 @@ private fun GroveNavigation(
             modifier = Modifier
                 .fillMaxSize()
                 .background(MaterialTheme.grove.bg),
+            enterTransition = { EnterTransition.None },
+            exitTransition = { ExitTransition.None },
+            popEnterTransition = { EnterTransition.None },
+            popExitTransition = { ExitTransition.None },
         ) {
             composable(Routes.ONBOARDING) {
                 OnboardingScreen(
