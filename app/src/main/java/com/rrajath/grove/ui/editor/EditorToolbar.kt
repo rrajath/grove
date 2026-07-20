@@ -59,6 +59,7 @@ fun EditorToolbar(
         ToolButton("I", c.ink, Modifier.weight(1f), italic = true) { onWrap('/') }
         ToolButton("U", c.ink, Modifier.weight(1f), underline = true) { onWrap('_') }
         ToolButton("</>", c.ink, Modifier.weight(1f)) { onWrap('~') }
+        ToolButton("☑", c.ink, Modifier.weight(1f)) { onInsert("\n- [ ] ") }
         ToolButton("[[]]", c.synLink, Modifier.weight(1f)) { onLink() }
         // The clock glyph is drawn smaller than the letters at a given size, so
         // bump its font so it reads at the same height as the other buttons.
