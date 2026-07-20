@@ -55,6 +55,8 @@ data class GroveSettings(
     val lastRefileFile: String? = null,
     /** '/'-separated heading path within [lastRefileFile]; empty = top level. */
     val lastRefileHeadingPath: String = "",
+    /** Read mode: how many states tapping a checklist item cycles through. */
+    val checklistStates: ChecklistStates = ChecklistStates.TWO,
 ) {
     companion object {
         const val DEFAULT_TODO_KEYWORDS = "TODO IN-PROGRESS | DONE CANCELLED"
@@ -91,6 +93,7 @@ class SettingsRepository(private val context: Context) {
         val notebookDisplayNameMode = stringPreferencesKey("notebook_display_name_mode")
         val lastRefileFile = stringPreferencesKey("last_refile_file")
         val lastRefileHeadingPath = stringPreferencesKey("last_refile_heading_path")
+        val checklistStates = stringPreferencesKey("checklist_states")
     }
 
     val settings: Flow<GroveSettings> = context.settingsDataStore.data.map { prefs ->
@@ -121,6 +124,7 @@ class SettingsRepository(private val context: Context) {
             notebookDisplayNameMode = NotebookDisplayNameMode.fromStorage(prefs[Keys.notebookDisplayNameMode]),
             lastRefileFile = prefs[Keys.lastRefileFile],
             lastRefileHeadingPath = prefs[Keys.lastRefileHeadingPath] ?: "",
+            checklistStates = ChecklistStates.fromStorage(prefs[Keys.checklistStates]),
         )
     }
 
@@ -172,6 +176,7 @@ class SettingsRepository(private val context: Context) {
             p[Keys.showHeaderTags] = s.showHeaderTags
             p[Keys.showPropertyDrawers] = s.showPropertyDrawers
             p[Keys.notebookDisplayNameMode] = s.notebookDisplayNameMode.storageKey
+            p[Keys.checklistStates] = s.checklistStates.storageKey
         }
     }
 
@@ -256,6 +261,10 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setNotebookDisplayNameMode(mode: NotebookDisplayNameMode) {
         context.settingsDataStore.edit { it[Keys.notebookDisplayNameMode] = mode.storageKey }
+    }
+
+    suspend fun setChecklistStates(states: ChecklistStates) {
+        context.settingsDataStore.edit { it[Keys.checklistStates] = states.storageKey }
     }
 
     suspend fun setLastRefileTarget(fileName: String, headingPath: List<String>) {

@@ -239,6 +239,7 @@ private fun GroveNavigation(
                             }
                         },
                         showPropertyDrawers = settings.showPropertyDrawers,
+                        checklistStates = settings.checklistStates,
                         favoriteLines = favoriteLinesFor(favorites, ref.fileName),
                     )
                 }
@@ -306,6 +307,7 @@ private fun GroveNavigation(
                     onSetShowHeaderTags = viewModel::setShowHeaderTags,
                     onSetShowPropertyDrawers = viewModel::setShowPropertyDrawers,
                     onSetNotebookDisplayNameMode = viewModel::setNotebookDisplayNameMode,
+                    onSetChecklistStates = viewModel::setChecklistStates,
                     onSetFontSize = viewModel::setFontSize,
                     onSetNoteOpenMode = viewModel::setDefaultNoteOpenMode,
                     onEditTemplate = { id ->

@@ -60,6 +60,70 @@ class LineEditingTest {
         assertEquals(8, edit.cursor)
     }
 
+    // --- checklist items ---
+
+    @Test
+    fun `checklist item continues with a fresh unchecked box`() {
+        val edit = pressEnter("- [ ] milk", 10)!!
+        assertEquals("- [ ] milk\n- [ ] ", edit.text)
+        assertEquals(edit.text.length, edit.cursor)
+    }
+
+    @Test
+    fun `checked item continues unchecked, not carrying the done state forward`() {
+        val edit = pressEnter("- [X] milk", 10)!!
+        assertEquals("- [X] milk\n- [ ] ", edit.text)
+    }
+
+    @Test
+    fun `in-progress item continues unchecked`() {
+        val edit = pressEnter("- [-] milk", 10)!!
+        assertEquals("- [-] milk\n- [ ] ", edit.text)
+    }
+
+    @Test
+    fun `numbered checklist item increments and keeps the checkbox`() {
+        val edit = pressEnter("1. [ ] first", 12)!!
+        assertEquals("1. [ ] first\n2. [ ] ", edit.text)
+    }
+
+    @Test
+    fun `checklist indentation is preserved`() {
+        val edit = pressEnter("  - [ ] nested", 14)!!
+        assertEquals("  - [ ] nested\n  - [ ] ", edit.text)
+    }
+
+    @Test
+    fun `enter on an empty checklist item removes it`() {
+        val edit = pressEnter("- [ ] a\n- [ ] ", 14)!!
+        assertEquals("- [ ] a\n", edit.text)
+        assertEquals(8, edit.cursor)
+    }
+
+    @Test
+    fun `enter on an empty checked item removes it`() {
+        val edit = pressEnter("- [X] a\n- [X] ", 14)!!
+        assertEquals("- [X] a\n", edit.text)
+    }
+
+    @Test
+    fun `checklist indent preserves the box state`() {
+        val edit = LineEditing.changeListIndent("- [ ] one\n- [X] two", 13, +1)!!
+        assertEquals("- [ ] one\n  - [X] two", edit.text)
+    }
+
+    @Test
+    fun `checklist outdent preserves the box state`() {
+        val edit = LineEditing.changeListIndent("- [ ] one\n  - [-] two", 15, -1)!!
+        assertEquals("- [ ] one\n- [-] two", edit.text)
+    }
+
+    @Test
+    fun `indenting a numbered checklist item restarts numbering and keeps the box`() {
+        val edit = LineEditing.changeListIndent("1. [ ] one\n2. [X] two", 17, +1)!!
+        assertEquals("1. [ ] one\n  1. [X] two", edit.text)
+    }
+
     @Test
     fun `non-list lines are untouched`() {
         assertNull(pressEnter("plain text", 10))

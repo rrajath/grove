@@ -61,3 +61,17 @@ enum class NotebookDisplayNameMode(val storageKey: String) {
             entries.firstOrNull { it.storageKey == value } ?: FILENAME
     }
 }
+
+/**
+ * Read mode: how many states a tap cycles a checklist item's box through.
+ * [marks] is the tap order, e.g. two-state `[ ]` → `[X]` → `[ ]`…
+ */
+enum class ChecklistStates(val storageKey: String, val marks: List<Char>) {
+    TWO("two", listOf(' ', 'X')),
+    THREE("three", listOf(' ', '-', 'X'));
+
+    companion object {
+        fun fromStorage(value: String?): ChecklistStates =
+            entries.firstOrNull { it.storageKey == value } ?: TWO
+    }
+}

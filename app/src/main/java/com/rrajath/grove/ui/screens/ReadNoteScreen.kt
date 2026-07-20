@@ -61,6 +61,7 @@ import com.rrajath.grove.org.OrgBlock
 import com.rrajath.grove.org.OrgDocument
 import com.rrajath.grove.org.OrgHeadline
 import com.rrajath.grove.org.OrgTimestamp
+import com.rrajath.grove.settings.ChecklistStates
 import com.rrajath.grove.ui.components.CollapsibleKvSection
 import com.rrajath.grove.ui.components.FavoriteStar
 import com.rrajath.grove.ui.components.GroveTopBar
@@ -93,6 +94,8 @@ fun ReadNoteScreen(
     onEdit: () -> Unit,
     /** Settings toggle: show collapsible sections for `:PROPERTIES:` drawers. */
     showPropertyDrawers: Boolean = true,
+    /** Settings: how many states tapping a checklist item cycles through. */
+    checklistStates: ChecklistStates = ChecklistStates.TWO,
     /** Line indices of favorited headlines in this file — marked with a ★. */
     favoriteLines: Set<Int> = emptySet(),
     viewModel: DocumentViewModel = viewModel(factory = DocumentViewModel.Factory),
@@ -169,6 +172,7 @@ fun ReadNoteScreen(
                             onOpenNote = onOpenNote,
                             fileName = noteRef.fileName,
                             onEditAt = onEdit,
+                            onToggleCheckbox = { line -> viewModel.toggleChecklistItem(line, checklistStates.marks) },
                             showPropertyDrawers = showPropertyDrawers,
                             favoriteLines = favoriteLines,
                         )
@@ -192,6 +196,7 @@ private fun NoteContent(
     fileName: String,
     onOpenNote: (NoteRef) -> Unit,
     onEditAt: () -> Unit,
+    onToggleCheckbox: (Int) -> Unit,
     listState: LazyListState,
     modifier: Modifier = Modifier,
     showPropertyDrawers: Boolean = true,
@@ -308,7 +313,7 @@ private fun NoteContent(
                         Spacer(Modifier.height(16.dp))
 
                         // Own body
-                        BodyBlocks(ownBody, openLink, onLinkLongPress, onEditAt)
+                        BodyBlocks(ownBody, headline.bodyStart, onToggleCheckbox, openLink, onLinkLongPress, onEditAt)
                     }
                 }
             }
@@ -366,7 +371,7 @@ private fun NoteContent(
                         } else {
                             Spacer(Modifier.height(8.dp))
                         }
-                        BodyBlocks(body, openLink, onLinkLongPress, onEditAt)
+                        BodyBlocks(body, child.bodyStart, onToggleCheckbox, openLink, onLinkLongPress, onEditAt)
                     }
                 }
             }
@@ -484,6 +489,9 @@ private fun PlanningChip(text: String, fg: Color, bg: Color) {
 @Composable
 private fun BodyBlocks(
     bodyLines: List<String>,
+    /** Absolute doc line of `bodyLines[0]`, to resolve a [OrgBlock.ListItem]'s body-relative `line`. */
+    lineOffset: Int,
+    onToggleCheckbox: (Int) -> Unit,
     openTarget: (String) -> Unit,
     onLinkLongPress: (String, Offset, LayoutCoordinates) -> Unit,
     onEditAt: () -> Unit,
@@ -525,24 +533,36 @@ private fun BodyBlocks(
             is OrgBlock.ListBlock -> {
                 Column(Modifier.padding(start = 8.dp)) {
                     block.items.forEachIndexed { i, item ->
-                        Row(Modifier.padding(vertical = 2.dp).padding(start = (item.indent * 4).dp)) {
+                        val done = item.checkbox == 'X' || item.checkbox == 'x'
+                        Row(
+                            Modifier.padding(vertical = 2.dp).padding(start = (item.indent * 4).dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
                             Text(
                                 when {
-                                    item.checkbox == 'X' || item.checkbox == 'x' -> "☑"
+                                    done -> "☑"
+                                    item.checkbox == '-' -> "◧"
                                     item.checkbox == ' ' -> "☐"
                                     item.ordered -> "${i + 1}."
                                     else -> "•"
                                 },
-                                fontFamily = PlexSerif, fontSize = 16.sp, color = c.ink2,
+                                fontFamily = PlexSerif, fontSize = 16.sp,
+                                color = if (done) c.ink3 else c.ink2,
+                                modifier = if (item.checkbox != null) {
+                                    Modifier
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .clickable { onToggleCheckbox(lineOffset + item.line) }
+                                        .padding(4.dp)
+                                } else Modifier,
                             )
-                            Spacer(Modifier.width(10.dp))
+                            Spacer(Modifier.width(8.dp))
                             OrgText(
                                 item.text,
                                 onOpenLink = openTarget, onLinkLongPress = onLinkLongPress,
                                 onDoubleTapAt = onEditAt,
                                 style = TextStyle(
                                     fontFamily = PlexSerif, fontSize = 16.sp,
-                                    lineHeight = 1.55.em, color = c.ink,
+                                    lineHeight = 1.55.em, color = if (done) c.ink3 else c.ink,
                                 ),
                             )
                         }
