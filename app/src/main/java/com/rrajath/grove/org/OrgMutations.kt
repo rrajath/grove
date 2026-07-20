@@ -77,6 +77,29 @@ object OrgMutations {
         }
     }
 
+    private val CHECKBOX_LINE = Regex("""^(\s*(?:[-+]|\d+[.)])\s+)\[([ Xx-])\](.*)$""")
+
+    /**
+     * Read mode: tap-cycle a checklist item's box forward through [states] (in
+     * order, wrapping around). [lineIndex] is absolute into [doc.lines] — the
+     * caller resolves a [BlockParser.ListItem]'s body-relative `line` against
+     * the owning headline's `bodyStart` first. A box whose current mark isn't
+     * one of [states] (e.g. `[-]` on a file using the two-state config) jumps
+     * to the first state rather than the one after it. Returns null when the
+     * line isn't a checkbox list item.
+     */
+    fun toggleCheckbox(doc: OrgDocument, lineIndex: Int, states: List<Char>): String? {
+        if (lineIndex !in doc.lines.indices) return null
+        val m = CHECKBOX_LINE.matchEntire(doc.lines[lineIndex]) ?: return null
+        val (prefix, mark, rest) = m.destructured
+        val current = if (mark == "x") "X" else mark
+        val idx = states.indexOf(current.first())
+        val next = if (idx == -1) states.first() else states[(idx + 1) % states.size]
+        val lines = doc.lines.toMutableList()
+        lines[lineIndex] = "$prefix[$next]$rest"
+        return lines.joinToString("\n")
+    }
+
     // --- structural edits ---
 
     fun subtreeText(doc: OrgDocument, h: OrgHeadline): String =

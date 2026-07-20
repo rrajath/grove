@@ -40,4 +40,19 @@ class PreferencesTest {
         }
         assertEquals(NoteOpenMode.READ, NoteOpenMode.fromStorage(null))
     }
+
+    @Test
+    fun `checklist states round-trips and defaults to two`() {
+        for (pref in ChecklistStates.entries) {
+            assertEquals(pref, ChecklistStates.fromStorage(pref.storageKey))
+        }
+        assertEquals(ChecklistStates.TWO, ChecklistStates.fromStorage(null))
+        assertEquals(ChecklistStates.TWO, ChecklistStates.fromStorage("four"))
+    }
+
+    @Test
+    fun `checklist states marks are ordered open to done`() {
+        assertEquals(listOf(' ', 'X'), ChecklistStates.TWO.marks)
+        assertEquals(listOf(' ', '-', 'X'), ChecklistStates.THREE.marks)
+    }
 }

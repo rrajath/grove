@@ -402,4 +402,99 @@ class OrgMutationsTest {
         assertEquals("* Title", OrgMutations.headlineLine(1, null, null, "Title", emptyList()))
         assertEquals("* TODO", OrgMutations.headlineLine(1, "TODO", null, "", emptyList()))
     }
+
+    // --- toggleCheckbox ---
+
+    private val checklistDoc = OrgParser.parse(
+        """
+        * Groceries
+        - [ ] milk
+        - [X] eggs
+        - [-] bread
+          - [ ] nested
+        - plain item
+        not a list line
+        """.trimIndent() + "\n"
+    )
+
+    private val TWO_STATE = listOf(' ', 'X')
+    private val THREE_STATE = listOf(' ', '-', 'X')
+
+    @Test
+    fun `two-state toggle cycles open to done and back`() {
+        val line = checklistDoc.lines.indexOf("- [ ] milk")
+        val once = OrgMutations.toggleCheckbox(checklistDoc, line, TWO_STATE)!!
+        assertTrue(once.lines()[line] == "- [X] milk")
+        val redoc = OrgParser.parse(once)
+        val twice = OrgMutations.toggleCheckbox(redoc, line, TWO_STATE)!!
+        assertEquals("- [ ] milk", twice.lines()[line])
+    }
+
+    @Test
+    fun `three-state toggle cycles open to in-progress to done and back`() {
+        val line = checklistDoc.lines.indexOf("- [ ] milk")
+        val step1 = OrgMutations.toggleCheckbox(checklistDoc, line, THREE_STATE)!!
+        assertEquals("- [-] milk", step1.lines()[line])
+        val step2 = OrgMutations.toggleCheckbox(OrgParser.parse(step1), line, THREE_STATE)!!
+        assertEquals("- [X] milk", step2.lines()[line])
+        val step3 = OrgMutations.toggleCheckbox(OrgParser.parse(step2), line, THREE_STATE)!!
+        assertEquals("- [ ] milk", step3.lines()[line])
+    }
+
+    @Test
+    fun `toggling a done item under the two-state config unchecks it`() {
+        val line = checklistDoc.lines.indexOf("- [X] eggs")
+        val result = OrgMutations.toggleCheckbox(checklistDoc, line, TWO_STATE)!!
+        assertEquals("- [ ] eggs", result.lines()[line])
+    }
+
+    @Test
+    fun `a mark outside the configured states jumps to the first state`() {
+        // Document has an in-progress box, but settings are two-state only.
+        val line = checklistDoc.lines.indexOf("- [-] bread")
+        val result = OrgMutations.toggleCheckbox(checklistDoc, line, TWO_STATE)!!
+        assertEquals("- [ ] bread", result.lines()[line])
+    }
+
+    @Test
+    fun `lowercase x is treated as done`() {
+        val doc = OrgParser.parse("- [x] task\n")
+        val result = OrgMutations.toggleCheckbox(doc, 0, TWO_STATE)!!
+        assertEquals("- [ ] task", result.lines()[0])
+    }
+
+    @Test
+    fun `toggle preserves indent and trailing text`() {
+        val line = checklistDoc.lines.indexOf("  - [ ] nested")
+        val result = OrgMutations.toggleCheckbox(checklistDoc, line, TWO_STATE)!!
+        assertEquals("  - [X] nested", result.lines()[line])
+    }
+
+    @Test
+    fun `toggle only rewrites the target line, everything else is byte-identical`() {
+        val line = checklistDoc.lines.indexOf("- [ ] milk")
+        val result = OrgMutations.toggleCheckbox(checklistDoc, line, TWO_STATE)!!
+        assertEquals(
+            checklistDoc.lines.filterIndexed { i, _ -> i != line },
+            result.lines().filterIndexed { i, _ -> i != line },
+        )
+    }
+
+    @Test
+    fun `non-checkbox list item returns null`() {
+        val line = checklistDoc.lines.indexOf("- plain item")
+        assertNull(OrgMutations.toggleCheckbox(checklistDoc, line, TWO_STATE))
+    }
+
+    @Test
+    fun `non-list line returns null`() {
+        val line = checklistDoc.lines.indexOf("not a list line")
+        assertNull(OrgMutations.toggleCheckbox(checklistDoc, line, TWO_STATE))
+    }
+
+    @Test
+    fun `out of range line index returns null`() {
+        assertNull(OrgMutations.toggleCheckbox(checklistDoc, -1, TWO_STATE))
+        assertNull(OrgMutations.toggleCheckbox(checklistDoc, checklistDoc.lines.size, TWO_STATE))
+    }
 }

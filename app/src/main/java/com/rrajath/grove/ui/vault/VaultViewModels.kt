@@ -425,6 +425,27 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
         }
     }
 
+    /**
+     * Read mode: tap a checklist item to cycle its box through [states].
+     * [lineIndex] is absolute into the document (a [BlockParser.ListItem]'s
+     * body-relative line plus the owning headline's `bodyStart`).
+     */
+    fun toggleChecklistItem(lineIndex: Int, states: List<Char>) {
+        val loaded = _state.value as? DocumentUiState.Loaded ?: return
+        val vault = app.vault.value ?: return
+        viewModelScope.launch {
+            val newText = withContext(Dispatchers.Default) {
+                OrgMutations.toggleCheckbox(loaded.document, lineIndex, states)
+            } ?: return@launch
+            val newDoc = withContext(Dispatchers.Default) {
+                OrgParser.parse(newText, loaded.document.keywords)
+            }
+            _state.value = DocumentUiState.Loaded(loaded.fileName, newDoc)
+            vault.save(loaded.fileName, newText)
+            app.syncManager.requestSync("checklist toggled")
+        }
+    }
+
     fun setScheduled(headline: OrgHeadline, ts: OrgTimestamp?) =
         setPlanning(headline, "Scheduled", ts) { d, h -> OrgMutations.setScheduled(d, h, ts) }
 

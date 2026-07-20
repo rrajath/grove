@@ -9,7 +9,9 @@ data class TextEdit(val text: String, val cursor: Int)
  */
 object LineEditing {
 
-    private val LIST_ITEM = Regex("""^(\s*)([-+]|\d+[.)])( +)(.*)$""")
+    // Groups: 1 indent, 2 bullet, 3 spaces after bullet, 4 checkbox marker
+    // ("[ ]"/"[x]"/"[X]"/"[-]", or absent), 5 spaces after the checkbox, 6 content.
+    private val LIST_ITEM = Regex("""^(\s*)([-+]|\d+[.)])( +)(\[[ Xx-]\])?( *)(.*)$""")
     private val NUMBERED = Regex("""^(\d+)([.)])$""")
     private val EMPTY_HEADING = Regex("""^\*+ ?$""")
 
@@ -17,8 +19,10 @@ object LineEditing {
      * Org/markdown style list continuation. Call after an edit that may have
      * been the Enter key: if [newText] is [oldText] with a single newline typed
      * at [cursor] and the line before it is a list item, either continue the
-     * list (`- `, `+ `, `3. `→`4. `) or — when the item was empty — remove the
-     * dangling bullet instead. Returns null when the edit wasn't that.
+     * list (`- `, `+ `, `3. `→`4. `, `- [ ] `→`- [ ] `) or — when the item was
+     * empty — remove the dangling bullet instead. A continued checklist item
+     * always restarts unchecked, regardless of the previous item's state.
+     * Returns null when the edit wasn't that.
      */
     fun continueListOnEnter(oldText: String, newText: String, cursor: Int): TextEdit? {
         if (newText.length != oldText.length + 1) return null
@@ -28,7 +32,7 @@ object LineEditing {
         val lineStart = newText.lastIndexOf('\n', cursor - 2) + 1
         val prevLine = newText.substring(lineStart, cursor - 1)
         val item = LIST_ITEM.matchEntire(prevLine) ?: return null
-        val (indent, bullet, _, content) = item.destructured
+        val (indent, bullet, _, checkbox, _, content) = item.destructured
 
         return if (content.isBlank()) {
             // Enter on an empty item ends the list: drop the bullet, no new line.
@@ -38,7 +42,8 @@ object LineEditing {
                 ?.destructured
                 ?.let { (n, suffix) -> "${n.toLong() + 1}$suffix" }
                 ?: bullet
-            val insert = "$indent$nextBullet "
+            val checkboxPart = if (checkbox.isNotEmpty()) "[ ] " else ""
+            val insert = "$indent$nextBullet $checkboxPart"
             TextEdit(
                 newText.substring(0, cursor) + insert + newText.substring(cursor),
                 cursor + insert.length,
@@ -60,13 +65,13 @@ object LineEditing {
         val lineEnd = text.indexOf('\n', at).let { if (it == -1) text.length else it }
         val line = text.substring(lineStart, lineEnd)
         val item = LIST_ITEM.matchEntire(line) ?: return null
-        val (indent, bullet, spaces, content) = item.destructured
+        val (indent, bullet, spaces, checkbox, checkboxSpace, content) = item.destructured
         val newLine = if (delta > 0) {
             // A fresh sub-list restarts numbering at 1 (unordered bullets unchanged).
             val newBullet = NUMBERED.matchEntire(bullet)
                 ?.destructured?.let { (_, suffix) -> "1$suffix" }
                 ?: bullet
-            INDENT_STEP + indent + newBullet + spaces + content
+            INDENT_STEP + indent + newBullet + spaces + checkbox + checkboxSpace + content
         } else {
             if (indent.isEmpty()) return null
             line.substring(minOf(INDENT_STEP.length, indent.length))

@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rrajath.grove.capture.CaptureTemplate
 import com.rrajath.grove.ui.capture.TemplatesViewModel
+import com.rrajath.grove.settings.ChecklistStates
 import com.rrajath.grove.settings.FontSizePreference
 import com.rrajath.grove.settings.GroveSettings
 import com.rrajath.grove.settings.NoteOpenMode
@@ -76,6 +77,7 @@ fun SettingsScreen(
     onSetVaultUri: (String) -> Unit,
     onSetShareTargetFile: (String) -> Unit,
     onSetNotebookDisplayNameMode: (NotebookDisplayNameMode) -> Unit,
+    onSetChecklistStates: (ChecklistStates) -> Unit,
     onExportSettings: (android.net.Uri) -> Unit,
     onImportSettings: (android.net.Uri) -> Unit,
     templatesViewModel: TemplatesViewModel = viewModel(factory = TemplatesViewModel.Factory),
@@ -343,6 +345,15 @@ fun SettingsScreen(
                         selectedIndex = settings.notebookDisplayNameMode.ordinal,
                         onSelect = { onSetNotebookDisplayNameMode(NotebookDisplayNameMode.entries[it]) },
                         modifier = Modifier.width(200.dp),
+                    )
+                }
+                RowDivider()
+                SettingsRow(label = "Checklist states") {
+                    SegmentedControl(
+                        options = listOf("2-state", "3-state"),
+                        selectedIndex = settings.checklistStates.ordinal,
+                        onSelect = { onSetChecklistStates(ChecklistStates.entries[it]) },
+                        modifier = Modifier.width(160.dp),
                     )
                 }
                 RowDivider()
