@@ -67,7 +67,7 @@ data class OrgTimestamp(
         private val REPEATER = Regex("""([.+]?\+)(\d+)([hdwmy])""")
 
         private fun formatTime(t: LocalTime): String =
-            "%d:%02d".format(t.hour, t.minute)
+            "%02d:%02d".format(t.hour, t.minute)
 
         fun dayAbbrev(date: LocalDate): String =
             date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.ENGLISH)

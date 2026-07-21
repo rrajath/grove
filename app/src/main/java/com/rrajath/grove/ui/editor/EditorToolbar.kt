@@ -3,7 +3,7 @@ package com.rrajath.grove.ui.editor
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -63,9 +63,23 @@ fun EditorToolbar(
         ToolButton("[[]]", c.synLink, Modifier.weight(1f)) { onLink() }
         // The clock glyph is drawn smaller than the letters at a given size, so
         // bump its font so it reads at the same height as the other buttons.
-        ToolButton("◷", c.synTs, Modifier.weight(1f), fontSize = 27.sp) {
-            val now = LocalDateTime.now()
-            onInsert(OrgTimestamp(now.toLocalDate(), time = now.toLocalTime().withSecond(0).withNano(0)).format())
+        // Tap inserts an inactive date-only stamp; long-press adds the time
+        // (HH:MM) — both inactive, since this button is for logging a moment
+        // rather than scheduling an active org agenda entry.
+        ToolButton(
+            "◷", c.synTs, Modifier.weight(1f), fontSize = 27.sp,
+            onLongClick = {
+                val now = LocalDateTime.now()
+                onInsert(
+                    OrgTimestamp(
+                        now.toLocalDate(),
+                        time = now.toLocalTime().withSecond(0).withNano(0),
+                        active = false,
+                    ).format()
+                )
+            },
+        ) {
+            onInsert(OrgTimestamp(LocalDateTime.now().toLocalDate(), active = false).format())
         }
         ToolButton("*", c.synStar, Modifier.weight(1f), bold = true) { onHeading() }
         // List indent: « promotes a sub-list item, » demotes into a sub-list.
@@ -84,12 +98,13 @@ private fun ToolButton(
     italic: Boolean = false,
     underline: Boolean = false,
     fontSize: androidx.compose.ui.unit.TextUnit = 20.sp,
+    onLongClick: (() -> Unit)? = null,
     onClick: () -> Unit,
 ) {
     Box(
         modifier
             .clip(RoundedCornerShape(8.dp))
-            .clickable(onClick = onClick)
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .heightIn(min = 44.dp)
             .padding(horizontal = 3.dp),
         contentAlignment = Alignment.Center,
