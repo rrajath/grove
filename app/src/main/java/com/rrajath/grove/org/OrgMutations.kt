@@ -2,6 +2,7 @@ package com.rrajath.grove.org
 
 import java.time.LocalDate
 import java.time.LocalDateTime
+import kotlin.math.roundToInt
 
 /**
  * Span edits on a document's text. Every function returns the new full text;
@@ -86,7 +87,10 @@ object OrgMutations {
      * the owning headline's `bodyStart` first. A box whose current mark isn't
      * one of [states] (e.g. `[-]` on a file using the two-state config) jumps
      * to the first state rather than the one after it. Returns null when the
-     * line isn't a checkbox list item.
+     * line isn't a checkbox list item. Also refreshes the immediate parent's
+     * statistics cookie and, if the parent is itself a checkbox item,
+     * checks/unchecks it to match whether all of its direct children are now
+     * done — see [updateParentCookie].
      */
     fun toggleCheckbox(doc: OrgDocument, lineIndex: Int, states: List<Char>): String? {
         if (lineIndex !in doc.lines.indices) return null
@@ -97,7 +101,74 @@ object OrgMutations {
         val next = if (idx == -1) states.first() else states[(idx + 1) % states.size]
         val lines = doc.lines.toMutableList()
         lines[lineIndex] = "$prefix[$next]$rest"
+        updateParentCookie(lines, lineIndex)
         return lines.joinToString("\n")
+    }
+
+    private val LIST_ITEM_LINE = Regex("""^(\s*)(?:[-+]|\d+[.)])\s+(?:\[([ Xx-])\]\s+)?(.*)$""")
+    private val FRACTION_COOKIE = Regex("""\[\d*/\d*\]""")
+    private val PERCENT_COOKIE = Regex("""\[\d*%\]""")
+
+    /**
+     * Statistics cookies (org's `[/]`, `[x/y]`, `[%]`) on a parent item
+     * summarize the checkbox state of its direct children — only refreshes a
+     * cookie that's already present in the parent's text (org never invents
+     * one) and only counts the shallowest indent level right under the
+     * parent, so a nested sub-list with its own cookie isn't double-counted
+     * into the outer one. Independently, when the parent is itself a
+     * checkbox item, completing (or un-completing) all of its direct
+     * children checks/unchecks the parent's own box too — same treatment as
+     * any other checklist item finishing. This only ever touches the
+     * immediate parent, not further ancestors.
+     */
+    private fun updateParentCookie(lines: MutableList<String>, toggledIndex: Int) {
+        val toggled = LIST_ITEM_LINE.matchEntire(lines[toggledIndex]) ?: return
+        val itemIndent = toggled.groupValues[1].length
+
+        var parentIndex = -1
+        for (i in toggledIndex - 1 downTo 0) {
+            val m = LIST_ITEM_LINE.matchEntire(lines[i]) ?: break
+            if (m.groupValues[1].length < itemIndent) {
+                parentIndex = i
+                break
+            }
+        }
+        if (parentIndex == -1) return
+        val parentMatch = LIST_ITEM_LINE.matchEntire(lines[parentIndex])!!
+        val parentIndent = parentMatch.groupValues[1].length
+
+        data class Child(val indent: Int, val checkbox: Char?)
+        val below = mutableListOf<Child>()
+        var i = parentIndex + 1
+        while (i < lines.size) {
+            val m = LIST_ITEM_LINE.matchEntire(lines[i]) ?: break
+            val indent = m.groupValues[1].length
+            if (indent <= parentIndent) break
+            below.add(Child(indent, m.groupValues[2].firstOrNull()))
+            i++
+        }
+        val directIndent = below.minOfOrNull { it.indent } ?: return
+        val direct = below.filter { it.indent == directIndent && it.checkbox != null }
+        if (direct.isEmpty()) return
+        val total = direct.size
+        val done = direct.count { it.checkbox == 'X' || it.checkbox == 'x' }
+
+        val textRange = parentMatch.groups[3]!!.range
+        val text = parentMatch.groupValues[3]
+        val newText = FRACTION_COOKIE.find(text)?.let { text.replaceRange(it.range, "[$done/$total]") }
+            ?: PERCENT_COOKIE.find(text)?.let {
+                val pct = (done * 100.0 / total).roundToInt()
+                text.replaceRange(it.range, "[$pct%]")
+            }
+        if (newText != null) {
+            lines[parentIndex] = lines[parentIndex].replaceRange(textRange, newText)
+        }
+
+        val parentCheckbox = parentMatch.groups[2]
+        if (parentCheckbox != null) {
+            val newMark = if (done == total) "X" else " "
+            lines[parentIndex] = lines[parentIndex].replaceRange(parentCheckbox.range, newMark)
+        }
     }
 
     // --- structural edits ---
