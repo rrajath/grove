@@ -14,15 +14,11 @@ import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
@@ -36,13 +32,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.rrajath.grove.org.OrgTimestamp
+import com.rrajath.grove.ui.components.PlanningDatePicker
 import com.rrajath.grove.ui.components.Pill
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
-import java.time.Instant
-import java.time.LocalDate
-import java.time.ZoneOffset
 
 /** Note metadata sheet (PRD §5.2): state, priority, tags, SCHEDULED, DEADLINE. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -152,27 +146,16 @@ fun MetadataSheet(
     }
 
     datePickerFor?.let { target ->
-        val pickerState = rememberDatePickerState()
-        DatePickerDialog(
-            onDismissRequest = { datePickerFor = null },
-            confirmButton = {
-                TextButton(onClick = {
-                    val millis = pickerState.selectedDateMillis
-                    if (millis != null) {
-                        val date = Instant.ofEpochMilli(millis).atZone(ZoneOffset.UTC).toLocalDate()
-                        val ts = OrgTimestamp(date)
-                        if (target == "scheduled") viewModel.setScheduled(ts)
-                        else viewModel.setDeadline(ts)
-                    }
-                    datePickerFor = null
-                }) { Text("Set", color = c.accent, fontWeight = FontWeight.SemiBold) }
+        val existing = if (target == "scheduled") headline?.planning?.scheduled
+        else headline?.planning?.deadline
+        PlanningDatePicker(
+            existing = existing,
+            onDismiss = { datePickerFor = null },
+            onConfirm = { ts ->
+                if (target == "scheduled") viewModel.setScheduled(ts) else viewModel.setDeadline(ts)
+                datePickerFor = null
             },
-            dismissButton = {
-                TextButton(onClick = { datePickerFor = null }) { Text("Cancel", color = c.ink2) }
-            },
-        ) {
-            DatePicker(state = pickerState)
-        }
+        )
     }
 }
 

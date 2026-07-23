@@ -18,6 +18,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -25,15 +26,19 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.github.difflib.DiffUtils
+import com.github.difflib.UnifiedDiffUtils
 import com.rrajath.grove.sync.ConflictResolution
 import com.rrajath.grove.ui.components.GroveTopBar
 import com.rrajath.grove.ui.theme.PlexMono
@@ -112,9 +117,11 @@ fun ConflictScreen(
                 }
                 Spacer(Modifier.height(16.dp))
 
-                DiffCard("CURRENT VERSION", s.currentText)
-                Spacer(Modifier.height(12.dp))
-                DiffCard("CONFLICT COPY · ${s.copyLabel}", s.copyText)
+                UnifiedDiffCard(
+                    header = "CURRENT VERSION → CONFLICT COPY · ${s.copyLabel}",
+                    current = s.currentText,
+                    copy = s.copyText,
+                )
                 Spacer(Modifier.height(18.dp))
 
                 // Actions
@@ -144,12 +151,42 @@ fun ConflictScreen(
     }
 }
 
+/** One row of a rendered unified diff: a hunk boundary label, or a single line. */
+private sealed class DiffRow {
+    data class Hunk(val label: String) : DiffRow()
+    data class Line(val prefix: Char, val text: String) : DiffRow()
+}
+
+private val HUNK_HEADER = Regex("""^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@""")
+
+/** Line diff between [current] and [copy], 5 lines of context around each hunk. */
+private fun computeUnifiedDiff(current: String, copy: String): List<DiffRow> {
+    val originalLines = current.lines()
+    val revisedLines = copy.lines()
+    val patch = DiffUtils.diff(originalLines, revisedLines)
+    if (patch.deltas.isEmpty()) return emptyList()
+
+    val unified = UnifiedDiffUtils.generateUnifiedDiff("current", "copy", originalLines, patch, 5)
+    val rows = mutableListOf<DiffRow>()
+    for (line in unified.drop(2)) { // drop the "---"/"+++" file header lines
+        val hunkMatch = HUNK_HEADER.find(line)
+        when {
+            hunkMatch != null -> rows += DiffRow.Hunk("Line ${hunkMatch.groupValues[1]}")
+            line.startsWith("+") -> rows += DiffRow.Line('+', line.drop(1))
+            line.startsWith("-") -> rows += DiffRow.Line('-', line.drop(1))
+            line.startsWith(" ") -> rows += DiffRow.Line(' ', line.drop(1))
+        }
+    }
+    return rows
+}
+
 @Composable
-private fun DiffCard(label: String, text: String) {
+private fun UnifiedDiffCard(header: String, current: String, copy: String) {
     val c = MaterialTheme.grove
+    val rows = remember(current, copy) { computeUnifiedDiff(current, copy) }
     Column {
         Text(
-            label,
+            header,
             fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
             fontSize = 12.sp, letterSpacing = 0.8.sp, color = c.ink3,
             modifier = Modifier.padding(bottom = 6.dp),
@@ -157,18 +194,72 @@ private fun DiffCard(label: String, text: String) {
         Column(
             Modifier
                 .fillMaxWidth()
-                .heightIn(max = 240.dp)
+                .heightIn(max = 460.dp)
                 .clip(RoundedCornerShape(13.dp))
                 .background(c.surface)
                 .border(1.dp, c.line, RoundedCornerShape(13.dp))
                 .verticalScroll(rememberScrollState())
-                .padding(12.dp),
+                .padding(vertical = 8.dp),
         ) {
-            Text(
-                text.ifEmpty { "(empty file)" },
-                fontFamily = PlexMono, fontSize = 12.5.sp, lineHeight = 1.7.em, color = c.ink,
-            )
+            if (rows.isEmpty()) {
+                Text(
+                    "No textual differences between the two copies.",
+                    fontFamily = PlexMono, fontSize = 12.5.sp, color = c.ink3,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                )
+            }
+            rows.forEach { row ->
+                when (row) {
+                    is DiffRow.Hunk -> DiffHunkSeparator(row.label)
+                    is DiffRow.Line -> DiffLineRow(row)
+                }
+            }
         }
+    }
+}
+
+@Composable
+private fun DiffHunkSeparator(label: String) {
+    val c = MaterialTheme.grove
+    Row(
+        Modifier.fillMaxWidth().padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        HorizontalDivider(Modifier.weight(1f), color = c.line)
+        Text(
+            label,
+            fontFamily = PlexSans, fontSize = 10.5.sp, color = c.ink3,
+            modifier = Modifier.padding(horizontal = 8.dp),
+        )
+        HorizontalDivider(Modifier.weight(1f), color = c.line)
+    }
+}
+
+@Composable
+private fun DiffLineRow(row: DiffRow.Line) {
+    val c = MaterialTheme.grove
+    val (bg, fg, gutter) = when (row.prefix) {
+        '+' -> Triple(c.greenSoft, c.green, "+")
+        '-' -> Triple(c.redSoft, c.red, "-")
+        else -> Triple(Color.Transparent, c.ink, " ")
+    }
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .background(bg)
+            .padding(horizontal = 12.dp, vertical = 1.dp),
+    ) {
+        Text(
+            gutter,
+            fontFamily = PlexMono, fontWeight = FontWeight.Bold,
+            fontSize = 12.5.sp, color = fg,
+            modifier = Modifier.width(14.dp),
+        )
+        Text(
+            row.text.ifEmpty { " " },
+            fontFamily = PlexMono, fontSize = 12.5.sp, lineHeight = 1.5.em,
+            color = if (row.prefix == ' ') c.ink else fg,
+        )
     }
 }
 

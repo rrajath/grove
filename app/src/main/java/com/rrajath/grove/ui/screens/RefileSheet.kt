@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -118,8 +119,10 @@ fun RefileSheet(
                 }
             }
             Spacer(Modifier.height(12.dp))
+            val listState = remember(state.pickedFile, state.path) { LazyListState() }
             LazyColumn(
                 Modifier.heightIn(max = 380.dp),
+                state = listState,
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 if (doc == null) {

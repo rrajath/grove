@@ -217,6 +217,8 @@ Text(annotateOrgInline(heading.text, c, onLink = { url -> openUrl(url) }))
 | FAB (icon-only) | 18dp |
 | Cards, list tiles | 13–14dp |
 | Conflict warning banner | 13dp |
+| Conflict diff container | 13dp |
+| Custom `TimePickerDialog` surface | 28dp |
 | Small buttons (Save in capture) | 11dp |
 | Notebook icon tiles | 12dp |
 | Primary button (onboarding) | 14dp |
@@ -570,6 +572,42 @@ from the current document at click time. Back gesture exits focus mode.
 
 ---
 
+### `PlanningDatePicker` — `ui/components/PlanningDatePicker.kt`
+
+Two-step SCHEDULED/DEADLINE picker used by `MetadataSheet` and `OutlineScreen`'s
+quick-schedule swipe actions. Step 1 is a standard `DatePickerDialog`; its confirm
+slot holds two `TextButton`s side by side — "Add Time" (or "Change Time" if the
+timestamp already carries a time), `ink2`, and "Set", `accent` SemiBold — with
+"Cancel" (`ink2`) in the dismiss slot. Tapping "Add Time" steps to a `TimePicker`
+inside a custom `TimePickerDialog` (Material3 ships no such dialog chrome, so this
+mirrors `DatePickerDialog`'s own look): a plain `Dialog` wrapping a 28dp-radius
+`surface` `Surface`, 24dp content padding, "Back" (`ink2`) + "Set" (`accent`
+SemiBold) right-aligned below the wheel. If the timestamp already has a time, the
+`TimePicker` opens pre-selected to that hour/minute rather than the current clock
+time. Confirming the date step alone inserts a date-only `OrgTimestamp`, dropping
+any time the entry previously had — a user must re-tap "Add Time"/"Change Time" to
+keep or set one.
+
+---
+
+### Unified diff view — `ui/screens/ConflictScreen.kt` (private)
+
+Replaces the old side-by-side raw-text panels with a single git-diff-style column
+(`java-diff-utils`, 5 lines of context per hunk). Container: `surface` bg, 1dp
+`line` border, 13dp radius, `heightIn(max = 460.dp)` with its own vertical scroll
+(nested inside the screen's outer scroll, same pattern the old `DiffCard` used).
+Header caption above it reads "CURRENT VERSION → CONFLICT COPY · {label}" (PlexSans
+SemiBold 12sp, 0.8sp tracking, `ink3`) so the diff direction is explicit. Hunk
+boundaries render as a centered label ("Line N") between two `HorizontalDivider`s
+in `line`. Each diff line is a row with a 14dp PlexMono-bold gutter glyph
+(`+`/`-`/blank) followed by the line text (PlexMono 12.5sp): added lines use
+`greenSoft` row background with `green` text, removed lines use `redSoft`/`red`,
+unchanged context lines have no background tint and render in `ink`. Identical
+files show a plain "No textual differences between the two copies." message
+instead of an empty box.
+
+---
+
 ## Screen Inventory
 
 | Screen | Route | Key components used |
@@ -583,7 +621,7 @@ from the current document at click time. Back gesture exits focus mode.
 | Capture Picker | (bottom sheet) | `ModalBottomSheet`, icon glyph tiles, `PlexMono` |
 | Capture Editor | `capture/{templateId}` | `GroveTopBar`, `monoBody()`, formatting toolbar |
 | Search | `search` | `GroveTopBar`, `annotateOrgInline`, `Pill` ("Advanced") |
-| Conflict | `conflict/{notebookId}` | `GroveTopBar`, warning banner, diff cards, action buttons |
+| Conflict | `conflict/{notebookId}` | `GroveTopBar`, warning banner, unified diff view, action buttons |
 | Settings | `settings` | `GroveTopBar`, `ThemeDropdownPicker` (theme), `SegmentedControl` (font), keyword chips, `Pill` ("default") |
 
 ---

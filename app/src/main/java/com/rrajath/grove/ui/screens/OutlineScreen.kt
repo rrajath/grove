@@ -28,15 +28,12 @@ import androidx.compose.material.icons.filled.FormatIndentIncrease
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -68,6 +65,7 @@ import com.rrajath.grove.ui.components.FavoriteStar
 import com.rrajath.grove.ui.components.GroveTopBar
 import com.rrajath.grove.ui.components.GroveToast
 import com.rrajath.grove.ui.components.GroveUndoSnackbar
+import com.rrajath.grove.ui.components.PlanningDatePicker
 import com.rrajath.grove.ui.components.ScrollJumpButtons
 import com.rrajath.grove.ui.components.SwipeAction
 import com.rrajath.grove.ui.components.SwipeRevealRow
@@ -80,8 +78,6 @@ import com.rrajath.grove.ui.vault.DocumentUiState
 import com.rrajath.grove.ui.vault.DocumentViewModel
 import com.rrajath.grove.ui.vault.NoteRef
 import com.rrajath.grove.ui.vault.headlineAtLine
-import java.time.Instant
-import java.time.ZoneOffset
 
 data class OutlineDisplayFlags(
     val tags: Boolean = true,
@@ -406,33 +402,17 @@ fun OutlineScreen(
                     val headline = doc.headlineAtLine(line)
                     val existing = if (target == "scheduled") headline?.planning?.scheduled
                     else headline?.planning?.deadline
-                    val pickerState = rememberDatePickerState(
-                        initialSelectedDateMillis = existing?.date
-                            ?.atStartOfDay(ZoneOffset.UTC)?.toInstant()?.toEpochMilli(),
-                    )
-                    DatePickerDialog(
-                        onDismissRequest = { datePickerFor = null },
-                        confirmButton = {
-                            TextButton(onClick = {
-                                val millis = pickerState.selectedDateMillis
-                                if (millis != null && headline != null) {
-                                    val date = Instant.ofEpochMilli(millis)
-                                        .atZone(ZoneOffset.UTC).toLocalDate()
-                                    val ts = OrgTimestamp(date)
-                                    if (target == "scheduled") viewModel.setScheduled(headline, ts)
-                                    else viewModel.setDeadline(headline, ts)
-                                }
-                                datePickerFor = null
-                            }) { Text("Set", color = c.accent, fontWeight = FontWeight.SemiBold) }
-                        },
-                        dismissButton = {
-                            TextButton(onClick = { datePickerFor = null }) {
-                                Text("Cancel", color = c.ink2)
+                    PlanningDatePicker(
+                        existing = existing,
+                        onDismiss = { datePickerFor = null },
+                        onConfirm = { ts ->
+                            if (headline != null) {
+                                if (target == "scheduled") viewModel.setScheduled(headline, ts)
+                                else viewModel.setDeadline(headline, ts)
                             }
+                            datePickerFor = null
                         },
-                    ) {
-                        DatePicker(state = pickerState)
-                    }
+                    )
                 }
 
                 refileState?.let { refile ->

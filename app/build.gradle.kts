@@ -173,6 +173,7 @@ dependencies {
     // Enables CompilationMode.Partial (baseline-profile) benchmarks and installs
     // a packaged baseline profile at app startup once one is generated.
     implementation(libs.androidx.profileinstaller)
+    implementation(libs.java.diff.utils)
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(libs.androidx.junit)
