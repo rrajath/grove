@@ -16,9 +16,18 @@ private class FakeIndex : NoteIndex {
     val texts = mutableMapOf<String, String>()
     val conflicts = mutableMapOf<String, String?>()
     val indexedOrder = mutableListOf<String>()
+    val stubbedBatches = mutableListOf<List<String>>()
+
+    /** Ordered log of stub/index calls, to assert the discovery/parse split. */
+    val events = mutableListOf<String>()
 
     override suspend fun knownNotebooks(): Map<String, KnownNotebook> =
         revisions.mapValues { (name, rev) -> KnownNotebook(rev, conflicts[name]) }
+
+    override suspend fun stubNotebooks(stubs: List<NotebookStub>) {
+        stubbedBatches.add(stubs.map { it.fileName })
+        stubs.forEach { events.add("stub:${it.fileName}") }
+    }
 
     override suspend fun indexNotebook(
         fileName: String,
@@ -31,6 +40,7 @@ private class FakeIndex : NoteIndex {
         texts[fileName] = text
         conflicts[fileName] = conflictFileName
         indexedOrder.add(fileName)
+        events.add("index:$fileName")
     }
 
     override suspend fun setConflict(fileName: String, conflictFileName: String?) {
@@ -152,6 +162,37 @@ class SyncEngineTest {
         val e = SyncEngine(broken, index) { now }
         assertNull(e.sync())
         assertTrue(e.state.value is SyncState.Error)
+    }
+
+    @Test
+    fun `newly discovered files are stubbed once as a batch before any parse`() = runTest {
+        tmp.newFile("a.org").writeText("* A")
+        tmp.newFile("b.org").writeText("* B")
+
+        engine().sync()!!
+
+        // One batch emission carrying every new file (instant full list), not
+        // one stub per file interleaved with parsing.
+        assertEquals(listOf(listOf("a.org", "b.org")), index.stubbedBatches.map { it.sorted() })
+        // Every stub is written before the first file is parsed.
+        val lastStub = index.events.indexOfLast { it.startsWith("stub:") }
+        val firstIndex = index.events.indexOfFirst { it.startsWith("index:") }
+        assertTrue(lastStub in 0 until firstIndex)
+    }
+
+    @Test
+    fun `content change to an already-indexed notebook is not re-stubbed`() = runTest {
+        val file = tmp.newFile("a.org").apply { writeText("* A") }
+        val e = engine()
+        e.sync()
+        index.stubbedBatches.clear()
+
+        file.writeText("* A changed")
+        file.setLastModified(file.lastModified() + 5000)
+        val result = e.sync()!!
+
+        assertEquals(listOf("a.org"), result.pulled)
+        assertTrue(index.stubbedBatches.isEmpty())
     }
 
     @Test

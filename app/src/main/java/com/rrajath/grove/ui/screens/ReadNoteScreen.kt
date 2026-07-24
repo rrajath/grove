@@ -76,6 +76,7 @@ import com.rrajath.grove.ui.components.GroveTopBar
 import com.rrajath.grove.ui.components.Pill
 import com.rrajath.grove.ui.components.SegmentedControl
 import com.rrajath.grove.ui.components.annotateOrgInline
+import com.rrajath.grove.ui.components.autoScrollWhileDragging
 import com.rrajath.grove.ui.components.doubleTapToEdit
 import com.rrajath.grove.ui.components.linkPressHandler
 import com.rrajath.grove.ui.components.orgInlineLinks
@@ -242,7 +243,9 @@ private fun NoteContent(
     }
 
     Box(
-        Modifier.onGloballyPositioned { boxCoords = it }
+        Modifier
+            .onGloballyPositioned { boxCoords = it }
+            .autoScrollWhileDragging(listState)
     ) {
         LazyColumn(
             state = listState,

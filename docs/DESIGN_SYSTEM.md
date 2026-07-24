@@ -268,6 +268,7 @@ less-prominent actions.
 | Drag handle (templates) | `Icons.Default.DragHandle` | `ink3` |
 | Settings | `Icons.Default.Settings` | `ink2` |
 | Agenda | `Icons.Default.ViewList` | `ink2` |
+| "None" (Default priority) | `Icons.Filled.Block` | tint follows active/inactive segment color |
 
 ### Custom Drawables
 
@@ -362,7 +363,7 @@ asterisk color cycle).
 
 ### `SegmentedControl` — `ui/components/Common.kt`
 
-Two-option toggle for mode switching (Read / Edit).
+Toggle for 2-4 mutually exclusive options (mode switching, Settings rows).
 
 ```kotlin
 SegmentedControl(
@@ -371,13 +372,29 @@ SegmentedControl(
     onSelect = { idx -> onModeChange(if (idx == 0) NoteMode.READ else NoteMode.EDIT) },
     modifier = Modifier.width(140.dp),
 )
+
+// An option can render as an icon instead of a text label — e.g. Settings' Default
+// priority row uses a circle-slash glyph for "None" instead of a squeezed text label.
+SegmentedControl(
+    options = listOf("None", "A", "B", "C"),
+    selected = priorityIndex,
+    onSelect = onSelectPriority,
+    optionIcons = listOf(Icons.Filled.Block, null, null, null),
+    modifier = Modifier.width(200.dp),
+)
 ```
 
 Internally: `surface2` container background, 10dp container radius, 3dp internal padding,
 8dp active pill radius. Active pill uses `accent` bg + `accentInk` text; inactive uses
-transparent bg + `ink2` text.
+transparent bg + `ink2` text. Text labels render at 11.5sp (the `labelSmall` scale) rather
+than 13sp, so 3-4 option rows (e.g. Font size's Small/Medium/Large) fit without ellipsis at
+the widths used in Settings. `optionIcons` is an optional `List<ImageVector?>` — a non-null
+entry at an index renders a 15dp `Icon` (same active/inactive tint as the text) in place of
+that option's label; leave the list null (or that index null) for a plain text option.
 
-**When to use**: binary mode toggle. Only place currently: Read ↔ Edit in the note app bar.
+**When to use**: any 2-4-way exclusive toggle. Places currently: Read ↔ Edit in the note app
+bar, and several Settings rows (Font size, Default priority, Default note mode, Notebook
+display mode, Checklist states).
 
 ---
 
@@ -608,12 +625,57 @@ instead of an empty box.
 
 ---
 
+### `SimpleTimePicker` — `ui/components/PlanningDatePicker.kt`
+
+Standalone time-of-day picker (no date step) — currently used by Settings › Reminders ›
+"Default reminder time". Shares `PlanningDatePicker`'s `TimePickerDialog` chrome (a plain
+`Dialog` wrapping a 28dp-radius `surface` `Surface`, 24dp content padding) rather than
+duplicating it: "Cancel" (`ink2`) in the dismiss slot, "Set" (`accent` SemiBold) in the
+confirm slot.
+
+```kotlin
+SimpleTimePicker(
+    initial = settings.defaultReminderTime,
+    onDismiss = { showPicker = false },
+    onConfirm = { onSetDefaultReminderTime(it) },
+)
+```
+
+**When to use**: picking a bare time of day with no associated date. For a date (optionally
+with time), use `PlanningDatePicker` instead.
+
+---
+
+### `ReminderPermissionBanner` — `ui/components/ReminderPermissionBanner.kt`
+
+Dismissible-by-resolution amber banner shown when one or more reminders couldn't be
+scheduled for lack of `POST_NOTIFICATIONS`/exact-alarm access — reconciliation always
+persists what *should* be scheduled regardless of permission state; this is the surface
+that lets the user grant access so it actually gets armed. Renders nothing when there's
+nothing pending (`pendingCount <= 0`).
+
+```kotlin
+ReminderPermissionBanner(pendingCount = pendingReminderCount, modifier = Modifier.fillMaxWidth())
+```
+
+Internally: `amberSoft` bg, 1dp `amber` border, 11dp corner radius, 10dp content padding,
+14dp/6dp outer padding. Body text 12.5sp `ink` ("N reminder(s) need permission to notify
+you"), trailing tappable "Grant" label (12.5sp SemiBold `accent`, 7dp-radius tap target).
+Tapping "Grant" requests whichever permission is still missing (notification runtime
+prompt, then the exact-alarm system settings screen), then re-reconciles.
+
+**When to use**: anywhere a user is likely to notice pending reminders — currently shown on
+both the Settings and Notebooks screens. Not a general-purpose warning banner (see the
+Conflict screen's own warning banner for that pattern).
+
+---
+
 ## Screen Inventory
 
 | Screen | Route | Key components used |
 |---|---|---|
 | Onboarding | `onboarding` | `BrandMark`, `Pill` ("Recommended"), primary button |
-| Notebooks | `notebooks` | `GroveTopBar`, `Pill` (sync badges), icon glyph tiles, FAB |
+| Notebooks | `notebooks` | `GroveTopBar`, `Pill` (sync badges), icon glyph tiles, FAB, `ReminderPermissionBanner` |
 | Nav Drawer | (overlay) | `BrandMark`, plain `Text` rows, `★` favorites glyph |
 | Outline | `outline/{notebookId}` | `GroveTopBar`, `annotateOrgInline`, keyword chips, `starColor()`, `FavoriteStar` |
 | Read Note | `note/{noteId}?mode=read` | `GroveTopBar`, `SegmentedControl`, `annotateOrgInline`, tag chips, `FavoriteStar` |
@@ -622,7 +684,7 @@ instead of an empty box.
 | Capture Editor | `capture/{templateId}` | `GroveTopBar`, `monoBody()`, formatting toolbar |
 | Search | `search` | `GroveTopBar`, `annotateOrgInline`, `Pill` ("Advanced") |
 | Conflict | `conflict/{notebookId}` | `GroveTopBar`, warning banner, unified diff view, action buttons |
-| Settings | `settings` | `GroveTopBar`, `ThemeDropdownPicker` (theme), `SegmentedControl` (font), keyword chips, `Pill` ("default") |
+| Settings | `settings` | `GroveTopBar`, `ThemeDropdownPicker` (theme), `SegmentedControl` (font, priority, note mode, display mode, checklist states), keyword chips, `Pill` ("default"), `ReminderPermissionBanner`, `SimpleTimePicker` (default reminder time), side-by-side button pair (Export/Import settings) |
 
 ---
 

@@ -7,15 +7,17 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Block
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -35,6 +37,7 @@ import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -48,11 +51,16 @@ import com.rrajath.grove.settings.NotebookDisplayNameMode
 import com.rrajath.grove.settings.SyncMode
 import com.rrajath.grove.settings.ThemePreference
 import com.rrajath.grove.ui.components.GroveTopBar
+import com.rrajath.grove.ui.components.ReminderPermissionBanner
 import com.rrajath.grove.ui.components.SegmentedControl
+import com.rrajath.grove.ui.components.SimpleTimePicker
 import com.rrajath.grove.ui.components.ThemeDropdownPicker
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 /** Settings per design spec §11. M1: Appearance group functional; the rest land with their milestones. */
 @Composable
@@ -78,6 +86,9 @@ fun SettingsScreen(
     onSetShareTargetFile: (String) -> Unit,
     onSetNotebookDisplayNameMode: (NotebookDisplayNameMode) -> Unit,
     onSetChecklistStates: (ChecklistStates) -> Unit,
+    onSetRemindersEnabled: (Boolean) -> Unit,
+    onSetDefaultReminderTime: (LocalTime) -> Unit,
+    reminderPendingCount: Int,
     onExportSettings: (android.net.Uri) -> Unit,
     onImportSettings: (android.net.Uri) -> Unit,
     templatesViewModel: TemplatesViewModel = viewModel(factory = TemplatesViewModel.Factory),
@@ -91,6 +102,7 @@ fun SettingsScreen(
     var shareFileText by remember(settings.shareTargetFile) {
         mutableStateOf(settings.shareTargetFile)
     }
+    var showReminderTimePicker by remember { mutableStateOf(false) }
 
     val folderPicker = androidx.activity.compose.rememberLauncherForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.OpenDocumentTree()
@@ -195,7 +207,11 @@ fun SettingsScreen(
                 RowDivider()
                 SettingsRow(
                     label = "Default note mode",
-                    description = "Open a note in read mode, or edit mode",
+                    description = if (settings.defaultNoteOpenMode == NoteOpenMode.READ) {
+                        "Notes open in read mode"
+                    } else {
+                        "Notes open in edit mode"
+                    },
                 ) {
                     SegmentedControl(
                         options = listOf("Read", "Edit"),
@@ -331,13 +347,18 @@ fun SettingsScreen(
                             'A' -> 1; 'B' -> 2; 'C' -> 3; else -> 0
                         },
                         onSelect = { onSetDefaultPriority(listOf(null, 'A', 'B', 'C')[it]) },
+                        optionIcons = listOf(Icons.Filled.Block, null, null, null),
                         modifier = Modifier.width(200.dp),
                     )
                 }
                 RowDivider()
                 SettingsRow(
                     label = "Notebook display name",
-                    description = "Filename: shown by filename. Title: shown by title, falling back to filename.",
+                    description = if (settings.notebookDisplayNameMode == NotebookDisplayNameMode.FILENAME) {
+                        "Notebooks are displayed by their filenames"
+                    } else {
+                        "Notebooks are displayed by their titles, falling back to filename"
+                    },
                 ) {
                     SegmentedControl(
                         options = listOf("Filename", "Title"),
@@ -349,7 +370,7 @@ fun SettingsScreen(
                 RowDivider()
                 SettingsRow(
                     label = "Checklist states",
-                    description = "2-state: [ ] → [x]. 3-state: [ ] → [-] → [x].",
+                    descriptionContent = { ChecklistStatesDescription(settings.checklistStates) },
                 ) {
                     SegmentedControl(
                         options = listOf("2-state", "3-state"),
@@ -361,7 +382,7 @@ fun SettingsScreen(
                 RowDivider()
                 ToggleRow(
                     label = "Add ID to new notes",
-                    description = "Adds an ID property to the property drawer when creating new notes",
+                    description = "Adds an ID property while creating new notes (headings)",
                     checked = settings.addIdToNewNotes,
                     onToggle = onSetAddId,
                 )
@@ -372,6 +393,30 @@ fun SettingsScreen(
                     checked = settings.addCreatedToNewNotes,
                     onToggle = onSetAddCreated,
                 )
+            }
+
+            SectionLabel("REMINDERS")
+            ReminderPermissionBanner(pendingCount = reminderPendingCount, modifier = Modifier.padding(bottom = 10.dp))
+            SettingsGroup {
+                ToggleRow(
+                    label = "Enable reminders",
+                    description = "Notify when a heading's SCHEDULED or DEADLINE time arrives",
+                    checked = settings.remindersEnabled,
+                    onToggle = onSetRemindersEnabled,
+                )
+                if (settings.remindersEnabled) {
+                    RowDivider()
+                    SettingsRow(
+                        label = "Default reminder time",
+                        description = "Used for SCHEDULED/DEADLINE stamps with no time of day",
+                        onClick = { showReminderTimePicker = true },
+                    ) {
+                        Text(
+                            settings.defaultReminderTime.format(DateTimeFormatter.ofPattern("h:mm a", Locale.ENGLISH)),
+                            fontFamily = PlexMono, fontSize = 13.sp, color = c.accent,
+                        )
+                    }
+                }
             }
 
             SectionLabel("SHARING")
@@ -409,23 +454,27 @@ fun SettingsScreen(
                     )
                 }
                 RowDivider()
-                SettingsRow(
-                    label = "Export settings",
-                    onClick = { settingsExporter.launch("grove-settings.json") },
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 15.dp, vertical = 14.dp),
                 ) {
-                    Text("↑", fontFamily = PlexMono, fontSize = 14.sp, color = c.accent)
-                }
-                RowDivider()
-                SettingsRow(
-                    label = "Import settings",
-                    // Providers report .json inconsistently; accept text-ish types too.
-                    onClick = {
-                        settingsImporter.launch(
-                            arrayOf("application/json", "text/plain", "application/octet-stream")
-                        )
-                    },
-                ) {
-                    Text("↓", fontFamily = PlexMono, fontSize = 14.sp, color = c.accent)
+                    BackupSecondaryButton(
+                        label = "Export settings",
+                        modifier = Modifier.weight(1f),
+                        onClick = { settingsExporter.launch("grove-settings.json") },
+                    )
+                    Spacer(Modifier.width(10.dp))
+                    BackupSecondaryButton(
+                        label = "Import settings",
+                        modifier = Modifier.weight(1f),
+                        // Providers report .json inconsistently; accept text-ish types too.
+                        onClick = {
+                            settingsImporter.launch(
+                                arrayOf("application/json", "text/plain", "application/octet-stream")
+                            )
+                        },
+                    )
                 }
             }
 
@@ -438,6 +487,42 @@ fun SettingsScreen(
                     .padding(vertical = 20.dp),
             )
         }
+    }
+
+    if (showReminderTimePicker) {
+        SimpleTimePicker(
+            initial = settings.defaultReminderTime,
+            onDismiss = { showReminderTimePicker = false },
+            onConfirm = { time ->
+                onSetDefaultReminderTime(time)
+                showReminderTimePicker = false
+            },
+        )
+    }
+}
+
+/**
+ * Secondary button matching [ConflictScreen]'s `SecondaryButton` styling
+ * (46dp height, 13dp corner radius, `surface` bg + 1dp `line` border,
+ * PlexSans SemiBold 14sp `ink` text) for the paired Export/Import buttons.
+ */
+@Composable
+private fun BackupSecondaryButton(label: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    val c = MaterialTheme.grove
+    Box(
+        modifier
+            .height(46.dp)
+            .clip(RoundedCornerShape(13.dp))
+            .background(c.surface)
+            .border(1.dp, c.line, RoundedCornerShape(13.dp))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            label,
+            fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
+            fontSize = 14.sp, color = c.ink,
+        )
     }
 }
 
@@ -475,6 +560,7 @@ private fun RowDivider() {
 private fun SettingsRow(
     label: String,
     description: String? = null,
+    descriptionContent: (@Composable () -> Unit)? = null,
     onClick: (() -> Unit)? = null,
     trailing: @Composable () -> Unit,
 ) {
@@ -492,7 +578,9 @@ private fun SettingsRow(
                 fontFamily = PlexSans, fontWeight = FontWeight.Medium,
                 fontSize = 14.5.sp, color = MaterialTheme.grove.ink,
             )
-            if (description != null) {
+            if (descriptionContent != null) {
+                Box(Modifier.padding(top = 2.dp)) { descriptionContent() }
+            } else if (description != null) {
                 Text(
                     description,
                     fontFamily = PlexSans, fontSize = 12.sp, color = MaterialTheme.grove.ink2,
@@ -500,8 +588,30 @@ private fun SettingsRow(
                 )
             }
         }
+        Spacer(Modifier.width(12.dp))
         trailing()
     }
+}
+
+/**
+ * "Checklist states" row description: just the "[ ] → [x]" / "[ ] → [-] → [x]"
+ * bracket notation, set entirely in `PlexMono` (design system mono-body token).
+ * Uses the single-character arrow U+2192 rather than "->" — PlexMono (IBM Plex
+ * Mono) has no calt/liga ligature for "->", so two literal characters is all
+ * that font would ever render.
+ */
+@Composable
+private fun ChecklistStatesDescription(states: ChecklistStates) {
+    val c = MaterialTheme.grove
+    val bracketNotation = if (states == ChecklistStates.TWO) {
+        "[ ] → [x]"
+    } else {
+        "[ ] → [-] → [x]"
+    }
+    Text(
+        bracketNotation,
+        fontFamily = PlexMono, fontSize = 12.sp, color = c.ink2,
+    )
 }
 
 @Composable
@@ -585,6 +695,7 @@ private fun ToggleRow(
                 )
             }
         }
+        Spacer(Modifier.width(12.dp))
         androidx.compose.material3.Switch(
             checked = checked,
             onCheckedChange = onToggle,

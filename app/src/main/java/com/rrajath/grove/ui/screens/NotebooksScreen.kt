@@ -59,6 +59,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rrajath.grove.sync.SyncState
 import com.rrajath.grove.ui.components.GroveTopBar
 import com.rrajath.grove.ui.components.Pill
+import com.rrajath.grove.ui.components.ReminderPermissionBanner
 import com.rrajath.grove.ui.components.ScrollJumpButtons
 import com.rrajath.grove.ui.theme.GroveColors
 import com.rrajath.grove.ui.theme.PlexMono
@@ -152,6 +153,7 @@ fun NotebooksScreen(
                     NoVaultState(onChooseFolder = { folderPicker.launch(null) })
 
                 is NotebooksUiState.Loaded -> {
+                    ReminderPermissionBanner(pendingCount = s.remindersPendingPermission)
                     if (s.notebooks.isEmpty()) {
                         CenterMessage("✦", "No .org files here yet", "Capture a note or create a notebook with ＋")
                     } else {
@@ -437,8 +439,10 @@ private fun NotebookRow(
                     fontSize = 15.sp, color = c.ink,
                 )
                 val ago = DateUtils.getRelativeTimeSpanString(notebook.lastModified)
+                // Stub rows show only the timestamp until the background parse
+                // fills in the count — avoids a "0 notes" flash before the jump.
                 Text(
-                    "${notebook.noteCount} notes · $ago",
+                    if (notebook.isIndexed) "${notebook.noteCount} notes · $ago" else "$ago",
                     fontFamily = PlexSans, fontSize = 12.5.sp, color = c.ink2,
                 )
             }

@@ -4,17 +4,40 @@ import com.rrajath.grove.org.OrgKeywords
 import com.rrajath.grove.org.OrgParser
 import com.rrajath.grove.sync.KnownNotebook
 import com.rrajath.grove.sync.NoteIndex
+import com.rrajath.grove.sync.NotebookStub
 
 /** [NoteIndex] over Room: parses notebook text into row entities. */
 class RoomNoteIndex(
     private val dao: IndexDao,
     private val keywords: () -> OrgKeywords = { OrgKeywords.DEFAULT },
+    /**
+     * Notified with the freshly parsed [com.rrajath.grove.org.OrgDocument] right
+     * after each notebook is (re)indexed, so e.g. reminder reconciliation can run
+     * per-file instead of waiting for the whole vault to finish syncing.
+     */
+    private val onIndexed: suspend (fileName: String, doc: com.rrajath.grove.org.OrgDocument) -> Unit = { _, _ -> },
 ) : NoteIndex {
 
     override suspend fun knownNotebooks(): Map<String, KnownNotebook> =
         dao.notebookSyncStates().associate {
-            it.fileName to KnownNotebook(it.revision, it.conflictFileName)
+            it.fileName to KnownNotebook(it.revision, it.conflictFileName, it.isIndexed)
         }
+
+    override suspend fun stubNotebooks(stubs: List<NotebookStub>) {
+        dao.insertNotebookStubs(
+            stubs.map {
+                NotebookEntity(
+                    fileName = it.fileName,
+                    revision = it.revision,
+                    noteCount = 0,
+                    lastModified = it.lastModified,
+                    conflictFileName = it.conflictFileName,
+                    title = null,
+                    isIndexed = false,
+                )
+            }
+        )
+    }
 
     override suspend fun indexNotebook(
         fileName: String,
@@ -58,6 +81,7 @@ class RoomNoteIndex(
             ),
             notes,
         )
+        onIndexed(fileName, doc)
     }
 
     override suspend fun setConflict(fileName: String, conflictFileName: String?) {

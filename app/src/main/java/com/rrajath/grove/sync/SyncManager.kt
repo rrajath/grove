@@ -44,6 +44,10 @@ class SyncManager(
     private val scope: CoroutineScope,
     private val database: GroveDatabase,
     private val keywords: () -> com.rrajath.grove.org.OrgKeywords = { com.rrajath.grove.org.OrgKeywords.DEFAULT },
+    /** Notified right after each notebook is (re)indexed during a sync (see [RoomNoteIndex]). */
+    private val onNotebookIndexed: suspend (fileName: String, doc: com.rrajath.grove.org.OrgDocument) -> Unit = { _, _ -> },
+    /** Notified after a sync completes (successfully or not), for cheap DB-only catch-up passes. */
+    private val onSyncCompleted: suspend () -> Unit = {},
 ) {
     private val mutex = Mutex()
     private var engine: SyncEngine? = null
@@ -62,7 +66,7 @@ class SyncManager(
         this.store = store
         stateJob?.cancel()
         engine = store?.let {
-            SyncEngine(it, RoomNoteIndex(database.indexDao(), keywords)) { System.currentTimeMillis() }
+            SyncEngine(it, RoomNoteIndex(database.indexDao(), keywords, onNotebookIndexed)) { System.currentTimeMillis() }
         }
         engine?.let { e ->
             stateJob = scope.launch { e.state.collect { _state.value = it } }
@@ -82,6 +86,7 @@ class SyncManager(
                     if (result.conflicts.isNotEmpty()) notifyConflicts(result.conflicts.keys)
                 }
                 database.syncLogDao().trim()
+                onSyncCompleted()
             }
         }
     }

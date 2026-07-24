@@ -107,9 +107,41 @@ fun PlanningDatePicker(
     }
 }
 
-/** Material3 ships no `TimePickerDialog`; this mirrors [DatePickerDialog]'s chrome. */
+/**
+ * Standalone time-of-day picker (no date step) — e.g. Settings › Reminders ›
+ * "Default reminder time". Shares [TimePickerDialog]'s chrome with [PlanningDatePicker].
+ */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun TimePickerDialog(
+fun SimpleTimePicker(
+    initial: LocalTime,
+    onDismiss: () -> Unit,
+    onConfirm: (LocalTime) -> Unit,
+) {
+    val c = MaterialTheme.grove
+    val timeState = rememberTimePickerState(initialHour = initial.hour, initialMinute = initial.minute)
+    TimePickerDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(onClick = { onConfirm(LocalTime.of(timeState.hour, timeState.minute)) }) {
+                Text("Set", color = c.accent, fontWeight = FontWeight.SemiBold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel", color = c.ink2) }
+        },
+    ) {
+        TimePicker(state = timeState)
+    }
+}
+
+/**
+ * Material3 ships no `TimePickerDialog`; this mirrors [DatePickerDialog]'s chrome.
+ * Internal (not private) so other same-module time pickers (e.g. Settings ›
+ * Reminders › "Default reminder time") can reuse the same chrome.
+ */
+@Composable
+internal fun TimePickerDialog(
     onDismissRequest: () -> Unit,
     confirmButton: @Composable () -> Unit,
     dismissButton: @Composable () -> Unit,

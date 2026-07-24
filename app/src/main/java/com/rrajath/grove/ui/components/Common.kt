@@ -20,6 +20,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -32,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -79,13 +81,20 @@ fun FavoriteStar(modifier: Modifier = Modifier) {
     )
 }
 
-/** Segmented control per design spec (surface-2 container, accent active pill). */
+/**
+ * Segmented control per design spec (surface-2 container, accent active pill).
+ * Labels render at 11.5sp (design system `labelSmall` scale) so options like
+ * "Medium" fit without ellipsis at the control's usual widths. An option can
+ * render as an [optionIcons] glyph instead of its text label (e.g. a "None"
+ * icon) by supplying a non-null [ImageVector] at that index.
+ */
 @Composable
 fun SegmentedControl(
     options: List<String>,
     selectedIndex: Int,
     onSelect: (Int) -> Unit,
     modifier: Modifier = Modifier,
+    optionIcons: List<ImageVector?>? = null,
 ) {
     val c = MaterialTheme.grove
     Row(
@@ -97,6 +106,8 @@ fun SegmentedControl(
     ) {
         options.forEachIndexed { i, label ->
             val active = i == selectedIndex
+            val tint = if (active) c.accentInk else c.ink2
+            val icon = optionIcons?.getOrNull(i)
             Box(
                 Modifier
                     .weight(1f)
@@ -106,15 +117,24 @@ fun SegmentedControl(
                     .padding(horizontal = 14.dp, vertical = 6.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(
-                    label,
-                    color = if (active) c.accentInk else c.ink2,
-                    fontFamily = PlexSans,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 13.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                if (icon != null) {
+                    Icon(
+                        icon,
+                        contentDescription = label,
+                        tint = tint,
+                        modifier = Modifier.size(15.dp),
+                    )
+                } else {
+                    Text(
+                        label,
+                        color = tint,
+                        fontFamily = PlexSans,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 11.5.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
         }
     }

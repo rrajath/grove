@@ -11,6 +11,7 @@ import com.rrajath.grove.capture.TemplatesRepository
 import com.rrajath.grove.data.FavoritesRepository
 import com.rrajath.grove.data.GroveDatabase
 import com.rrajath.grove.org.OrgKeywords
+import com.rrajath.grove.reminders.ReminderReconciler
 import com.rrajath.grove.search.SearchRepository
 import com.rrajath.grove.settings.SettingsRepository
 import com.rrajath.grove.sync.SyncManager
@@ -61,8 +62,20 @@ class GroveApplication : Application() {
             .stateIn(appScope, SharingStarted.Eagerly, OrgKeywords.DEFAULT)
     }
 
+    val reminderReconciler: ReminderReconciler by lazy {
+        ReminderReconciler(this, database.reminderDao())
+    }
+
     val syncManager: SyncManager by lazy {
-        SyncManager(this, appScope, database) { keywords.value }
+        SyncManager(
+            this, appScope, database,
+            keywords = { keywords.value },
+            onNotebookIndexed = { fileName, doc ->
+                val settings = settingsRepository.settings.first()
+                reminderReconciler.reconcileFile(fileName, doc, settings.defaultReminderTime, settings.remindersEnabled)
+            },
+            onSyncCompleted = { reminderReconciler.catchUpOverdue() },
+        )
     }
 
     /** The active vault file store, swapping whenever the configured tree URI changes. */
@@ -106,6 +119,36 @@ class GroveApplication : Application() {
                 .collect { enabled ->
                     if (enabled) CaptureNotification.show(this@GroveApplication)
                     else CaptureNotification.hide(this@GroveApplication)
+                }
+        }
+
+        // App-start safety net: fire anything overdue that was missed while the
+        // process was dead, and pick up reminders that were only waiting on a
+        // permission grant. DB-only — doesn't need the vault to be ready.
+        appScope.launch {
+            reminderReconciler.catchUpOverdue()
+            reminderReconciler.reconcilePending()
+        }
+
+        appScope.launch {
+            // "Enable reminders" toggled off cancels everything immediately rather
+            // than waiting for the next per-file reconcile; toggled back on (or the
+            // default reminder time changing, which affects date-only stamps)
+            // re-scans every already-indexed notebook.
+            settingsRepository.settings
+                .map { it.remindersEnabled to it.defaultReminderTime }
+                .distinctUntilChanged()
+                .drop(1)
+                .collect { (enabled, defaultTime) ->
+                    if (!enabled) {
+                        reminderReconciler.disableAll()
+                    } else {
+                        val vault = vault.value ?: return@collect
+                        val documents = database.indexDao().notebooks()
+                            .mapNotNull { nb -> vault.open(nb.fileName)?.let { nb.fileName to it } }
+                            .toMap()
+                        reminderReconciler.reconcileAll(documents, defaultTime, enabled)
+                    }
                 }
         }
 

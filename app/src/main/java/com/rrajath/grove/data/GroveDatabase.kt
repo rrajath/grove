@@ -5,6 +5,7 @@ import androidx.room.Dao
 import androidx.room.Database
 import androidx.room.Entity
 import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.Room
@@ -27,6 +28,13 @@ data class NotebookEntity(
     val conflictFileName: String?,
     /** Cached `#+TITLE:` preamble value, so the list doesn't re-parse files just to display it. */
     val title: String? = null,
+    /**
+     * False for a lightweight stub row inserted at discovery time (file listed
+     * but not yet parsed): note count / title are placeholders until the
+     * background parse pass fills them in and flips this to true. Lets the
+     * notebook list appear in full immediately instead of growing row-by-row.
+     */
+    val isIndexed: Boolean = true,
 )
 
 @Entity(tableName = "notes", primaryKeys = ["fileName", "lineIndex"])
@@ -63,11 +71,40 @@ data class SyncLogEntity(
     val message: String,
 )
 
+/**
+ * A scheduled SCHEDULED/DEADLINE reminder (see `reminders` package). Rebuildable
+ * from the .org files like the rest of the index, but also carries live
+ * scheduling state (the AlarmManager alarm, whether it already fired, whether
+ * it's waiting on a permission) that isn't derivable from disk alone.
+ */
+@Entity(tableName = "reminders")
+data class ReminderEntity(
+    /** Composite: fileName + ancestor-title-path + own title + level + planning type. */
+    @PrimaryKey val key: String,
+    val fileName: String,
+    /** Ancestor titles + own title, "/"-joined — how the heading is re-located on disk. */
+    val headingPath: String,
+    /** Own title only, used as the notification's title. */
+    val headingTitle: String,
+    val headingLevel: Int,
+    /** "SCHEDULED" or "DEADLINE". */
+    val planningType: String,
+    val triggerAtMillis: Long,
+    /** Stable per-[key] id for both the shown notification and its AlarmManager PendingIntent. */
+    val notificationId: Int,
+    /** True when scheduling was skipped for lack of POST_NOTIFICATIONS/exact-alarm access. */
+    val pendingPermission: Boolean = false,
+    /** Set once the "due now" notification has been shown for this trigger time, so
+     *  catch-up passes don't re-fire it. Cleared whenever [triggerAtMillis] changes. */
+    val firedAt: Long? = null,
+)
+
 /** Projection of the notebook columns the sync engine diffs against disk. */
 data class NotebookSyncState(
     val fileName: String,
     val revision: String,
     val conflictFileName: String?,
+    val isIndexed: Boolean,
 )
 
 @Dao
@@ -78,7 +115,7 @@ interface IndexDao {
     @Query("SELECT * FROM notebooks")
     fun notebooksFlow(): Flow<List<NotebookEntity>>
 
-    @Query("SELECT fileName, revision, conflictFileName FROM notebooks")
+    @Query("SELECT fileName, revision, conflictFileName, isIndexed FROM notebooks")
     suspend fun notebookSyncStates(): List<NotebookSyncState>
 
     @Query("SELECT conflictFileName FROM notebooks WHERE fileName = :fileName")
@@ -95,6 +132,14 @@ interface IndexDao {
 
     @Insert
     suspend fun insertNotebook(notebook: NotebookEntity)
+
+    /**
+     * Bulk-insert stub rows for newly-discovered files in one transaction (a
+     * single [notebooksFlow] emission). IGNORE so files that already have a
+     * row — indexed or stub — keep their real data instead of being blanked.
+     */
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertNotebookStubs(notebooks: List<NotebookEntity>)
 
     @Query("UPDATE notebooks SET conflictFileName = :conflictFileName WHERE fileName = :fileName")
     suspend fun setConflict(fileName: String, conflictFileName: String?)
@@ -148,16 +193,54 @@ interface SyncLogDao {
     suspend fun trim()
 }
 
+@Dao
+interface ReminderDao {
+    @Query("SELECT * FROM reminders WHERE fileName = :fileName")
+    suspend fun forFile(fileName: String): List<ReminderEntity>
+
+    @Query("SELECT * FROM reminders")
+    suspend fun all(): List<ReminderEntity>
+
+    @Query("SELECT * FROM reminders WHERE key = :key")
+    suspend fun get(key: String): ReminderEntity?
+
+    @Query("SELECT * FROM reminders WHERE pendingPermission = 1")
+    suspend fun pending(): List<ReminderEntity>
+
+    @Query("SELECT * FROM reminders WHERE pendingPermission = 0 AND firedAt IS NULL AND triggerAtMillis <= :now")
+    suspend fun overdueUnfired(now: Long): List<ReminderEntity>
+
+    // Overdue rows are excluded: reconcilePending() settles those silently rather
+    // than firing them, so they shouldn't be counted as "need permission" either.
+    @Query("SELECT COUNT(*) FROM reminders WHERE pendingPermission = 1 AND triggerAtMillis > :now")
+    fun pendingCountFlow(now: Long): Flow<Int>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(reminder: ReminderEntity)
+
+    @Query("UPDATE reminders SET firedAt = :firedAt WHERE key = :key")
+    suspend fun markFired(key: String, firedAt: Long)
+
+    @Query("DELETE FROM reminders WHERE key = :key")
+    suspend fun delete(key: String)
+
+    @Query("DELETE FROM reminders")
+    suspend fun clearAll()
+}
+
 @Database(
-    entities = [NotebookEntity::class, NoteEntity::class, SyncLogEntity::class],
-    // v4: added NotebookEntity.title (cached #+TITLE: preamble value); destructive
-    // migration drops the index so the next sync rebuilds it.
-    version = 4,
+    entities = [NotebookEntity::class, NoteEntity::class, SyncLogEntity::class, ReminderEntity::class],
+    // v6: added ReminderEntity (SCHEDULED/DEADLINE notification scheduling state);
+    // v5: added NotebookEntity.isIndexed (stub vs fully-parsed notebook rows);
+    // v4: added NotebookEntity.title (cached #+TITLE: preamble value). Destructive
+    // migration drops the index so the next sync rebuilds it from the .org files.
+    version = 6,
     exportSchema = false,
 )
 abstract class GroveDatabase : RoomDatabase() {
     abstract fun indexDao(): IndexDao
     abstract fun syncLogDao(): SyncLogDao
+    abstract fun reminderDao(): ReminderDao
 
     companion object {
         fun build(context: Context): GroveDatabase =

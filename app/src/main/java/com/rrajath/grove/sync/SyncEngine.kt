@@ -30,13 +30,36 @@ data class SyncResult(
     val completedAt: Long,
 )
 
-/** Indexed state the engine diffs against the store. */
-data class KnownNotebook(val revision: String, val conflictFileName: String?)
+/**
+ * Indexed state the engine diffs against the store. [isIndexed] is false for a
+ * stub row (file discovered but not yet parsed) so the engine re-parses it even
+ * if the revision already matches — e.g. after a sync interrupted mid-parse.
+ */
+data class KnownNotebook(
+    val revision: String,
+    val conflictFileName: String?,
+    val isIndexed: Boolean = true,
+)
+
+/** Lightweight placeholder for a newly-discovered file, written before parsing. */
+data class NotebookStub(
+    val fileName: String,
+    val revision: String,
+    val lastModified: Long,
+    val conflictFileName: String?,
+)
 
 /** Persistence boundary so the engine is unit-testable without Room. */
 interface NoteIndex {
     /** Last indexed state per notebook file name. */
     suspend fun knownNotebooks(): Map<String, KnownNotebook>
+
+    /**
+     * Bulk-write placeholder rows for newly-discovered files in one shot, so
+     * the notebook list surfaces every file immediately; [indexNotebook] then
+     * fills in each notebook's real detail in the background.
+     */
+    suspend fun stubNotebooks(stubs: List<NotebookStub>)
 
     suspend fun indexNotebook(
         fileName: String,
@@ -79,8 +102,30 @@ class SyncEngine(
 
             val known = index.knownNotebooks()
             val current = notebooks.associateBy({ it.name }, revision)
-            val changed = notebooks.filter { known[it.name]?.revision != current[it.name] }
+            // Re-parse anything not already fully indexed at the current revision:
+            // brand-new files, leftover stubs, and content changes alike.
+            val changed = notebooks.filter {
+                val k = known[it.name]
+                k == null || !k.isIndexed || k.revision != current[it.name]
+            }
             val removed = (known.keys - current.keys).toList()
+
+            // Discovery/parse split: surface every newly-seen file as a stub in
+            // ONE batch (a single notebooksFlow emission) so the list appears in
+            // full instantly, then parse each below to fill in title/note count.
+            // Only files with no existing row are stubbed, so a content change to
+            // an already-shown notebook keeps its detail until the re-parse lands.
+            val stubs = changed
+                .filter { it.name !in known }
+                .map {
+                    NotebookStub(
+                        fileName = it.name,
+                        revision = current.getValue(it.name),
+                        lastModified = it.lastModified,
+                        conflictFileName = conflicts[it.name],
+                    )
+                }
+            if (stubs.isNotEmpty()) index.stubNotebooks(stubs)
 
             changed.forEachIndexed { i, entry ->
                 _state.value = SyncState.Pulling(entry.name, i + 1, changed.size)

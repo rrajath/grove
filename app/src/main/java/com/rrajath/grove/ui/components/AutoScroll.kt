@@ -5,6 +5,7 @@ import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.scrollBy
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -77,6 +78,53 @@ fun Modifier.autoScrollWhileDragging(scrollState: ScrollState, edgeSize: Dp = 56
             val y = pointerY
             if (y != null && viewportHeight > 0) {
                 scrollState.nudge(edgeUrgency(y, viewportHeight, edgePx))
+            }
+            withFrameNanos { }
+        }
+    }
+
+    this
+        .onSizeChanged { size -> viewportHeight = size.height }
+        .pointerInput(Unit) {
+            awaitEachGesture {
+                awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                var stillDown: Boolean
+                do {
+                    val event = awaitPointerEvent(PointerEventPass.Initial)
+                    val change = event.changes.firstOrNull()
+                    pointerY = change?.position?.y
+                    stillDown = event.changes.any { it.pressed }
+                } while (stillDown)
+                pointerY = null
+            }
+        }
+}
+
+/**
+ * Scrolls [listState] by an amount proportional to [urgency] (see
+ * [edgeUrgency]), at [MutatePriority.UserInput] — see [ScrollState.nudge].
+ */
+private suspend fun LazyListState.nudge(urgency: Float) {
+    if (urgency == 0f) return
+    scroll(MutatePriority.UserInput) { scrollBy(urgency * 0.6f) }
+}
+
+/**
+ * [LazyListState] counterpart to [autoScrollWhileDragging] above — same
+ * pointer-tracking, observational-only behavior, just nudging a
+ * [LazyListState] (e.g. backing a `LazyColumn`) instead of a [ScrollState].
+ */
+fun Modifier.autoScrollWhileDragging(listState: LazyListState, edgeSize: Dp = 56.dp): Modifier = composed {
+    val density = LocalDensity.current
+    val edgePx = with(density) { edgeSize.toPx() }
+    var viewportHeight by remember { mutableStateOf(0) }
+    var pointerY by remember { mutableStateOf<Float?>(null) }
+
+    LaunchedEffect(listState) {
+        while (isActive) {
+            val y = pointerY
+            if (y != null && viewportHeight > 0) {
+                listState.nudge(edgeUrgency(y, viewportHeight, edgePx))
             }
             withFrameNanos { }
         }

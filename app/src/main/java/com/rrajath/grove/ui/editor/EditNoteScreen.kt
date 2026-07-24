@@ -60,7 +60,11 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rrajath.grove.org.LineEditing
+import com.rrajath.grove.org.OrgTimestamp
+import com.rrajath.grove.reminders.ReminderNotification
 import com.rrajath.grove.ui.components.GroveTopBar
+import com.rrajath.grove.ui.components.PlanningDatePicker
+import com.rrajath.grove.ui.components.autoScrollWhileDragging
 import com.rrajath.grove.ui.components.ScrollJumpButtons
 import com.rrajath.grove.ui.components.SegmentedControl
 import com.rrajath.grove.ui.screens.IconGlyph
@@ -70,6 +74,8 @@ import com.rrajath.grove.ui.theme.grove
 import com.rrajath.grove.ui.vault.NoteRef
 import kotlinx.coroutines.delay
 import java.time.LocalTime
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 /**
  * Raw org editor (design spec §6): syntax-highlighted subtree editing with
@@ -83,6 +89,14 @@ fun EditNoteScreen(
     onSwitchToRead: () -> Unit,
     /** True when the note was just created (e.g. via the outline + button). */
     isNewNote: Boolean = false,
+    /**
+     * Non-null ("scheduled"/"deadline") when this note was opened via a
+     * reminder's "Reschedule" action: auto-opens [PlanningDatePicker] for that
+     * timestamp once the note loads, prefilled with its existing value.
+     */
+    openPlanningTarget: String? = null,
+    /** The originating reminder notification, dismissed once a new date/time is picked. */
+    dismissNotificationId: Int? = null,
     viewModel: EditorViewModel = viewModel(factory = EditorViewModel.Factory),
 ) {
     val c = MaterialTheme.grove
@@ -92,6 +106,7 @@ fun EditNoteScreen(
     var metadataOpen by remember { mutableStateOf(false) }
     var confirmLeave by remember { mutableStateOf(false) }
     var showEmptyHeadingAlert by remember { mutableStateOf(false) }
+    var rescheduleTarget by remember(openPlanningTarget) { mutableStateOf(openPlanningTarget) }
     // Timestamp of the most recent auto-save, shown as a tappable check mark
     // in the top bar once the note has been saved at least once.
     var lastAutoSavedAt by remember { mutableStateOf<LocalTime?>(null) }
@@ -269,7 +284,7 @@ fun EditNoteScreen(
                 )
             }
             Box(Modifier.weight(1f).fillMaxWidth()) {
-                BoxWithConstraints(Modifier.fillMaxSize()) {
+                BoxWithConstraints(Modifier.fillMaxSize().autoScrollWhileDragging(scrollState)) {
                     val density = LocalDensity.current
                     val viewportHeightPx = remember(maxHeight, density) {
                         with(density) { maxHeight.toPx() }.toInt()
@@ -350,6 +365,21 @@ fun EditNoteScreen(
         )
     }
 
+    rescheduleTarget?.let { target ->
+        val headline = remember(state.buffer, state.keywords) { viewModel.currentHeadline }
+        val existing = if (target == "deadline") headline?.planning?.deadline else headline?.planning?.scheduled
+        PlanningDatePicker(
+            existing = existing,
+            onDismiss = { rescheduleTarget = null },
+            onConfirm = { ts ->
+                if (target == "deadline") viewModel.setDeadline(ts) else viewModel.setScheduled(ts)
+                dismissNotificationId?.let { ReminderNotification.cancel(context, it) }
+                Toast.makeText(context, "Task rescheduled to ${formatRescheduled(ts)}", Toast.LENGTH_SHORT).show()
+                rescheduleTarget = null
+            },
+        )
+    }
+
     if (confirmLeave) {
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { confirmLeave = false },
@@ -410,6 +440,15 @@ fun EditNoteScreen(
             },
         )
     }
+}
+
+private val RESCHEDULED_DATE = DateTimeFormatter.ofPattern("EEE, MMM d", Locale.ENGLISH)
+private val RESCHEDULED_TIME = DateTimeFormatter.ofPattern("h:mm a", Locale.ENGLISH)
+
+/** "Task rescheduled to <date[, time]>" formatting, matching the app's "EEE, MMM d" date convention. */
+private fun formatRescheduled(ts: OrgTimestamp): String {
+    val date = ts.date.format(RESCHEDULED_DATE)
+    return if (ts.time != null) "$date at ${ts.time.format(RESCHEDULED_TIME)}" else date
 }
 
 @Composable

@@ -43,6 +43,8 @@ data class NotebookItem(
     val pinnedIndex: Int = -1,
     /** Label to show in the notebooks list — the file name or the cached `#+TITLE:`. */
     val displayName: String = fileName,
+    /** False while this is a discovery stub whose content hasn't been parsed yet. */
+    val isIndexed: Boolean = true,
 ) {
     val isPinned: Boolean get() = pinnedIndex >= 0
 }
@@ -53,6 +55,8 @@ sealed class NotebooksUiState {
         val notebooks: List<NotebookItem>,
         val syncState: SyncState,
         val lastSyncAt: Long?,
+        /** Reminders waiting on POST_NOTIFICATIONS/exact-alarm access (permission banner). */
+        val remindersPendingPermission: Int = 0,
     ) : NotebooksUiState()
 }
 
@@ -79,6 +83,7 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
                         settings.notebookDisplayNameMode == NotebookDisplayNameMode.TITLE &&
                         !it.title.isNullOrBlank()
                     ) it.title else it.fileName,
+                    isIndexed = it.isIndexed,
                 )
             }
             .sortedWith(
@@ -91,7 +96,8 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
         notebookItems,
         app.syncManager.state,
         app.syncManager.lastResult,
-    ) { notebooks, syncState, lastResult ->
+        app.database.reminderDao().pendingCountFlow(System.currentTimeMillis()),
+    ) { notebooks, syncState, lastResult, remindersPending ->
         if (notebooks == null) {
             NotebooksUiState.NoVault
         } else {
@@ -99,6 +105,7 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
                 notebooks = notebooks,
                 syncState = syncState,
                 lastSyncAt = lastResult?.completedAt,
+                remindersPendingPermission = remindersPending,
             )
         }
     }.stateIn(viewModelScope, SharingStarted.Eagerly, NotebooksUiState.NoVault)

@@ -162,6 +162,16 @@ class AppViewModel(private val app: GroveApplication) : ViewModel() {
     fun setChecklistStates(states: ChecklistStates) =
         viewModelScope.launch { settingsRepository.setChecklistStates(states) }
 
+    fun setRemindersEnabled(enabled: Boolean) =
+        viewModelScope.launch { settingsRepository.setRemindersEnabled(enabled) }
+
+    fun setDefaultReminderTime(time: java.time.LocalTime) =
+        viewModelScope.launch { settingsRepository.setDefaultReminderTime(time) }
+
+    /** Count of reminders waiting on POST_NOTIFICATIONS/exact-alarm access (Settings › Reminders banner). */
+    val reminderPendingCount: StateFlow<Int> = app.database.reminderDao().pendingCountFlow(System.currentTimeMillis())
+        .stateIn(viewModelScope, SharingStarted.Eagerly, 0)
+
     /** Write the current preferences as a JSON document to the user-picked [uri]. */
     fun exportSettings(uri: android.net.Uri) = viewModelScope.launch {
         val current = settingsRepository.settings.first()

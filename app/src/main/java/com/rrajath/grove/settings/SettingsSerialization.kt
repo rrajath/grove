@@ -57,6 +57,9 @@ data class SettingsExport(
     val showPropertyDrawers: Boolean = true,
     val notebookDisplayNameMode: String = NotebookDisplayNameMode.FILENAME.storageKey,
     val checklistStates: String = ChecklistStates.TWO.storageKey,
+    val remindersEnabled: Boolean = true,
+    /** "HH:mm", e.g. "09:00". */
+    val defaultReminderTime: String = "09:00",
 ) {
     /** Map back onto [base], using the enums' tolerant `fromStorage` fallbacks. */
     fun applyTo(base: GroveSettings): GroveSettings = base.copy(
@@ -83,6 +86,9 @@ data class SettingsExport(
         showPropertyDrawers = showPropertyDrawers,
         notebookDisplayNameMode = NotebookDisplayNameMode.fromStorage(notebookDisplayNameMode),
         checklistStates = ChecklistStates.fromStorage(checklistStates),
+        remindersEnabled = remindersEnabled,
+        defaultReminderTime = runCatching { java.time.LocalTime.parse(defaultReminderTime) }
+            .getOrDefault(GroveSettings.DEFAULT_REMINDER_TIME),
     )
 
     companion object {
@@ -112,6 +118,8 @@ data class SettingsExport(
             showPropertyDrawers = s.showPropertyDrawers,
             notebookDisplayNameMode = s.notebookDisplayNameMode.storageKey,
             checklistStates = s.checklistStates.storageKey,
+            remindersEnabled = s.remindersEnabled,
+            defaultReminderTime = s.defaultReminderTime.toString(),
         )
     }
 }

@@ -10,6 +10,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import java.time.LocalTime
 
 private val Context.settingsDataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 
@@ -57,10 +58,15 @@ data class GroveSettings(
     val lastRefileHeadingPath: String = "",
     /** Read mode: how many states tapping a checklist item cycles through. */
     val checklistStates: ChecklistStates = ChecklistStates.TWO,
+    /** SCHEDULED/DEADLINE reminder notifications (see `reminders` package). */
+    val remindersEnabled: Boolean = true,
+    /** Time of day used for date-only SCHEDULED/DEADLINE stamps (no time-of-day). */
+    val defaultReminderTime: LocalTime = LocalTime.of(9, 0),
 ) {
     companion object {
         const val DEFAULT_TODO_KEYWORDS = "TODO IN-PROGRESS | DONE CANCELLED"
         const val DEFAULT_SHARE_TARGET = "inbox.org"
+        val DEFAULT_REMINDER_TIME: LocalTime = LocalTime.of(9, 0)
     }
 }
 
@@ -94,6 +100,8 @@ class SettingsRepository(private val context: Context) {
         val lastRefileFile = stringPreferencesKey("last_refile_file")
         val lastRefileHeadingPath = stringPreferencesKey("last_refile_heading_path")
         val checklistStates = stringPreferencesKey("checklist_states")
+        val remindersEnabled = booleanPreferencesKey("reminders_enabled")
+        val defaultReminderTime = stringPreferencesKey("default_reminder_time")
     }
 
     val settings: Flow<GroveSettings> = context.settingsDataStore.data.map { prefs ->
@@ -125,8 +133,15 @@ class SettingsRepository(private val context: Context) {
             lastRefileFile = prefs[Keys.lastRefileFile],
             lastRefileHeadingPath = prefs[Keys.lastRefileHeadingPath] ?: "",
             checklistStates = ChecklistStates.fromStorage(prefs[Keys.checklistStates]),
+            remindersEnabled = prefs[Keys.remindersEnabled] ?: true,
+            defaultReminderTime = decodeTime(prefs[Keys.defaultReminderTime]),
         )
     }
+
+    private fun decodeTime(raw: String?): LocalTime =
+        raw?.let { runCatching { LocalTime.parse(it) }.getOrNull() } ?: GroveSettings.DEFAULT_REMINDER_TIME
+
+    private fun encodeTime(time: LocalTime): String = time.toString()
 
     private fun decodePinnedList(raw: String?): List<String> =
         raw?.split(';')?.filter { it.isNotEmpty() } ?: emptyList()
@@ -177,6 +192,8 @@ class SettingsRepository(private val context: Context) {
             p[Keys.showPropertyDrawers] = s.showPropertyDrawers
             p[Keys.notebookDisplayNameMode] = s.notebookDisplayNameMode.storageKey
             p[Keys.checklistStates] = s.checklistStates.storageKey
+            p[Keys.remindersEnabled] = s.remindersEnabled
+            p[Keys.defaultReminderTime] = encodeTime(s.defaultReminderTime)
         }
     }
 
@@ -265,6 +282,14 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setChecklistStates(states: ChecklistStates) {
         context.settingsDataStore.edit { it[Keys.checklistStates] = states.storageKey }
+    }
+
+    suspend fun setRemindersEnabled(enabled: Boolean) {
+        context.settingsDataStore.edit { it[Keys.remindersEnabled] = enabled }
+    }
+
+    suspend fun setDefaultReminderTime(time: LocalTime) {
+        context.settingsDataStore.edit { it[Keys.defaultReminderTime] = encodeTime(time) }
     }
 
     suspend fun setLastRefileTarget(fileName: String, headingPath: List<String>) {

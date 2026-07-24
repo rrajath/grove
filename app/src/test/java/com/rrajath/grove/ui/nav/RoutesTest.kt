@@ -1,6 +1,7 @@
 package com.rrajath.grove.ui.nav
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Test
 
 class RoutesTest {
@@ -8,8 +9,39 @@ class RoutesTest {
     @Test
     fun `outline route encodes notebook id`() {
         assertEquals("outline/travel.org", Routes.outline("travel.org"))
-        assertEquals("outline/my+notes.org", Routes.outline("my notes.org"))
+        // Spaces must encode as %20 (not +): androidx.navigation decodes via Uri.decode,
+        // which leaves a literal + intact and would break exact-string matching.
+        assertEquals("outline/my%20notes.org", Routes.outline("my notes.org"))
         assertEquals("outline/a%2Fb.org", Routes.outline("a/b.org"))
+    }
+
+    @Test
+    fun `encode uses percent-20 for spaces and round-trips through Uri-style decode`() {
+        // Regression for the reminder reschedule deep link (and multi-word note ids /
+        // search queries): every real org heading has a space. Emulate Uri.decode
+        // (only undoes %XX) to prove the encoded form survives NavDeepLink decoding.
+        for (raw in listOf("Buy milk", "A/B path", "café résumé", "plus + and space")) {
+            val encoded = Routes.encode(raw)
+            assertFalse("space must not encode as '+': $encoded", encoded.contains('+'))
+            assertEquals(raw, uriStyleDecode(encoded))
+        }
+    }
+
+    /** Minimal stand-in for android.net.Uri.decode: undoes %XX (UTF-8), leaves + literal. */
+    private fun uriStyleDecode(s: String): String {
+        val bytes = java.io.ByteArrayOutputStream()
+        var i = 0
+        while (i < s.length) {
+            val c = s[i]
+            if (c == '%' && i + 2 < s.length) {
+                bytes.write(s.substring(i + 1, i + 3).toInt(16))
+                i += 3
+            } else {
+                bytes.write(c.code)
+                i += 1
+            }
+        }
+        return bytes.toByteArray().toString(Charsets.UTF_8)
     }
 
     @Test

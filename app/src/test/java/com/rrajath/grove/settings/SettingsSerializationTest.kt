@@ -31,6 +31,8 @@ class SettingsSerializationTest {
         showHeaderTags = false,
         showPropertyDrawers = false,
         checklistStates = ChecklistStates.THREE,
+        remindersEnabled = false,
+        defaultReminderTime = java.time.LocalTime.of(7, 45),
         // Device-specific fields that must NOT travel with an export.
         vaultTreeUri = "content://com.android.externalstorage/tree/primary%3Aorg",
         onboardingDone = true,
@@ -64,6 +66,8 @@ class SettingsSerializationTest {
         assertEquals(sample.showHeaderTags, restored.showHeaderTags)
         assertEquals(sample.showPropertyDrawers, restored.showPropertyDrawers)
         assertEquals(sample.checklistStates, restored.checklistStates)
+        assertEquals(sample.remindersEnabled, restored.remindersEnabled)
+        assertEquals(sample.defaultReminderTime, restored.defaultReminderTime)
     }
 
     @Test
@@ -96,6 +100,13 @@ class SettingsSerializationTest {
         assertEquals(FontSizePreference.MEDIUM, restored.fontSize)
         assertEquals(SyncMode.ON_OPEN_CLOSE, restored.syncMode)
         assertEquals(ChecklistStates.TWO, restored.checklistStates)
+    }
+
+    @Test
+    fun `malformed default reminder time falls back to 9am`() {
+        val json = """{ "defaultReminderTime": "not a time" }"""
+        val restored = SettingsSerialization.import(json, GroveSettings())
+        assertEquals(java.time.LocalTime.of(9, 0), restored.defaultReminderTime)
     }
 
     @Test

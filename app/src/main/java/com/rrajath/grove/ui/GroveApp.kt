@@ -32,6 +32,7 @@ import com.rrajath.grove.ui.editor.EditNoteScreen
 import com.rrajath.grove.ui.capture.CapturePickerSheet
 import com.rrajath.grove.ui.capture.TemplateEditScreen
 import com.rrajath.grove.ui.nav.Routes
+import com.rrajath.grove.ui.reminders.ReminderResolveScreen
 import com.rrajath.grove.ui.screens.ConflictScreen
 import com.rrajath.grove.ui.screens.GroveDrawerContent
 import com.rrajath.grove.ui.screens.NotebooksScreen
@@ -220,6 +221,10 @@ private fun GroveNavigation(
                 val noteId = entry.arguments?.getString("noteId").orEmpty()
                 val mode = entry.arguments?.getString("mode") ?: "read"
                 val isNew = entry.arguments?.getString("isNew") == "true"
+                // Non-empty only when this note was opened via a reminder's
+                // "Reschedule" action (see Routes.note's planning/notifId doc).
+                val planning = entry.arguments?.getString("planning")?.takeIf { it.isNotBlank() }
+                val notifId = entry.arguments?.getString("notifId")?.toIntOrNull()
                 val ref = NoteRef.decode(noteId)
                 if (ref == null) {
                     navController.popBackStack()
@@ -233,6 +238,8 @@ private fun GroveNavigation(
                                 popUpTo(Routes.NOTE) { inclusive = true }
                             }
                         },
+                        openPlanningTarget = planning,
+                        dismissNotificationId = notifId,
                     )
                 } else {
                     ReadNoteScreen(
@@ -249,6 +256,32 @@ private fun GroveNavigation(
                         favoriteLines = favoriteLinesFor(favorites, ref.fileName),
                     )
                 }
+            }
+            composable(
+                Routes.REMINDER,
+                deepLinks = listOf(
+                    androidx.navigation.navDeepLink {
+                        uriPattern = "grove://reminder/{fileName}?headingPath={headingPath}&level={level}&type={type}&notifId={notifId}"
+                    },
+                ),
+            ) { entry ->
+                ReminderResolveScreen(
+                    fileName = entry.arguments?.getString("fileName").orEmpty(),
+                    headingPath = entry.arguments?.getString("headingPath").orEmpty(),
+                    level = entry.arguments?.getString("level")?.toIntOrNull() ?: 1,
+                    planningType = entry.arguments?.getString("type").orEmpty(),
+                    notifId = entry.arguments?.getString("notifId")?.toIntOrNull(),
+                    onResolved = { ref, planning, notifId ->
+                        navController.navigate(
+                            Routes.note(ref.encode(), mode = "edit", planning = planning, notifId = notifId)
+                        ) { popUpTo(Routes.REMINDER) { inclusive = true } }
+                    },
+                    onFailed = {
+                        navController.navigate(Routes.NOTEBOOKS) {
+                            popUpTo(Routes.REMINDER) { inclusive = true }
+                        }
+                    },
+                )
             }
             composable(
                 Routes.CAPTURE,
@@ -329,6 +362,9 @@ private fun GroveNavigation(
                     onSetCaptureNotification = viewModel::setCaptureNotification,
                     onSetVaultUri = viewModel::setVaultTreeUri,
                     onSetShareTargetFile = viewModel::setShareTargetFile,
+                    onSetRemindersEnabled = viewModel::setRemindersEnabled,
+                    onSetDefaultReminderTime = viewModel::setDefaultReminderTime,
+                    reminderPendingCount = viewModel.reminderPendingCount.collectAsStateWithLifecycle().value,
                     onExportSettings = viewModel::exportSettings,
                     onImportSettings = viewModel::importSettings,
                 )
