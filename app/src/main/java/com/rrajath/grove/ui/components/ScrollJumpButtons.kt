@@ -41,10 +41,13 @@ import kotlinx.coroutines.launch
  * Visibility behavior:
  * - The pair is hidden entirely when the underlying content has no
  *   scrollable overflow (content fits on screen).
- * - The pair appears as soon as any scroll activity happens (a position
- *   change), and disappears again after 3 seconds of scroll inactivity.
- *   Scrolling again at any point makes it reappear immediately and resets
- *   the idle timer.
+ * - The pair appears once scroll activity moves the position by more than
+ *   [minScrollDeltaPx] pixels (from wherever it last settled), and
+ *   disappears again after 3 seconds of scroll inactivity. Scrolling again
+ *   at any point while visible keeps it up and resets the idle timer. The
+ *   threshold exists so that the small scroll nudges caused by the cursor
+ *   auto-following typed text (e.g. in an editor) don't repeatedly flash
+ *   the buttons — only a deliberate scroll of real distance does.
  * - Each button additionally hides itself once already at that edge (the
  *   top button disappears at the top, the bottom button disappears at the
  *   bottom), even while the pair is otherwise visible.
@@ -57,9 +60,10 @@ import kotlinx.coroutines.launch
 fun ScrollJumpButtons(
     scrollState: ScrollState,
     modifier: Modifier = Modifier,
+    minScrollDeltaPx: Float = 0f,
 ) {
     val hasOverflow = scrollState.maxValue > 0
-    val visible = rememberScrollActivityVisible(scrollState.value)
+    val visible = rememberScrollOffsetActivityVisible(scrollState.value, minScrollDeltaPx)
     val atTop = scrollState.value <= 0
     val atBottom = scrollState.value >= scrollState.maxValue
     val scope = rememberCoroutineScope()
@@ -121,6 +125,37 @@ private fun <T> rememberScrollActivityVisible(positionKey: T): Boolean {
         previous = positionKey
         delay(3000)
         visible = false
+    }
+
+    return visible
+}
+
+/**
+ * Like [rememberScrollActivityVisible], but only flips to visible once
+ * [offsetPx] has drifted more than [minDeltaPx] away from wherever it last
+ * settled — small back-and-forth jitter (e.g. the cursor-follow scroll while
+ * typing) never crosses that threshold, so it doesn't flash the buttons.
+ * Once visible, any further movement keeps it up and resets the idle timer,
+ * same as the plain scroll-activity tracker; the baseline resets to the
+ * current offset each time it goes idle again.
+ */
+@Composable
+private fun rememberScrollOffsetActivityVisible(offsetPx: Int, minDeltaPx: Float): Boolean {
+    var visible by remember { mutableStateOf(false) }
+    var baseline by remember { mutableStateOf<Int?>(null) }
+
+    LaunchedEffect(offsetPx) {
+        val base = baseline
+        if (base == null) {
+            baseline = offsetPx
+        } else if (!visible && kotlin.math.abs(offsetPx - base) > minDeltaPx) {
+            visible = true
+        }
+        if (visible) {
+            delay(3000)
+            visible = false
+            baseline = offsetPx
+        }
     }
 
     return visible

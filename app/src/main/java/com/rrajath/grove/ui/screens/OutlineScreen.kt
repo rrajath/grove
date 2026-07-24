@@ -28,6 +28,8 @@ import androidx.compose.material.icons.filled.FormatIndentDecrease
 import androidx.compose.material.icons.filled.FormatIndentIncrease
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.UnfoldLess
+import androidx.compose.material.icons.filled.UnfoldMore
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -190,12 +192,25 @@ fun OutlineScreen(
                                     .toSet()
                             }
                             if (foldable.isNotEmpty()) {
-                                // Mirrors the per-row carets: ▸▸ = all folded (tap to
-                                // expand all), ▾▾ = expanded (tap to collapse all).
+                                // Chevrons pointing apart = all folded (tap to expand
+                                // all); chevrons pointing together = expanded (tap to
+                                // collapse all).
                                 val allCollapsed = collapsed.containsAll(foldable)
-                                IconGlyph(if (allCollapsed) "▸▸" else "▾▾", onClick = {
-                                    collapsed = if (allCollapsed) emptySet() else foldable
-                                })
+                                Box(
+                                    Modifier
+                                        .size(44.dp)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .clickable {
+                                            collapsed = if (allCollapsed) emptySet() else foldable
+                                        },
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Icon(
+                                        if (allCollapsed) Icons.Default.UnfoldMore else Icons.Default.UnfoldLess,
+                                        contentDescription = if (allCollapsed) "Expand all headings" else "Collapse all headings",
+                                        tint = c.ink,
+                                    )
+                                }
                             }
                         }
                         var displayMenuOpen by remember { mutableStateOf(false) }
