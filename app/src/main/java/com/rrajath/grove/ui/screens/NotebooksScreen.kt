@@ -318,12 +318,14 @@ private fun IconStyleDialog(
 
 /**
  * Sync status indicator in the top app bar. Shows a green check when the last sync
- * completed successfully, or a warning glyph when there is an active sync error.
- * Tapping either shows a toast with the sync status detail.
+ * completed successfully with no conflicts, a warning glyph when there is an active
+ * sync error or any notebook has an unresolved conflict, or a spinner mid-sync.
+ * Tapping any of them shows a toast with the sync status detail.
  */
 @Composable
 private fun SyncStatusIcon(state: NotebooksUiState.Loaded, context: android.content.Context) {
     val c = MaterialTheme.grove
+    val conflictCount = state.notebooks.count { it.hasConflict }
     when (val sync = state.syncState) {
         is SyncState.Error -> {
             IconButton(
@@ -351,15 +353,28 @@ private fun SyncStatusIcon(state: NotebooksUiState.Loaded, context: android.cont
             }
         }
         else -> {
-            IconButton(
-                onClick = {
-                    val minutes = state.lastSyncAt
-                        ?.let { ((System.currentTimeMillis() - it) / 60_000L).coerceAtLeast(0) }
-                    val message = if (minutes != null) "Synced $minutes minutes ago" else "Not synced yet"
-                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-                },
-            ) {
-                Icon(Icons.Default.Check, contentDescription = "Synced", tint = c.green)
+            val minutes = state.lastSyncAt
+                ?.let { ((System.currentTimeMillis() - it) / 60_000L).coerceAtLeast(0) }
+            val syncedMessage = if (minutes != null) "Synced $minutes minutes ago" else "Not synced yet"
+            if (conflictCount > 0) {
+                IconButton(
+                    onClick = {
+                        val conflictMessage = if (conflictCount == 1) {
+                            "1 file has a conflict"
+                        } else {
+                            "$conflictCount files have conflicts"
+                        }
+                        Toast.makeText(context, "$syncedMessage · $conflictMessage", Toast.LENGTH_SHORT).show()
+                    },
+                ) {
+                    Icon(Icons.Default.Warning, contentDescription = "Sync conflicts", tint = c.amber)
+                }
+            } else {
+                IconButton(
+                    onClick = { Toast.makeText(context, syncedMessage, Toast.LENGTH_SHORT).show() },
+                ) {
+                    Icon(Icons.Default.Check, contentDescription = "Synced", tint = c.green)
+                }
             }
         }
     }
@@ -456,13 +471,6 @@ private fun NotebookRow(
             }
             if (notebook.hasConflict) {
                 Pill("Conflict", fg = c.amber, bg = c.amberSoft, onClick = onOpenConflict)
-            } else {
-                Icon(
-                    Icons.Default.Check,
-                    contentDescription = "Synced",
-                    tint = c.green,
-                    modifier = Modifier.size(14.dp),
-                )
             }
         }
         DropdownMenu(

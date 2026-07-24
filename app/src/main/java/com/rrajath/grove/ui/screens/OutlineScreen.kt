@@ -107,7 +107,7 @@ fun OutlineScreen(
     displayFlags: OutlineDisplayFlags = OutlineDisplayFlags(),
     onToggleDisplay: (OutlineToggle, Boolean) -> Unit = { _, _ -> },
     /** Settings toggle: show a collapsible section for file-level `#+` keywords, pinned at the top. */
-    showHeaderTags: Boolean = true,
+    showPreface: Boolean = true,
     viewModel: DocumentViewModel = viewModel(factory = DocumentViewModel.Factory),
 ) {
     val c = MaterialTheme.grove
@@ -123,7 +123,7 @@ fun OutlineScreen(
     var collapsed by rememberSaveable(notebookId, stateSaver = IntSetSaver) {
         mutableStateOf(setOf<Int>())
     }
-    var headerTagsExpanded by rememberSaveable(notebookId) { mutableStateOf(false) }
+    var prefaceExpanded by rememberSaveable(notebookId) { mutableStateOf(false) }
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
 
     // Only one swipe panel open at a time; any mutation snaps it shut.
@@ -273,12 +273,12 @@ fun OutlineScreen(
                 LaunchedEffect(doc) { openRowLine = null }
                 val visible = remember(doc, collapsed) { visibleHeadlines(doc, collapsed) }
                 Column(Modifier.fillMaxSize().padding(padding)) {
-                    if (showHeaderTags && doc.preambleKeywords.isNotEmpty() && doc.headlines.isEmpty()) {
+                    if (showPreface && doc.preambleKeywords.isNotEmpty() && doc.headlines.isEmpty()) {
                         CollapsibleKvSection(
-                            label = "#+ header tags",
+                            label = "PREFACE",
                             entries = doc.preambleKeywords,
-                            expanded = headerTagsExpanded,
-                            onToggle = { headerTagsExpanded = !headerTagsExpanded },
+                            expanded = prefaceExpanded,
+                            onToggle = { prefaceExpanded = !prefaceExpanded },
                             modifier = Modifier.padding(start = 10.dp, top = 8.dp, end = 10.dp),
                         )
                     }
@@ -315,13 +315,13 @@ fun OutlineScreen(
                     ) {
                         // Scrolls away with the rest of the outline instead of
                         // staying pinned above the list.
-                        if (showHeaderTags && doc.preambleKeywords.isNotEmpty()) {
-                            item(key = "header_tags") {
+                        if (showPreface && doc.preambleKeywords.isNotEmpty()) {
+                            item(key = "preface") {
                                 CollapsibleKvSection(
-                                    label = "#+ header tags",
+                                    label = "PREFACE",
                                     entries = doc.preambleKeywords,
-                                    expanded = headerTagsExpanded,
-                                    onToggle = { headerTagsExpanded = !headerTagsExpanded },
+                                    expanded = prefaceExpanded,
+                                    onToggle = { prefaceExpanded = !prefaceExpanded },
                                     modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
                                 )
                             }

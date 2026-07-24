@@ -209,7 +209,7 @@ private fun GroveNavigation(
                         keywords = settings.showKeywordsInOutline,
                     ),
                     onToggleDisplay = viewModel::setOutlineToggle,
-                    showHeaderTags = settings.showHeaderTags,
+                    showPreface = settings.showPreface,
                 )
             }
             composable(
@@ -343,7 +343,7 @@ private fun GroveNavigation(
                     onBack = { navController.popBackStack() },
                     onSetTheme = viewModel::setTheme,
                     onSetSyncAppIconWithTheme = viewModel::setSyncAppIconWithTheme,
-                    onSetShowHeaderTags = viewModel::setShowHeaderTags,
+                    onSetShowPreface = viewModel::setShowPreface,
                     onSetShowPropertyDrawers = viewModel::setShowPropertyDrawers,
                     onSetNotebookDisplayNameMode = viewModel::setNotebookDisplayNameMode,
                     onSetChecklistStates = viewModel::setChecklistStates,

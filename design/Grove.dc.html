@@ -496,14 +496,14 @@
           </div>
 
           <div style="flex:1; overflow-y:auto; padding:24px 24px 60px;">
-            <sc-if value="{{ showHeaderTags }}" hint-placeholder-val="{{ true }}">
+            <sc-if value="{{ showPreface }}" hint-placeholder-val="{{ true }}">
               <div style="{{ collBoxStyle }} margin-bottom:16px;">
-                <div onClick="{{ toggleHdr }}" style="{{ collHeadStyle }}">
-                  <span style="{{ collCaretHdr }}">▸</span>
-                  <span style="{{ collLabelStyle }}">#+ header tags</span>
+                <div onClick="{{ togglePrefaceOpen }}" style="{{ collHeadStyle }}">
+                  <span style="{{ collCaretPreface }}">▸</span>
+                  <span style="{{ collLabelStyle }}">PREFACE</span>
                   <span style="{{ collHintStyle }}">4</span>
                 </div>
-                <sc-if value="{{ hdrOpen }}" hint-placeholder-val="{{ false }}">
+                <sc-if value="{{ prefaceOpen }}" hint-placeholder-val="{{ false }}">
                   <div style="{{ collBodyStyle }}">
                     <div><span style="{{ kvKeyStyle }}">#+TITLE:</span> <span style="{{ kvValStyle }}">Kyoto — Day 2</span></div>
                     <div><span style="{{ kvKeyStyle }}">#+FILETAGS:</span> <span style="{{ kvValStyle }}">:trip:kyoto:</span></div>
@@ -841,11 +841,11 @@
               </div>
               <div style="padding:14px 15px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:12px;">
                 <div style="flex:1;">
-                  <div style="font-size:14.5px; font-weight:500;">Show header tags</div>
+                  <div style="font-size:14.5px; font-weight:500;">Show preface</div>
                   <div style="font-size:12px; color:var(--ink-2); margin-top:2px;">Display file-level <span style="font-family:'IBM Plex Mono',monospace;">#+</span> keywords in org files</div>
                 </div>
-                <div onClick="{{ toggleHeaderTags }}" style="{{ hdrTrackStyle }}">
-                  <div style="{{ hdrKnobStyle }}"></div>
+                <div onClick="{{ togglePreface }}" style="{{ prefaceTrackStyle }}">
+                  <div style="{{ prefaceKnobStyle }}"></div>
                 </div>
               </div>
               <div style="padding:14px 15px; border-bottom:1px solid var(--line);">
@@ -1147,7 +1147,7 @@ class Component extends DCLogic {
     refileOpen:false, refileIds:null, refileNb:null, refileHeading:null,
     toast:null, snack:null, undoSnap:null,
     syncIcon:true, themeDropdownOpen:false,
-    showHeaderTags:true, colHdr:false, colFileProp:false, colSubProp:false,
+    showPreface:true, colPreface:false, colFileProp:false, colSubProp:false,
   };
 
   go = (screen) => this.setState({ screen, drawerOpen: false });
@@ -1608,22 +1608,22 @@ class Component extends DCLogic {
       toggleSyncIcon: () => this.setState(p => ({ syncIcon: !p.syncIcon })),
       syncTrackStyle: this.trackStyle(s.syncIcon),
       syncKnobStyle: this.knobStyle(),
-      showHeaderTags: s.showHeaderTags,
-      toggleHeaderTags: () => this.setState(p => ({ showHeaderTags: !p.showHeaderTags })),
-      hdrTrackStyle: this.trackStyle(s.showHeaderTags),
-      hdrKnobStyle: this.knobStyle(),
-      // collapsible header-tags + property drawers (org)
-      hdrOpen: s.colHdr,
+      showPreface: s.showPreface,
+      togglePreface: () => this.setState(p => ({ showPreface: !p.showPreface })),
+      prefaceTrackStyle: this.trackStyle(s.showPreface),
+      prefaceKnobStyle: this.knobStyle(),
+      // collapsible preface + property drawers (org)
+      prefaceOpen: s.colPreface,
       filePropOpen: s.colFileProp,
       subPropOpen: s.colSubProp,
-      toggleHdr: () => this.setState(p => ({ colHdr: !p.colHdr })),
+      togglePrefaceOpen: () => this.setState(p => ({ colPreface: !p.colPreface })),
       toggleFileProp: () => this.setState(p => ({ colFileProp: !p.colFileProp })),
       toggleSubProp: () => this.setState(p => ({ colSubProp: !p.colSubProp })),
       collBoxStyle: 'font-family:\'IBM Plex Mono\',monospace; background:var(--surface-2); border-radius:10px; opacity:0.66; transition:opacity .15s ease;',
       collHeadStyle: 'display:flex; align-items:center; gap:8px; padding:8px 12px; cursor:pointer; user-select:none;',
       collLabelStyle: 'font-size:12px; color:var(--ink-3); letter-spacing:0.01em;',
       collHintStyle: 'font-size:11px; color:var(--ink-3); margin-left:auto;',
-      collCaretHdr: 'font-size:10px; color:var(--ink-3); width:10px; transition:transform .15s ease; transform:rotate(' + (s.colHdr ? 90 : 0) + 'deg);',
+      collCaretPreface: 'font-size:10px; color:var(--ink-3); width:10px; transition:transform .15s ease; transform:rotate(' + (s.colPreface ? 90 : 0) + 'deg);',
       collCaretFile: 'font-size:10px; color:var(--ink-3); width:10px; transition:transform .15s ease; transform:rotate(' + (s.colFileProp ? 90 : 0) + 'deg);',
       collCaretSub: 'font-size:10px; color:var(--ink-3); width:10px; transition:transform .15s ease; transform:rotate(' + (s.colSubProp ? 90 : 0) + 'deg);',
       collBodyStyle: 'padding:1px 12px 10px 30px; display:flex; flex-direction:column; gap:3px; font-size:12px; line-height:1.5;',
