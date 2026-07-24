@@ -150,8 +150,8 @@ class AppViewModel(private val app: GroveApplication) : ViewModel() {
     fun setOutlineToggle(toggle: OutlineToggle, enabled: Boolean) =
         viewModelScope.launch { settingsRepository.setOutlineToggle(toggle, enabled) }
 
-    fun setShowHeaderTags(enabled: Boolean) =
-        viewModelScope.launch { settingsRepository.setShowHeaderTags(enabled) }
+    fun setShowPreface(enabled: Boolean) =
+        viewModelScope.launch { settingsRepository.setShowPreface(enabled) }
 
     fun setShowPropertyDrawers(enabled: Boolean) =
         viewModelScope.launch { settingsRepository.setShowPropertyDrawers(enabled) }

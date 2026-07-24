@@ -47,7 +47,7 @@ data class GroveSettings(
     /** Ordered list of pinned notebook file names; first = topmost. */
     val pinnedNotebooks: List<String> = emptyList(),
     /** Read mode: show a collapsible section for file-level `#+` keyword lines. */
-    val showHeaderTags: Boolean = true,
+    val showPreface: Boolean = true,
     /** Read mode: show collapsible sections for `:PROPERTIES:` drawers. */
     val showPropertyDrawers: Boolean = true,
     /** Notebook list label: raw file name, or the `#+TITLE:` cached in the index. */
@@ -94,7 +94,7 @@ class SettingsRepository(private val context: Context) {
         val showTimestampsInOutline = booleanPreferencesKey("show_timestamps_in_outline")
         val showKeywordsInOutline = booleanPreferencesKey("show_keywords_in_outline")
         val pinnedNotebooks = stringPreferencesKey("pinned_notebooks")
-        val showHeaderTags = booleanPreferencesKey("show_header_tags")
+        val showPreface = booleanPreferencesKey("show_preface")
         val showPropertyDrawers = booleanPreferencesKey("show_property_drawers")
         val notebookDisplayNameMode = stringPreferencesKey("notebook_display_name_mode")
         val lastRefileFile = stringPreferencesKey("last_refile_file")
@@ -127,7 +127,7 @@ class SettingsRepository(private val context: Context) {
             showTimestampsInOutline = prefs[Keys.showTimestampsInOutline] ?: true,
             showKeywordsInOutline = prefs[Keys.showKeywordsInOutline] ?: true,
             pinnedNotebooks = decodePinnedList(prefs[Keys.pinnedNotebooks]),
-            showHeaderTags = prefs[Keys.showHeaderTags] ?: true,
+            showPreface = prefs[Keys.showPreface] ?: true,
             showPropertyDrawers = prefs[Keys.showPropertyDrawers] ?: true,
             notebookDisplayNameMode = NotebookDisplayNameMode.fromStorage(prefs[Keys.notebookDisplayNameMode]),
             lastRefileFile = prefs[Keys.lastRefileFile],
@@ -188,7 +188,7 @@ class SettingsRepository(private val context: Context) {
             p[Keys.showTimestampsInOutline] = s.showTimestampsInOutline
             p[Keys.showKeywordsInOutline] = s.showKeywordsInOutline
             p[Keys.pinnedNotebooks] = encodePinnedList(s.pinnedNotebooks)
-            p[Keys.showHeaderTags] = s.showHeaderTags
+            p[Keys.showPreface] = s.showPreface
             p[Keys.showPropertyDrawers] = s.showPropertyDrawers
             p[Keys.notebookDisplayNameMode] = s.notebookDisplayNameMode.storageKey
             p[Keys.checklistStates] = s.checklistStates.storageKey
@@ -268,8 +268,8 @@ class SettingsRepository(private val context: Context) {
         }
     }
 
-    suspend fun setShowHeaderTags(enabled: Boolean) {
-        context.settingsDataStore.edit { it[Keys.showHeaderTags] = enabled }
+    suspend fun setShowPreface(enabled: Boolean) {
+        context.settingsDataStore.edit { it[Keys.showPreface] = enabled }
     }
 
     suspend fun setShowPropertyDrawers(enabled: Boolean) {

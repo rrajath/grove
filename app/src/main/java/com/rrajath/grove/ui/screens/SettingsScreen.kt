@@ -69,7 +69,7 @@ fun SettingsScreen(
     onBack: () -> Unit,
     onSetTheme: (ThemePreference) -> Unit,
     onSetSyncAppIconWithTheme: (Boolean) -> Unit,
-    onSetShowHeaderTags: (Boolean) -> Unit,
+    onSetShowPreface: (Boolean) -> Unit,
     onSetShowPropertyDrawers: (Boolean) -> Unit,
     onSetFontSize: (FontSizePreference) -> Unit,
     onSetNoteOpenMode: (NoteOpenMode) -> Unit,
@@ -183,10 +183,10 @@ fun SettingsScreen(
                 )
                 RowDivider()
                 ToggleRow(
-                    label = "Show header tags",
+                    label = "Show preface",
                     description = "Display file-level #+ keywords in org files",
-                    checked = settings.showHeaderTags,
-                    onToggle = onSetShowHeaderTags,
+                    checked = settings.showPreface,
+                    onToggle = onSetShowPreface,
                 )
                 RowDivider()
                 ToggleRow(

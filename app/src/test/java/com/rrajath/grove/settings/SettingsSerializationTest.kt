@@ -28,7 +28,7 @@ class SettingsSerializationTest {
         showTimestampsInOutline = false,
         showKeywordsInOutline = true,
         pinnedNotebooks = listOf("pinned-first.org", "pinned-second.org"),
-        showHeaderTags = false,
+        showPreface = false,
         showPropertyDrawers = false,
         checklistStates = ChecklistStates.THREE,
         remindersEnabled = false,
@@ -63,7 +63,7 @@ class SettingsSerializationTest {
         assertEquals(sample.showTimestampsInOutline, restored.showTimestampsInOutline)
         assertEquals(sample.showKeywordsInOutline, restored.showKeywordsInOutline)
         assertEquals(sample.pinnedNotebooks, restored.pinnedNotebooks)
-        assertEquals(sample.showHeaderTags, restored.showHeaderTags)
+        assertEquals(sample.showPreface, restored.showPreface)
         assertEquals(sample.showPropertyDrawers, restored.showPropertyDrawers)
         assertEquals(sample.checklistStates, restored.checklistStates)
         assertEquals(sample.remindersEnabled, restored.remindersEnabled)

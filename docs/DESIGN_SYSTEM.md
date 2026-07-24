@@ -402,13 +402,13 @@ display mode, Checklist states).
 
 Collapsed-by-default, faded monospace key/value box (design/Grove.dc.html lines
 499-552, 1682+). Two call sites: the top of Outline for a notebook's file-level `#+`
-keyword lines (once per notebook, gated by the "Show header tags" Settings toggle), and
+keyword lines (once per notebook, gated by the "Show preface" Settings toggle), and
 Read mode for each heading's own `:PROPERTIES:` drawer (gated by "Show property
-drawers"). Read mode no longer shows file-level header tags — only its own drawer.
+drawers"). Read mode no longer shows the file-level preface — only its own drawer.
 
 ```kotlin
 CollapsibleKvSection(
-    label = "#+ header tags",           // or ":PROPERTIES:"
+    label = "PREFACE",           // or ":PROPERTIES:"
     entries = listOf("#+TITLE:" to "Kyoto — Day 2"),
     expanded = expanded,
     onToggle = { expanded = !expanded },
@@ -420,7 +420,7 @@ Header row (only tap target) is 8dp/12dp padding, 8dp gap, with a 10sp `ink3` ca
 that rotates 90° on expand (animated), a 12sp `ink3` label, and a right-aligned 11sp
 `ink3` count. Body (when expanded): 30dp/12dp/10dp padding, 3dp row gap, 12sp rows —
 key in `synKw`, value in `ink2`. Expansion state is per-section, in-memory (Outline's
-header-tags box persists its expanded state per-notebook via `rememberSaveable`).
+preface box persists its expanded state per-notebook via `rememberSaveable`).
 
 **When to use**: display-only metadata that shouldn't compete visually with note
 content — never mutates the underlying `.org` file.
