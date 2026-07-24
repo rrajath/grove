@@ -193,19 +193,15 @@ fun SettingsScreen(
                     )
                 }
                 RowDivider()
-                val modeLabel = if (settings.defaultNoteOpenMode == NoteOpenMode.READ) "Read" else "Edit"
                 SettingsRow(
                     label = "Default note mode",
-                    onClick = {
-                        onSetNoteOpenMode(
-                            if (settings.defaultNoteOpenMode == NoteOpenMode.READ) NoteOpenMode.EDIT
-                            else NoteOpenMode.READ
-                        )
-                    },
+                    description = "Open a note in read mode, or edit mode",
                 ) {
-                    Text(
-                        "$modeLabel ›",
-                        fontFamily = PlexSans, fontSize = 14.sp, color = c.ink2,
+                    SegmentedControl(
+                        options = listOf("Read", "Edit"),
+                        selectedIndex = settings.defaultNoteOpenMode.ordinal,
+                        onSelect = { onSetNoteOpenMode(NoteOpenMode.entries[it]) },
+                        modifier = Modifier.width(160.dp),
                     )
                 }
             }
@@ -339,7 +335,10 @@ fun SettingsScreen(
                     )
                 }
                 RowDivider()
-                SettingsRow(label = "Notebook display name") {
+                SettingsRow(
+                    label = "Notebook display name",
+                    description = "Filename: shown by filename. Title: shown by title, falling back to filename.",
+                ) {
                     SegmentedControl(
                         options = listOf("Filename", "Title"),
                         selectedIndex = settings.notebookDisplayNameMode.ordinal,
@@ -348,7 +347,10 @@ fun SettingsScreen(
                     )
                 }
                 RowDivider()
-                SettingsRow(label = "Checklist states") {
+                SettingsRow(
+                    label = "Checklist states",
+                    description = "2-state: [ ] → [x]. 3-state: [ ] → [-] → [x].",
+                ) {
                     SegmentedControl(
                         options = listOf("2-state", "3-state"),
                         selectedIndex = settings.checklistStates.ordinal,
@@ -359,12 +361,14 @@ fun SettingsScreen(
                 RowDivider()
                 ToggleRow(
                     label = "Add ID to new notes",
+                    description = "Adds an ID property to the property drawer when creating new notes",
                     checked = settings.addIdToNewNotes,
                     onToggle = onSetAddId,
                 )
                 RowDivider()
                 ToggleRow(
                     label = "Add CREATED timestamp",
+                    description = "Adds a CREATED property with the current timestamp when creating new notes",
                     checked = settings.addCreatedToNewNotes,
                     onToggle = onSetAddCreated,
                 )
@@ -470,6 +474,7 @@ private fun RowDivider() {
 @Composable
 private fun SettingsRow(
     label: String,
+    description: String? = null,
     onClick: (() -> Unit)? = null,
     trailing: @Composable () -> Unit,
 ) {
@@ -481,12 +486,20 @@ private fun SettingsRow(
             .padding(horizontal = 15.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            label,
-            fontFamily = PlexSans, fontWeight = FontWeight.Medium,
-            fontSize = 14.5.sp, color = MaterialTheme.grove.ink,
-            modifier = Modifier.weight(1f),
-        )
+        Column(Modifier.weight(1f)) {
+            Text(
+                label,
+                fontFamily = PlexSans, fontWeight = FontWeight.Medium,
+                fontSize = 14.5.sp, color = MaterialTheme.grove.ink,
+            )
+            if (description != null) {
+                Text(
+                    description,
+                    fontFamily = PlexSans, fontSize = 12.sp, color = MaterialTheme.grove.ink2,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
+            }
+        }
         trailing()
     }
 }
