@@ -1,6 +1,7 @@
 package com.rrajath.grove.ui.screens
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -48,6 +49,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -598,30 +601,52 @@ private fun OutlineNode(
             ),
         verticalAlignment = Alignment.Top,
     ) {
-        // Caret (tap target toggles fold)
-        Box(
-            Modifier
-                .size(22.dp)
-                .clip(RoundedCornerShape(6.dp))
-                .clickable(enabled = hasChildren, onClick = onToggle),
-            contentAlignment = Alignment.Center,
-        ) {
+        // Caret + asterisk centered together so the caret sits on the same
+        // line as the level markers, independent of the title's own height.
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            // Drawn on a Canvas rather than as ○/▸/▾ glyphs: those characters'
+            // ink sits at different offsets within their own line box depending
+            // on glyph and font size, so Box's contentAlignment=Center couldn't
+            // make all three states line up with each other or the asterisk.
+            Box(
+                Modifier
+                    .size(22.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .clickable(enabled = hasChildren, onClick = onToggle),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (hasChildren) {
+                    Canvas(Modifier.size(9.dp)) {
+                        val path = if (isCollapsed) {
+                            Path().apply {
+                                moveTo(0f, 0f)
+                                lineTo(0f, size.height)
+                                lineTo(size.width, size.height / 2f)
+                                close()
+                            }
+                        } else {
+                            Path().apply {
+                                moveTo(0f, 0f)
+                                lineTo(size.width, 0f)
+                                lineTo(size.width / 2f, size.height)
+                                close()
+                            }
+                        }
+                        drawPath(path, color = c.ink3)
+                    }
+                } else {
+                    Canvas(Modifier.size(7.dp)) {
+                        drawCircle(color = c.ink3, style = Stroke(width = 1.2.dp.toPx()))
+                    }
+                }
+            }
+            Spacer(Modifier.width(4.dp))
             Text(
-                when {
-                    !hasChildren -> "○"
-                    isCollapsed -> "▸"
-                    else -> "▾"
-                },
-                fontFamily = PlexMono, fontSize = if (hasChildren) 12.sp else 8.sp,
-                color = c.ink3,
+                "*".repeat(headline.level),
+                fontFamily = PlexMono, fontWeight = FontWeight.SemiBold,
+                fontSize = 13.sp, color = c.starColor(headline.level),
             )
         }
-        Spacer(Modifier.width(4.dp))
-        Text(
-            "*".repeat(headline.level),
-            fontFamily = PlexMono, fontWeight = FontWeight.SemiBold,
-            fontSize = 13.sp, color = c.starColor(headline.level),
-        )
         Spacer(Modifier.width(7.dp))
         Column(Modifier.weight(1f)) {
             // Baseline-aligned so the keyword/priority chips sit on the first

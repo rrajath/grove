@@ -31,7 +31,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
@@ -118,7 +121,7 @@ fun ConflictScreen(
                 Spacer(Modifier.height(16.dp))
 
                 UnifiedDiffCard(
-                    header = "CURRENT VERSION → CONFLICT COPY · ${s.copyLabel}",
+                    dateLabel = s.copyLabel,
                     current = s.currentText,
                     copy = s.copyText,
                 )
@@ -181,12 +184,17 @@ private fun computeUnifiedDiff(current: String, copy: String): List<DiffRow> {
 }
 
 @Composable
-private fun UnifiedDiffCard(header: String, current: String, copy: String) {
+private fun UnifiedDiffCard(dateLabel: String, current: String, copy: String) {
     val c = MaterialTheme.grove
     val rows = remember(current, copy) { computeUnifiedDiff(current, copy) }
     Column {
         Text(
-            header,
+            buildAnnotatedString {
+                withStyle(SpanStyle(color = c.red)) { append("CURRENT VERSION") }
+                append(" → ")
+                withStyle(SpanStyle(color = c.green)) { append("CONFLICT COPY") }
+                append(" · $dateLabel")
+            },
             fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
             fontSize = 12.sp, letterSpacing = 0.8.sp, color = c.ink3,
             modifier = Modifier.padding(bottom = 6.dp),

@@ -206,7 +206,7 @@ fun ThemeDropdownPicker(
             Text(
                 "▾",
                 color = c.ink3,
-                fontSize = 11.sp,
+                fontSize = 16.5.sp,
                 modifier = Modifier.graphicsLayer { rotationZ = chevronAngle },
             )
         }
