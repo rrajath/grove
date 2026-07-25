@@ -18,12 +18,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -76,7 +74,7 @@ import com.rrajath.grove.ui.components.GroveTopBar
 import com.rrajath.grove.ui.components.Pill
 import com.rrajath.grove.ui.components.SegmentedControl
 import com.rrajath.grove.ui.components.annotateOrgInline
-import com.rrajath.grove.ui.components.autoScrollWhileDragging
+import com.rrajath.grove.ui.components.autoScrollWhileSelecting
 import com.rrajath.grove.ui.components.doubleTapToEdit
 import com.rrajath.grove.ui.components.linkPressHandler
 import com.rrajath.grove.ui.components.orgInlineLinks
@@ -160,12 +158,12 @@ fun ReadNoteScreen(
                         contentAlignment = Alignment.Center,
                     ) { Text("Note not found", color = c.ink2) }
                 } else {
-                    val listState = rememberLazyListState()
+                    val scrollState = rememberScrollState()
                     Box(Modifier.fillMaxSize().padding(padding)) {
                         NoteContent(
                             doc = doc,
                             headline = headline,
-                            listState = listState,
+                            scrollState = scrollState,
                             modifier = Modifier
                                 .fillMaxSize()
                                 // Fallback: double-tap on blank space (not over any
@@ -186,7 +184,7 @@ fun ReadNoteScreen(
                             favoriteLines = favoriteLines,
                         )
                         ScrollJumpButtons(
-                            listState = listState,
+                            scrollState = scrollState,
                             modifier = Modifier
                                 .align(Alignment.BottomEnd)
                                 .padding(16.dp),
@@ -206,7 +204,7 @@ private fun NoteContent(
     onOpenNote: (NoteRef) -> Unit,
     onEditAt: () -> Unit,
     onToggleCheckbox: (Int) -> Unit,
-    listState: LazyListState,
+    scrollState: ScrollState,
     modifier: Modifier = Modifier,
     showPropertyDrawers: Boolean = true,
     favoriteLines: Set<Int> = emptySet(),
@@ -245,97 +243,93 @@ private fun NoteContent(
     Box(
         Modifier
             .onGloballyPositioned { boxCoords = it }
-            .autoScrollWhileDragging(listState)
+            .autoScrollWhileSelecting(scrollState)
     ) {
-        LazyColumn(
-            state = listState,
-            modifier = modifier,
-            contentPadding = PaddingValues(horizontal = 24.dp),
-        ) {
-            item(key = "header", contentType = "header") {
-                SelectionContainer {
-                    Column {
-                        Spacer(Modifier.height(8.dp))
+        // One SelectionContainer for the whole note, placed *outside* the
+        // scrolling Column. Both parts matter: a single container lets a
+        // selection run from the note's own body into its subtree, and keeping
+        // it outside the scroll means Compose resolves a drag against
+        // viewport-fixed coordinates — so auto-scrolling under a held finger
+        // keeps extending the selection instead of pinning it to one character.
+        SelectionContainer(modifier) {
+            Column(
+                Modifier
+                    .verticalScroll(scrollState)
+                    .padding(horizontal = 24.dp),
+            ) {
+                Spacer(Modifier.height(8.dp))
 
-                        // Tag chips
-                        if (tags.isNotEmpty()) {
-                            Row {
-                                tags.forEach { tag ->
-                                    Pill(tag, fg = c.accent, bg = c.accentSoft)
-                                    Spacer(Modifier.width(7.dp))
-                                }
-                            }
-                            Spacer(Modifier.height(12.dp))
+                // Tag chips
+                if (tags.isNotEmpty()) {
+                    Row {
+                        tags.forEach { tag ->
+                            Pill(tag, fg = c.accent, bg = c.accentSoft)
+                            Spacer(Modifier.width(7.dp))
                         }
+                    }
+                    Spacer(Modifier.height(12.dp))
+                }
 
-                        // Title
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            headline.keyword?.let { kw ->
-                                val (fg, bg) = if (doc.keywords.isDone(kw)) c.green to c.greenSoft
-                                else c.amber to c.amberSoft
-                                Pill(kw, fg = fg, bg = bg)
-                                Spacer(Modifier.width(8.dp))
-                            }
-                        }
-                        Row(verticalAlignment = Alignment.Top) {
-                            OrgText(
-                                headline.title, onOpenLink = openLink, onLinkLongPress = onLinkLongPress,
-                                onDoubleTapAt = onEditAt,
-                                style = TextStyle(
-                                    fontFamily = PlexSerif, fontWeight = FontWeight.SemiBold,
-                                    fontSize = 25.sp, color = c.ink, lineHeight = 1.3.em,
-                                ),
-                                modifier = Modifier.weight(1f),
-                            )
-                            if (headline.lineIndex in favoriteLines) {
-                                Spacer(Modifier.width(8.dp))
-                                FavoriteStar(modifier = Modifier.padding(top = 8.dp))
-                            }
-                        }
-
-                        // Created / planning metadata
-                        headline.properties["CREATED"]?.let { created ->
-                            Spacer(Modifier.height(6.dp))
-                            Text("Created $created", fontFamily = PlexMono, fontSize = 12.5.sp, color = c.ink3)
-                        }
-
-                        // Note's own :PROPERTIES: drawer.
-                        if (showPropertyDrawers && headline.properties.isNotEmpty()) {
-                            Spacer(Modifier.height(10.dp))
-                            CollapsibleKvSection(
-                                label = ":PROPERTIES:",
-                                entries = headline.properties.map { (k, v) -> ":$k:" to v },
-                                expanded = collapsibleExpanded["own"] == true,
-                                onToggle = {
-                                    collapsibleExpanded["own"] = collapsibleExpanded["own"] != true
-                                },
-                            )
-                            Spacer(Modifier.height(20.dp))
-                        }
-
-                        headline.planning.scheduled?.let {
-                            Spacer(Modifier.height(6.dp))
-                            PlanningChip("SCHEDULED: ${it.format()}", fg = c.blue, bg = c.blueSoft)
-                        }
-                        headline.planning.deadline?.let {
-                            Spacer(Modifier.height(6.dp))
-                            PlanningChip("DEADLINE: ${it.format()}", fg = c.red, bg = c.redSoft)
-                        }
-                        Spacer(Modifier.height(16.dp))
-
-                        // Own body
-                        BodyBlocks(ownBody, headline.bodyStart, onToggleCheckbox, openLink, onLinkLongPress, onEditAt)
+                // Title
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    headline.keyword?.let { kw ->
+                        val (fg, bg) = if (doc.keywords.isDone(kw)) c.green to c.greenSoft
+                        else c.amber to c.amberSoft
+                        Pill(kw, fg = fg, bg = bg)
+                        Spacer(Modifier.width(8.dp))
                     }
                 }
-            }
+                Row(verticalAlignment = Alignment.Top) {
+                    OrgText(
+                        headline.title, onOpenLink = openLink, onLinkLongPress = onLinkLongPress,
+                        onDoubleTapAt = onEditAt,
+                        style = TextStyle(
+                            fontFamily = PlexSerif, fontWeight = FontWeight.SemiBold,
+                            fontSize = 25.sp, color = c.ink, lineHeight = 1.3.em,
+                        ),
+                        modifier = Modifier.weight(1f),
+                    )
+                    if (headline.lineIndex in favoriteLines) {
+                        Spacer(Modifier.width(8.dp))
+                        FavoriteStar(modifier = Modifier.padding(top = 8.dp))
+                    }
+                }
 
-            // Subtree rendered inline, headings sized by relative depth
-            items(
-                children,
-                key = { (child, _) -> child.lineIndex },
-                contentType = { "child" },
-            ) { (child, body) ->
-                SelectionContainer {
+                // Created / planning metadata
+                headline.properties["CREATED"]?.let { created ->
+                    Spacer(Modifier.height(6.dp))
+                    Text("Created $created", fontFamily = PlexMono, fontSize = 12.5.sp, color = c.ink3)
+                }
+
+                // Note's own :PROPERTIES: drawer.
+                if (showPropertyDrawers && headline.properties.isNotEmpty()) {
+                    Spacer(Modifier.height(10.dp))
+                    CollapsibleKvSection(
+                        label = ":PROPERTIES:",
+                        entries = headline.properties.map { (k, v) -> ":$k:" to v },
+                        expanded = collapsibleExpanded["own"] == true,
+                        onToggle = {
+                            collapsibleExpanded["own"] = collapsibleExpanded["own"] != true
+                        },
+                    )
+                    Spacer(Modifier.height(20.dp))
+                }
+
+                headline.planning.scheduled?.let {
+                    Spacer(Modifier.height(6.dp))
+                    PlanningChip("SCHEDULED: ${it.format()}", fg = c.blue, bg = c.blueSoft)
+                }
+                headline.planning.deadline?.let {
+                    Spacer(Modifier.height(6.dp))
+                    PlanningChip("DEADLINE: ${it.format()}", fg = c.red, bg = c.redSoft)
+                }
+                Spacer(Modifier.height(16.dp))
+
+                // Own body
+                BodyBlocks(ownBody, headline.bodyStart, onToggleCheckbox, openLink, onLinkLongPress, onEditAt)
+
+                // Subtree rendered inline, headings sized by relative depth
+                children.forEach { (child, body) ->
                     Column {
                         Spacer(Modifier.height(20.dp))
                         val rel = (child.level - headline.level).coerceAtLeast(1)
@@ -385,9 +379,7 @@ private fun NoteContent(
                         BodyBlocks(body, child.bodyStart, onToggleCheckbox, openLink, onLinkLongPress, onEditAt)
                     }
                 }
-            }
 
-            item(key = "footer", contentType = "footer") {
                 Spacer(Modifier.height(40.dp))
             }
         }
