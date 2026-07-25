@@ -7,7 +7,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -24,7 +23,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.AlertDialog
@@ -50,8 +50,6 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -70,11 +68,12 @@ import com.rrajath.grove.org.LineEditing
 import com.rrajath.grove.org.OrgTimestamp
 import com.rrajath.grove.ui.components.GroveTopBar
 import com.rrajath.grove.ui.components.Pill
-import com.rrajath.grove.ui.components.autoScrollWhileDragging
 import com.rrajath.grove.ui.editor.AutoSaveTimestamp
 import com.rrajath.grove.ui.editor.EditorToolbar
 import kotlinx.coroutines.delay
-import com.rrajath.grove.ui.editor.OrgVisualTransformation
+import com.rrajath.grove.ui.editor.OrgInputTransformation
+import com.rrajath.grove.ui.editor.OrgSyntaxHighlight
+import com.rrajath.grove.ui.editor.applyEdit
 import com.rrajath.grove.ui.editor.insertAtCursor
 import com.rrajath.grove.ui.editor.insertLinkTemplate
 import com.rrajath.grove.ui.editor.wrapSelection
@@ -155,13 +154,15 @@ fun CaptureEditorScreen(
         )
     }
     val initialText = remember(expanded) { expanded.text }
-    var value by remember(expanded) {
-        mutableStateOf(TextFieldValue(expanded.text, TextRange(expanded.cursorOffset)))
+    val textState = remember(expanded) {
+        TextFieldState(expanded.text, TextRange(expanded.cursorOffset))
     }
+    // Snapshot-backed, so every keystroke recomposes the draft-dependent UI
+    // (auto-save indicator, discard prompt) just as the old TextFieldValue did.
+    val draftText = textState.text.toString()
     val focusRequester = remember { FocusRequester() }
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
     val scrollState = rememberScrollState()
-    var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
 
     var showDiscardDialog by remember { mutableStateOf(false) }
     var showEmptyHeadingAlert by remember { mutableStateOf(false) }
@@ -186,7 +187,7 @@ fun CaptureEditorScreen(
     }
 
     fun tryClose() {
-        if (value.text != initialText) showDiscardDialog = true else onClose()
+        if (draftText != initialText) showDiscardDialog = true else onClose()
     }
 
     fun discard() {
@@ -194,29 +195,25 @@ fun CaptureEditorScreen(
         onClose()
     }
 
-    fun applyEdit(newValue: TextFieldValue) {
-        value = newValue
-    }
-
     // Idle auto-save: wait for a 5s pause in typing before persisting the
     // draft. A note with no heading yet (just the auto-inserted "* ") is
     // skipped rather than saved — the same blank-heading state that blocks
     // the explicit Save button in trySave() below, so autosave never writes
     // a heading-less entry the user hasn't confirmed.
-    LaunchedEffect(value.text) {
+    LaunchedEffect(draftText) {
         delay(5_000)
-        if (value.text != initialText && !CaptureInserter.hasBlankHeading(value.text)) {
-            viewModel.autosave(template, value.text, context)
+        if (draftText != initialText && !CaptureInserter.hasBlankHeading(draftText)) {
+            viewModel.autosave(template, draftText, context)
             lastAutoSavedAt = LocalTime.now()
-            lastAutoSavedText = value.text
+            lastAutoSavedText = draftText
         }
     }
 
     fun trySave() {
-        if (CaptureInserter.hasBlankHeading(value.text)) {
+        if (CaptureInserter.hasBlankHeading(draftText)) {
             showEmptyHeadingAlert = true
         } else {
-            viewModel.save(template, value.text, context)
+            viewModel.save(template, draftText, context)
         }
     }
 
@@ -241,7 +238,7 @@ fun CaptureEditorScreen(
                             // Green while the draft matches what's on disk (and
                             // blinks right after a save); grey again the moment a
                             // keystroke makes it dirty, until the next auto-save.
-                            tint = if (value.text != lastAutoSavedText) c.ink3 else c.green,
+                            tint = if (draftText != lastAutoSavedText) c.ink3 else c.green,
                             modifier = Modifier
                                 .alpha(checkAlpha.value)
                                 .clip(RoundedCornerShape(10.dp))
@@ -284,61 +281,26 @@ fun CaptureEditorScreen(
                     modifier = Modifier.padding(horizontal = 18.dp, vertical = 6.dp),
                 )
             }
-            BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().autoScrollWhileDragging(scrollState)) {
-                val density = LocalDensity.current
-                val viewportHeightPx = remember(maxHeight, density) {
-                    with(density) { maxHeight.toPx() }.toInt()
-                }
-                val editorPaddingPx = remember(density) {
-                    with(density) { 20.dp.toPx() }.toInt()
-                }
-
-                LaunchedEffect(value.selection, textLayoutResult, viewportHeightPx) {
-                    val layout = textLayoutResult ?: return@LaunchedEffect
-                    if (value.text.isEmpty()) return@LaunchedEffect
-                    // Track selection.end so dragging a selection also scrolls.
-                    val offset = value.selection.end.coerceIn(0, value.text.length)
-                    val rect = layout.getCursorRect(offset)
-                    val cursorTop = editorPaddingPx + rect.top.toInt()
-                    val cursorBottom = editorPaddingPx + rect.bottom.toInt()
-                    val buffer = 56 // px breathing room above/below cursor
-
-                    when {
-                        cursorBottom > scrollState.value + viewportHeightPx - buffer ->
-                            scrollState.animateScrollTo(cursorBottom - viewportHeightPx + buffer)
-                        cursorTop < scrollState.value + buffer ->
-                            scrollState.animateScrollTo(maxOf(0, cursorTop - buffer))
-                    }
-                }
-
+            Box(Modifier.weight(1f).fillMaxWidth()) {
+                // The field owns its own vertical scrolling (rather than being
+                // wrapped in Modifier.verticalScroll): that is what lets Compose
+                // auto-scroll while a selection handle is dragged past the top or
+                // bottom edge, and keeps the cursor visible when the keyboard
+                // shrinks the viewport.
                 BasicTextField(
-                    value = value,
-                    onValueChange = { newValue ->
-                        val continued = LineEditing.continueListOnEnter(
-                            value.text, newValue.text, newValue.selection.start,
-                        )
-                        val effective =
-                            if (continued != null) TextFieldValue(continued.text, TextRange(continued.cursor))
-                            else newValue
-                        val capitalized = LineEditing.capitalizeHeadingOnType(
-                            value.text, effective.text, effective.selection.start,
-                        )
-                        applyEdit(
-                            if (capitalized != null) TextFieldValue(capitalized.text, TextRange(capitalized.cursor))
-                            else effective
-                        )
-                    },
+                    state = textState,
+                    inputTransformation = OrgInputTransformation,
+                    outputTransformation = remember(c, keywords) { OrgSyntaxHighlight(c, keywords) },
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                    lineLimits = TextFieldLineLimits.MultiLine(),
                     textStyle = TextStyle(
                         fontFamily = PlexMono, fontSize = 14.sp,
                         lineHeight = 1.9.em, color = c.ink,
                     ),
                     cursorBrush = SolidColor(c.accent),
-                    visualTransformation = remember(c, keywords) { OrgVisualTransformation(c, keywords) },
-                    onTextLayout = { textLayoutResult = it },
+                    scrollState = scrollState,
                     modifier = Modifier
                         .fillMaxSize()
-                        .verticalScroll(scrollState)
                         .padding(start = 20.dp, top = 20.dp, end = 20.dp, bottom = 80.dp)
                         .focusRequester(focusRequester),
                 )
@@ -363,16 +325,19 @@ fun CaptureEditorScreen(
                 }
             }
             EditorToolbar(
-                onWrap = { marker -> applyEdit(wrapSelection(value, marker)) },
-                onInsert = { snippet -> applyEdit(insertAtCursor(value, snippet)) },
-                onLink = { applyEdit(insertLinkTemplate(value)) },
+                onWrap = { marker -> textState.applyEdit { wrapSelection(it, marker) } },
+                onInsert = { snippet -> textState.applyEdit { insertAtCursor(it, snippet) } },
+                onLink = { textState.applyEdit(::insertLinkTemplate) },
                 onHeading = {
-                    val edit = LineEditing.insertHeadingStar(value.text, value.selection.start)
-                    applyEdit(TextFieldValue(edit.text, TextRange(edit.cursor)))
+                    textState.applyEdit {
+                        val edit = LineEditing.insertHeadingStar(it.text, it.selection.start)
+                        TextFieldValue(edit.text, TextRange(edit.cursor))
+                    }
                 },
                 onIndent = { delta ->
-                    LineEditing.changeListIndent(value.text, value.selection.start, delta)?.let {
-                        applyEdit(TextFieldValue(it.text, TextRange(it.cursor)))
+                    textState.applyEdit {
+                        LineEditing.changeListIndent(it.text, it.selection.start, delta)
+                            ?.let { edit -> TextFieldValue(edit.text, TextRange(edit.cursor)) }
                     }
                 },
             )
