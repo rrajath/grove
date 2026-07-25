@@ -7,7 +7,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
@@ -25,7 +24,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Icon
@@ -38,8 +38,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -49,7 +49,6 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -64,7 +63,6 @@ import com.rrajath.grove.org.OrgTimestamp
 import com.rrajath.grove.reminders.ReminderNotification
 import com.rrajath.grove.ui.components.GroveTopBar
 import com.rrajath.grove.ui.components.PlanningDatePicker
-import com.rrajath.grove.ui.components.autoScrollWhileDragging
 import com.rrajath.grove.ui.components.ScrollJumpButtons
 import com.rrajath.grove.ui.components.SegmentedControl
 import com.rrajath.grove.ui.screens.IconGlyph
@@ -102,7 +100,7 @@ fun EditNoteScreen(
     val c = MaterialTheme.grove
     val context = LocalContext.current
     val state by viewModel.state.collectAsStateWithLifecycle()
-    var value by remember { mutableStateOf(TextFieldValue("")) }
+    val textState = rememberTextFieldState()
     var metadataOpen by remember { mutableStateOf(false) }
     var confirmLeave by remember { mutableStateOf(false) }
     var showEmptyHeadingAlert by remember { mutableStateOf(false) }
@@ -113,12 +111,27 @@ fun EditNoteScreen(
     // Blinks the check mark twice on each auto-save instead of a toast; tapping
     // the check mark still shows the "saved at" toast on demand.
     val checkAlpha = remember { Animatable(1f) }
-    var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
     val focusRequester = remember { FocusRequester() }
-    // Tracks the buffer the text field's `value` already reflects, so the
+    // Tracks the buffer the text field already reflects, so the
     // external-mutation sync effect below doesn't clobber the deliberate
     // divergence (appended blank body line) set for a fresh FAB-created note.
+    // Null until the note has been loaded into the field.
     var syncedBuffer by remember { mutableStateOf<String?>(null) }
+    // Text last written into the field programmatically (initial load, metadata
+    // sheet rewrite). The snapshotFlow below echoes every write straight back;
+    // that echo must not be reported as a user edit, which would wrongly mark a
+    // freshly opened note dirty. Cleared once consumed, so a later real edit
+    // that happens to restore the same text is still reported.
+    var echoToSkip by remember { mutableStateOf<String?>(null) }
+
+    /** Replace the field's contents without it counting as a user edit. */
+    fun setText(text: String, cursor: TextRange) {
+        echoToSkip = text
+        textState.edit {
+            replace(0, length, text)
+            selection = cursor
+        }
+    }
 
     /** Validate heading before saving; shows alert if blank, otherwise saves. */
     fun trySave(onSaved: () -> Unit) {
@@ -149,12 +162,12 @@ fun EditNoteScreen(
                 // line and park the cursor there so the keyboard opens ready
                 // for content, instead of on the heading line.
                 val bodyText = state.buffer + "\n"
-                value = TextFieldValue(bodyText, TextRange(bodyText.length))
+                setText(bodyText, TextRange(bodyText.length))
             } else {
                 val cursor = state.buffer.length.coerceAtMost(
                     state.buffer.indexOf('\n').let { if (it == -1) state.buffer.length else it },
                 )
-                value = TextFieldValue(state.buffer, TextRange(cursor))
+                setText(state.buffer, TextRange(cursor))
             }
             syncedBuffer = state.buffer
             if (isNewNote) focusRequester.requestFocus()
@@ -162,17 +175,24 @@ fun EditNoteScreen(
     }
     // Metadata-sheet mutations rewrite the buffer outside the text field.
     LaunchedEffect(state.buffer) {
-        if (state.buffer != syncedBuffer && state.buffer != value.text) {
-            value = TextFieldValue(state.buffer, TextRange(value.selection.start.coerceAtMost(state.buffer.length)))
+        if (state.buffer != syncedBuffer && state.buffer != textState.text.toString()) {
+            setText(state.buffer, TextRange(textState.selection.start.coerceAtMost(state.buffer.length)))
         }
         syncedBuffer = state.buffer
     }
-    val transformation = remember(c, state.keywords) { OrgVisualTransformation(c, state.keywords) }
-
-    fun applyEdit(newValue: TextFieldValue) {
-        value = newValue
-        viewModel.onBufferChange(newValue.text)
+    // Report the user's own edits back to the view model. Programmatic writes
+    // (setText above) are filtered out, so only real typing marks the note dirty.
+    LaunchedEffect(Unit) {
+        snapshotFlow { textState.text.toString() }.collect { text ->
+            if (syncedBuffer == null) return@collect
+            if (text == echoToSkip) {
+                echoToSkip = null
+                return@collect
+            }
+            viewModel.onBufferChange(text)
+        }
     }
+    val highlight = remember(c, state.keywords) { OrgSyntaxHighlight(c, state.keywords) }
 
     // Idle auto-save: wait for a 5s pause in typing, then save if the buffer
     // still has unsaved changes. Re-keying on the buffer text resets the
@@ -194,22 +214,6 @@ fun EditNoteScreen(
             checkAlpha.animateTo(0.15f, tween(120))
             checkAlpha.animateTo(1f, tween(120))
         }
-    }
-
-    fun onTextChange(newValue: TextFieldValue) {
-        val continued = LineEditing.continueListOnEnter(
-            value.text, newValue.text, newValue.selection.start,
-        )
-        val effective =
-            if (continued != null) TextFieldValue(continued.text, TextRange(continued.cursor))
-            else newValue
-        val capitalized = LineEditing.capitalizeHeadingOnType(
-            value.text, effective.text, effective.selection.start,
-        )
-        applyEdit(
-            if (capitalized != null) TextFieldValue(capitalized.text, TextRange(capitalized.cursor))
-            else effective
-        )
     }
 
     val scrollState = rememberScrollState()
@@ -284,55 +288,28 @@ fun EditNoteScreen(
                 )
             }
             Box(Modifier.weight(1f).fillMaxWidth()) {
-                BoxWithConstraints(Modifier.fillMaxSize().autoScrollWhileDragging(scrollState)) {
-                    val density = LocalDensity.current
-                    val viewportHeightPx = remember(maxHeight, density) {
-                        with(density) { maxHeight.toPx() }.toInt()
-                    }
-                    val editorPaddingPx = remember(density) {
-                        with(density) { 18.dp.toPx() }.toInt()
-                    }
-
-                    // Keep the cursor in view when it's near the bottom edge and
-                    // the keyboard is covering it — the keyboard shrinks the
-                    // viewport but doesn't itself trigger a scroll.
-                    LaunchedEffect(value.selection, textLayoutResult, viewportHeightPx) {
-                        val layout = textLayoutResult ?: return@LaunchedEffect
-                        if (value.text.isEmpty()) return@LaunchedEffect
-                        // textLayoutResult can lag one frame behind `value` (e.g. rapid
-                        // programmatic input, or the FAB new-note cursor jump) — clamp to
-                        // what the layout was actually computed against, not the live text.
-                        val offset = value.selection.end.coerceIn(0, layout.layoutInput.text.length)
-                        val rect = layout.getCursorRect(offset)
-                        val cursorTop = editorPaddingPx + rect.top.toInt()
-                        val cursorBottom = editorPaddingPx + rect.bottom.toInt()
-                        val buffer = 56
-                        when {
-                            cursorBottom > scrollState.value + viewportHeightPx - buffer ->
-                                scrollState.animateScrollTo(cursorBottom - viewportHeightPx + buffer)
-                            cursorTop < scrollState.value + buffer ->
-                                scrollState.animateScrollTo(maxOf(0, cursorTop - buffer))
-                        }
-                    }
-
-                    BasicTextField(
-                        value = value,
-                        onValueChange = ::onTextChange,
-                        visualTransformation = transformation,
-                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-                        textStyle = TextStyle(
-                            fontFamily = PlexMono, fontSize = 13.5.sp,
-                            lineHeight = 1.85.em, color = c.ink,
-                        ),
-                        cursorBrush = SolidColor(c.accent),
-                        onTextLayout = { textLayoutResult = it },
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .verticalScroll(scrollState)
-                            .padding(18.dp)
-                            .focusRequester(focusRequester),
-                    )
-                }
+                // The field owns its own vertical scrolling (rather than being
+                // wrapped in Modifier.verticalScroll): that is what lets Compose
+                // auto-scroll while a selection handle is dragged past the top or
+                // bottom edge, and keeps the cursor visible when the keyboard
+                // shrinks the viewport.
+                BasicTextField(
+                    state = textState,
+                    inputTransformation = OrgInputTransformation,
+                    outputTransformation = highlight,
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                    lineLimits = TextFieldLineLimits.MultiLine(),
+                    textStyle = TextStyle(
+                        fontFamily = PlexMono, fontSize = 13.5.sp,
+                        lineHeight = 1.85.em, color = c.ink,
+                    ),
+                    cursorBrush = SolidColor(c.accent),
+                    scrollState = scrollState,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(18.dp)
+                        .focusRequester(focusRequester),
+                )
                 ScrollJumpButtons(
                     scrollState = scrollState,
                     minScrollDeltaPx = scrollButtonThresholdPx,
@@ -342,16 +319,19 @@ fun EditNoteScreen(
                 )
             }
             EditorToolbar(
-                onWrap = { marker -> applyEdit(wrapSelection(value, marker)) },
-                onInsert = { snippet -> applyEdit(insertAtCursor(value, snippet)) },
-                onLink = { applyEdit(insertLinkTemplate(value)) },
+                onWrap = { marker -> textState.applyEdit { wrapSelection(it, marker) } },
+                onInsert = { snippet -> textState.applyEdit { insertAtCursor(it, snippet) } },
+                onLink = { textState.applyEdit(::insertLinkTemplate) },
                 onHeading = {
-                    val edit = LineEditing.insertHeadingStar(value.text, value.selection.start)
-                    applyEdit(TextFieldValue(edit.text, TextRange(edit.cursor)))
+                    textState.applyEdit {
+                        val edit = LineEditing.insertHeadingStar(it.text, it.selection.start)
+                        TextFieldValue(edit.text, TextRange(edit.cursor))
+                    }
                 },
                 onIndent = { delta ->
-                    LineEditing.changeListIndent(value.text, value.selection.start, delta)?.let {
-                        applyEdit(TextFieldValue(it.text, TextRange(it.cursor)))
+                    textState.applyEdit {
+                        LineEditing.changeListIndent(it.text, it.selection.start, delta)
+                            ?.let { edit -> TextFieldValue(edit.text, TextRange(edit.cursor)) }
                     }
                 },
             )

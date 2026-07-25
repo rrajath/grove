@@ -1,13 +1,10 @@
 package com.rrajath.grove.ui.editor
 
-import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.foundation.text.input.OutputTransformation
+import androidx.compose.foundation.text.input.TextFieldBuffer
 import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.OffsetMapping
-import androidx.compose.ui.text.input.TransformedText
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextDecoration
 import com.rrajath.grove.org.InlineTokenizer
 import com.rrajath.grove.org.InlineType
@@ -17,41 +14,29 @@ import com.rrajath.grove.ui.theme.starColor
 
 /**
  * Highlight-only syntax colouring for the raw org editor (design spec §6).
- * Text is never altered, so [OffsetMapping.Identity] applies — cursor math
- * stays trivial and fast.
+ * Applied as an [OutputTransformation]: it only ever adds [SpanStyle] spans and
+ * never inserts or removes characters, so presented offsets map 1:1 onto the
+ * underlying text and cursor math stays trivial.
  */
-class OrgVisualTransformation(
+class OrgSyntaxHighlight(
     private val colors: GroveColors,
     private val keywords: OrgKeywords,
-) : VisualTransformation {
+) : OutputTransformation {
 
     /** Span styles relative to the start of one line — cacheable across edits. */
     private data class LineSpan(val style: SpanStyle, val start: Int, val end: Int)
 
-    // Compose calls filter() repeatedly (often several times per frame) with the
-    // same text; cache the last full result. Across keystrokes only one line
-    // changes, so tokenization results are additionally cached per line content —
-    // a keystroke re-tokenizes the edited line, not the whole buffer.
-    private var cachedRaw: String? = null
-    private var cachedResult: TransformedText? = null
+    // Across keystrokes only one line changes, so tokenization results are
+    // cached per line content — a keystroke re-tokenizes the edited line, not
+    // the whole buffer.
     private var lineCache = HashMap<String, List<LineSpan>>()
 
-    override fun filter(text: AnnotatedString): TransformedText {
-        val raw = text.text
-        cachedResult?.let { if (raw == cachedRaw) return it }
-        val result = TransformedText(highlight(raw), OffsetMapping.Identity)
-        cachedRaw = raw
-        cachedResult = result
-        return result
-    }
-
-    fun highlight(raw: String): AnnotatedString = buildAnnotatedString {
-        append(raw)
+    override fun TextFieldBuffer.transformOutput() {
         // Rebuilt each pass from the previous cache so entries for deleted
         // lines don't accumulate over a long editing session.
         val next = HashMap<String, List<LineSpan>>()
         var lineStart = 0
-        for (line in raw.lineSequence()) {
+        for (line in toString().lineSequence()) {
             val spans = next[line] ?: lineCache[line] ?: styleLine(line)
             next[line] = spans
             for (s in spans) addStyle(s.style, lineStart + s.start, lineStart + s.end)
