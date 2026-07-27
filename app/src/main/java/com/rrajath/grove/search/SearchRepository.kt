@@ -9,28 +9,16 @@ import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 import java.util.UUID
 
 private val Context.searchDataStore: DataStore<Preferences> by preferencesDataStore(name = "search")
 private val SAVED_KEY = stringPreferencesKey("saved_searches_json")
-private val HISTORY_KEY = stringPreferencesKey("history_json")
 
-/** Saved searches (drawer shortcuts) + last-10 search history. */
+/** Saved searches (drawer shortcuts). */
 class SearchRepository(private val context: Context) {
-
-    private val json = Json { ignoreUnknownKeys = true }
 
     val savedSearches: Flow<List<SavedSearch>> = context.searchDataStore.data.map { prefs ->
         prefs[SAVED_KEY]?.let { SavedSearchSerializer.decode(it) } ?: DefaultSavedSearches.all
-    }
-
-    val history: Flow<List<String>> = context.searchDataStore.data.map { prefs ->
-        prefs[HISTORY_KEY]?.let {
-            runCatching { json.decodeFromString<HistoryWrapper>(it).entries }.getOrDefault(emptyList())
-        } ?: emptyList()
     }
 
     suspend fun saveSearch(name: String, query: String) {
@@ -44,13 +32,8 @@ class SearchRepository(private val context: Context) {
         context.searchDataStore.edit { it[SAVED_KEY] = SavedSearchSerializer.encode(updated) }
     }
 
-    suspend fun recordHistory(query: String) {
-        if (query.isBlank()) return
-        val current = history.first()
-        val updated = (listOf(query.trim()) + current.filterNot { it == query.trim() }).take(10)
-        context.searchDataStore.edit { it[HISTORY_KEY] = json.encodeToString(HistoryWrapper(updated)) }
+    suspend fun renameSearch(id: String, name: String) {
+        val updated = savedSearches.first().map { if (it.id == id) it.copy(name = name) else it }
+        context.searchDataStore.edit { it[SAVED_KEY] = SavedSearchSerializer.encode(updated) }
     }
-
-    @Serializable
-    private data class HistoryWrapper(val entries: List<String>)
 }

@@ -27,6 +27,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.rrajath.grove.icon.AppIconManager
 import com.rrajath.grove.settings.GroveSettings
+import com.rrajath.grove.ui.agenda.AgendaScreen
 import com.rrajath.grove.ui.capture.CaptureEditorScreen
 import com.rrajath.grove.ui.editor.EditNoteScreen
 import com.rrajath.grove.ui.capture.CapturePickerSheet
@@ -327,6 +328,12 @@ private fun GroveNavigation(
             composable(Routes.SEARCH) { entry ->
                 SearchScreen(
                     initialQuery = entry.arguments?.getString("q"),
+                    onBack = { navController.popBackStack() },
+                    onOpenNote = { ref -> navController.navigate(Routes.note(ref.encode())) },
+                )
+            }
+            composable(Routes.AGENDA) {
+                AgendaScreen(
                     onBack = { navController.popBackStack() },
                     onOpenNote = { ref -> navController.navigate(Routes.note(ref.encode())) },
                 )

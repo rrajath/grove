@@ -1,8 +1,7 @@
 package com.rrajath.grove.search
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDate
 
@@ -173,12 +172,24 @@ class QueryMatcherTest {
     }
 
     @Test
-    fun `snippet highlights the matched term`() {
+    fun `snippet truncates around the matched term`() {
         val snippet = Snippets.build("some long body with the magic word inside of it", listOf("magic"))
-        assertNotNull(snippet.highlight)
-        assertEquals("magic", snippet.text.substring(snippet.highlight!!))
+        assertTrue(snippet.text.contains("magic"))
         val plain = Snippets.build("no match here", listOf("absent"))
-        assertNull(plain.highlight)
         assertEquals("no match here", plain.text)
+    }
+
+    @Test
+    fun `highlightRanges covers every occurrence of every term`() {
+        val text = "magic word, another magic moment"
+        val words = Snippets.highlightRanges(text, listOf("magic", "moment")).map { text.substring(it) }
+        assertEquals(listOf("magic", "magic", "moment"), words)
+    }
+
+    @Test
+    fun `title highlight ranges cover every match`() {
+        val ranges = Snippets.highlightRanges("Call TransUnion about the transfer", listOf("trans"))
+        val words = ranges.map { "Call TransUnion about the transfer".substring(it) }
+        assertEquals(listOf("Trans", "trans"), words)
     }
 }

@@ -18,13 +18,53 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
+import java.util.Locale
+
+/** Sentinel bucket for notes with no TODO keyword, in both the states filter
+ *  and the states catalog — distinct from any real keyword string. */
+const val NO_STATE = "—"
+
+enum class DatePreset(val label: String, val token: String) {
+    ANY("Any", "any"),
+    TODAY("Today", "today"),
+    NEXT_7_DAYS("Next 7 days", "7d"),
+    OVERDUE("Overdue", "overdue"),
+    NO_DATE("No date", "none"),
+    CUSTOM("Custom range", "custom"),
+}
+
+/** Inclusive start/end for [DatePreset.CUSTOM]. */
+data class DateRange(val start: LocalDate, val end: LocalDate) {
+    operator fun contains(date: LocalDate): Boolean = !date.isBefore(start) && !date.isAfter(end)
+}
+
+data class SearchFilters(
+    val tags: Set<String> = emptySet(),
+    val states: Set<String> = emptySet(),
+    val priorities: Set<String> = emptySet(),
+    val scheduled: DatePreset = DatePreset.ANY,
+    val scheduledRange: DateRange? = null,
+    val deadline: DatePreset = DatePreset.ANY,
+    val deadlineRange: DateRange? = null,
+    val notebook: String? = null,
+) {
+    val activeCount: Int
+        get() = (if (tags.isNotEmpty()) 1 else 0) +
+            (if (states.isNotEmpty()) 1 else 0) +
+            (if (priorities.isNotEmpty()) 1 else 0) +
+            (if (scheduled != DatePreset.ANY) 1 else 0) +
+            (if (deadline != DatePreset.ANY) 1 else 0) +
+            (if (notebook != null) 1 else 0)
+}
 
 data class SearchResult(
     val fileName: String,
@@ -34,25 +74,40 @@ data class SearchResult(
     val isDone: Boolean,
     val priority: String?,
     val snippet: Snippets.Snippet,
-    val breadcrumb: String,
+    val scheduledLabel: String?,
+    val scheduledOverdue: Boolean,
+    val deadlineLabel: String?,
+    val deadlineOverdue: Boolean,
+    val tagLine: String,
 )
 
-data class AgendaDay(val date: LocalDate, val results: List<SearchResult>)
+data class SearchFileGroup(val fileName: String, val results: List<SearchResult>)
 
-data class AgendaUiState(
-    val overdueCount: Int,
-    val overdue: List<SearchResult>,
-    val days: List<AgendaDay>,
+data class SearchCatalog(
+    val tags: List<String> = emptyList(),
+    val states: List<String> = emptyList(),
+    val notebooks: List<String> = emptyList(),
 )
+
+data class QuickCounts(val overdue: Int = 0, val today: Int = 0, val openTasks: Int = 0)
 
 data class SearchUiState(
     val query: String = "",
-    val results: List<SearchResult> = emptyList(),
-    val agenda: AgendaUiState? = null,
+    val filters: SearchFilters = SearchFilters(),
+    val groups: List<SearchFileGroup> = emptyList(),
+    val resultCount: Int = 0,
     val notebookCount: Int = 0,
-    val history: List<String> = emptyList(),
+    val isBlank: Boolean = true,
+    val catalog: SearchCatalog = SearchCatalog(),
+    val quickCounts: QuickCounts = QuickCounts(),
+    /** Configured todo-type (non-done) keywords — backs the "Open tasks" quick card. */
+    val activeStates: List<String> = emptyList(),
+    /** Current query's plain-text terms — result rows highlight these after org-rendering. */
+    val matchedTerms: List<String> = emptyList(),
 )
 
+/** Full-text + faceted search, results grouped by file (design spec §9 "Search
+ *  B — panel"). Agenda's day-grouped/Overdue view now lives on its own screen. */
 class SearchViewModel(private val app: GroveApplication) : ViewModel() {
 
     private val _state = MutableStateFlow(SearchUiState())
@@ -62,40 +117,29 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     private val queryFlow = MutableStateFlow("")
+    private val filtersFlow = MutableStateFlow(SearchFilters())
 
     // Mapped once per index change (Room invalidation), not per keystroke;
     // NoteMeta also caches its parsed dates, so repeated searches reuse both.
     private val metas = MutableStateFlow<List<NoteMeta>?>(null)
 
-    // Agenda window state: `ad.N` seeds the initial window, loadMoreAgendaDays()
-    // grows it as the user scrolls. Cached matched/terms let load-more re-run
-    // QueryMatcher.agenda() without re-filtering the whole note set.
-    private var lastAgendaQueryText: String? = null
-    private var lastMatchedForAgenda: List<NoteMeta> = emptyList()
-    private var lastAgendaTerms: List<String> = emptyList()
-    private var agendaWindowDays = 0
-
-    @Volatile
-    private var loadingMoreAgenda = false
-
     init {
-        viewModelScope.launch {
-            app.searchRepository.history.collect { history ->
-                _state.value = _state.value.copy(history = history)
-            }
-        }
         viewModelScope.launch {
             app.database.indexDao().allNotes()
                 .map { rows -> rows.map { it.toMeta() } }
                 .flowOn(Dispatchers.Default)
-                .collect { metas.value = it }
+                .collect { notes ->
+                    metas.value = notes
+                    updateCatalogAndCounts(notes)
+                }
         }
         @OptIn(FlowPreview::class)
         viewModelScope.launch {
-            // Re-runs on new keystrokes and when the index changes under an
-            // active query (e.g. a sync finishing while the search screen is up).
-            combine(queryFlow.debounce(300), metas.filterNotNull()) { q, m -> q to m }
-                .collect { (q, m) -> runSearch(q, m) }
+            // Re-runs on new keystrokes, filter taps, and when the index
+            // changes under an active query (e.g. a sync finishing while the
+            // search screen is up).
+            combine(queryFlow.debounce(300), metas.filterNotNull(), filtersFlow) { q, m, f -> Triple(q, m, f) }
+                .collect { (q, m, f) -> runSearch(q, m, f) }
         }
     }
 
@@ -104,14 +148,10 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
         queryFlow.value = query
     }
 
-    /** Run immediately (drawer shortcuts, history taps). */
+    /** Run immediately (drawer shortcuts, saved-search taps). */
     fun submit(query: String) {
         _state.value = _state.value.copy(query = query)
         queryFlow.value = query
-        viewModelScope.launch {
-            runSearch(query, metas.filterNotNull().first())
-            app.searchRepository.recordHistory(query)
-        }
     }
 
     fun saveCurrentSearch(name: String) {
@@ -124,71 +164,196 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
         viewModelScope.launch { app.searchRepository.deleteSearch(id) }
     }
 
-    private suspend fun runSearch(raw: String, notes: List<NoteMeta>) {
-        if (raw.isBlank()) {
-            lastAgendaQueryText = null
-            _state.value = _state.value.copy(results = emptyList(), agenda = null, notebookCount = 0)
-            return
-        }
-        // The filtering/snippet work is pure CPU and would otherwise block the
-        // UI thread on every keystroke.
-        withContext(Dispatchers.Default) {
-            val query = QueryParser.parse(raw)
-            val today = LocalDate.now()
-            val matched = QueryMatcher.filter(notes, query, today)
-            val terms = query.textTerms
+    fun renameSavedSearch(id: String, name: String) {
+        if (name.isBlank()) return
+        viewModelScope.launch { app.searchRepository.renameSearch(id, name.trim()) }
+    }
 
-            val agendaUi = query.agendaDays?.let { requestedDays ->
-                if (raw != lastAgendaQueryText) agendaWindowDays = requestedDays
-                lastAgendaQueryText = raw
-                lastMatchedForAgenda = matched
-                lastAgendaTerms = terms
-                val result = QueryMatcher.agenda(matched, agendaWindowDays, today)
-                AgendaUiState(
-                    overdueCount = result.overdue.size,
-                    overdue = result.overdue.map { toResult(it, terms) },
-                    days = result.days.map { entry ->
-                        AgendaDay(entry.date, entry.notes.map { toResult(it, terms) })
-                    },
-                )
+    fun toggleTag(tag: String) = filtersFlow.update { it.copy(tags = it.tags.toggled(tag)) }
+    fun toggleState(state: String) = filtersFlow.update { it.copy(states = it.states.toggled(state)) }
+    fun togglePriority(priority: String) = filtersFlow.update { it.copy(priorities = it.priorities.toggled(priority)) }
+
+    fun setScheduledPreset(preset: DatePreset) =
+        filtersFlow.update {
+            if (it.scheduled == preset) it.copy(scheduled = DatePreset.ANY, scheduledRange = null)
+            else it.copy(scheduled = preset, scheduledRange = null)
+        }
+
+    fun setDeadlinePreset(preset: DatePreset) =
+        filtersFlow.update {
+            if (it.deadline == preset) it.copy(deadline = DatePreset.ANY, deadlineRange = null)
+            else it.copy(deadline = preset, deadlineRange = null)
+        }
+
+    fun setScheduledRange(start: LocalDate, end: LocalDate) =
+        filtersFlow.update { it.copy(scheduled = DatePreset.CUSTOM, scheduledRange = DateRange(start, end)) }
+
+    fun setDeadlineRange(start: LocalDate, end: LocalDate) =
+        filtersFlow.update { it.copy(deadline = DatePreset.CUSTOM, deadlineRange = DateRange(start, end)) }
+
+    fun setNotebookScope(name: String?) =
+        filtersFlow.update { it.copy(notebook = if (it.notebook == name) null else name) }
+
+    fun clearFilters() {
+        filtersFlow.value = SearchFilters()
+    }
+
+    /** Quick-start shortcuts (design spec §9 blank-state cards): replace the
+     *  free-text query and filters wholesale with the shortcut's own facet. */
+    fun applyQuickFilter(filters: SearchFilters) {
+        queryFlow.value = ""
+        _state.value = _state.value.copy(query = "")
+        filtersFlow.value = filters
+    }
+
+    /** Back button: clear back to the blank quick-start view instead of leaving
+     *  the screen, when a query or filter is active (see SearchScreen's onBack). */
+    fun resetToBlank() {
+        queryFlow.value = ""
+        _state.value = _state.value.copy(query = "")
+        filtersFlow.value = SearchFilters()
+    }
+
+    /** Human-readable preview of the composed query + active filters, for the
+     *  Advanced panel — informational only, not re-parsed. */
+    fun composedExpression(): String {
+        val f = _state.value.filters
+        val parts = mutableListOf<String>()
+        _state.value.query.trim().takeIf { it.isNotEmpty() }?.let { parts += it }
+        f.tags.sorted().forEach { parts += "t.$it" }
+        f.states.sorted().forEach { parts += "i.${if (it == NO_STATE) "none" else it.lowercase()}" }
+        f.priorities.sorted().forEach { parts += "p.$it" }
+        if (f.scheduled == DatePreset.CUSTOM && f.scheduledRange != null) {
+            parts += "s.${f.scheduledRange.start}..${f.scheduledRange.end}"
+        } else if (f.scheduled != DatePreset.ANY) {
+            parts += "s.${f.scheduled.token}"
+        }
+        if (f.deadline == DatePreset.CUSTOM && f.deadlineRange != null) {
+            parts += "d.${f.deadlineRange.start}..${f.deadlineRange.end}"
+        } else if (f.deadline != DatePreset.ANY) {
+            parts += "d.${f.deadline.token}"
+        }
+        f.notebook?.let { parts += "b.${it.removeSuffix(".org")}" }
+        return if (parts.isEmpty()) "(everything)" else parts.joinToString(" ")
+    }
+
+    private suspend fun runSearch(raw: String, notes: List<NoteMeta>, filters: SearchFilters) {
+        withContext(Dispatchers.Default) {
+            val today = LocalDate.now()
+            val textQuery = if (raw.isBlank()) null else QueryParser.parse(raw)
+            val textMatched = textQuery?.let { QueryMatcher.filter(notes, it, today) } ?: notes
+            val terms = textQuery?.textTerms ?: emptyList()
+            val filtered = textMatched.filter { matchesFilters(it, filters, today) }
+            val blank = raw.isBlank() && filters.activeCount == 0
+
+            val groups = mutableListOf<SearchFileGroup>()
+            val indexOfFile = HashMap<String, Int>()
+            filtered.forEach { note ->
+                val result = toResult(note, terms, today)
+                val idx = indexOfFile[note.fileName]
+                if (idx == null) {
+                    indexOfFile[note.fileName] = groups.size
+                    groups.add(SearchFileGroup(note.fileName, listOf(result)))
+                } else {
+                    groups[idx] = groups[idx].copy(results = groups[idx].results + result)
+                }
             }
-            if (query.agendaDays == null) lastAgendaQueryText = null
 
             _state.value = _state.value.copy(
-                results = matched.map { toResult(it, terms) },
-                agenda = agendaUi,
-                notebookCount = matched.map { it.fileName }.distinct().size,
+                filters = filters,
+                groups = groups,
+                resultCount = filtered.size,
+                notebookCount = groups.size,
+                isBlank = blank,
+                matchedTerms = terms,
             )
         }
     }
 
-    /** Grows the agenda's future-day window on scroll; overdue never repages. */
-    fun loadMoreAgendaDays() {
-        if (loadingMoreAgenda || lastAgendaQueryText == null) return
-        if (agendaWindowDays >= AGENDA_MAX_WINDOW_DAYS) return
-        loadingMoreAgenda = true
-        agendaWindowDays = (agendaWindowDays + AGENDA_PAGE_SIZE).coerceAtMost(AGENDA_MAX_WINDOW_DAYS)
-        viewModelScope.launch(Dispatchers.Default) {
-            val today = LocalDate.now()
-            val result = QueryMatcher.agenda(lastMatchedForAgenda, agendaWindowDays, today)
-            val days = result.days.map { entry ->
-                AgendaDay(entry.date, entry.notes.map { toResult(it, lastAgendaTerms) })
-            }
-            _state.value = _state.value.copy(agenda = _state.value.agenda?.copy(days = days))
-            loadingMoreAgenda = false
-        }
+    private fun matchesFilters(note: NoteMeta, f: SearchFilters, today: LocalDate): Boolean {
+        if (f.tags.isNotEmpty() && f.tags.none { note.inheritedTags.contains(it) }) return false
+        if (f.states.isNotEmpty() && (note.keyword ?: NO_STATE) !in f.states) return false
+        if (f.priorities.isNotEmpty() && note.priority !in f.priorities) return false
+        if (f.scheduled != DatePreset.ANY &&
+            !datePresetMatches(note.scheduledDate, f.scheduled, today, f.scheduledRange, note.isDoneKeyword)
+        ) return false
+        if (f.deadline != DatePreset.ANY &&
+            !datePresetMatches(note.deadlineDate, f.deadline, today, f.deadlineRange, note.isDoneKeyword)
+        ) return false
+        if (f.notebook != null && note.fileName != f.notebook) return false
+        return true
     }
 
-    private fun toResult(meta: NoteMeta, terms: List<String>) = SearchResult(
-        fileName = meta.fileName,
-        lineIndex = meta.lineIndex,
-        title = meta.title,
-        keyword = meta.keyword,
-        isDone = meta.isDoneKeyword,
-        priority = meta.priority,
-        snippet = Snippets.build(meta.searchText.substringAfter('\n', ""), terms),
-        breadcrumb = "${meta.fileName} › ${meta.title}",
-    )
+    private fun datePresetMatches(
+        date: LocalDate?,
+        preset: DatePreset,
+        today: LocalDate,
+        range: DateRange?,
+        isDone: Boolean,
+    ): Boolean = when (preset) {
+        DatePreset.ANY -> true
+        DatePreset.NO_DATE -> date == null
+        DatePreset.TODAY -> date == today
+        DatePreset.NEXT_7_DAYS -> date != null && !date.isBefore(today) && !date.isAfter(today.plusDays(7))
+        // Overdue is only meaningful for tasks that are still open.
+        DatePreset.OVERDUE -> !isDone && date != null && date.isBefore(today)
+        DatePreset.CUSTOM -> date != null && range != null && date in range
+    }
+
+    private fun toResult(meta: NoteMeta, terms: List<String>, today: LocalDate): SearchResult {
+        val (scheduledLabel, scheduledOverdue) = dateLabel(meta.scheduledDate, today)
+        val (deadlineLabel, deadlineOverdue) = dateLabel(meta.deadlineDate, today)
+        return SearchResult(
+            fileName = meta.fileName,
+            lineIndex = meta.lineIndex,
+            title = meta.title,
+            keyword = meta.keyword,
+            isDone = meta.isDoneKeyword,
+            priority = meta.priority,
+            snippet = Snippets.build(meta.searchText.substringAfter('\n', ""), terms),
+            scheduledLabel = scheduledLabel?.let { "SCHED $it" },
+            scheduledOverdue = scheduledOverdue,
+            deadlineLabel = deadlineLabel?.let { "DEADLINE $it" },
+            deadlineOverdue = deadlineOverdue,
+            tagLine = meta.tags.joinToString(" ") { ":$it:" },
+        )
+    }
+
+    private fun dateLabel(date: LocalDate?, today: LocalDate): Pair<String?, Boolean> {
+        if (date == null) return null to false
+        val n = ChronoUnit.DAYS.between(today, date)
+        val overdue = n < 0
+        val text = when {
+            n == 0L -> "today"
+            n == 1L -> "tomorrow"
+            overdue -> "${-n}d overdue"
+            else -> date.format(DAY_FORMAT)
+        }
+        return text to overdue
+    }
+
+    /** Recomputed from the whole vault (not the active filters), so the
+     *  Filters panel's chip catalog and the blank-state quick-start counts
+     *  stay stable while the user is actively narrowing results. */
+    private fun updateCatalogAndCounts(notes: List<NoteMeta>) {
+        val today = LocalDate.now()
+        val keywords = app.keywords.value
+        val tags = notes.flatMap { it.inheritedTags }.distinct().sorted()
+        // All configured states (not just ones currently in use), todo-type first
+        // then done-type, "no state" last.
+        val states = keywords.active + keywords.done + NO_STATE
+        val notebooks = notes.map { it.fileName }.distinct().sorted()
+        val overdue = notes.count {
+            !it.isDoneKeyword && ((it.scheduledDate?.isBefore(today) == true) || (it.deadlineDate?.isBefore(today) == true))
+        }
+        val dueToday = notes.count { it.scheduledDate == today || it.deadlineDate == today }
+        val openTasks = notes.count { it.keyword != null && !it.isDoneKeyword }
+        _state.value = _state.value.copy(
+            catalog = SearchCatalog(tags, states, notebooks),
+            quickCounts = QuickCounts(overdue, dueToday, openTasks),
+            activeStates = keywords.active,
+        )
+    }
 
     private fun NoteEntity.toMeta() = NoteMeta(
         fileName = fileName,
@@ -210,10 +375,8 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
     companion object {
         val Factory = factory { SearchViewModel(it) }
 
-        private const val AGENDA_PAGE_SIZE = 14
-
-        // Safety cap: stops loadMoreAgendaDays() from growing forever if the
-        // user scrolls through a long stretch with nothing scheduled.
-        private const val AGENDA_MAX_WINDOW_DAYS = 366
+        private val DAY_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("EEE d MMM", Locale.ENGLISH)
     }
 }
+
+private fun <T> Set<T>.toggled(value: T): Set<T> = if (contains(value)) this - value else this + value

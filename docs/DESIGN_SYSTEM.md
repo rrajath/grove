@@ -625,6 +625,31 @@ instead of an empty box.
 
 ---
 
+### `CustomDateRangePicker` — `ui/components/PlanningDatePicker.kt`
+
+Start + end date picker for Search → Filters' "Custom range" chip (Scheduled/Deadline). Unlike
+`PlanningDatePicker`, this does *not* use `DatePickerDialog` — that chrome is sized for the
+compact single-month `DatePicker` and clips/squeezes `DateRangePicker`'s wider default title,
+headline, and two-month calendar. Instead: a plain `Dialog` (`usePlatformDefaultWidth = false`)
+wrapping a 28dp-radius `surface` `Surface` sized `fillMaxWidth(0.95f)` × `fillMaxHeight(0.85f)`,
+giving `DateRangePicker` its own expected room. Below it, a `line` divider and a bottom row —
+"Cancel" (`ink2`) + "Set" (`accent` SemiBold, disabled until both a start and end date are
+picked), both right-aligned.
+
+```kotlin
+CustomDateRangePicker(
+    initialStart = filters.scheduledRange?.start,
+    initialEnd = filters.scheduledRange?.end,
+    onDismiss = { rangeTarget = null },
+    onConfirm = { start, end -> onSetScheduledRange(start, end) },
+)
+```
+
+**When to use**: picking an inclusive start/end date pair. For a single date (optionally with
+time), use `PlanningDatePicker` instead.
+
+---
+
 ### `SimpleTimePicker` — `ui/components/PlanningDatePicker.kt`
 
 Standalone time-of-day picker (no date step) — currently used by Settings › Reminders ›
@@ -670,12 +695,14 @@ Conflict screen's own warning banner for that pattern).
 
 ---
 
-### `AgendaSectionHeader` — `ui/search/SearchScreen.kt` (private)
+### `AgendaSectionHeader` — `ui/agenda/AgendaScreen.kt` (private)
 
-Pinned section label for the Agenda view (`ad.N` search mode), using Compose Foundation's
+Pinned section label for the dedicated Agenda screen, using Compose Foundation's
 `stickyHeader` (first use of the API in the app) so the current section's label stays
 visible at the top of the list while its rows scroll underneath, until the next section
-takes its place.
+takes its place. Agenda used to be a search mode (`ad.N`) on the Search screen; it's now
+its own screen (route `agenda`, drawer shortcut) — Search answers "find a specific note",
+Agenda answers "what's upcoming or overdue".
 
 ```kotlin
 stickyHeader(key = "overdue-header") {
@@ -711,7 +738,8 @@ new one.
 | Edit Note | `note/{noteId}?mode=edit` | `GroveTopBar`, `SegmentedControl`, `OrgVisualTransformation`, formatting toolbar, `MetadataSheet` |
 | Capture Picker | (bottom sheet) | `ModalBottomSheet`, icon glyph tiles, `PlexMono` |
 | Capture Editor | `capture/{templateId}` | `GroveTopBar`, `monoBody()`, formatting toolbar |
-| Search | `search` | `GroveTopBar`, `annotateOrgInline`, `Pill` ("Advanced"), `AgendaSectionHeader` (Agenda mode) |
+| Search | `search` | File-grouped results (collapsible sticky headers, `line`-divided rows, `annotateOrgInline` title/snippet rendering with match highlighting layered on top, inline `priorityColor`-coded `[#P]` next to the title matching Agenda, 2-line-max snippet), `Pill` (TODO pill), quick-start cards + Saved Searches (blank state, long-press → Rename/Delete `DropdownMenu`), Advanced expression preview + operator chips, `FilterPanel` (`ModalBottomSheet`) with faceted chip sections (Notebook/Tags/TODO state/Scheduled/Deadline/Priority + `CustomDateRangePicker` "Custom range" chip) |
+| Agenda | `agenda` | `AgendaSectionHeader` (Overdue + day sticky headers), `Pill`, `ScrollJumpButtons`, infinite scroll |
 | Conflict | `conflict/{notebookId}` | `GroveTopBar`, warning banner, unified diff view, action buttons |
 | Settings | `settings` | `GroveTopBar`, `ThemeDropdownPicker` (theme), `SegmentedControl` (font, priority, note mode, display mode, checklist states), keyword chips, `Pill` ("default"), `ReminderPermissionBanner`, `SimpleTimePicker` (default reminder time), side-by-side button pair (Export/Import settings) |
 

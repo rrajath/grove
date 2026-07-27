@@ -14,6 +14,7 @@ object Routes {
     const val CAPTURE = "capture"
     const val CAPTURE_TEMPLATE = "capture/{templateId}"
     const val SEARCH = "search?q={q}"
+    const val AGENDA = "agenda"
     const val CONFLICT = "conflict/{notebookId}"
     const val SETTINGS = "settings"
     const val TEMPLATE_EDIT = "template/{templateId}"
