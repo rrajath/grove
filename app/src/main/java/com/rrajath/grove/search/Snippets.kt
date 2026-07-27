@@ -9,20 +9,19 @@ object Snippets {
     private const val MAX_LEN = 120
 
     fun build(body: String, terms: List<String>): Snippet {
-        val flat = body.replace('\n', ' ').trim()
-        if (flat.isEmpty()) return Snippet("", null)
+        if (body.isEmpty()) return Snippet("", null)
         for (term in terms) {
-            val at = flat.indexOf(term, ignoreCase = true)
+            val at = body.indexOf(term, ignoreCase = true)
             if (at >= 0) {
                 val start = (at - CONTEXT).coerceAtLeast(0)
-                val end = (at + term.length + CONTEXT * 2).coerceAtMost(flat.length)
+                val end = (at + term.length + CONTEXT * 2).coerceAtMost(body.length)
                 val prefix = if (start > 0) "…" else ""
-                val suffix = if (end < flat.length) "…" else ""
-                val text = prefix + flat.substring(start, end) + suffix
+                val suffix = if (end < body.length) "…" else ""
+                val text = prefix + body.substring(start, end) + suffix
                 val hlStart = prefix.length + (at - start)
                 return Snippet(text, hlStart until (hlStart + term.length))
             }
         }
-        return Snippet(flat.take(MAX_LEN) + if (flat.length > MAX_LEN) "…" else "", null)
+        return Snippet(body.take(MAX_LEN) + if (body.length > MAX_LEN) "…" else "", null)
     }
 }

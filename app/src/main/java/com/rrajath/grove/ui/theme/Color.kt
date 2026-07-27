@@ -285,3 +285,23 @@ fun GroveColors.starColor(level: Int): Color {
     val cycle = listOf(green, blue, amber, red, violet, accent)
     return cycle[((level - 1).coerceAtLeast(0)) % cycle.size]
 }
+
+/**
+ * Priority-cookie color on a red→amber→green urgency scale: A (most urgent) is
+ * red, B is amber, C (least urgent) is green. The parser accepts any A-Z letter,
+ * so anything past C falls back to a neutral tone rather than erroring.
+ */
+fun GroveColors.priorityColor(priority: Char): Color = when (priority.uppercaseChar()) {
+    'A' -> red
+    'B' -> amber
+    'C' -> green
+    else -> ink2
+}
+
+/** Soft/background counterpart of [priorityColor], for chip fills. */
+fun GroveColors.prioritySoftColor(priority: Char): Color = when (priority.uppercaseChar()) {
+    'A' -> redSoft
+    'B' -> amberSoft
+    'C' -> greenSoft
+    else -> surface2
+}

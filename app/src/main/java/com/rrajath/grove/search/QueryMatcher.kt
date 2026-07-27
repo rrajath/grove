@@ -2,6 +2,7 @@ package com.rrajath.grove.search
 
 import com.rrajath.grove.org.OrgTimestamp
 import java.time.LocalDate
+import java.time.LocalTime
 
 /** Index-row view the matcher operates on (kept android/Room-free). */
 data class NoteMeta(
@@ -23,13 +24,20 @@ data class NoteMeta(
 ) {
     // Parsed once per instance; matching, sorting, and the agenda view would
     // otherwise re-run the timestamp regex per comparison / per agenda day.
-    val scheduledDate: LocalDate? by dateOf(scheduled)
-    val deadlineDate: LocalDate? by dateOf(deadline)
-    val closedDate: LocalDate? by dateOf(closed)
-    val createdDate: LocalDate? by dateOf(createdAt)
+    private val scheduledTs by tsOf(scheduled)
+    private val deadlineTs by tsOf(deadline)
+    private val closedTs by tsOf(closed)
+    private val createdTs by tsOf(createdAt)
 
-    private fun dateOf(raw: String?) = lazy(LazyThreadSafetyMode.PUBLICATION) {
-        raw?.let { OrgTimestamp.parse(it)?.date }
+    val scheduledDate: LocalDate? get() = scheduledTs?.date
+    val deadlineDate: LocalDate? get() = deadlineTs?.date
+    val closedDate: LocalDate? get() = closedTs?.date
+    val createdDate: LocalDate? get() = createdTs?.date
+    val scheduledTime: LocalTime? get() = scheduledTs?.time
+    val deadlineTime: LocalTime? get() = deadlineTs?.time
+
+    private fun tsOf(raw: String?) = lazy(LazyThreadSafetyMode.PUBLICATION) {
+        raw?.let { OrgTimestamp.parse(it) }
     }
 }
 
@@ -124,20 +132,41 @@ object QueryMatcher {
     // --- agenda ---
 
     data class AgendaEntry(val date: LocalDate, val notes: List<NoteMeta>)
+    data class Agenda(val overdue: List<NoteMeta>, val days: List<AgendaEntry>)
 
     /**
-     * Day-grouped view for `ad.N`: each note appears under every day in
-     * [today, today+N) where it is scheduled or due (overdue items land on today).
+     * Overdue (not-done, scheduled/due before today) plus a day-grouped view for
+     * `ad.N`: each note appears under every day in [today, today+N) where it is
+     * scheduled or due. Overdue items get their own section instead of being
+     * folded into today's bucket, so both sections can be sorted independently.
      */
-    fun agenda(notes: List<NoteMeta>, days: Int, today: LocalDate): List<AgendaEntry> {
+    fun agenda(notes: List<NoteMeta>, days: Int, today: LocalDate): Agenda {
+        val overdue = notes.filter { note ->
+            !note.isDoneKeyword &&
+                listOfNotNull(note.scheduledDate, note.deadlineDate).any { it.isBefore(today) }
+        }.sortedWith(
+            compareBy<NoteMeta> { note ->
+                listOfNotNull(note.scheduledDate, note.deadlineDate).filter { it.isBefore(today) }.min()
+            }.thenBy { it.priority ?: "Z" }.thenBy { it.title.lowercase() }
+        )
+
         val range = (0 until days.coerceAtLeast(1)).map { today.plusDays(it.toLong()) }
-        return range.mapNotNull { day ->
+        val dayEntries = range.mapNotNull { day ->
             val dayNotes = notes.filter { note ->
-                listOfNotNull(note.scheduledDate, note.deadlineDate).any { date ->
-                    date == day || (day == today && date.isBefore(today) && !note.isDoneKeyword)
-                }
-            }
+                listOfNotNull(note.scheduledDate, note.deadlineDate).any { it == day }
+            }.sortedWith(
+                compareBy<NoteMeta> { it.priority ?: "Z" }
+                    .thenBy { effectiveTime(it, day) ?: LocalTime.MAX }
+                    .thenBy { it.title.lowercase() }
+            )
             if (dayNotes.isEmpty()) null else AgendaEntry(day, dayNotes)
         }
+        return Agenda(overdue, dayEntries)
     }
+
+    private fun effectiveTime(note: NoteMeta, day: LocalDate): LocalTime? =
+        listOfNotNull(
+            note.scheduledTime.takeIf { note.scheduledDate == day },
+            note.deadlineTime.takeIf { note.deadlineDate == day },
+        ).minOrNull()
 }

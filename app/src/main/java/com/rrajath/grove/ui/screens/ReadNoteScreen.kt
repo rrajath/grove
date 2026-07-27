@@ -83,6 +83,7 @@ import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.PlexSerif
 import com.rrajath.grove.ui.theme.grove
+import com.rrajath.grove.ui.theme.priorityColor
 import com.rrajath.grove.ui.vault.DocumentUiState
 import com.rrajath.grove.ui.vault.DocumentViewModel
 import com.rrajath.grove.ui.vault.NoteRef
@@ -278,6 +279,14 @@ private fun NoteContent(
                         Pill(kw, fg = fg, bg = bg)
                         Spacer(Modifier.width(8.dp))
                     }
+                    headline.priority?.let { p ->
+                        Text(
+                            "[#$p]",
+                            fontFamily = PlexMono, fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp, color = c.priorityColor(p),
+                        )
+                        Spacer(Modifier.width(8.dp))
+                    }
                 }
                 Row(verticalAlignment = Alignment.Top) {
                     OrgText(
@@ -340,6 +349,15 @@ private fun NoteContent(
                                 val (fg, bg) = if (doc.keywords.isDone(kw)) c.green to c.greenSoft
                                 else c.amber to c.amberSoft
                                 Pill(kw, fg = fg, bg = bg)
+                                Spacer(Modifier.width(8.dp))
+                            }
+                            child.priority?.let { p ->
+                                Text(
+                                    "[#$p]",
+                                    fontFamily = PlexMono, fontWeight = FontWeight.Bold,
+                                    fontSize = 12.sp, color = c.priorityColor(p),
+                                    modifier = Modifier.padding(top = 2.dp),
+                                )
                                 Spacer(Modifier.width(8.dp))
                             }
                             OrgText(

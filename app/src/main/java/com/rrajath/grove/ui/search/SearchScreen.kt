@@ -1,5 +1,6 @@
 package com.rrajath.grove.ui.search
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -29,6 +30,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -38,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
@@ -53,6 +56,7 @@ import com.rrajath.grove.ui.screens.IconGlyph
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
+import com.rrajath.grove.ui.theme.priorityColor
 import com.rrajath.grove.ui.vault.NoteRef
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -142,7 +146,11 @@ fun SearchScreen(
                     )
                 }
                 Spacer(Modifier.width(10.dp))
-                if (state.results.isNotEmpty()) {
+                // Agenda view has its own per-section counts (Overdue (N), day
+                // headers); the flat match count over the whole query is not
+                // meaningful there and only confuses (e.g. "ad.14" alone matches
+                // every note before it's windowed into days).
+                if (state.agenda == null && state.results.isNotEmpty()) {
                     Text(
                         "${state.results.size} results across ${state.notebookCount} notebooks",
                         fontFamily = PlexSans, fontSize = 12.5.sp, color = c.ink2,
@@ -161,6 +169,19 @@ fun SearchScreen(
                     state.query.isBlank() -> HistoryList(listState, state.history, onTap = viewModel::submit)
                     state.agenda != null -> AgendaList(listState, state.agenda!!, onOpenNote)
                     else -> ResultsList(listState, state.results, onOpenNote)
+                }
+                val agenda = state.agenda
+                if (agenda != null) {
+                    val nearBottom by remember {
+                        derivedStateOf {
+                            val info = listState.layoutInfo
+                            val lastVisible = info.visibleItemsInfo.lastOrNull()?.index ?: -1
+                            info.totalItemsCount > 0 && lastVisible >= info.totalItemsCount - 5
+                        }
+                    }
+                    LaunchedEffect(nearBottom, agenda.days.size) {
+                        if (nearBottom) viewModel.loadMoreAgendaDays()
+                    }
                 }
                 ScrollJumpButtons(
                     listState = listState,
@@ -280,19 +301,27 @@ private fun ResultsList(listState: LazyListState, results: List<SearchResult>, o
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun AgendaList(listState: LazyListState, agenda: List<AgendaDay>, onOpenNote: (NoteRef) -> Unit) {
+private fun AgendaList(listState: LazyListState, agenda: AgendaUiState, onOpenNote: (NoteRef) -> Unit) {
     val c = MaterialTheme.grove
     val formatter = remember { DateTimeFormatter.ofPattern("EEEE, MMM d", Locale.ENGLISH) }
     LazyColumn(state = listState, modifier = Modifier.fillMaxSize().padding(horizontal = 14.dp, vertical = 4.dp)) {
-        agenda.forEach { day ->
-            item(key = day.date.toString(), contentType = "day-header") {
-                Text(
-                    day.date.format(formatter),
-                    fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
-                    fontSize = 13.sp, letterSpacing = 0.5.sp, color = c.accent,
-                    modifier = Modifier.padding(top = 14.dp, bottom = 4.dp),
-                )
+        if (agenda.overdue.isNotEmpty()) {
+            stickyHeader(key = "overdue-header") {
+                AgendaSectionHeader("Overdue (${agenda.overdueCount})", color = c.red)
+            }
+            items(
+                agenda.overdue,
+                key = { "overdue-${it.fileName}@${it.lineIndex}" },
+                contentType = { "result" },
+            ) { result ->
+                ResultRow(result, onOpenNote)
+            }
+        }
+        agenda.days.forEach { day ->
+            stickyHeader(key = day.date.toString()) {
+                AgendaSectionHeader(day.date.format(formatter), color = c.accent)
             }
             items(
                 day.results,
@@ -303,6 +332,20 @@ private fun AgendaList(listState: LazyListState, agenda: List<AgendaDay>, onOpen
             }
         }
     }
+}
+
+@Composable
+private fun AgendaSectionHeader(text: String, color: Color) {
+    val c = MaterialTheme.grove
+    Text(
+        text,
+        fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
+        fontSize = 13.sp, letterSpacing = 0.5.sp, color = color,
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(c.bg)
+            .padding(top = 14.dp, bottom = 4.dp),
+    )
 }
 
 @Composable
@@ -321,6 +364,14 @@ private fun ResultRow(result: SearchResult, onOpenNote: (NoteRef) -> Unit) {
                     kw,
                     fg = if (result.isDone) c.green else c.amber,
                     bg = if (result.isDone) c.greenSoft else c.amberSoft,
+                )
+                Spacer(Modifier.width(8.dp))
+            }
+            result.priority?.let { p ->
+                Text(
+                    "[#$p]",
+                    fontFamily = PlexMono, fontWeight = FontWeight.Bold,
+                    fontSize = 11.sp, color = c.priorityColor(p[0]),
                 )
                 Spacer(Modifier.width(8.dp))
             }

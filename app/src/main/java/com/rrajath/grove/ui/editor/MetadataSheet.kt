@@ -37,6 +37,8 @@ import com.rrajath.grove.ui.components.Pill
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
+import com.rrajath.grove.ui.theme.priorityColor
+import com.rrajath.grove.ui.theme.prioritySoftColor
 
 /** Note metadata sheet (PRD §5.2): state, priority, tags, SCHEDULED, DEADLINE. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -87,8 +89,8 @@ fun MetadataSheet(
                     StateChip(
                         label = p?.let { "#$it" } ?: "none",
                         active = headline?.priority == p,
-                        fg = if (p == 'A') c.red else c.ink2,
-                        bg = if (p == 'A') c.redSoft else c.surface2,
+                        fg = p?.let { c.priorityColor(it) } ?: c.ink2,
+                        bg = p?.let { c.prioritySoftColor(it) } ?: c.surface2,
                     ) { viewModel.setPriority(p) }
                     Spacer(Modifier.width(6.dp))
                 }

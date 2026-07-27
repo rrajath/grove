@@ -78,6 +78,7 @@ import com.rrajath.grove.ui.components.annotateOrgInline
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
+import com.rrajath.grove.ui.theme.priorityColor
 import com.rrajath.grove.ui.theme.starColor
 import com.rrajath.grove.ui.vault.DocumentUiState
 import com.rrajath.grove.ui.vault.DocumentViewModel
@@ -689,7 +690,7 @@ private fun OutlineNode(
                     Text(
                         "[#$p]",
                         fontFamily = PlexMono, fontWeight = FontWeight.Bold,
-                        fontSize = 11.sp, color = c.red,
+                        fontSize = 11.sp, color = c.priorityColor(p),
                         modifier = Modifier.alignByBaseline(),
                     )
                     Spacer(Modifier.width(6.dp))

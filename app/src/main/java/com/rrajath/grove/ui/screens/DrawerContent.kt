@@ -91,7 +91,7 @@ fun GroveDrawerContent(
         }
 
         HorizontalDivider(color = c.line, modifier = Modifier.padding(vertical = 8.dp))
-        DrawerItem("▤", "Agenda", active = false) { onNavigate(Routes.search("ad.7")) }
+        DrawerItem("▤", "Agenda", active = false) { onNavigate(Routes.search("ad.14")) }
         DrawerItem("⚙", "Settings", active = false) { onNavigate(Routes.SETTINGS) }
     }
 

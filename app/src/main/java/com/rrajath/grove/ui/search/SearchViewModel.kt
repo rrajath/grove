@@ -32,16 +32,23 @@ data class SearchResult(
     val title: String,
     val keyword: String?,
     val isDone: Boolean,
+    val priority: String?,
     val snippet: Snippets.Snippet,
     val breadcrumb: String,
 )
 
 data class AgendaDay(val date: LocalDate, val results: List<SearchResult>)
 
+data class AgendaUiState(
+    val overdueCount: Int,
+    val overdue: List<SearchResult>,
+    val days: List<AgendaDay>,
+)
+
 data class SearchUiState(
     val query: String = "",
     val results: List<SearchResult> = emptyList(),
-    val agenda: List<AgendaDay>? = null,
+    val agenda: AgendaUiState? = null,
     val notebookCount: Int = 0,
     val history: List<String> = emptyList(),
 )
@@ -59,6 +66,17 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
     // Mapped once per index change (Room invalidation), not per keystroke;
     // NoteMeta also caches its parsed dates, so repeated searches reuse both.
     private val metas = MutableStateFlow<List<NoteMeta>?>(null)
+
+    // Agenda window state: `ad.N` seeds the initial window, loadMoreAgendaDays()
+    // grows it as the user scrolls. Cached matched/terms let load-more re-run
+    // QueryMatcher.agenda() without re-filtering the whole note set.
+    private var lastAgendaQueryText: String? = null
+    private var lastMatchedForAgenda: List<NoteMeta> = emptyList()
+    private var lastAgendaTerms: List<String> = emptyList()
+    private var agendaWindowDays = 0
+
+    @Volatile
+    private var loadingMoreAgenda = false
 
     init {
         viewModelScope.launch {
@@ -108,6 +126,7 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
 
     private suspend fun runSearch(raw: String, notes: List<NoteMeta>) {
         if (raw.isBlank()) {
+            lastAgendaQueryText = null
             _state.value = _state.value.copy(results = emptyList(), agenda = null, notebookCount = 0)
             return
         }
@@ -119,28 +138,57 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
             val matched = QueryMatcher.filter(notes, query, today)
             val terms = query.textTerms
 
-            fun toResult(meta: NoteMeta) = SearchResult(
-                fileName = meta.fileName,
-                lineIndex = meta.lineIndex,
-                title = meta.title,
-                keyword = meta.keyword,
-                isDone = meta.isDoneKeyword,
-                snippet = Snippets.build(meta.searchText.substringAfter('\n', ""), terms),
-                breadcrumb = "${meta.fileName} › ${meta.title}",
-            )
-
-            val agenda = query.agendaDays?.let { days ->
-                QueryMatcher.agenda(matched, days, today).map { entry ->
-                    AgendaDay(entry.date, entry.notes.map(::toResult))
-                }
+            val agendaUi = query.agendaDays?.let { requestedDays ->
+                if (raw != lastAgendaQueryText) agendaWindowDays = requestedDays
+                lastAgendaQueryText = raw
+                lastMatchedForAgenda = matched
+                lastAgendaTerms = terms
+                val result = QueryMatcher.agenda(matched, agendaWindowDays, today)
+                AgendaUiState(
+                    overdueCount = result.overdue.size,
+                    overdue = result.overdue.map { toResult(it, terms) },
+                    days = result.days.map { entry ->
+                        AgendaDay(entry.date, entry.notes.map { toResult(it, terms) })
+                    },
+                )
             }
+            if (query.agendaDays == null) lastAgendaQueryText = null
+
             _state.value = _state.value.copy(
-                results = matched.map(::toResult),
-                agenda = agenda,
+                results = matched.map { toResult(it, terms) },
+                agenda = agendaUi,
                 notebookCount = matched.map { it.fileName }.distinct().size,
             )
         }
     }
+
+    /** Grows the agenda's future-day window on scroll; overdue never repages. */
+    fun loadMoreAgendaDays() {
+        if (loadingMoreAgenda || lastAgendaQueryText == null) return
+        if (agendaWindowDays >= AGENDA_MAX_WINDOW_DAYS) return
+        loadingMoreAgenda = true
+        agendaWindowDays = (agendaWindowDays + AGENDA_PAGE_SIZE).coerceAtMost(AGENDA_MAX_WINDOW_DAYS)
+        viewModelScope.launch(Dispatchers.Default) {
+            val today = LocalDate.now()
+            val result = QueryMatcher.agenda(lastMatchedForAgenda, agendaWindowDays, today)
+            val days = result.days.map { entry ->
+                AgendaDay(entry.date, entry.notes.map { toResult(it, lastAgendaTerms) })
+            }
+            _state.value = _state.value.copy(agenda = _state.value.agenda?.copy(days = days))
+            loadingMoreAgenda = false
+        }
+    }
+
+    private fun toResult(meta: NoteMeta, terms: List<String>) = SearchResult(
+        fileName = meta.fileName,
+        lineIndex = meta.lineIndex,
+        title = meta.title,
+        keyword = meta.keyword,
+        isDone = meta.isDoneKeyword,
+        priority = meta.priority,
+        snippet = Snippets.build(meta.searchText.substringAfter('\n', ""), terms),
+        breadcrumb = "${meta.fileName} › ${meta.title}",
+    )
 
     private fun NoteEntity.toMeta() = NoteMeta(
         fileName = fileName,
@@ -161,5 +209,11 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
 
     companion object {
         val Factory = factory { SearchViewModel(it) }
+
+        private const val AGENDA_PAGE_SIZE = 14
+
+        // Safety cap: stops loadMoreAgendaDays() from growing forever if the
+        // user scrolls through a long stretch with nothing scheduled.
+        private const val AGENDA_MAX_WINDOW_DAYS = 366
     }
 }

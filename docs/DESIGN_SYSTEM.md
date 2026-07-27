@@ -670,6 +670,35 @@ Conflict screen's own warning banner for that pattern).
 
 ---
 
+### `AgendaSectionHeader` — `ui/search/SearchScreen.kt` (private)
+
+Pinned section label for the Agenda view (`ad.N` search mode), using Compose Foundation's
+`stickyHeader` (first use of the API in the app) so the current section's label stays
+visible at the top of the list while its rows scroll underneath, until the next section
+takes its place.
+
+```kotlin
+stickyHeader(key = "overdue-header") {
+    AgendaSectionHeader("Overdue (${agenda.overdueCount})", color = c.red)
+}
+// ...
+stickyHeader(key = day.date.toString()) {
+    AgendaSectionHeader(day.date.format(formatter), color = c.accent)
+}
+```
+
+Internally: 13sp SemiBold `PlexSans`, 0.5sp letter spacing, 14dp/4dp top/bottom padding,
+an explicit `c.bg` background fill (matching the Scaffold) so pinned text doesn't show
+list content through it. The Overdue section (always shown in full, sorted oldest-first)
+uses `red` — the design system's existing "overdue deadlines" token — and every day
+header uses `accent`, same as before this component existed.
+
+**When to use**: Agenda-only so far. Day headers used plain scrolling `Text` before this;
+if another list needs pinned section labels, reuse this pattern rather than inventing a
+new one.
+
+---
+
 ## Screen Inventory
 
 | Screen | Route | Key components used |
@@ -682,7 +711,7 @@ Conflict screen's own warning banner for that pattern).
 | Edit Note | `note/{noteId}?mode=edit` | `GroveTopBar`, `SegmentedControl`, `OrgVisualTransformation`, formatting toolbar, `MetadataSheet` |
 | Capture Picker | (bottom sheet) | `ModalBottomSheet`, icon glyph tiles, `PlexMono` |
 | Capture Editor | `capture/{templateId}` | `GroveTopBar`, `monoBody()`, formatting toolbar |
-| Search | `search` | `GroveTopBar`, `annotateOrgInline`, `Pill` ("Advanced") |
+| Search | `search` | `GroveTopBar`, `annotateOrgInline`, `Pill` ("Advanced"), `AgendaSectionHeader` (Agenda mode) |
 | Conflict | `conflict/{notebookId}` | `GroveTopBar`, warning banner, unified diff view, action buttons |
 | Settings | `settings` | `GroveTopBar`, `ThemeDropdownPicker` (theme), `SegmentedControl` (font, priority, note mode, display mode, checklist states), keyword chips, `Pill` ("default"), `ReminderPermissionBanner`, `SimpleTimePicker` (default reminder time), side-by-side button pair (Export/Import settings) |
 

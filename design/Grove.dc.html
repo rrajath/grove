@@ -173,7 +173,9 @@
     <div onClick="{{ goRead }}" style="{{ chipRead }}">Read mode</div>
     <div onClick="{{ goEditor }}" style="{{ chipEditor }}">Editor</div>
     <div onClick="{{ goCapturePicker }}" style="{{ chipCapture }}">Capture</div>
-    <div onClick="{{ goSearch }}" style="{{ chipSearch }}">Search</div>
+    <div onClick="{{ goSearchA }}" style="{{ chipSearchA }}">Search A · facet bar</div>
+    <div onClick="{{ goSearchB }}" style="{{ chipSearchB }}">Search B · panel</div>
+    <div onClick="{{ goSearchC }}" style="{{ chipSearchC }}">Search C · builder</div>
     <div onClick="{{ goConflict }}" style="{{ chipConflict }}">Conflict</div>
     <div onClick="{{ goSettings }}" style="{{ chipSettings }}">Settings</div>
   </div>
@@ -209,9 +211,7 @@
           <div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:18px; padding-top:24px;">
             <div style="width:74px; height:74px; border-radius:20px; background:var(--accent-soft); border:1px solid var(--line); display:grid; place-items:center;">
               <div style="position:relative; width:40px; height:40px;">
-                <div style="position:absolute; inset:0; margin:auto; width:7px; height:40px; border-radius:4px; background:var(--accent);"></div>
-                <div style="position:absolute; inset:0; margin:auto; width:7px; height:40px; border-radius:4px; background:var(--accent); transform:rotate(60deg);"></div>
-                <div style="position:absolute; inset:0; margin:auto; width:7px; height:40px; border-radius:4px; background:var(--accent); transform:rotate(120deg);"></div>
+                <sc-for list="{{ iconSpokesOnboarding }}" as="sp" hint-placeholder-count="5"><div style="{{ sp }}"></div></sc-for>
               </div>
             </div>
             <div>
@@ -398,6 +398,24 @@
           </div>
 
           <div style="flex:1; overflow-y:auto; padding:8px 4px 110px;">
+            <sc-if value="{{ showHeaderTags }}" hint-placeholder-val="{{ true }}">
+              <div style="{{ collBoxStyle }} margin:2px 10px 12px;">
+                <div onClick="{{ toggleHdr }}" style="{{ collHeadStyle }}">
+                  <span style="{{ collCaretHdr }}">▸</span>
+                  <span style="{{ collLabelStyle }}">#+ header tags</span>
+                  <span style="{{ collHintStyle }}">5</span>
+                </div>
+                <sc-if value="{{ hdrOpen }}" hint-placeholder-val="{{ false }}">
+                  <div style="{{ collBodyStyle }}">
+                    <div><span style="{{ kvKeyStyle }}">#+TITLE:</span> <span style="{{ kvValStyle }}">Travel</span></div>
+                    <div><span style="{{ kvKeyStyle }}">#+FILETAGS:</span> <span style="{{ kvValStyle }}">:trip:</span></div>
+                    <div><span style="{{ kvKeyStyle }}">#+CATEGORY:</span> <span style="{{ kvValStyle }}">travel</span></div>
+                    <div><span style="{{ kvKeyStyle }}">#+ARCHIVE:</span> <span style="{{ kvValStyle }}">./archive.org::* Inbox</span></div>
+                    <div><span style="{{ kvKeyStyle }}">#+STARTUP:</span> <span style="{{ kvValStyle }}">overview</span></div>
+                  </div>
+                </sc-if>
+              </div>
+            </sc-if>
             <!-- node: Japan (expanded) -->
             <div onClick="{{ goRead }}" style="display:flex; align-items:flex-start; gap:8px; padding:11px 14px 11px 12px; cursor:pointer; border-radius:10px;" style-hover="background:var(--surface);">
               <span style="color:var(--ink-3); font-size:12px; margin-top:3px; width:12px;">▾</span>
@@ -496,23 +514,6 @@
           </div>
 
           <div style="flex:1; overflow-y:auto; padding:24px 24px 60px;">
-            <sc-if value="{{ showPreface }}" hint-placeholder-val="{{ true }}">
-              <div style="{{ collBoxStyle }} margin-bottom:16px;">
-                <div onClick="{{ togglePrefaceOpen }}" style="{{ collHeadStyle }}">
-                  <span style="{{ collCaretPreface }}">▸</span>
-                  <span style="{{ collLabelStyle }}">PREFACE</span>
-                  <span style="{{ collHintStyle }}">4</span>
-                </div>
-                <sc-if value="{{ prefaceOpen }}" hint-placeholder-val="{{ false }}">
-                  <div style="{{ collBodyStyle }}">
-                    <div><span style="{{ kvKeyStyle }}">#+TITLE:</span> <span style="{{ kvValStyle }}">Kyoto — Day 2</span></div>
-                    <div><span style="{{ kvKeyStyle }}">#+FILETAGS:</span> <span style="{{ kvValStyle }}">:trip:kyoto:</span></div>
-                    <div><span style="{{ kvKeyStyle }}">#+CATEGORY:</span> <span style="{{ kvValStyle }}">travel</span></div>
-                    <div><span style="{{ kvKeyStyle }}">#+STARTUP:</span> <span style="{{ kvValStyle }}">overview</span></div>
-                  </div>
-                </sc-if>
-              </div>
-            </sc-if>
             <div style="display:flex; gap:7px; margin-bottom:14px;">
               <span style="font-size:11px; font-weight:600; color:var(--accent); background:var(--accent-soft); padding:3px 9px; border-radius:20px;">trip</span>
               <span style="font-size:11px; font-weight:600; color:var(--accent); background:var(--accent-soft); padding:3px 9px; border-radius:20px;">kyoto</span>
@@ -697,58 +698,341 @@
         </div>
       </sc-if>
 
-      <!-- ========== SEARCH ========== -->
-      <sc-if value="{{ isSearch }}" hint-placeholder-val="{{ true }}">
-        <div data-screen-label="Search" style="position:absolute; inset:0; display:flex; flex-direction:column;">
-          <div style="padding:8px 10px 0; display:flex; align-items:center; gap:6px;">
-            <div onClick="{{ goHome }}" style="width:40px; height:40px; display:grid; place-items:center; border-radius:50%; cursor:pointer; font-size:21px; color:var(--ink);" style-hover="background:var(--surface-2);">←</div>
-            <div style="flex:1; height:42px; background:var(--surface); border:1px solid var(--line); border-radius:13px; display:flex; align-items:center; gap:9px; padding:0 12px;">
-              <div style="width:14px; height:14px; border:1.8px solid var(--ink-3); border-radius:50%; position:relative; flex:0 0 auto;"><div style="position:absolute; right:-5px; bottom:-4px; width:6px; height:1.8px; background:var(--ink-3); border-radius:2px; transform:rotate(45deg);"></div></div>
-              <span style="flex:1; font-size:15px; color:var(--ink);">ramen</span>
-              <span style="color:var(--ink-3); font-size:17px; cursor:pointer;">×</span>
+      <!-- ========== SEARCH A — tokens + bottom facet bar ========== -->
+      <sc-if value="{{ isSearchA }}" hint-placeholder-val="{{ true }}">
+        <div data-screen-label="Search A" style="position:absolute; inset:0; display:flex; flex-direction:column;">
+          <div style="padding:8px 10px 4px; display:flex; align-items:flex-start; gap:4px;">
+            <div onClick="{{ goHome }}" style="width:40px; height:40px; flex:0 0 40px; display:grid; place-items:center; border-radius:50%; cursor:pointer; font-size:21px; color:var(--ink);" style-hover="background:var(--surface-2);">←</div>
+            <div onClick="{{ sCycleQuery }}" style="flex:1; min-height:42px; background:var(--surface); border:1px solid var(--line); border-radius:13px; display:flex; align-items:center; flex-wrap:wrap; gap:5px; padding:7px 10px; cursor:text;">
+              <div style="width:13px; height:13px; border:1.8px solid var(--ink-3); border-radius:50%; position:relative; flex:0 0 auto; margin-right:3px;"><div style="position:absolute; right:-5px; bottom:-4px; width:6px; height:1.8px; background:var(--ink-3); border-radius:2px; transform:rotate(45deg);"></div></div>
+              <sc-for list="{{ sTokens }}" as="tk" hint-placeholder-count="2">
+                <div style="{{ tk.style }}">{{ tk.label }}<span onClick="{{ tk.onRemove }}" style="cursor:pointer; opacity:.65; font-size:13px; margin-left:1px;">×</span></div>
+              </sc-for>
+              <span style="{{ sQueryStyle }}">{{ sQueryText }}</span>
             </div>
           </div>
 
-          <div style="padding:11px 14px 9px; display:flex; align-items:center; gap:8px;">
-            <div onClick="{{ toggleAdvanced }}" style="{{ advChipStyle }}">⚑ Advanced</div>
-            <span style="font-size:12.5px; color:var(--ink-2);">3 results across 3 notebooks</span>
-          </div>
-
-          <sc-if value="{{ searchAdvanced }}" hint-placeholder-val="{{ false }}">
-            <div style="margin:0 14px 6px; padding:13px 14px; background:var(--surface); border:1px solid var(--line); border-radius:13px; animation:groveFade .2s ease;">
-              <div style="height:36px; background:var(--bg); border:1px solid var(--line); border-radius:9px; display:flex; align-items:center; padding:0 11px; font-family:'IBM Plex Mono',monospace; font-size:13px; color:var(--ink); margin-bottom:11px;"><span style="color:var(--syn-tag);">t.food</span>&nbsp;<span style="color:var(--syn-kw);">i.todo</span>&nbsp;<span style="color:var(--ink-3);">o.sched</span></div>
-              <div style="display:flex; flex-wrap:wrap; gap:6px;">
-                <span style="font-size:11px; font-family:'IBM Plex Mono',monospace; color:var(--ink-2); background:var(--surface-2); padding:3px 8px; border-radius:6px;">t.TAG</span>
-                <span style="font-size:11px; font-family:'IBM Plex Mono',monospace; color:var(--ink-2); background:var(--surface-2); padding:3px 8px; border-radius:6px;">i.STATE</span>
-                <span style="font-size:11px; font-family:'IBM Plex Mono',monospace; color:var(--ink-2); background:var(--surface-2); padding:3px 8px; border-radius:6px;">s.PERIOD</span>
-                <span style="font-size:11px; font-family:'IBM Plex Mono',monospace; color:var(--ink-2); background:var(--surface-2); padding:3px 8px; border-radius:6px;">b.NOTEBOOK</span>
-                <span style="font-size:11px; font-family:'IBM Plex Mono',monospace; color:var(--ink-2); background:var(--surface-2); padding:3px 8px; border-radius:6px;">p.PRIORITY</span>
-                <span style="font-size:11px; font-family:'IBM Plex Mono',monospace; color:var(--ink-2); background:var(--surface-2); padding:3px 8px; border-radius:6px;">ad.DAYS</span>
+          <div style="flex:1; overflow-y:auto; padding:0 12px 10px;">
+            <sc-if value="{{ sHasResults }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex; align-items:center; gap:9px; padding:6px 4px 6px;">
+                <span style="font-size:12px; color:var(--ink-2);">{{ sMeta }}</span>
+                <span onClick="{{ sfClearAll }}" style="{{ sClearStyle }}">Clear all</span>
               </div>
-            </div>
-          </sc-if>
+              <sc-for list="{{ sResults }}" as="r" hint-placeholder-count="3">
+                <div onClick="{{ goRead }}" style="display:flex; gap:9px; padding:10px 10px; border-radius:13px; cursor:pointer;" style-hover="background:var(--surface);">
+                  <span style="{{ r.stateStyle }}">{{ r.state }}</span>
+                  <div style="flex:1; min-width:0;">
+                    <div style="font-size:14.5px; font-weight:600; line-height:1.3; text-wrap:pretty;">{{ r.title }}</div>
+                    <div style="font-size:12.5px; color:var(--ink-2); line-height:1.5; margin-top:3px;">{{ r.pre }}<span style="{{ r.hitStyle }}">{{ r.hit }}</span>{{ r.post }}</div>
+                    <div style="display:flex; align-items:center; gap:7px; margin-top:7px; flex-wrap:wrap;">
+                      <span style="{{ r.dlStyle }}">{{ r.dlLabel }}</span>
+                      <span style="{{ r.scStyle }}">{{ r.scLabel }}</span>
+                      <span style="{{ r.priStyle }}">{{ r.pri }}</span>
+                      <span style="{{ r.tagStyle }}">{{ r.tagLine }}</span>
+                    </div>
+                    <div style="font-size:11px; color:var(--ink-3); font-family:'IBM Plex Mono',monospace; margin-top:6px;">{{ r.path }}</div>
+                  </div>
+                </div>
+              </sc-for>
+            </sc-if>
+            <sc-if value="{{ sNoResults }}" hint-placeholder-val="{{ false }}">
+              <div style="padding:52px 24px; text-align:center;">
+                <div style="font-size:15px; font-weight:600;">Nothing matches</div>
+                <div style="font-size:12.5px; color:var(--ink-2); margin-top:7px; line-height:1.5; font-family:'IBM Plex Mono',monospace;">{{ sExprText }}</div>
+                <div onClick="{{ sfClearAll }}" style="display:inline-block; margin-top:16px; font-size:13px; font-weight:600; padding:10px 17px; border-radius:11px; background:var(--surface-2); color:var(--ink); cursor:pointer;">Clear filters</div>
+              </div>
+            </sc-if>
+            <sc-if value="{{ sBlank }}" hint-placeholder-val="{{ false }}">
+              <div style="padding:4px 2px 0;">
+                <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.07em; color:var(--ink-3); padding:8px 4px 10px;">Quick start</div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                  <sc-for list="{{ quickCards }}" as="q" hint-placeholder-count="4">
+                    <div onClick="{{ q.onClick }}" style="padding:12px 13px 13px; border-radius:14px; background:var(--surface); border:1px solid var(--line); cursor:pointer;" style-hover="border-color:var(--line-2);">
+                      <div style="{{ q.iconStyle }}">{{ q.icon }}</div>
+                      <div style="font-size:14px; font-weight:600; margin-top:10px;">{{ q.label }}</div>
+                      <div style="font-size:11.5px; color:var(--ink-2); margin-top:3px;">{{ q.meta }}</div>
+                    </div>
+                  </sc-for>
+                </div>
+                <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.07em; color:var(--ink-3); padding:18px 4px 6px;">Saved searches</div>
+                <sc-for list="{{ savedRows }}" as="v" hint-placeholder-count="3">
+                  <div onClick="{{ v.onClick }}" style="display:flex; align-items:center; gap:11px; padding:10px 12px; border-radius:12px; cursor:pointer;" style-hover="background:var(--surface);">
+                    <span style="font-size:14px; color:var(--accent);">★</span>
+                    <div style="flex:1; min-width:0;">
+                      <div style="font-size:14px; font-weight:500;">{{ v.name }}</div>
+                      <div style="font-size:11px; color:var(--ink-3); font-family:'IBM Plex Mono',monospace; margin-top:2px;">{{ v.expr }}</div>
+                    </div>
+                    <span style="font-size:11.5px; color:var(--ink-3); font-family:'IBM Plex Mono',monospace;">{{ v.count }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
+          </div>
 
-          <div style="flex:1; overflow-y:auto; padding:4px 14px 30px;">
-            <div onClick="{{ goRead }}" style="padding:13px 14px; border-radius:13px; cursor:pointer;" style-hover="background:var(--surface);">
-              <div style="display:flex; align-items:center; gap:8px; margin-bottom:5px;"><span style="font-size:15px; font-weight:600;">Best ramen in Kyoto</span></div>
-              <div style="font-size:13.5px; color:var(--ink-2); line-height:1.5;">…found a <span style="background:var(--amber-soft); color:var(--amber); font-weight:600; border-radius:3px; padding:0 2px;">ramen</span> spot for tomorrow near Pontocho…</div>
-              <div style="font-size:11.5px; color:var(--ink-3); margin-top:6px; font-family:'IBM Plex Mono',monospace;">travel.org › Kyoto — Day 2</div>
-            </div>
-            <div style="height:1px; background:var(--line); margin:2px 14px;"></div>
-            <div onClick="{{ goRead }}" style="padding:13px 14px; border-radius:13px; cursor:pointer;" style-hover="background:var(--surface);">
-              <div style="display:flex; align-items:center; gap:8px; margin-bottom:5px;"><span style="font-size:15px; font-weight:600;">Tantanmen</span><span style="font-size:10.5px; color:var(--accent); background:var(--accent-soft); padding:2px 7px; border-radius:20px;">recipe</span></div>
-              <div style="font-size:13.5px; color:var(--ink-2); line-height:1.5;">…spicy sesame <span style="background:var(--amber-soft); color:var(--amber); font-weight:600; border-radius:3px; padding:0 2px;">ramen</span> broth, ready in 30 minutes…</div>
-              <div style="font-size:11.5px; color:var(--ink-3); margin-top:6px; font-family:'IBM Plex Mono',monospace;">recipes.org › Noodles</div>
-            </div>
-            <div style="height:1px; background:var(--line); margin:2px 14px;"></div>
-            <div onClick="{{ goRead }}" style="padding:13px 14px; border-radius:13px; cursor:pointer;" style-hover="background:var(--surface);">
-              <div style="display:flex; align-items:center; gap:8px; margin-bottom:5px;"><span style="font-size:15px; font-weight:600;">The Ramen book — notes</span></div>
-              <div style="font-size:13.5px; color:var(--ink-2); line-height:1.5;">…the <span style="background:var(--amber-soft); color:var(--amber); font-weight:600; border-radius:3px; padding:0 2px;">ramen</span> chapter covers tare, broth and noodle…</div>
-              <div style="font-size:11.5px; color:var(--ink-3); margin-top:6px; font-family:'IBM Plex Mono',monospace;">reading.org › Cooking</div>
+          <div style="flex:0 0 auto; border-top:1px solid var(--line); background:var(--surface); padding:9px 10px 12px;">
+            <sc-if value="{{ sAdv }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex; align-items:center; gap:8px; margin-bottom:9px; padding:9px 11px; background:var(--bg); border:1px solid var(--line); border-radius:10px;">
+                <span style="font-size:12.5px; font-family:'IBM Plex Mono',monospace; color:var(--ink); flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ sExprText }}</span>
+                <span style="font-size:10.5px; text-transform:uppercase; letter-spacing:0.06em; color:var(--ink-3);">edit</span>
+              </div>
+            </sc-if>
+            <div style="display:flex; gap:6px; overflow-x:auto; padding-bottom:2px;">
+              <sc-for list="{{ facetChips }}" as="c" hint-placeholder-count="6">
+                <div onClick="{{ c.onClick }}" style="{{ c.style }}">{{ c.label }}</div>
+              </sc-for>
             </div>
           </div>
         </div>
       </sc-if>
+
+      <!-- ========== SEARCH B — one filter panel, applied at once ========== -->
+      <sc-if value="{{ isSearchB }}" hint-placeholder-val="{{ false }}">
+        <div data-screen-label="Search B" style="position:absolute; inset:0; display:flex; flex-direction:column;">
+          <div style="padding:8px 10px 0; display:flex; align-items:center; gap:4px;">
+            <div onClick="{{ goHome }}" style="width:40px; height:40px; flex:0 0 40px; display:grid; place-items:center; border-radius:50%; cursor:pointer; font-size:21px; color:var(--ink);" style-hover="background:var(--surface-2);">←</div>
+            <div onClick="{{ sCycleQuery }}" style="flex:1; height:42px; background:var(--surface); border:1px solid var(--line); border-radius:13px; display:flex; align-items:center; gap:9px; padding:0 12px; cursor:text;">
+              <div style="width:13px; height:13px; border:1.8px solid var(--ink-3); border-radius:50%; position:relative; flex:0 0 auto;"><div style="position:absolute; right:-5px; bottom:-4px; width:6px; height:1.8px; background:var(--ink-3); border-radius:2px; transform:rotate(45deg);"></div></div>
+              <span style="{{ sQueryStyle }}">{{ sQueryText }}</span>
+            </div>
+          </div>
+
+          <div style="padding:11px 14px 5px; display:flex; align-items:center; gap:9px;">
+            <span style="font-size:12px; color:var(--ink-2); flex:1;">{{ sMeta }}</span>
+            <span onClick="{{ sToggleAdv }}" style="{{ sAdvLinkStyle }}">⚑ Advanced</span>
+          </div>
+          <sc-if value="{{ sAdv }}" hint-placeholder-val="{{ false }}">
+            <div style="margin:2px 14px 4px; padding:9px 11px; background:var(--surface); border:1px solid var(--line); border-radius:10px; font-size:12.5px; font-family:'IBM Plex Mono',monospace; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ sExprText }}</div>
+          </sc-if>
+
+          <div style="flex:1; overflow-y:auto; padding:0 12px 10px;">
+            <sc-if value="{{ sHasResults }}" hint-placeholder-val="{{ true }}">
+              <sc-for list="{{ sGroups }}" as="g" hint-placeholder-count="3">
+                <div onClick="{{ g.onToggle }}" style="display:flex; align-items:center; gap:9px; padding:11px 6px 8px; cursor:pointer; position:sticky; top:0; background:var(--bg);">
+                  <span style="{{ g.caretStyle }}">▾</span>
+                  <span style="font-size:12.5px; font-weight:600; font-family:'IBM Plex Mono',monospace;">{{ g.file }}</span>
+                  <span style="font-size:11.5px; color:var(--ink-3);">{{ g.count }}</span>
+                </div>
+                <div style="{{ g.bodyStyle }}">
+                  <sc-for list="{{ g.rows }}" as="r" hint-placeholder-count="2">
+                    <div onClick="{{ goRead }}" style="padding:9px 11px 11px; border-radius:12px; cursor:pointer; margin-left:16px;" style-hover="background:var(--surface);">
+                      <div style="display:flex; align-items:center; gap:7px; margin-bottom:3px; flex-wrap:wrap;">
+                        <span style="{{ r.stateStyle }}">{{ r.state }}</span>
+                        <span style="font-size:14.5px; font-weight:600; line-height:1.3;">{{ r.title }}</span>
+                      </div>
+                      <div style="font-size:12.5px; color:var(--ink-2); line-height:1.5;">{{ r.pre }}<span style="{{ r.hitStyle }}">{{ r.hit }}</span>{{ r.post }}</div>
+                      <div style="display:flex; align-items:center; gap:7px; margin-top:6px; flex-wrap:wrap;">
+                        <span style="{{ r.dlStyle }}">{{ r.dlLabel }}</span>
+                        <span style="{{ r.scStyle }}">{{ r.scLabel }}</span>
+                        <span style="{{ r.priStyle }}">{{ r.pri }}</span>
+                        <span style="{{ r.tagStyle }}">{{ r.tagLine }}</span>
+                        <span style="font-size:11px; color:var(--ink-3); font-family:'IBM Plex Mono',monospace; margin-left:auto;">{{ r.heading }}</span>
+                      </div>
+                    </div>
+                  </sc-for>
+                </div>
+              </sc-for>
+            </sc-if>
+            <sc-if value="{{ sNoResults }}" hint-placeholder-val="{{ false }}">
+              <div style="padding:52px 24px; text-align:center;">
+                <div style="font-size:15px; font-weight:600;">Nothing matches</div>
+                <div style="font-size:12.5px; color:var(--ink-2); margin-top:7px; line-height:1.5;">Loosen a section in Filters.</div>
+                <div onClick="{{ sOpenPanel }}" style="display:inline-block; margin-top:16px; font-size:13px; font-weight:600; padding:10px 17px; border-radius:11px; background:var(--surface-2); color:var(--ink); cursor:pointer;">Open filters</div>
+              </div>
+            </sc-if>
+            <sc-if value="{{ sBlank }}" hint-placeholder-val="{{ false }}">
+              <div style="padding:4px 2px 0;">
+                <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.07em; color:var(--ink-3); padding:8px 4px 10px;">Quick start</div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                  <sc-for list="{{ quickCards }}" as="q" hint-placeholder-count="4">
+                    <div onClick="{{ q.onClick }}" style="padding:12px 13px 13px; border-radius:14px; background:var(--surface); border:1px solid var(--line); cursor:pointer;" style-hover="border-color:var(--line-2);">
+                      <div style="{{ q.iconStyle }}">{{ q.icon }}</div>
+                      <div style="font-size:14px; font-weight:600; margin-top:10px;">{{ q.label }}</div>
+                      <div style="font-size:11.5px; color:var(--ink-2); margin-top:3px;">{{ q.meta }}</div>
+                    </div>
+                  </sc-for>
+                </div>
+                <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.07em; color:var(--ink-3); padding:18px 4px 6px;">Saved searches</div>
+                <sc-for list="{{ savedRows }}" as="v" hint-placeholder-count="3">
+                  <div onClick="{{ v.onClick }}" style="display:flex; align-items:center; gap:11px; padding:10px 12px; border-radius:12px; cursor:pointer;" style-hover="background:var(--surface);">
+                    <span style="font-size:14px; color:var(--accent);">★</span>
+                    <div style="flex:1; min-width:0;">
+                      <div style="font-size:14px; font-weight:500;">{{ v.name }}</div>
+                      <div style="font-size:11px; color:var(--ink-3); font-family:'IBM Plex Mono',monospace; margin-top:2px;">{{ v.expr }}</div>
+                    </div>
+                    <span style="font-size:11.5px; color:var(--ink-3); font-family:'IBM Plex Mono',monospace;">{{ v.count }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
+          </div>
+
+          <div style="flex:0 0 auto; border-top:1px solid var(--line); background:var(--surface); padding:10px 12px 14px; display:flex; gap:8px; align-items:center;">
+            <div onClick="{{ sOpenPanel }}" style="flex:1; display:flex; align-items:center; justify-content:center; gap:9px; font-size:14.5px; font-weight:600; padding:13px; border-radius:13px; background:var(--accent); color:var(--accent-ink); cursor:pointer;">
+              <span style="font-size:13px;">⚙</span>Filters<span style="{{ sCountBadge }}">{{ sActiveCount }}</span>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- ========== SEARCH C — tap-built condition rows ========== -->
+      <sc-if value="{{ isSearchC }}" hint-placeholder-val="{{ false }}">
+        <div data-screen-label="Search C" style="position:absolute; inset:0; display:flex; flex-direction:column;">
+          <div style="padding:8px 10px 0; display:flex; align-items:center; gap:4px;">
+            <div onClick="{{ goHome }}" style="width:40px; height:40px; flex:0 0 40px; display:grid; place-items:center; border-radius:50%; cursor:pointer; font-size:21px; color:var(--ink);" style-hover="background:var(--surface-2);">←</div>
+            <div onClick="{{ sCycleQuery }}" style="flex:1; height:42px; background:var(--surface); border:1px solid var(--line); border-radius:13px; display:flex; align-items:center; gap:9px; padding:0 12px; cursor:text;">
+              <div style="width:13px; height:13px; border:1.8px solid var(--ink-3); border-radius:50%; position:relative; flex:0 0 auto;"><div style="position:absolute; right:-5px; bottom:-4px; width:6px; height:1.8px; background:var(--ink-3); border-radius:2px; transform:rotate(45deg);"></div></div>
+              <span style="{{ sQueryStyle }}">{{ sQueryText }}</span>
+            </div>
+          </div>
+
+          <div style="flex:1; overflow-y:auto; padding:12px 14px 10px;">
+            <div style="display:flex; align-items:center; gap:8px; padding:0 0 10px;">
+              <span style="font-size:11px; text-transform:uppercase; letter-spacing:0.07em; color:var(--ink-3); flex:1;">Conditions</span>
+              <span onClick="{{ sToggleJoin }}" style="{{ sJoinToggleStyle }}">{{ sJoinLabel }}</span>
+            </div>
+
+            <sc-for list="{{ qRows }}" as="q" hint-placeholder-count="3">
+              <div style="display:flex; align-items:center; gap:6px; margin-bottom:7px;">
+                <span style="{{ q.joinStyle }}">{{ q.join }}</span>
+                <div onClick="{{ q.onEdit }}" style="flex:1; min-width:0; display:flex; align-items:center; gap:8px; padding:11px 12px; border-radius:12px; background:var(--surface); border:1px solid var(--line); cursor:pointer;" style-hover="border-color:var(--line-2);">
+                  <span style="font-size:10.5px; text-transform:uppercase; letter-spacing:0.06em; color:var(--ink-3); flex:0 0 auto;">{{ q.facet }}</span>
+                  <span style="font-size:12px; color:var(--ink-2); flex:0 0 auto;">{{ q.op }}</span>
+                  <span style="{{ q.valStyle }}">{{ q.val }}</span>
+                </div>
+                <div onClick="{{ q.onRemove }}" style="width:30px; height:30px; flex:0 0 30px; display:grid; place-items:center; border-radius:50%; cursor:pointer; color:var(--ink-3); font-size:17px;" style-hover="background:var(--surface-2);">×</div>
+              </div>
+            </sc-for>
+
+            <div onClick="{{ sOpenAddCond }}" style="display:flex; align-items:center; justify-content:center; gap:8px; margin:4px 0 2px 40px; padding:11px; border-radius:12px; border:1px dashed var(--line-2); color:var(--ink-2); font-size:13.5px; font-weight:600; cursor:pointer;" style-hover="background:var(--surface); color:var(--ink);">+ Add condition</div>
+
+            <div style="display:flex; align-items:center; gap:8px; padding:20px 0 9px;">
+              <span style="font-size:11px; text-transform:uppercase; letter-spacing:0.07em; color:var(--ink-3);">Refine</span>
+              <span style="font-size:11px; color:var(--ink-3);">tap to add</span>
+            </div>
+            <div style="display:flex; flex-wrap:wrap; gap:6px;">
+              <sc-for list="{{ refineChips }}" as="c" hint-placeholder-count="5">
+                <div onClick="{{ c.onClick }}" style="{{ c.style }}">{{ c.label }}<span style="font-size:11px; opacity:.6; font-family:'IBM Plex Mono',monospace;">{{ c.count }}</span></div>
+              </sc-for>
+            </div>
+
+            <div style="display:flex; align-items:center; gap:9px; padding:20px 0 6px;">
+              <span style="font-size:11px; text-transform:uppercase; letter-spacing:0.07em; color:var(--ink-3); flex:1;">{{ sMeta }}</span>
+              <span onClick="{{ sToggleAdv }}" style="{{ sAdvLinkStyle }}">⚑ As text</span>
+            </div>
+            <sc-if value="{{ sAdv }}" hint-placeholder-val="{{ false }}">
+              <div style="margin:2px 0 8px; padding:9px 11px; background:var(--surface); border:1px solid var(--line); border-radius:10px; font-size:12.5px; font-family:'IBM Plex Mono',monospace; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ sExprText }}</div>
+            </sc-if>
+
+            <sc-for list="{{ sResults }}" as="r" hint-placeholder-count="3">
+              <div onClick="{{ goRead }}" style="display:flex; align-items:center; gap:9px; padding:11px 8px; border-radius:12px; cursor:pointer; border-bottom:1px solid var(--line);" style-hover="background:var(--surface);">
+                <span style="{{ r.stateStyle }}">{{ r.state }}</span>
+                <div style="flex:1; min-width:0;">
+                  <div style="font-size:14px; font-weight:600; line-height:1.3;">{{ r.title }}</div>
+                  <div style="font-size:11px; color:var(--ink-3); font-family:'IBM Plex Mono',monospace; margin-top:3px;">{{ r.path }}</div>
+                </div>
+                <div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px; flex:0 0 auto;">
+                  <span style="{{ r.dlStyle }}">{{ r.dlLabel }}</span>
+                  <span style="{{ r.scStyle }}">{{ r.scLabel }}</span>
+                </div>
+              </div>
+            </sc-for>
+            <sc-if value="{{ sNoResults }}" hint-placeholder-val="{{ false }}">
+              <div style="padding:30px 20px; text-align:center; font-size:13px; color:var(--ink-2);">No headings match all conditions. Switch {{ sJoinLabel }} to OR, or drop a condition.</div>
+            </sc-if>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- ========== SEARCH · facet sheet (list) + date sheet ========== -->
+      <sc-if value="{{ shOpen }}" hint-placeholder-val="{{ false }}">
+        <div onClick="{{ shClose }}" style="position:absolute; inset:0; background:var(--scrim); z-index:24; animation:groveScrim .18s ease;"></div>
+        <div style="position:absolute; left:0; right:0; bottom:0; z-index:25; background:var(--surface); border-radius:20px 20px 0 0; box-shadow:var(--shadow); animation:groveSheet .24s cubic-bezier(.2,.8,.2,1); max-height:80%; display:flex; flex-direction:column;">
+          <div style="padding:12px 0 4px; display:grid; place-items:center;"><div style="width:36px; height:4px; border-radius:2px; background:var(--line-2);"></div></div>
+          <div style="padding:6px 16px 10px; display:flex; align-items:flex-start; gap:10px;">
+            <div style="flex:1; min-width:0;">
+              <div style="font-size:15.5px; font-weight:600;">{{ shTitle }}</div>
+              <div style="font-size:11.5px; color:var(--ink-2); margin-top:3px; line-height:1.4;">{{ shHint }}</div>
+            </div>
+            <span onClick="{{ shClear }}" style="{{ shClearStyle }}">Clear</span>
+          </div>
+
+          <div style="flex:1; overflow-y:auto; padding:0 8px;">
+            <sc-if value="{{ shIsDate }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex; gap:6px; padding:2px 8px 12px;">
+                <div onClick="{{ dTabSched }}" style="{{ dTabSchedStyle }}">SCHEDULED</div>
+                <div onClick="{{ dTabDead }}" style="{{ dTabDeadStyle }}">DEADLINE</div>
+              </div>
+              <div style="display:flex; flex-wrap:wrap; gap:7px; padding:0 8px 4px;">
+                <sc-for list="{{ dPresets }}" as="p" hint-placeholder-count="6">
+                  <div onClick="{{ p.onClick }}" style="{{ p.style }}">{{ p.label }}<span style="font-size:11px; opacity:.6; font-family:'IBM Plex Mono',monospace;">{{ p.count }}</span></div>
+                </sc-for>
+              </div>
+              <sc-if value="{{ dCustom }}" hint-placeholder-val="{{ false }}">
+                <div style="margin:12px 8px 6px; padding:12px; background:var(--bg); border:1px solid var(--line); border-radius:14px;">
+                  <div style="display:flex; align-items:center; gap:6px; margin-bottom:9px;">
+                    <span onClick="{{ dPrevMonth }}" style="width:30px; height:30px; display:grid; place-items:center; border-radius:50%; cursor:pointer; color:var(--ink-2); font-size:16px;" style-hover="background:var(--surface-2);">‹</span>
+                    <span style="flex:1; text-align:center; font-size:13.5px; font-weight:600;">{{ dMonthLabel }}</span>
+                    <span onClick="{{ dNextMonth }}" style="width:30px; height:30px; display:grid; place-items:center; border-radius:50%; cursor:pointer; color:var(--ink-2); font-size:16px;" style-hover="background:var(--surface-2);">›</span>
+                  </div>
+                  <div style="display:grid; grid-template-columns:repeat(7,1fr); gap:2px;">
+                    <sc-for list="{{ dDow }}" as="w" hint-placeholder-count="7"><div style="text-align:center; font-size:10px; color:var(--ink-3); padding-bottom:5px;">{{ w }}</div></sc-for>
+                    <sc-for list="{{ dCells }}" as="c" hint-placeholder-count="35"><div onClick="{{ c.onClick }}" style="{{ c.style }}">{{ c.label }}</div></sc-for>
+                  </div>
+                  <div style="font-size:11.5px; color:var(--ink-2); margin-top:10px; text-align:center; font-family:'IBM Plex Mono',monospace;">{{ dRangeLabel }}</div>
+                </div>
+              </sc-if>
+            </sc-if>
+            <sc-if value="{{ shIsList }}" hint-placeholder-val="{{ true }}">
+              <sc-for list="{{ shRows }}" as="r" hint-placeholder-count="6">
+                <div onClick="{{ r.onClick }}" style="{{ r.rowStyle }}">
+                  <div style="{{ r.boxStyle }}">{{ r.mark }}</div>
+                  <span style="{{ r.labelStyle }}">{{ r.label }}</span>
+                  <span style="font-size:11.5px; color:var(--ink-3); font-family:'IBM Plex Mono',monospace;">{{ r.count }}</span>
+                  <div onClick="{{ r.onEx }}" style="{{ r.exStyle }}">−</div>
+                </div>
+              </sc-for>
+            </sc-if>
+          </div>
+
+          <div style="padding:10px 14px 16px; border-top:1px solid var(--line);">
+            <div onClick="{{ shClose }}" style="text-align:center; font-size:14px; font-weight:600; padding:13px; border-radius:13px; background:var(--accent); color:var(--accent-ink); cursor:pointer;">{{ shDoneLabel }}</div>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- ========== SEARCH B · full filter panel ========== -->
+      <sc-if value="{{ pnOpen }}" hint-placeholder-val="{{ false }}">
+        <div onClick="{{ sClosePanel }}" style="position:absolute; inset:0; background:var(--scrim); z-index:22; animation:groveScrim .18s ease;"></div>
+        <div style="position:absolute; left:0; right:0; bottom:0; top:44px; z-index:23; background:var(--surface); border-radius:20px 20px 0 0; box-shadow:var(--shadow); animation:groveSheet .26s cubic-bezier(.2,.8,.2,1); display:flex; flex-direction:column;">
+          <div style="padding:12px 0 4px; display:grid; place-items:center;"><div style="width:36px; height:4px; border-radius:2px; background:var(--line-2);"></div></div>
+          <div style="padding:6px 16px 12px; display:flex; align-items:center; gap:10px; border-bottom:1px solid var(--line);">
+            <div style="flex:1;">
+              <div style="font-size:16.5px; font-weight:600;">Filters</div>
+              <div style="font-size:11.5px; color:var(--ink-2); margin-top:2px;">{{ pnHint }}</div>
+            </div>
+            <span onClick="{{ sfClearAll }}" style="font-size:13px; font-weight:600; color:var(--ink-2); padding:8px 11px; border-radius:9px; cursor:pointer;" style-hover="background:var(--surface-2);">Reset</span>
+          </div>
+          <div style="flex:1; overflow-y:auto; padding:2px 16px 14px;">
+            <sc-for list="{{ pnSections }}" as="sec" hint-placeholder-count="6">
+              <div style="padding:14px 0 2px; border-bottom:1px solid var(--line);">
+                <div style="display:flex; align-items:baseline; gap:8px;">
+                  <span style="font-size:11px; text-transform:uppercase; letter-spacing:0.07em; color:var(--ink-3);">{{ sec.label }}</span>
+                  <span style="font-size:11px; color:var(--ink-3);">{{ sec.hint }}</span>
+                </div>
+                <div style="display:flex; flex-wrap:wrap; gap:7px; margin:10px 0 14px;">
+                  <sc-for list="{{ sec.chips }}" as="c" hint-placeholder-count="4">
+                    <div onClick="{{ c.onClick }}" style="{{ c.style }}">{{ c.label }}<span style="{{ c.countStyle }}">{{ c.count }}</span></div>
+                  </sc-for>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="padding:11px 14px 16px; border-top:1px solid var(--line); display:flex; gap:9px;">
+            <div onClick="{{ sClosePanel }}" style="flex:1; text-align:center; font-size:14px; font-weight:600; padding:13px; border-radius:13px; background:var(--accent); color:var(--accent-ink); cursor:pointer;">{{ shDoneLabel }}</div>
+          </div>
+        </div>
+      </sc-if>
+
 
       <!-- ========== CONFLICT ========== -->
       <sc-if value="{{ isConflict }}" hint-placeholder-val="{{ true }}">
@@ -841,11 +1125,11 @@
               </div>
               <div style="padding:14px 15px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:12px;">
                 <div style="flex:1;">
-                  <div style="font-size:14.5px; font-weight:500;">Show preface</div>
+                  <div style="font-size:14.5px; font-weight:500;">Show header tags</div>
                   <div style="font-size:12px; color:var(--ink-2); margin-top:2px;">Display file-level <span style="font-family:'IBM Plex Mono',monospace;">#+</span> keywords in org files</div>
                 </div>
-                <div onClick="{{ togglePreface }}" style="{{ prefaceTrackStyle }}">
-                  <div style="{{ prefaceKnobStyle }}"></div>
+                <div onClick="{{ toggleHeaderTags }}" style="{{ hdrTrackStyle }}">
+                  <div style="{{ hdrKnobStyle }}"></div>
                 </div>
               </div>
               <div style="padding:14px 15px; border-bottom:1px solid var(--line);">
@@ -1016,6 +1300,17 @@
                 </div>
               </div>
               <div style="flex:1; overflow-y:auto; padding:12px 14px; display:flex; flex-direction:column; gap:8px; min-height:120px;">
+                <sc-if value="{{ gArchiveDest }}" hint-placeholder-val="{{ false }}">
+                  <div onClick="{{ gArchiveConfirm }}" style="display:flex; align-items:center; gap:11px; padding:12px 13px; border-radius:12px; cursor:pointer; background:var(--accent-soft); border:1px solid var(--accent);" style-hover="filter:brightness(1.03);">
+                    <span style="flex:0 0 auto; font-size:17px; color:var(--accent);">📥</span>
+                    <div style="flex:1; min-width:0;">
+                      <div style="font-size:11px; font-weight:600; letter-spacing:0.05em; text-transform:uppercase; color:var(--accent);">Archive location</div>
+                      <div style="font-size:14px; font-weight:600; font-family:'IBM Plex Mono',monospace; color:var(--ink); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ gArchiveLabel }}</div>
+                    </div>
+                    <span style="flex:0 0 auto; font-size:16px; color:var(--accent);">→</span>
+                  </div>
+                  <div style="display:flex; align-items:center; gap:9px; margin:2px 2px 0;"><div style="flex:1; height:1px; background:var(--line);"></div><span style="font-size:10.5px; text-transform:uppercase; letter-spacing:0.06em; color:var(--ink-3);">or refile elsewhere</span><div style="flex:1; height:1px; background:var(--line);"></div></div>
+                </sc-if>
                 <sc-for list="{{ gRefileItems }}" as="it" hint-placeholder-count="4">
                   <div onClick="{{ it.onClick }}" style="{{ it.style }}">
                     <span style="font-family:'IBM Plex Mono',monospace; color:var(--accent); font-size:15px; flex:0 0 auto;">{{ it.glyph }}</span>
@@ -1132,9 +1427,13 @@ class Component extends DCLogic {
     screen: 'onboarding',
     drawerOpen: false,
     searchAdvanced: false,
+    sf: {q:'',qin:'both',tags:['food'],tagsX:[],states:['TODO'],pri:[],sched:'any',schedR:null,dead:'any',deadR:null,scope:'all',join:'AND',untagged:false},
+    sSheet: null, sPanel: false, sAdv: false, sDateTab: 'sched', sMonth: '2026-07',
+    sGrp: {}, sSort: 'Date',
+    sSaved: [{name:'Overdue', f:{dead:'overdue'}},{name:'This week', f:{sched:'7d'}},{name:'Untagged headings', f:{untagged:true}}],
     fontSize: 'Medium',
     notes: [
-      { id:'1', level:1, title:'Japan — Spring 2025', tag:'trip', fav:true },
+      { id:'1', level:1, title:'Japan — Spring 2025', tag:'trip', fav:true, arch:'./archive.org::* Trips' },
       { id:'2', level:2, todo:'TODO', title:'Book Kyoto ryokan', tag:'booking', sched:'Wed, Apr 9' },
       { id:'3', level:2, title:'Kyoto — Day 2', tag:'kyoto', count:3 },
       { id:'4', level:2, todo:'DONE', title:'Order JR Rail Pass' },
@@ -1144,13 +1443,13 @@ class Component extends DCLogic {
     ],
     gConcept:'A', swipeId:null, swipeDX:0, swipeOpen:null, dragging:false,
     focusId:null, popoverId:null, popoverTop:120, selectMode:false, selected:{}, sheetId:null,
-    refileOpen:false, refileIds:null, refileNb:null, refileHeading:null,
+    refileOpen:false, refileIds:null, refileNb:null, refileHeading:null, archiveDest:null,
     toast:null, snack:null, undoSnap:null,
     syncIcon:true, themeDropdownOpen:false,
-    showPreface:true, colPreface:false, colFileProp:false, colSubProp:false,
+    showHeaderTags:true, colHdr:false, colFileProp:false, colSubProp:false,
   };
 
-  go = (screen) => this.setState({ screen, drawerOpen: false });
+  go = (screen) => this.setState({ screen, drawerOpen: false, sSheet: null, sPanel: false });
 
   componentDidMount() {
     this.applyScale();
@@ -1402,8 +1701,24 @@ class Component extends DCLogic {
   gSelFav = () => { const ids=this.gSelIds(); this.setState(st=>({ notes:st.notes.map(n=>ids.includes(n.id)?{...n,fav:true}:n) })); const c=ids.length; this.gSelExit(); this.gPushToast('Favorited '+c); };
   gSelDelete = () => { const ids=this.gSelIds(); const b=this.gSnap(); this.setState(st=>({ notes:st.notes.filter(n=>!ids.includes(n.id)), selectMode:false, selected:{} })); this.gPushSnack('Deleted '+ids.length+' notes', b); };
 
-  gOpenRefile(ids){ this.gResetOverlays({ refileOpen:true, refileIds:ids, refileNb:null, refileHeading:null }); }
-  gCloseRefile = () => this.setState({ refileOpen:false, refileIds:null, refileNb:null, refileHeading:null });
+  gFileArchive = './archive.org::* Inbox';
+  gParseArch(spec){
+    const parts = spec.split('::'); const file = (parts[0]||'').replace(/^\.\//,'');
+    const heading = (parts[1]||'').replace(/^\*+\s*/,'');
+    return { spec, file, heading, label: file + ' › ' + heading };
+  }
+  gArchiveFor(id){
+    const notes = this.state.notes; const i = notes.findIndex(n=>n.id===id);
+    if (i>=0){
+      let lvl = notes[i].level;
+      for (let k=i-1; k>=0 && lvl>1; k--){
+        if (notes[k].level < lvl){ lvl = notes[k].level; if (notes[k].arch) return this.gParseArch(notes[k].arch); }
+      }
+    }
+    return this.gParseArch(this.gFileArchive);
+  }
+  gOpenRefile(ids){ this.gResetOverlays({ refileOpen:true, refileIds:ids, refileNb:null, refileHeading:null, archiveDest:this.gArchiveFor(ids[0]) }); }
+  gCloseRefile = () => this.setState({ refileOpen:false, refileIds:null, refileNb:null, refileHeading:null, archiveDest:null });
   gRefileBack = () => this.setState({ refileNb:null, refileHeading:null });
   gPickNb = (name) => this.setState({ refileNb:name, refileHeading:null });
   gPickHeading = (h) => this.setState({ refileHeading:h });
@@ -1414,6 +1729,12 @@ class Component extends DCLogic {
     const b=this.gSnap();
     this.setState(st=>({ notes: st.notes.filter(n=>!ids.includes(n.id)), refileOpen:false, refileIds:null, refileNb:null, refileHeading:null, selectMode:false, selected:{} }));
     this.gPushSnack('Refiled to '+dest, b);
+  };
+  gArchiveConfirm = () => {
+    const a = this.state.archiveDest; if (!a) return;
+    const ids = this.state.refileIds||[]; const b = this.gSnap();
+    this.setState(st=>({ notes: st.notes.filter(n=>!ids.includes(n.id)), refileOpen:false, refileIds:null, refileNb:null, refileHeading:null, archiveDest:null, selectMode:false, selected:{} }));
+    this.gPushSnack('Archived to '+a.label, b);
   };
 
   gestureVals(){
@@ -1538,10 +1859,432 @@ class Component extends DCLogic {
       gRefileCrumb: s.refileNb ? (s.refileNb + (s.refileHeading?(' › '+s.refileHeading):' › top level · or pick a heading')) : 'Choose a destination notebook',
       gRefileBack: this.gRefileBack,
       gRefileConfirm: this.gRefileConfirm,
+      gArchiveDest: !!s.archiveDest,
+      gArchiveLabel: s.archiveDest ? s.archiveDest.label : '',
+      gArchiveConfirm: this.gArchiveConfirm,
       gRefileConfirmStyle: 'flex:1; text-align:center; font-size:14px; font-weight:600; padding:12px; border-radius:12px; cursor:'+(s.refileNb?'pointer':'default')+'; background:'+(s.refileNb?'var(--accent)':'var(--surface-2)')+'; color:'+(s.refileNb?'var(--accent-ink)':'var(--ink-3)')+';',
       gRefileCount: (s.refileIds?s.refileIds.length:0),
       gToastOpen: !!s.toast, gToast: s.toast||'',
       gSnackOpen: !!s.snack, gSnack: s.snack||'', gUndo: this.gUndo,
+    };
+  }
+
+  // ===================== SEARCH =====================
+  TODAY = '2026-07-26';
+  CURFILE = 'travel.org';
+  SD = [
+    {id:'r1',t:'Best ramen in Kyoto',sn:'found a ramen spot for tomorrow near Pontocho, opens 11am',f:'travel.org',h:'Kyoto — Day 2',st:'TODO',tg:['food','travel'],sc:'2026-07-28',dl:null,pr:'B'},
+    {id:'r2',t:'Tantanmen',sn:'spicy sesame ramen broth, ready in 30 minutes',f:'recipes.org',h:'Noodles',st:null,tg:['food','recipe'],sc:null,dl:null,pr:null},
+    {id:'r3',t:'The Ramen book — notes',sn:'the ramen chapter covers tare, broth and noodles',f:'reading.org',h:'Cooking',st:'NEXT',tg:['food','books'],sc:null,dl:'2026-07-30',pr:null},
+    {id:'r4',t:'Draft roadmap deck',sn:'pull the Q2 numbers from the metrics doc first',f:'work.org',h:'Q3 planning',st:'TODO',tg:['work'],sc:'2026-07-27',dl:'2026-07-27',pr:'A'},
+    {id:'r5',t:'Sync with Priya on ranking',sn:'waiting on her notes from the offsite',f:'work.org',h:'Q3 planning',st:'WAITING',tg:['work'],sc:'2026-07-29',dl:null,pr:null},
+    {id:'r6',t:'Order groceries',sn:'noodles, eggs, spring onion, chili oil',f:'home.org',h:'Errands',st:'TODO',tg:['food','errand'],sc:'2026-07-26',dl:null,pr:'C'},
+    {id:'r7',t:'Fix the bathroom tap',sn:'washer size 14mm — hardware shop on Sunday',f:'home.org',h:'Errands',st:'TODO',tg:['home'],sc:null,dl:'2026-07-24',pr:'A'},
+    {id:'r8',t:'Sunday',sn:'long walk, then ramen at the place by the station',f:'journal.org',h:'2026-07-19',st:null,tg:[],sc:null,dl:null,pr:null},
+    {id:'r9',t:'Read the Bigtable paper',sn:'the chapter on tablet splitting is the useful bit',f:'reading.org',h:'Papers',st:'NEXT',tg:['reading'],sc:null,dl:null,pr:'C'},
+    {id:'r10',t:'Sourdough starter',sn:'day 5 — doubling in 4 hours, ready to bake',f:'recipes.org',h:'Baking',st:'DONE',tg:['food','recipe'],sc:null,dl:null,pr:null},
+    {id:'r11',t:'Street food list — Osaka',sn:'takoyaki, kushikatsu, one ramen alley in Namba',f:'travel.org',h:'Osaka',st:'TODO',tg:['food','travel'],sc:null,dl:null,pr:'C'},
+    {id:'r12',t:'Draft OKRs for search',sn:'filters without a query language is the theme',f:'work.org',h:'OKRs',st:'TODO',tg:['work'],sc:null,dl:'2026-08-02',pr:'B'},
+  ];
+  EMPTY = {q:'',qin:'both',tags:[],tagsX:[],states:[],pri:[],sched:'any',schedR:null,dead:'any',deadR:null,scope:'all',join:'AND',untagged:false};
+  SAVED = [
+    {name:'Overdue', f:{dead:'overdue'}},
+    {name:'This week', f:{sched:'7d'}},
+    {name:'Untagged headings', f:{untagged:true}},
+  ];
+  DEMOQ = ['', 'ramen', 'draft'];
+  DPRE = [['any','Any'],['today','Today'],['7d','Next 7 days'],['overdue','Overdue'],['none','No date'],['custom','Custom range…']];
+  MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  MONO = "font-family:'IBM Plex Mono',monospace;";
+
+  sfSet = (patch) => this.setState(p => ({ sf: { ...p.sf, ...patch } }));
+  sfTog = (key, val) => this.setState(p => {
+    const a = p.sf[key].slice(); const i = a.indexOf(val);
+    if (i < 0) a.push(val); else a.splice(i, 1);
+    return { sf: { ...p.sf, [key]: a } };
+  });
+  sfClear = () => this.setState({ sf: { ...this.EMPTY }, sSheet: null, sPanel: false });
+  sfApply = (patch) => this.setState({ sf: { ...this.EMPTY, ...patch }, sSheet: null, sPanel: false });
+
+  dDiff(ds) { return Math.round((new Date(ds + 'T00:00:00') - new Date(this.TODAY + 'T00:00:00')) / 86400000); }
+  dLabel(ds) {
+    const n = this.dDiff(ds);
+    if (n === 0) return 'today';
+    if (n === 1) return 'tomorrow';
+    if (n < 0) return Math.abs(n) + 'd overdue';
+    const d = new Date(ds + 'T00:00:00');
+    return ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()] + ' ' + d.getDate() + ' ' + this.MON[d.getMonth()];
+  }
+  dShort(ds) { const d = new Date(ds + 'T00:00:00'); return this.MON[d.getMonth()] + ' ' + d.getDate(); }
+  dOk(ds, m, r) {
+    if (!m || m === 'any') return true;
+    if (m === 'none') return !ds;
+    if (!ds) return false;
+    const n = this.dDiff(ds);
+    if (m === 'today') return n === 0;
+    if (m === '7d') return n >= 0 && n <= 7;
+    if (m === 'overdue') return n < 0;
+    if (m === 'custom') return !!r && !!r[0] && !!r[1] && ds >= r[0] && ds <= r[1];
+    return true;
+  }
+  dModeLabel(m, r) {
+    if (m === 'custom') return r && r[0] && r[1] ? (this.dShort(r[0]) + '→' + this.dShort(r[1])) : 'range';
+    const f = this.DPRE.find(p => p[0] === m);
+    return f ? f[1].replace('…','') : m;
+  }
+
+  pass(it, F, skip) {
+    const r = [];
+    if (F.q && skip !== 'q') {
+      const q = F.q.toLowerCase();
+      const a = it.t.toLowerCase().indexOf(q) >= 0, b = it.sn.toLowerCase().indexOf(q) >= 0;
+      r.push(F.qin === 'headings' ? a : F.qin === 'body' ? b : (a || b));
+    }
+    if (F.tags.length && skip !== 'tags') r.push(F.tags.some(t => it.tg.indexOf(t) >= 0));
+    if (F.states.length && skip !== 'states') r.push(F.states.indexOf(it.st || '—') >= 0);
+    if (F.pri.length && skip !== 'pri') r.push(F.pri.indexOf(it.pr) >= 0);
+    if (F.sched !== 'any' && skip !== 'sched') r.push(this.dOk(it.sc, F.sched, F.schedR));
+    if (F.dead !== 'any' && skip !== 'dead') r.push(this.dOk(it.dl, F.dead, F.deadR));
+    if (F.untagged) r.push(it.tg.length === 0);
+    if (F.tagsX.length && skip !== 'tags' && F.tagsX.some(t => it.tg.indexOf(t) >= 0)) return false;
+    if (F.scope !== 'all' && skip !== 'scope') {
+      if (F.scope === '__file' ? it.f !== this.CURFILE : it.f !== F.scope) return false;
+    }
+    if (!r.length) return true;
+    return F.join === 'OR' ? r.some(Boolean) : r.every(Boolean);
+  }
+  hits(F, skip) { return this.SD.filter(it => this.pass(it, F, skip)); }
+  facetCounts(F, skip, keysOf) {
+    const m = {};
+    this.hits(F, skip).forEach(it => keysOf(it).forEach(k => { m[k] = (m[k] || 0) + 1; }));
+    return m;
+  }
+  activeCount(F) {
+    let n = 0;
+    if (F.tags.length) n++; if (F.tagsX.length) n++; if (F.states.length) n++; if (F.pri.length) n++;
+    if (F.sched !== 'any') n++; if (F.dead !== 'any') n++; if (F.scope !== 'all') n++;
+    if (F.untagged) n++; if (F.qin !== 'both') n++;
+    return n;
+  }
+  sExpr(F) {
+    const p = [];
+    if (F.q) p.push(F.qin === 'headings' ? ('h.' + F.q) : F.qin === 'body' ? ('body.' + F.q) : F.q);
+    F.tags.forEach(t => p.push('t.' + t));
+    F.tagsX.forEach(t => p.push('-t.' + t));
+    F.states.forEach(v => p.push('i.' + (v === '—' ? 'none' : v.toLowerCase())));
+    F.pri.forEach(v => p.push('p.' + v));
+    if (F.sched !== 'any') p.push('s.' + this.dModeLabel(F.sched, F.schedR).toLowerCase().replace(/ /g,''));
+    if (F.dead !== 'any') p.push('d.' + this.dModeLabel(F.dead, F.deadR).toLowerCase().replace(/ /g,''));
+    if (F.untagged) p.push('-t.*');
+    if (F.scope !== 'all') p.push('b.' + (F.scope === '__file' ? this.CURFILE : F.scope).replace('.org',''));
+    const j = F.join === 'OR' ? ' OR ' : ' ';
+    return p.length ? p.join(j) : '(everything)';
+  }
+  stCol(st) { return st === 'TODO' ? 'var(--syn-todo)' : st === 'NEXT' ? 'var(--blue)' : st === 'WAITING' ? 'var(--ink-3)' : st === 'DONE' ? 'var(--syn-done)' : 'var(--ink-3)'; }
+  stBg(st) { return st === 'TODO' ? 'var(--amber-soft)' : st === 'NEXT' ? 'var(--blue-soft)' : st === 'DONE' ? 'var(--green-soft)' : 'var(--surface-2)'; }
+  fch(st) {
+    const on = st === 'on', x = st === 'x';
+    return 'flex:0 0 auto; white-space:nowrap; font-size:12.5px; font-weight:' + (on || x ? '600' : '500')
+      + '; padding:7px 12px; border-radius:9px; cursor:pointer; display:flex; align-items:center; gap:6px; border:1px solid '
+      + (on ? 'transparent' : x ? 'var(--red)' : 'var(--line)') + '; background:'
+      + (on ? 'var(--accent)' : x ? 'var(--red-soft)' : 'var(--surface)') + '; color:'
+      + (on ? 'var(--accent-ink)' : x ? 'var(--red)' : 'var(--ink-2)') + ';';
+  }
+  sOpen = (kind) => this.setState({ sSheet: kind, sPanel: false });
+  sOpenDate = (which) => this.setState({ sSheet: 'date', sDateTab: which, sPanel: false });
+
+  searchVals() {
+    const s = this.state, F = s.sf, M = this.MONO;
+    const res = this.hits(F, null);
+    const nbs = [];
+    res.forEach(r => { if (nbs.indexOf(r.f) < 0) nbs.push(r.f); });
+    const q = (F.q || '').toLowerCase();
+
+    const rowOf = (it) => {
+      let pre = it.sn, hit = '', post = '';
+      if (q) { const i = it.sn.toLowerCase().indexOf(q); if (i >= 0) { pre = it.sn.slice(0, i); hit = it.sn.slice(i, i + q.length); post = it.sn.slice(i + q.length); } }
+      const datePill = (label, kind) => {
+        const overdue = label.indexOf('overdue') >= 0;
+        const col = overdue ? 'var(--red)' : kind === 'dl' ? 'var(--amber)' : 'var(--syn-ts)';
+        const bg = overdue ? 'var(--red-soft)' : kind === 'dl' ? 'var(--amber-soft)' : 'var(--blue-soft)';
+        return 'flex:0 0 auto; font-size:10.5px; font-weight:600; ' + M + ' padding:3px 7px; border-radius:6px; color:' + col + '; background:' + bg + ';';
+      };
+      return {
+        id: it.id, title: it.t, pre, hit, post,
+        hitStyle: hit ? 'background:var(--amber-soft); color:var(--amber); font-weight:600; border-radius:3px; padding:0 2px;' : 'display:none;',
+        state: it.st || '',
+        stateStyle: it.st ? ('flex:0 0 auto; font-size:10px; font-weight:700; letter-spacing:0.05em; ' + M + ' padding:3px 6px; border-radius:5px; margin-top:2px; color:' + this.stCol(it.st) + '; background:' + this.stBg(it.st) + ';') : 'display:none;',
+        dlLabel: it.dl ? ('DEADLINE ' + this.dLabel(it.dl)) : '',
+        dlStyle: it.dl ? datePill(this.dLabel(it.dl), 'dl') : 'display:none;',
+        scLabel: it.sc ? ('SCHED ' + this.dLabel(it.sc)) : '',
+        scStyle: it.sc ? datePill(this.dLabel(it.sc), 'sc') : 'display:none;',
+        pri: it.pr ? ('#' + it.pr) : '',
+        priStyle: it.pr ? ('flex:0 0 auto; font-size:10.5px; font-weight:700; ' + M + ' padding:3px 6px; border-radius:5px; color:var(--ink-2); background:var(--surface-2);') : 'display:none;',
+        tagLine: it.tg.map(t => ':' + t + ':').join(' '),
+        tagStyle: it.tg.length ? ('font-size:11px; color:var(--syn-tag); ' + M) : 'display:none;',
+        path: it.f + ' › ' + it.h,
+        heading: it.h,
+        file: it.f,
+      };
+    };
+    const rows = res.map(rowOf);
+
+    // grouped (variant B)
+    const byFile = [];
+    res.forEach(it => {
+      let g = byFile.find(x => x.file === it.f);
+      if (!g) { g = { file: it.f, items: [] }; byFile.push(g); }
+      g.items.push(it);
+    });
+    const sGroups = byFile.map(g => {
+      const open = !s.sGrp[g.file];
+      return {
+        file: g.file, count: g.items.length + (g.items.length === 1 ? ' match' : ' matches'),
+        onToggle: () => this.setState(p => ({ sGrp: { ...p.sGrp, [g.file]: !p.sGrp[g.file] } })),
+        caretStyle: 'font-size:11px; color:var(--ink-3); transition:transform .15s ease; transform:rotate(' + (open ? '0' : '-90') + 'deg);',
+        bodyStyle: open ? '' : 'display:none;',
+        rows: g.items.map(rowOf),
+      };
+    });
+
+    const tagCounts = this.facetCounts(F, 'tags', it => it.tg);
+    const stateCounts = this.facetCounts(F, 'states', it => [it.st || '—']);
+    const priCounts = this.facetCounts(F, 'pri', it => it.pr ? [it.pr] : []);
+    const fileCounts = this.facetCounts(F, 'scope', it => [it.f]);
+    const allTags = [];
+    this.SD.forEach(it => it.tg.forEach(t => { if (allTags.indexOf(t) < 0) allTags.push(t); }));
+    allTags.sort((a, b) => (tagCounts[b] || 0) - (tagCounts[a] || 0) || a.localeCompare(b));
+    const stateLabel = (v) => v === '—' ? 'Plain — no TODO state' : v;
+    const ALLSTATES = ['TODO','NEXT','WAITING','DONE','—'];
+
+    // ---- tokens (variant A) ----
+    const tok = (label, col, onRemove) => ({ label, onRemove, style: 'display:flex; align-items:center; gap:4px; font-size:12px; font-weight:600; ' + M + ' padding:4px 7px; border-radius:8px; background:var(--surface-2); color:' + col + ';' });
+    const sTokens = [];
+    F.tags.forEach(t => sTokens.push(tok(':' + t + ':', 'var(--syn-tag)', (e) => { e.stopPropagation(); this.sfTog('tags', t); })));
+    F.tagsX.forEach(t => sTokens.push(tok('-:' + t + ':', 'var(--red)', (e) => { e.stopPropagation(); this.sfTog('tagsX', t); })));
+    F.states.forEach(v => sTokens.push(tok(v === '—' ? 'no state' : v, this.stCol(v), (e) => { e.stopPropagation(); this.sfTog('states', v); })));
+    F.pri.forEach(v => sTokens.push(tok('#' + v, 'var(--ink-2)', (e) => { e.stopPropagation(); this.sfTog('pri', v); })));
+    if (F.sched !== 'any') sTokens.push(tok('sched ' + this.dModeLabel(F.sched, F.schedR), 'var(--syn-ts)', (e) => { e.stopPropagation(); this.sfSet({ sched: 'any', schedR: null }); }));
+    if (F.dead !== 'any') sTokens.push(tok('dl ' + this.dModeLabel(F.dead, F.deadR), 'var(--amber)', (e) => { e.stopPropagation(); this.sfSet({ dead: 'any', deadR: null }); }));
+    if (F.untagged) sTokens.push(tok('untagged', 'var(--red)', (e) => { e.stopPropagation(); this.sfSet({ untagged: false }); }));
+    if (F.scope !== 'all') sTokens.push(tok('in ' + (F.scope === '__file' ? this.CURFILE : F.scope), 'var(--ink-2)', (e) => { e.stopPropagation(); this.sfSet({ scope: 'all' }); }));
+    if (F.qin !== 'both') sTokens.push(tok(F.qin === 'headings' ? 'headings only' : 'body only', 'var(--ink-2)', (e) => { e.stopPropagation(); this.sfSet({ qin: 'both' }); }));
+
+    const scopeLabel = F.scope === 'all' ? 'all files' : F.scope === '__file' ? 'this file' : F.scope;
+    const facetChips = [
+      { label: '⚑', onClick: () => this.setState(p => ({ sAdv: !p.sAdv })), style: this.fch(s.sAdv ? 'on' : 'off') },
+      { label: 'Tags' + (F.tags.length + F.tagsX.length ? ' · ' + (F.tags.length + F.tagsX.length) : ''), onClick: () => this.sOpen('tags'), style: this.fch(F.tags.length || F.tagsX.length ? 'on' : 'off') },
+      { label: 'State' + (F.states.length ? ' · ' + F.states.length : ''), onClick: () => this.sOpen('states'), style: this.fch(F.states.length ? 'on' : 'off') },
+      { label: 'Sched' + (F.sched !== 'any' ? ' · ' + this.dModeLabel(F.sched, F.schedR) : ''), onClick: () => this.sOpenDate('sched'), style: this.fch(F.sched !== 'any' ? 'on' : 'off') },
+      { label: 'Deadline' + (F.dead !== 'any' ? ' · ' + this.dModeLabel(F.dead, F.deadR) : ''), onClick: () => this.sOpenDate('dead'), style: this.fch(F.dead !== 'any' ? 'on' : 'off') },
+      { label: 'Priority' + (F.pri.length ? ' · ' + F.pri.join('') : ''), onClick: () => this.sOpen('pri'), style: this.fch(F.pri.length ? 'on' : 'off') },
+      { label: 'In ' + scopeLabel, onClick: () => this.sOpen('scope'), style: this.fch(F.scope !== 'all' ? 'on' : 'off') },
+      { label: '★', onClick: () => this.sOpen('saved'), style: this.fch('off') },
+    ];
+
+    // ---- sheet ----
+    const box = (st) => ({
+      mark: st === 'on' ? '✓' : st === 'x' ? '−' : '',
+      boxStyle: 'flex:0 0 20px; width:20px; height:20px; border-radius:6px; display:grid; place-items:center; font-size:12px; font-weight:700; border:1.5px solid '
+        + (st === 'on' ? 'transparent' : st === 'x' ? 'var(--red)' : 'var(--line-2)') + '; background:'
+        + (st === 'on' ? 'var(--accent)' : 'transparent') + '; color:' + (st === 'on' ? 'var(--accent-ink)' : 'var(--red)') + ';',
+      rowStyle: 'display:flex; align-items:center; gap:11px; padding:11px 10px; border-radius:11px; cursor:pointer;',
+      labelStyle: 'flex:1; min-width:0; font-size:14px; font-weight:' + (st === 'on' ? '600' : '500') + '; color:' + (st === 'x' ? 'var(--ink-3)' : 'var(--ink)') + '; text-decoration:' + (st === 'x' ? 'line-through' : 'none') + ';',
+    });
+    const exBtn = (on, fn) => ({ onEx: fn, exStyle: 'flex:0 0 26px; width:26px; height:26px; border-radius:50%; display:grid; place-items:center; font-size:15px; cursor:pointer; color:' + (on ? 'var(--red)' : 'var(--ink-3)') + '; background:' + (on ? 'var(--red-soft)' : 'var(--surface-2)') + ';' });
+    const noEx = { onEx: null, exStyle: 'display:none;' };
+    const kind = s.sSheet;
+    let shTitle = '', shHint = '', shRows = [], shClearFn = null, shIsDate = false;
+    if (kind === 'tags') {
+      shTitle = 'Tags';
+      shHint = 'Pick any number — matches headings with any of them. − excludes.';
+      shRows = allTags.map(t => {
+        const on = F.tags.indexOf(t) >= 0, x = F.tagsX.indexOf(t) >= 0;
+        return { label: ':' + t + ':', count: tagCounts[t] || 0, ...box(on ? 'on' : x ? 'x' : 'off'), onClick: () => this.sfTog('tags', t), ...exBtn(x, (e) => { e.stopPropagation(); this.sfTog('tagsX', t); }) };
+      });
+      shClearFn = () => this.sfSet({ tags: [], tagsX: [] });
+    } else if (kind === 'states') {
+      shTitle = 'TODO state';
+      shHint = 'Any of the selected states.';
+      shRows = ALLSTATES.map(v => {
+        const on = F.states.indexOf(v) >= 0;
+        return { label: stateLabel(v), count: stateCounts[v] || 0, ...box(on ? 'on' : 'off'), onClick: () => this.sfTog('states', v), ...noEx };
+      });
+      shClearFn = () => this.sfSet({ states: [] });
+    } else if (kind === 'pri') {
+      shTitle = 'Priority';
+      shHint = 'Org priority cookies [#A] … [#C].';
+      shRows = ['A','B','C'].map(v => {
+        const on = F.pri.indexOf(v) >= 0;
+        return { label: '[#' + v + ']', count: priCounts[v] || 0, ...box(on ? 'on' : 'off'), onClick: () => this.sfTog('pri', v), ...noEx };
+      });
+      shClearFn = () => this.sfSet({ pri: [] });
+    } else if (kind === 'scope') {
+      shTitle = 'Where to search';
+      shHint = 'Also sets which text counts as a match.';
+      shRows = [{ label: 'All files', count: this.SD.length, ...box(F.scope === 'all' ? 'on' : 'off'), onClick: () => this.sfSet({ scope: 'all' }), ...noEx },
+        { label: 'This file · ' + this.CURFILE, count: fileCounts[this.CURFILE] || 0, ...box(F.scope === '__file' ? 'on' : 'off'), onClick: () => this.sfSet({ scope: '__file' }), ...noEx }]
+        .concat(Object.keys(fileCounts).sort().map(f => ({ label: f, count: fileCounts[f], ...box(F.scope === f ? 'on' : 'off'), onClick: () => this.sfSet({ scope: f }), ...noEx })))
+        .concat([{ label: 'Headings only (ignore body text)', count: '', ...box(F.qin === 'headings' ? 'on' : 'off'), onClick: () => this.sfSet({ qin: F.qin === 'headings' ? 'both' : 'headings' }), ...noEx }]);
+      shClearFn = () => this.sfSet({ scope: 'all', qin: 'both' });
+    } else if (kind === 'addcond') {
+      shTitle = 'Add a condition';
+      shHint = 'No syntax — pick a field, then values.';
+      shRows = [['tags','Tag'],['states','TODO state'],['sched','Scheduled date'],['dead','Deadline'],['pri','Priority'],['scope','Notebook / file']].map(p => ({
+        label: p[1], count: '', ...box('off'), onClick: () => (p[0] === 'sched' || p[0] === 'dead') ? this.sOpenDate(p[0]) : this.sOpen(p[0]), ...noEx,
+      }));
+    } else if (kind === 'saved') {
+      shTitle = 'Saved searches';
+      shHint = 'Built-in views, plus anything you save.';
+      shRows = s.sSaved.map(v => ({ label: '★  ' + v.name, count: this.hits({ ...this.EMPTY, ...v.f }, null).length, ...box('off'), onClick: () => this.sfApply(v.f), ...noEx }))
+        .concat([{ label: '+  Save current filters', count: '', ...box('off'), onClick: () => this.setState(p => ({ sSaved: p.sSaved.concat([{ name: this.sExpr(p.sf), f: { ...p.sf } }]), sSheet: null })), ...noEx }]);
+    } else if (kind === 'date') {
+      shIsDate = true;
+      shTitle = s.sDateTab === 'sched' ? 'SCHEDULED' : 'DEADLINE';
+      shHint = s.sDateTab === 'sched' ? 'When you plan to work on it.' : 'When it is actually due.';
+      shClearFn = () => this.sfSet(s.sDateTab === 'sched' ? { sched: 'any', schedR: null } : { dead: 'any', deadR: null });
+    }
+
+    const dTab = s.sDateTab, dKey = dTab === 'sched' ? 'sched' : 'dead', dRKey = dTab === 'sched' ? 'schedR' : 'deadR';
+    const dMode = F[dKey], dRange = F[dRKey];
+    const dCounts = this.facetCounts(F, dKey, it => {
+      const ds = dTab === 'sched' ? it.sc : it.dl;
+      const out = [];
+      this.DPRE.forEach(p => { if (p[0] !== 'any' && p[0] !== 'custom' && this.dOk(ds, p[0], null)) out.push(p[0]); });
+      return out;
+    });
+    const dPresets = this.DPRE.map(p => ({
+      label: p[1], count: p[0] === 'any' || p[0] === 'custom' ? '' : (dCounts[p[0]] || 0),
+      style: this.fch(dMode === p[0] ? 'on' : 'off'),
+      onClick: () => this.sfSet(dTab === 'sched' ? { sched: p[0] } : { dead: p[0] }),
+    }));
+    // month grid
+    const [my, mm] = s.sMonth.split('-').map(Number);
+    const first = new Date(my, mm - 1, 1), ndays = new Date(my, mm, 0).getDate();
+    const pad = first.getDay();
+    const dCells = [];
+    for (let i = 0; i < pad; i++) dCells.push({ label: '', style: 'height:34px;', onClick: null });
+    for (let d = 1; d <= ndays; d++) {
+      const ds = my + '-' + String(mm).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+      const inR = dRange && dRange[0] && dRange[1] && ds >= dRange[0] && ds <= dRange[1];
+      const edge = dRange && (ds === dRange[0] || ds === dRange[1]);
+      const isToday = ds === this.TODAY;
+      dCells.push({
+        label: String(d),
+        style: 'height:34px; display:grid; place-items:center; border-radius:9px; cursor:pointer; font-size:13px; font-weight:' + (edge || isToday ? '700' : '500')
+          + '; color:' + (edge ? 'var(--accent-ink)' : isToday ? 'var(--accent)' : 'var(--ink)') + '; background:' + (edge ? 'var(--accent)' : inR ? 'var(--accent-soft)' : 'transparent')
+          + '; border:1px solid ' + (isToday && !edge ? 'var(--accent)' : 'transparent') + ';',
+        onClick: () => this.setState(p => {
+          const cur = p.sf[dRKey];
+          const next = (!cur || !cur[0] || (cur[0] && cur[1])) ? [ds, null] : (ds < cur[0] ? [ds, cur[0]] : [cur[0], ds]);
+          return { sf: { ...p.sf, [dRKey]: next, [dKey]: 'custom' } };
+        }),
+      });
+    }
+    const dRangeLabel = dRange && dRange[0] ? (this.dShort(dRange[0]) + ' → ' + (dRange[1] ? this.dShort(dRange[1]) : '…')) : 'tap a start date, then an end date';
+
+    // ---- variant B panel sections ----
+    const pchip = (label, count, st, onClick) => ({ label, count: count === '' ? '' : count, countStyle: count === '' ? 'display:none;' : 'font-size:11px; opacity:.6; ' + M, style: this.fch(st), onClick });
+    const pnSections = [
+      { label: 'Where', hint: '', chips: [pchip('All files', this.SD.length, F.scope === 'all' ? 'on' : 'off', () => this.sfSet({ scope: 'all' })), pchip('This file', fileCounts[this.CURFILE] || 0, F.scope === '__file' ? 'on' : 'off', () => this.sfSet({ scope: '__file' }))]
+        .concat(Object.keys(fileCounts).sort().map(f => pchip(f, fileCounts[f], F.scope === f ? 'on' : 'off', () => this.sfSet({ scope: f })))) },
+      { label: 'Match text in', hint: '', chips: [['both','Heading + body'],['headings','Heading only'],['body','Body only']].map(p => pchip(p[1], '', F.qin === p[0] ? 'on' : 'off', () => this.sfSet({ qin: p[0] }))) },
+      { label: 'Tags', hint: 'tap again to exclude', chips: allTags.map(t => {
+          const on = F.tags.indexOf(t) >= 0, x = F.tagsX.indexOf(t) >= 0;
+          return pchip(':' + t + ':', tagCounts[t] || 0, on ? 'on' : x ? 'x' : 'off', () => {
+            if (on) this.setState(p => ({ sf: { ...p.sf, tags: p.sf.tags.filter(v => v !== t), tagsX: p.sf.tagsX.concat([t]) } }));
+            else if (x) this.sfTog('tagsX', t);
+            else this.sfTog('tags', t);
+          });
+        }) },
+      { label: 'TODO state', hint: '', chips: ALLSTATES.map(v => pchip(v === '—' ? 'no state' : v, stateCounts[v] || 0, F.states.indexOf(v) >= 0 ? 'on' : 'off', () => this.sfTog('states', v))) },
+      { label: 'Scheduled', hint: '', chips: this.DPRE.map(p => pchip(p[1], '', F.sched === p[0] ? 'on' : 'off', () => p[0] === 'custom' ? this.sOpenDate('sched') : this.sfSet({ sched: p[0] }))) },
+      { label: 'Deadline', hint: '', chips: this.DPRE.map(p => pchip(p[1], '', F.dead === p[0] ? 'on' : 'off', () => p[0] === 'custom' ? this.sOpenDate('dead') : this.sfSet({ dead: p[0] }))) },
+      { label: 'Priority', hint: '', chips: ['A','B','C'].map(v => pchip('[#' + v + ']', priCounts[v] || 0, F.pri.indexOf(v) >= 0 ? 'on' : 'off', () => this.sfTog('pri', v))) },
+    ];
+
+    // ---- variant C rows ----
+    const qRows = [];
+    const pushRow = (facet, op, val, col, onEdit, onRemove) => qRows.push({
+      facet, op, val, onEdit, onRemove,
+      join: qRows.length === 0 ? 'WHERE' : (F.join === 'OR' ? 'OR' : 'AND'),
+      joinStyle: 'flex:0 0 38px; width:38px; text-align:center; font-size:9.5px; font-weight:700; letter-spacing:0.05em; ' + M + ' color:' + (qRows.length === 0 ? 'var(--ink-3)' : 'var(--accent)') + ';',
+      valStyle: 'flex:1; min-width:0; font-size:13px; font-weight:600; ' + M + ' color:' + col + '; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;',
+    });
+    if (F.q) pushRow('Text', F.qin === 'headings' ? 'in heading' : F.qin === 'body' ? 'in body' : 'contains', F.q, 'var(--ink)', () => this.sOpen('scope'), () => this.sfSet({ q: '' }));
+    if (F.tags.length) pushRow('Tag', F.tags.length > 1 ? 'is any of' : 'is', F.tags.map(t => ':' + t + ':').join(' '), 'var(--syn-tag)', () => this.sOpen('tags'), () => this.sfSet({ tags: [] }));
+    if (F.tagsX.length) pushRow('Tag', 'is not', F.tagsX.map(t => ':' + t + ':').join(' '), 'var(--red)', () => this.sOpen('tags'), () => this.sfSet({ tagsX: [] }));
+    if (F.states.length) pushRow('State', F.states.length > 1 ? 'is any of' : 'is', F.states.map(v => v === '—' ? 'no state' : v).join(' '), 'var(--syn-todo)', () => this.sOpen('states'), () => this.sfSet({ states: [] }));
+    if (F.sched !== 'any') pushRow('Scheduled', 'is', this.dModeLabel(F.sched, F.schedR), 'var(--syn-ts)', () => this.sOpenDate('sched'), () => this.sfSet({ sched: 'any', schedR: null }));
+    if (F.dead !== 'any') pushRow('Deadline', 'is', this.dModeLabel(F.dead, F.deadR), 'var(--amber)', () => this.sOpenDate('dead'), () => this.sfSet({ dead: 'any', deadR: null }));
+    if (F.pri.length) pushRow('Priority', F.pri.length > 1 ? 'is any of' : 'is', F.pri.map(v => '[#' + v + ']').join(' '), 'var(--ink-2)', () => this.sOpen('pri'), () => this.sfSet({ pri: [] }));
+    if (F.untagged) pushRow('Tag', 'is', 'none', 'var(--red)', () => this.sOpen('tags'), () => this.sfSet({ untagged: false }));
+    if (F.scope !== 'all') pushRow('In', 'is', F.scope === '__file' ? this.CURFILE : F.scope, 'var(--ink-2)', () => this.sOpen('scope'), () => this.sfSet({ scope: 'all' }));
+
+    const refine = [];
+    allTags.slice(0, 4).forEach(t => { if (F.tags.indexOf(t) < 0 && tagCounts[t]) refine.push({ label: ':' + t + ':', count: tagCounts[t], style: this.fch('off'), onClick: () => this.sfTog('tags', t) }); });
+    ALLSTATES.forEach(v => { if (F.states.indexOf(v) < 0 && stateCounts[v]) refine.push({ label: v === '—' ? 'no state' : v, count: stateCounts[v], style: this.fch('off'), onClick: () => this.sfTog('states', v) }); });
+    if (F.dead !== 'overdue' && dCounts.overdue) refine.push({ label: 'overdue', count: dCounts.overdue, style: this.fch('off'), onClick: () => this.sfSet({ dead: 'overdue' }) });
+
+    const nActive = this.activeCount(F);
+    const blank = !F.q && nActive === 0;
+    const doneLabel = res.length ? ('Show ' + res.length + (res.length === 1 ? ' result' : ' results')) : 'No matches';
+    const overdueN = this.SD.filter(it => this.dOk(it.dl, 'overdue', null) || this.dOk(it.sc, 'overdue', null)).length;
+    const todayN = this.SD.filter(it => this.dOk(it.sc, 'today', null) || this.dOk(it.dl, 'today', null)).length;
+    const todoN = this.SD.filter(it => it.st === 'TODO' || it.st === 'NEXT').length;
+    const qcIcon = (col, bg) => 'width:30px; height:30px; border-radius:9px; display:grid; place-items:center; font-size:14px; font-weight:700; ' + M + ' color:' + col + '; background:' + bg + ';';
+
+    return {
+      isSearchA: s.screen === 'searchA', isSearchB: s.screen === 'searchB', isSearchC: s.screen === 'searchC',
+      goSearchA: () => this.go('searchA'), goSearchB: () => this.go('searchB'), goSearchC: () => this.go('searchC'),
+      chipSearchA: this.chip(s.screen === 'searchA'), chipSearchB: this.chip(s.screen === 'searchB'), chipSearchC: this.chip(s.screen === 'searchC'),
+      sResults: rows, sGroups,
+      sHasResults: res.length > 0 && !blank, sNoResults: res.length === 0 && !blank, sBlank: blank,
+      sMeta: res.length + (res.length === 1 ? ' result' : ' results') + ' · ' + nbs.length + (nbs.length === 1 ? ' notebook' : ' notebooks'),
+      sTokens,
+      sQueryText: F.q || 'Search all files',
+      sQueryStyle: 'font-size:15px; color:' + (F.q ? 'var(--ink)' : 'var(--ink-3)') + ';',
+      sCycleQuery: () => this.setState(p => ({ sf: { ...p.sf, q: this.DEMOQ[(this.DEMOQ.indexOf(p.sf.q) + 1) % this.DEMOQ.length] } })),
+      sClearStyle: 'margin-left:auto; font-size:12px; font-weight:600; color:var(--ink-2); padding:4px 9px; border-radius:8px; background:var(--surface-2); cursor:pointer; display:' + (nActive || F.q ? 'block' : 'none') + ';',
+      sfClearAll: this.sfClear,
+      sExprText: this.sExpr(F),
+      sAdv: s.sAdv,
+      sToggleAdv: () => this.setState(p => ({ sAdv: !p.sAdv })),
+      sAdvLinkStyle: 'font-size:12px; font-weight:600; padding:5px 10px; border-radius:8px; cursor:pointer; color:' + (s.sAdv ? 'var(--accent-ink)' : 'var(--ink-2)') + '; background:' + (s.sAdv ? 'var(--accent)' : 'var(--surface-2)') + ';',
+      facetChips,
+      sActiveCount: nActive || '',
+      sCountBadge: nActive ? ('font-size:11px; font-weight:700; ' + M + ' min-width:19px; height:19px; padding:0 5px; border-radius:10px; display:grid; place-items:center; background:var(--accent-ink); color:var(--accent);') : 'display:none;',
+      sSortLabel: s.sSort,
+      sOpenSort: () => this.setState(p => ({ sSort: p.sSort === 'Date' ? 'Relevance' : p.sSort === 'Relevance' ? 'File' : 'Date' })),
+      sOpenPanel: () => this.setState({ sPanel: true, sSheet: null }),
+      sClosePanel: () => this.setState({ sPanel: false }),
+      pnOpen: s.sPanel, pnSections,
+      pnHint: nActive ? (nActive + (nActive === 1 ? ' filter active · ' : ' filters active · ') + this.sExpr(F)) : 'Nothing filtered yet — everything shows.',
+      qRows, refineChips: refine,
+      sJoinLabel: F.join,
+      sToggleJoin: () => this.sfSet({ join: F.join === 'AND' ? 'OR' : 'AND' }),
+      sJoinToggleStyle: 'font-size:11px; font-weight:700; letter-spacing:0.05em; ' + M + ' padding:6px 11px; border-radius:8px; cursor:pointer; background:var(--surface-2); color:var(--accent);',
+      sOpenAddCond: () => this.sOpen('addcond'),
+      shOpen: !!kind, shClose: () => this.setState({ sSheet: null }),
+      shTitle, shHint, shRows, shIsList: !shIsDate, shIsDate, shDoneLabel: doneLabel,
+      shClear: shClearFn || (() => {}),
+      shClearStyle: 'font-size:12.5px; font-weight:600; padding:7px 11px; border-radius:9px; cursor:pointer; color:var(--ink-2); background:var(--surface-2); display:' + (shClearFn ? 'block' : 'none') + ';',
+      dPresets, dCustom: dMode === 'custom', dCells, dRangeLabel,
+      dDow: ['S','M','T','W','T','F','S'],
+      dMonthLabel: this.MON[mm - 1] + ' ' + my,
+      dPrevMonth: () => this.setState({ sMonth: (mm === 1 ? (my - 1) + '-12' : my + '-' + String(mm - 1).padStart(2, '0')) }),
+      dNextMonth: () => this.setState({ sMonth: (mm === 12 ? (my + 1) + '-01' : my + '-' + String(mm + 1).padStart(2, '0')) }),
+      dTabSched: () => this.setState({ sDateTab: 'sched' }),
+      dTabDead: () => this.setState({ sDateTab: 'dead' }),
+      dTabSchedStyle: this.fch(dTab === 'sched' ? 'on' : 'off'),
+      dTabDeadStyle: this.fch(dTab === 'dead' ? 'on' : 'off'),
+      savedRows: s.sSaved.map(v => ({ name: v.name, expr: this.sExpr({ ...this.EMPTY, ...v.f }), count: this.hits({ ...this.EMPTY, ...v.f }, null).length, onClick: () => this.sfApply(v.f) })),
+      quickCards: [
+        { icon: '!', label: 'Overdue', meta: overdueN + ' past their date', iconStyle: qcIcon('var(--red)', 'var(--red-soft)'), onClick: () => this.sfApply({ dead: 'overdue' }) },
+        { icon: '◷', label: 'Today', meta: todayN + ' scheduled or due', iconStyle: qcIcon('var(--amber)', 'var(--amber-soft)'), onClick: () => this.sfApply({ sched: 'today' }) },
+        { icon: '□', label: 'Open tasks', meta: todoN + ' TODO or NEXT', iconStyle: qcIcon('var(--blue)', 'var(--blue-soft)'), onClick: () => this.sfApply({ states: ['TODO', 'NEXT'] }) },
+        { icon: '#', label: 'Browse tags', meta: allTags.length + ' tags in use', iconStyle: qcIcon('var(--syn-tag)', 'var(--accent-soft)'), onClick: () => this.sOpen('tags') },
+      ],
     };
   }
 
@@ -1550,6 +2293,7 @@ class Component extends DCLogic {
     const sc = (n) => s.screen === n;
     return {
       ...this.gestureVals(),
+      ...this.searchVals(),
       theme: s.theme,
       themes: this.themeList(),
       clock: '9:41',
@@ -1575,7 +2319,7 @@ class Component extends DCLogic {
       goRead: () => this.go('read'),
       goCapturePicker: () => this.go('capturePicker'),
       goCaptureEditor: () => this.go('captureEditor'),
-      goSearch: () => this.go('search'),
+      goSearch: () => this.go('searchA'),
       goConflict: () => this.go('conflict'),
       goSettings: () => this.go('settings'),
       openDrawer: () => this.setState({ drawerOpen: true }),
@@ -1608,22 +2352,22 @@ class Component extends DCLogic {
       toggleSyncIcon: () => this.setState(p => ({ syncIcon: !p.syncIcon })),
       syncTrackStyle: this.trackStyle(s.syncIcon),
       syncKnobStyle: this.knobStyle(),
-      showPreface: s.showPreface,
-      togglePreface: () => this.setState(p => ({ showPreface: !p.showPreface })),
-      prefaceTrackStyle: this.trackStyle(s.showPreface),
-      prefaceKnobStyle: this.knobStyle(),
-      // collapsible preface + property drawers (org)
-      prefaceOpen: s.colPreface,
+      showHeaderTags: s.showHeaderTags,
+      toggleHeaderTags: () => this.setState(p => ({ showHeaderTags: !p.showHeaderTags })),
+      hdrTrackStyle: this.trackStyle(s.showHeaderTags),
+      hdrKnobStyle: this.knobStyle(),
+      // collapsible header-tags + property drawers (org)
+      hdrOpen: s.colHdr,
       filePropOpen: s.colFileProp,
       subPropOpen: s.colSubProp,
-      togglePrefaceOpen: () => this.setState(p => ({ colPreface: !p.colPreface })),
+      toggleHdr: () => this.setState(p => ({ colHdr: !p.colHdr })),
       toggleFileProp: () => this.setState(p => ({ colFileProp: !p.colFileProp })),
       toggleSubProp: () => this.setState(p => ({ colSubProp: !p.colSubProp })),
       collBoxStyle: 'font-family:\'IBM Plex Mono\',monospace; background:var(--surface-2); border-radius:10px; opacity:0.66; transition:opacity .15s ease;',
       collHeadStyle: 'display:flex; align-items:center; gap:8px; padding:8px 12px; cursor:pointer; user-select:none;',
       collLabelStyle: 'font-size:12px; color:var(--ink-3); letter-spacing:0.01em;',
       collHintStyle: 'font-size:11px; color:var(--ink-3); margin-left:auto;',
-      collCaretPreface: 'font-size:10px; color:var(--ink-3); width:10px; transition:transform .15s ease; transform:rotate(' + (s.colPreface ? 90 : 0) + 'deg);',
+      collCaretHdr: 'font-size:10px; color:var(--ink-3); width:10px; transition:transform .15s ease; transform:rotate(' + (s.colHdr ? 90 : 0) + 'deg);',
       collCaretFile: 'font-size:10px; color:var(--ink-3); width:10px; transition:transform .15s ease; transform:rotate(' + (s.colFileProp ? 90 : 0) + 'deg);',
       collCaretSub: 'font-size:10px; color:var(--ink-3); width:10px; transition:transform .15s ease; transform:rotate(' + (s.colSubProp ? 90 : 0) + 'deg);',
       collBodyStyle: 'padding:1px 12px 10px 30px; display:flex; flex-direction:column; gap:3px; font-size:12px; line-height:1.5;',
@@ -1639,6 +2383,7 @@ class Component extends DCLogic {
       iconTriggerName: (this.iconList().find(i => i.active) || {}).name || '',
       iconTriggerSwatchStyle: 'width:28px; height:28px; border-radius:8px; background:var(--accent-soft); border:1px solid var(--line); display:grid; place-items:center; flex:0 0 auto;',
       iconSpokesLogo: this.spokeSet(8, 3.4),
+      iconSpokesOnboarding: this.spokeSet(20, 8),
       iconSpokesTrigger: this.spokeSet(8, 3.4),
       iconSpokesDropdown: this.spokeSet(9, 3.6),
       iconSpokesBig: this.spokeSet(32, 14),
