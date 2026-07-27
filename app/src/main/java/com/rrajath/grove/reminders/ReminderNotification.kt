@@ -32,7 +32,7 @@ object ReminderNotification {
 
         val contentIntent = PendingIntent.getActivity(
             context, reminder.notificationId,
-            context.packageManager.getLaunchIntentForPackage(context.packageName) ?: Intent(),
+            Intent(Intent.ACTION_VIEW, contentUri(reminder)).setClass(context, MainActivity::class.java),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
 
@@ -84,4 +84,16 @@ object ReminderNotification {
                 "&level=${reminder.headingLevel}" +
                 "&type=${reminder.planningType}" +
                 "&notifId=${reminder.notificationId}").toUri()
+
+    /**
+     * Tapping the notification body (as opposed to its "Reschedule" action)
+     * should just land on the due heading, not auto-open [PlanningDatePicker] —
+     * an empty `type` makes `ReminderResolveScreen` resolve the same heading
+     * while `GroveApp`'s `takeIf { isNotBlank() }` drops the blank planning arg.
+     */
+    private fun contentUri(reminder: ReminderEntity): android.net.Uri =
+        ("grove://reminder/${Routes.encode(reminder.fileName)}" +
+                "?headingPath=${Routes.encode(reminder.headingPath)}" +
+                "&level=${reminder.headingLevel}" +
+                "&type=").toUri()
 }
