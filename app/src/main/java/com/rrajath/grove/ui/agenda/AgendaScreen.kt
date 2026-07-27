@@ -31,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
@@ -194,6 +195,7 @@ private fun AgendaResultRow(result: AgendaResult, onOpenNote: (NoteRef) -> Unit)
             Text(
                 result.snippet.text,
                 fontFamily = PlexSans, fontSize = 13.5.sp, lineHeight = 1.5.em, color = c.ink2,
+                maxLines = 2, overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(top = 3.dp),
             )
         }

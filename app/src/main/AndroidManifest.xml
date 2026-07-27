@@ -24,7 +24,8 @@
             android:exported="true"
             android:label="@string/app_name"
             android:launchMode="singleTask"
-            android:theme="@style/Theme.Grove">
+            android:theme="@style/Theme.Grove"
+            android:windowSoftInputMode="adjustResize">
             <!-- Share sheet target: text and URLs route into capture (PRD §10) -->
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
