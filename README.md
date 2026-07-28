@@ -12,7 +12,7 @@ Grove edits plain `.org` files in a folder you choose. There is no account, no p
 - **Real editor** — raw org subtree editing with syntax highlighting, a formatting toolbar, list continuation on Enter, a metadata sheet (TODO state, priority, tags with autocomplete, SCHEDULED/DEADLINE pickers), repeater advancement on DONE, and autosave with a stale-file guard.
 - **Reminders** — a notification fires when a heading's SCHEDULED or DEADLINE time arrives, with Complete (marks the heading done) and Reschedule (reopens the date/time picker) actions right on the notification. Enabled by default; notification and exact-alarm access are only requested once the first reminder actually needs scheduling.
 - **Outline operations** — collapsible heading tree with body previews, expand/collapse all, move/cut/copy/paste subtrees, cycle state by swipe, narrow to a subtree.
-- **Orgzly-compatible search** — `i.todo s.7d t.work .b.archive OR p.a`, saved searches, and an `ad.N` agenda view. See [docs/search-syntax.md](docs/search-syntax.md).
+- **Orgzly-compatible search** — `i.todo s.7d t.work .b.archive OR p.a`, saved searches, and an `ad.N` agenda view. Backed by a SQLite FTS5 trigram index, so substring search stays instant as the vault grows and covers full note bodies. See [docs/search-syntax.md](docs/search-syntax.md).
 - **Sync that respects your tools** — change detection by file revision, Syncthing `.sync-conflict-*` detection with a keep-local / keep-remote / keep-both picker, manual through continuous sync modes, `.orgzlyignore` support.
 - **A warm, deliberate design** — IBM Plex Sans/Serif/Mono, an earth-tone palette with full dark mode, and org syntax tokens colored the way an Emacs theme would.
 
@@ -64,7 +64,7 @@ app/src/main/java/com/rrajath/grove/
 
 ## Tech stack
 
-Kotlin 2.2 · Jetpack Compose (Material 3) · Room · DataStore · WorkManager · Glance · kotlinx.serialization · JUnit 4
+Kotlin 2.2 · Jetpack Compose (Material 3) · Room (on bundled SQLite, for FTS5) · DataStore · WorkManager · Glance · kotlinx.serialization · JUnit 4
 
 ## Fonts
 

@@ -66,7 +66,7 @@ class SyncManager(
         this.store = store
         stateJob?.cancel()
         engine = store?.let {
-            SyncEngine(it, RoomNoteIndex(database.indexDao(), keywords, onNotebookIndexed)) { System.currentTimeMillis() }
+            SyncEngine(it, RoomNoteIndex(database, keywords, onNotebookIndexed)) { System.currentTimeMillis() }
         }
         engine?.let { e ->
             stateJob = scope.launch { e.state.collect { _state.value = it } }

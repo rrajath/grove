@@ -8,7 +8,7 @@ import com.rrajath.grove.sync.NotebookStub
 
 /** [NoteIndex] over Room: parses notebook text into row entities. */
 class RoomNoteIndex(
-    private val dao: IndexDao,
+    private val db: GroveDatabase,
     private val keywords: () -> OrgKeywords = { OrgKeywords.DEFAULT },
     /**
      * Notified with the freshly parsed [com.rrajath.grove.org.OrgDocument] right
@@ -17,6 +17,8 @@ class RoomNoteIndex(
      */
     private val onIndexed: suspend (fileName: String, doc: com.rrajath.grove.org.OrgDocument) -> Unit = { _, _ -> },
 ) : NoteIndex {
+
+    private val dao get() = db.indexDao()
 
     override suspend fun knownNotebooks(): Map<String, KnownNotebook> =
         dao.notebookSyncStates().associate {
@@ -64,7 +66,7 @@ class RoomNoteIndex(
                 orgId = h.id,
                 customId = h.customId,
                 createdAt = h.properties["CREATED"],
-                body = doc.bodyOf(h).joinToString("\n").take(MAX_BODY_CHARS),
+                body = doc.bodyOf(h).joinToString("\n"),
                 isDone = h.keyword != null && doc.keywords.isDone(h.keyword),
                 lastModified = lastModified,
             )
@@ -90,9 +92,5 @@ class RoomNoteIndex(
 
     override suspend fun removeNotebook(fileName: String) {
         dao.removeNotebook(fileName)
-    }
-
-    companion object {
-        private const val MAX_BODY_CHARS = 4000
     }
 }

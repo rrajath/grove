@@ -3,7 +3,7 @@ package com.rrajath.grove.ui.agenda
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rrajath.grove.GroveApplication
-import com.rrajath.grove.data.NoteEntity
+import com.rrajath.grove.data.toNoteMeta
 import com.rrajath.grove.search.NoteMeta
 import com.rrajath.grove.search.QueryMatcher
 import com.rrajath.grove.search.Snippets
@@ -50,8 +50,11 @@ class AgendaViewModel(private val app: GroveApplication) : ViewModel() {
 
     init {
         viewModelScope.launch {
-            app.database.indexDao().allNotes()
-                .map { rows -> rows.map { it.toMeta() } }
+            // Only rows with a SCHEDULED or DEADLINE: QueryMatcher.agenda buckets
+            // notes purely by those dates, so an undated note can never surface
+            // here and there is no reason to hold one in memory.
+            app.database.indexDao().plannedNotes()
+                .map { rows -> rows.map { it.toNoteMeta() } }
                 .flowOn(Dispatchers.Default)
                 .collect { notes ->
                     matched = notes
@@ -96,23 +99,6 @@ class AgendaViewModel(private val app: GroveApplication) : ViewModel() {
         priority = meta.priority,
         snippet = Snippets.build(meta.searchText.substringAfter('\n', ""), emptyList()),
         breadcrumb = "${meta.fileName} › ${meta.title}",
-    )
-
-    private fun NoteEntity.toMeta() = NoteMeta(
-        fileName = fileName,
-        lineIndex = lineIndex,
-        title = title,
-        keyword = keyword,
-        isDoneKeyword = isDone,
-        priority = priority,
-        tags = tags.split(':').filter { it.isNotEmpty() },
-        inheritedTags = inheritedTags.split(':').filter { it.isNotEmpty() },
-        scheduled = scheduled,
-        deadline = deadline,
-        closed = closed,
-        createdAt = createdAt,
-        lastModified = lastModified,
-        searchText = title + "\n" + body,
     )
 
     companion object {
