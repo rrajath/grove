@@ -1,13 +1,24 @@
 package com.rrajath.grove.ui.search
 
+import android.database.SQLException
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rrajath.grove.GroveApplication
 import com.rrajath.grove.data.NoteEntity
+import com.rrajath.grove.data.NoteFacetRow
+import com.rrajath.grove.data.rawQuery
+import com.rrajath.grove.data.toNoteMeta
+import com.rrajath.grove.org.OrgTimestamp
+import com.rrajath.grove.search.DatePresence
+import com.rrajath.grove.search.FacetNarrowing
+import com.rrajath.grove.search.FtsQuery
+import com.rrajath.grove.search.NoteCandidateQuery
 import com.rrajath.grove.search.NoteMeta
 import com.rrajath.grove.search.QueryMatcher
 import com.rrajath.grove.search.QueryParser
 import com.rrajath.grove.search.SavedSearch
+import com.rrajath.grove.search.SearchQuery
 import com.rrajath.grove.search.Snippets
 import com.rrajath.grove.ui.vault.factory
 import kotlinx.coroutines.Dispatchers
@@ -119,18 +130,25 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
     private val queryFlow = MutableStateFlow("")
     private val filtersFlow = MutableStateFlow(SearchFilters())
 
-    // Mapped once per index change (Room invalidation), not per keystroke;
-    // NoteMeta also caches its parsed dates, so repeated searches reuse both.
-    private val metas = MutableStateFlow<List<NoteMeta>?>(null)
+    // Whole-vault facet projection: no titles, no bodies. Backs the filter
+    // catalog and the blank-state quick counts, and doubles as the
+    // index-changed signal for re-running the active search. Result rows
+    // themselves are loaded per search (see loadCandidates), so note text is
+    // never resident for the whole vault.
+    private val facets = MutableStateFlow<List<NoteFacets>?>(null)
+
+    /** Whole-vault totals, for the Filters sheet's count while nothing is narrowed. */
+    private var vaultNoteCount = 0
+    private var vaultNotebookCount = 0
 
     init {
         viewModelScope.launch {
-            app.database.indexDao().allNotes()
-                .map { rows -> rows.map { it.toMeta() } }
+            app.database.indexDao().noteFacets()
+                .map { rows -> rows.map { it.toFacets() } }
                 .flowOn(Dispatchers.Default)
-                .collect { notes ->
-                    metas.value = notes
-                    updateCatalogAndCounts(notes)
+                .collect { rows ->
+                    facets.value = rows
+                    updateCatalogAndCounts(rows)
                 }
         }
         @OptIn(FlowPreview::class)
@@ -138,8 +156,8 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
             // Re-runs on new keystrokes, filter taps, and when the index
             // changes under an active query (e.g. a sync finishing while the
             // search screen is up).
-            combine(queryFlow.debounce(300), metas.filterNotNull(), filtersFlow) { q, m, f -> Triple(q, m, f) }
-                .collect { (q, m, f) -> runSearch(q, m, f) }
+            combine(queryFlow.debounce(300), facets.filterNotNull(), filtersFlow) { q, _, f -> q to f }
+                .collect { (q, f) -> runSearch(q, f) }
         }
     }
 
@@ -237,14 +255,31 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
         return if (parts.isEmpty()) "(everything)" else parts.joinToString(" ")
     }
 
-    private suspend fun runSearch(raw: String, notes: List<NoteMeta>, filters: SearchFilters) {
+    private suspend fun runSearch(raw: String, filters: SearchFilters) {
+        val textQuery = if (raw.isBlank()) null else QueryParser.parse(raw)
+
+        // Nothing typed and nothing filtered: the screen shows the quick-start
+        // cards, so there are no results to build. The Filters sheet still wants
+        // the whole-vault totals for its "Show N results" button.
+        if (raw.isBlank() && filters.activeCount == 0) {
+            _state.value = _state.value.copy(
+                filters = filters,
+                groups = emptyList(),
+                resultCount = vaultNoteCount,
+                notebookCount = vaultNotebookCount,
+                isBlank = true,
+                matchedTerms = emptyList(),
+            )
+            return
+        }
+
+        val notes = loadCandidates(textQuery, filters)
+
         withContext(Dispatchers.Default) {
             val today = LocalDate.now()
-            val textQuery = if (raw.isBlank()) null else QueryParser.parse(raw)
             val textMatched = textQuery?.let { QueryMatcher.filter(notes, it, today) } ?: notes
             val terms = textQuery?.textTerms ?: emptyList()
             val filtered = textMatched.filter { matchesFilters(it, filters, today) }
-            val blank = raw.isBlank() && filters.activeCount == 0
 
             val groups = mutableListOf<SearchFileGroup>()
             val indexOfFile = HashMap<String, Int>()
@@ -264,10 +299,52 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
                 groups = groups,
                 resultCount = filtered.size,
                 notebookCount = groups.size,
-                isBlank = blank,
+                isBlank = false,
                 matchedTerms = terms,
             )
         }
+    }
+
+    /**
+     * Loads only the rows this search could possibly match: the FTS5 index
+     * supplies the text candidates and the facet chips / structured tokens
+     * become SQL predicates. Both narrowings are supersets by construction, so
+     * [QueryMatcher] and [matchesFilters] below still decide every result and
+     * the visible behaviour is identical to scanning the whole vault.
+     */
+    private suspend fun loadCandidates(textQuery: SearchQuery?, filters: SearchFilters): List<NoteMeta> {
+        val dao = app.database.indexDao()
+        val match = textQuery
+            ?.takeIf { app.database.ftsAvailable }
+            ?.let { FtsQuery.matchExpression(it) }
+        val candidate = NoteCandidateQuery.build(match, textQuery, filters.toNarrowing())
+        val rows = try {
+            dao.notesMatching(rawQuery(candidate.sql, candidate.args))
+        } catch (e: SQLException) {
+            // A search must never fail because of the index: fall back to the
+            // whole table and let the Kotlin matcher do all the work, exactly as
+            // it did before this table existed.
+            Log.w(TAG, "candidate query failed, falling back to a full scan: ${candidate.sql}", e)
+            dao.notesMatching(rawQuery("SELECT * FROM notes ORDER BY fileName, lineIndex"))
+        }
+        return withContext(Dispatchers.Default) { rows.map { it.toNoteMeta() } }
+    }
+
+    private fun SearchFilters.toNarrowing() = FacetNarrowing(
+        notebook = notebook,
+        states = states - NO_STATE,
+        includeNoState = NO_STATE in states,
+        priorities = priorities,
+        tags = tags,
+        scheduled = scheduled.presence(),
+        deadline = deadline.presence(),
+    )
+
+    /** Every date preset except "any" and "no date" needs a timestamp to exist. */
+    private fun DatePreset.presence(): DatePresence = when (this) {
+        DatePreset.ANY -> DatePresence.ANY
+        DatePreset.NO_DATE -> DatePresence.ABSENT
+        else -> DatePresence.PRESENT
     }
 
     private fun matchesFilters(note: NoteMeta, f: SearchFilters, today: LocalDate): Boolean {
@@ -335,7 +412,7 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
     /** Recomputed from the whole vault (not the active filters), so the
      *  Filters panel's chip catalog and the blank-state quick-start counts
      *  stay stable while the user is actively narrowing results. */
-    private fun updateCatalogAndCounts(notes: List<NoteMeta>) {
+    private fun updateCatalogAndCounts(notes: List<NoteFacets>) {
         val today = LocalDate.now()
         val keywords = app.keywords.value
         val tags = notes.flatMap { it.inheritedTags }.distinct().sorted()
@@ -344,10 +421,12 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
         val states = keywords.active + keywords.done + NO_STATE
         val notebooks = notes.map { it.fileName }.distinct().sorted()
         val overdue = notes.count {
-            !it.isDoneKeyword && ((it.scheduledDate?.isBefore(today) == true) || (it.deadlineDate?.isBefore(today) == true))
+            !it.isDone && ((it.scheduledDate?.isBefore(today) == true) || (it.deadlineDate?.isBefore(today) == true))
         }
         val dueToday = notes.count { it.scheduledDate == today || it.deadlineDate == today }
-        val openTasks = notes.count { it.keyword != null && !it.isDoneKeyword }
+        val openTasks = notes.count { it.keyword != null && !it.isDone }
+        vaultNoteCount = notes.size
+        vaultNotebookCount = notebooks.size
         _state.value = _state.value.copy(
             catalog = SearchCatalog(tags, states, notebooks),
             quickCounts = QuickCounts(overdue, dueToday, openTasks),
@@ -355,25 +434,29 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
         )
     }
 
-    private fun NoteEntity.toMeta() = NoteMeta(
+    /** Facet projection with its planning dates already parsed. */
+    private data class NoteFacets(
+        val fileName: String,
+        val keyword: String?,
+        val isDone: Boolean,
+        val inheritedTags: List<String>,
+        val scheduledDate: LocalDate?,
+        val deadlineDate: LocalDate?,
+    )
+
+    private fun NoteFacetRow.toFacets() = NoteFacets(
         fileName = fileName,
-        lineIndex = lineIndex,
-        title = title,
         keyword = keyword,
-        isDoneKeyword = isDone,
-        priority = priority,
-        tags = tags.split(':').filter { it.isNotEmpty() },
+        isDone = isDone,
         inheritedTags = inheritedTags.split(':').filter { it.isNotEmpty() },
-        scheduled = scheduled,
-        deadline = deadline,
-        closed = closed,
-        createdAt = createdAt,
-        lastModified = lastModified,
-        searchText = title + "\n" + body,
+        scheduledDate = scheduled?.let { OrgTimestamp.parse(it)?.date },
+        deadlineDate = deadline?.let { OrgTimestamp.parse(it)?.date },
     )
 
     companion object {
         val Factory = factory { SearchViewModel(it) }
+
+        private const val TAG = "SearchViewModel"
 
         private val DAY_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("EEE d MMM", Locale.ENGLISH)
     }

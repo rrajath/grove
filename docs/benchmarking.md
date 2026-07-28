@@ -79,3 +79,26 @@ run. Verify the win with `StartupBenchmark.startupBaselineProfile` vs.
 
 Re-check the plugin's AGP-9 support periodically; once supported it replaces the
 manual steps above with `./gradlew :app:generateBaselineProfile`.
+
+## Search latency (FTS5 migration)
+
+The go/no-go measurement for `docs/fts5-migration-plan.md` is **not** a
+Macrobenchmark. Typing in the search field is debounced 300 ms and the query
+runs off the main thread, so frame timing mostly measures Compose
+recomposition, not the work the migration changed. Instead,
+`SearchLatencyBenchmark` (an instrumented test in `app/src/androidTest`) seeds a
+4000-note synthetic vault and times one search both ways — materialise every row
+and scan in Kotlin, versus letting SQLite/FTS5 return only candidates — while
+asserting both paths return identical results.
+
+```bash
+./gradlew :app:connectedDebugAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.class=com.rrajath.grove.search.SearchLatencyBenchmark
+adb logcat -d -s SearchLatency
+```
+
+It runs on any connected device. Emulator numbers are directional only — take
+the real figures from a physical device, as with every other benchmark here.
+
+Read `rowsRead` alongside the timings: it is the number of rows the narrowed
+path materialised, and it is what determines the memory the search holds.

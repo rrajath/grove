@@ -4,13 +4,20 @@ import android.content.Context
 import androidx.room.Dao
 import androidx.room.Database
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.PrimaryKey
 import androidx.room.Query
+import androidx.room.RawQuery
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.RoomRawQuery
+import androidx.room.SkipQueryVerification
 import androidx.room.Transaction
+import androidx.sqlite.SQLiteConnection
+import androidx.sqlite.driver.bundled.BundledSQLiteDriver
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -37,7 +44,24 @@ data class NotebookEntity(
     val isIndexed: Boolean = true,
 )
 
-@Entity(tableName = "notes", primaryKeys = ["fileName", "lineIndex"])
+/**
+ * Indices back the facet pushdown in [IndexDao.notesMatching]: the chip filters
+ * and `i.`/`p.` query tokens become SQL `WHERE` predicates instead of a scan
+ * over every row. `scheduled`/`deadline` are indexed for their `IS NOT NULL`
+ * probes (the agenda screen, and any date facet), not for date comparison —
+ * they hold raw org timestamp strings.
+ */
+@Entity(
+    tableName = "notes",
+    primaryKeys = ["fileName", "lineIndex"],
+    indices = [
+        Index("keyword"),
+        Index("isDone"),
+        Index("priority"),
+        Index("scheduled"),
+        Index("deadline"),
+    ],
+)
 data class NoteEntity(
     val fileName: String,
     val lineIndex: Int,
@@ -55,7 +79,7 @@ data class NoteEntity(
     val orgId: String?,
     val customId: String?,
     val createdAt: String?,
-    /** Own body text (capped) for full-text search and snippets. */
+    /** Own body text, in full, for full-text search and snippets. */
     val body: String,
     /** Done-type keyword flag resolved at index time. */
     val isDone: Boolean,
@@ -107,31 +131,98 @@ data class NotebookSyncState(
     val isIndexed: Boolean,
 )
 
+/** Primary key of a `notes` row — what an FTS lookup hands back. */
+data class NoteKey(val fileName: String, val lineIndex: Int)
+
+/**
+ * Binds a statement built by `NoteCandidateQuery` for [IndexDao.notesMatching].
+ * Every parameter that builder emits is text (match expressions, keywords,
+ * tags, file names), so a single bind kind covers all of them.
+ */
+fun rawQuery(sql: String, args: List<String> = emptyList()): RoomRawQuery =
+    RoomRawQuery(sql) { statement ->
+        args.forEachIndexed { i, arg -> statement.bindText(i + 1, arg) }
+    }
+
+/**
+ * Every column the filter catalog and the blank-state quick counts need, and
+ * nothing else. Deliberately excludes `title`/`body`: this projection is held
+ * in memory for the whole vault, so carrying note bodies in it would defeat the
+ * point of moving search itself to a query-scoped load.
+ */
+data class NoteFacetRow(
+    val fileName: String,
+    val keyword: String?,
+    val isDone: Boolean,
+    val inheritedTags: String,
+    val scheduled: String?,
+    val deadline: String?,
+)
+
+/**
+ * An abstract class rather than an interface so it can carry [ftsAvailable]:
+ * the FTS statements below live inside the same `@Transaction` methods as the
+ * `notes` writes (that is what keeps the two tables from ever drifting), so the
+ * "is there an FTS table at all" decision has to be readable from in here.
+ */
 @Dao
-interface IndexDao {
-    @Query("SELECT * FROM notebooks")
-    suspend fun notebooks(): List<NotebookEntity>
+abstract class IndexDao {
+
+    /**
+     * Whether [NotesFts] exists and can be written to. Set once by
+     * [GroveDatabase]'s bootstrap callback; false only where SQLite was built
+     * without FTS5, in which case search falls back to the full scan.
+     */
+    @Volatile
+    var ftsAvailable: Boolean = false
 
     @Query("SELECT * FROM notebooks")
-    fun notebooksFlow(): Flow<List<NotebookEntity>>
+    abstract suspend fun notebooks(): List<NotebookEntity>
+
+    @Query("SELECT * FROM notebooks")
+    abstract fun notebooksFlow(): Flow<List<NotebookEntity>>
 
     @Query("SELECT fileName, revision, conflictFileName, isIndexed FROM notebooks")
-    suspend fun notebookSyncStates(): List<NotebookSyncState>
+    abstract suspend fun notebookSyncStates(): List<NotebookSyncState>
 
     @Query("SELECT conflictFileName FROM notebooks WHERE fileName = :fileName")
-    suspend fun conflictFileNameFor(fileName: String): String?
+    abstract suspend fun conflictFileNameFor(fileName: String): String?
 
     @Query("SELECT DISTINCT tags FROM notes WHERE tags != ''")
-    suspend fun allTagStrings(): List<String>
+    abstract suspend fun allTagStrings(): List<String>
 
-    @Query("SELECT * FROM notes")
-    fun allNotes(): Flow<List<NoteEntity>>
+    @Query(
+        "SELECT fileName, keyword, isDone, inheritedTags, scheduled, deadline FROM notes"
+    )
+    abstract fun noteFacets(): Flow<List<NoteFacetRow>>
+
+    /**
+     * Rows the agenda can possibly show. `QueryMatcher.agenda` only ever buckets
+     * notes by their SCHEDULED/DEADLINE date, so an undated note can never
+     * appear — excluding those in SQL is an exact narrowing, not an
+     * approximation.
+     */
+    @Query("SELECT * FROM notes WHERE scheduled IS NOT NULL OR deadline IS NOT NULL")
+    abstract fun plannedNotes(): Flow<List<NoteEntity>>
+
+    /**
+     * Candidate rows for one search, built by `NoteCandidateQuery`. Raw because
+     * the query joins [NotesFts], which Room does not own as an entity.
+     */
+    @SkipQueryVerification
+    @RawQuery
+    abstract suspend fun notesMatching(query: RoomRawQuery): List<NoteEntity>
+
+    /** Keys of the FTS rows matching a MATCH expression (see `FtsQuery`). */
+    @SkipQueryVerification
+    @RawQuery
+    abstract suspend fun noteKeysMatching(query: RoomRawQuery): List<NoteKey>
 
     @Insert
-    suspend fun insertNotes(notes: List<NoteEntity>)
+    abstract suspend fun insertNotes(notes: List<NoteEntity>)
 
     @Insert
-    suspend fun insertNotebook(notebook: NotebookEntity)
+    abstract suspend fun insertNotebook(notebook: NotebookEntity)
 
     /**
      * Bulk-insert stub rows for newly-discovered files in one transaction (a
@@ -139,43 +230,81 @@ interface IndexDao {
      * row — indexed or stub — keep their real data instead of being blanked.
      */
     @Insert(onConflict = OnConflictStrategy.IGNORE)
-    suspend fun insertNotebookStubs(notebooks: List<NotebookEntity>)
+    abstract suspend fun insertNotebookStubs(notebooks: List<NotebookEntity>)
 
     @Query("UPDATE notebooks SET conflictFileName = :conflictFileName WHERE fileName = :fileName")
-    suspend fun setConflict(fileName: String, conflictFileName: String?)
+    abstract suspend fun setConflict(fileName: String, conflictFileName: String?)
 
     @Query("DELETE FROM notes WHERE fileName = :fileName")
-    suspend fun deleteNotes(fileName: String)
+    abstract suspend fun deleteNotes(fileName: String)
 
     @Query("DELETE FROM notebooks WHERE fileName = :fileName")
-    suspend fun deleteNotebook(fileName: String)
+    abstract suspend fun deleteNotebook(fileName: String)
 
+    /**
+     * Rewrites one file's rows in `notes` and in the FTS mirror. Both happen in
+     * the same transaction, which is what makes it impossible for the mirror to
+     * drift from the table it indexes.
+     */
     @Transaction
-    suspend fun replaceNotebook(notebook: NotebookEntity, notes: List<NoteEntity>) {
+    open suspend fun replaceNotebook(notebook: NotebookEntity, notes: List<NoteEntity>) {
         deleteNotebook(notebook.fileName)
         deleteNotes(notebook.fileName)
         insertNotebook(notebook)
         insertNotes(notes)
+        if (ftsAvailable) {
+            deleteFtsRows(notebook.fileName)
+            notes.forEach { insertFtsRow(it.fileName, it.lineIndex, it.title, it.body) }
+        }
     }
 
+    /** Drops a deleted or renamed notebook from every table. */
     @Transaction
-    suspend fun removeNotebook(fileName: String) {
+    open suspend fun removeNotebook(fileName: String) {
         deleteNotebook(fileName)
         deleteNotes(fileName)
+        if (ftsAvailable) deleteFtsRows(fileName)
     }
 
     @Query("DELETE FROM notebooks")
-    suspend fun clearNotebooks()
+    abstract suspend fun clearNotebooks()
 
     @Query("DELETE FROM notes")
-    suspend fun clearNotes()
+    abstract suspend fun clearNotes()
 
-    /** Wipe the whole index (rebuilt on next sync — it's only a cache). */
+    /** Wipes the whole index (rebuilt on next sync — it's only a cache). */
     @Transaction
-    suspend fun clearAll() {
+    open suspend fun clearAll() {
         clearNotebooks()
         clearNotes()
+        if (ftsAvailable) clearFts()
     }
+
+    // --- FTS mirror ---
+    //
+    // Room cannot validate statements against a virtual table it does not own as
+    // an entity, hence @SkipQueryVerification. The table is guaranteed to exist
+    // at runtime by GroveDatabase's bootstrap callback; when creating it failed,
+    // GroveDatabase.ftsAvailable is false and none of these run.
+
+    @SkipQueryVerification
+    @Query("DELETE FROM notes_fts WHERE fileName = :fileName")
+    abstract suspend fun deleteFtsRows(fileName: String)
+
+    @SkipQueryVerification
+    @Query(
+        "INSERT INTO notes_fts(fileName, lineIndex, title, body) " +
+            "VALUES (:fileName, :lineIndex, :title, :body)"
+    )
+    abstract suspend fun insertFtsRow(fileName: String, lineIndex: Int, title: String, body: String)
+
+    @SkipQueryVerification
+    @Query("DELETE FROM notes_fts")
+    abstract suspend fun clearFts()
+
+    @SkipQueryVerification
+    @Query("SELECT COUNT(*) FROM notes_fts")
+    abstract suspend fun ftsRowCount(): Int
 }
 
 @Dao
@@ -230,11 +359,13 @@ interface ReminderDao {
 
 @Database(
     entities = [NotebookEntity::class, NoteEntity::class, SyncLogEntity::class, ReminderEntity::class],
+    // v7: added the notes_fts FTS5 mirror, secondary indices on notes, and full
+    // (no longer 4000-char-capped) note bodies;
     // v6: added ReminderEntity (SCHEDULED/DEADLINE notification scheduling state);
     // v5: added NotebookEntity.isIndexed (stub vs fully-parsed notebook rows);
     // v4: added NotebookEntity.title (cached #+TITLE: preamble value). Destructive
     // migration drops the index so the next sync rebuilds it from the .org files.
-    version = 6,
+    version = 7,
     exportSchema = false,
 )
 abstract class GroveDatabase : RoomDatabase() {
@@ -242,10 +373,52 @@ abstract class GroveDatabase : RoomDatabase() {
     abstract fun syncLogDao(): SyncLogDao
     abstract fun reminderDao(): ReminderDao
 
+    /**
+     * Whether the [NotesFts] virtual table exists and can be used. False only on
+     * a device whose SQLite lacks FTS5, where everything falls back to the full
+     * in-memory scan — slower, but identical results.
+     */
+    val ftsAvailable: Boolean get() = indexDao().ftsAvailable
+
     companion object {
         fun build(context: Context): GroveDatabase =
-            Room.databaseBuilder(context, GroveDatabase::class.java, "grove-index.db")
+            create(Room.databaseBuilder(context, GroveDatabase::class.java, "grove-index.db"))
+
+        /**
+         * Throwaway in-memory instance wired through the same [create] path, so
+         * the instrumented tests exercise the real FTS bootstrap rather than a
+         * hand-rolled copy of it that could drift.
+         */
+        fun inMemory(context: Context): GroveDatabase =
+            create(Room.inMemoryDatabaseBuilder(context, GroveDatabase::class.java))
+
+        private fun create(builder: RoomDatabase.Builder<GroveDatabase>): GroveDatabase {
+            // The callback only fires on first database access, which is
+            // necessarily after build() returns, so `database` is always
+            // assigned by the time either override runs.
+            lateinit var database: GroveDatabase
+            val ftsBootstrap = object : RoomDatabase.Callback() {
+                override fun onCreate(connection: SQLiteConnection) {
+                    database.indexDao().ftsAvailable = NotesFts.create(connection)
+                }
+
+                // Also on open: the table lives outside Room's schema, so nothing
+                // else would recreate it if a destructive migration or a manual
+                // wipe removed it out from under us.
+                override fun onOpen(connection: SQLiteConnection) {
+                    database.indexDao().ftsAvailable = NotesFts.create(connection)
+                }
+            }
+            database = builder
+                // Android's platform SQLite is built without the FTS5 module, so
+                // the bundled SQLite ships one that has it (plus the trigram
+                // tokenizer the substring semantics depend on).
+                .setDriver(BundledSQLiteDriver())
+                .setQueryCoroutineContext(Dispatchers.IO)
                 .fallbackToDestructiveMigration(dropAllTables = true)
+                .addCallback(ftsBootstrap)
                 .build()
+            return database
+        }
     }
 }

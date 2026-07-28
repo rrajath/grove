@@ -16,7 +16,7 @@ An empty query matches everything.
 
 | Syntax | Matches notes that… | Example |
 |---|---|---|
-| `word` | contain the text in their heading or body (case-insensitive substring) | `meeting` |
+| `word` | contain the text in their heading or body (case-insensitive substring, anywhere in the word — `meet` matches `committee`) | `meeting` |
 | `i.STATE` | have that TODO keyword (case-insensitive); `i.none` = no keyword | `i.todo`, `i.in-progress`, `.i.done` |
 | `b.NAME` | live in that notebook (`.org` suffix optional) | `b.inbox`, `b.journal.org` |
 | `t.TAG` | have the tag — **including inherited** tags from ancestor headings and `#+FILETAGS:`. Substring match: `t.bee` matches `:beeblebrox:` | `t.work` |
@@ -46,6 +46,12 @@ Used by `s.` `d.` `c.` `cr.`:
 |---|---|
 | `o.PROP` | Sort results by a property instead of relevance. Properties: `priority`/`p`, `scheduled`/`s`, `deadline`/`d`, `created`/`cr`, `title`, `notebook`/`b`. Repeatable — `o.p o.d` sorts by priority, then deadline. |
 | `ad.N` | Agenda mode: group results by day over the next N days. A note appears under each day it is scheduled or due; overdue, not-done items surface on today. The drawer's **Agenda** item is `ad.7`. |
+
+## What gets searched
+
+Plain-text terms match against a heading's title plus its **entire** body. (Before the FTS5 migration, body text past the first 4000 characters was silently unsearchable.)
+
+Searching is backed by a SQLite FTS5 index, but the matching rules above are unchanged: the index only narrows which notes get examined, and every result is still decided by the same substring logic. Terms of one or two characters are shorter than the index's smallest unit and are matched by scanning instead, so they work exactly as before — just more slowly on a large vault.
 
 ## Ranking
 
