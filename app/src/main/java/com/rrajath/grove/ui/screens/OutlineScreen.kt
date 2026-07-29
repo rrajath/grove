@@ -31,6 +31,9 @@ import androidx.compose.material.icons.filled.FormatIndentIncrease
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.EditNote
+import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.UnfoldLess
 import androidx.compose.material.icons.filled.UnfoldMore
 import androidx.compose.material3.AlertDialog
@@ -38,6 +41,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -161,6 +165,8 @@ fun OutlineScreen(
     var datePickerFor by remember { mutableStateOf<Pair<Int, String>?>(null) }
     // Line index whose TODO state the swipe panel's "State" action is picking.
     var statePickerFor by remember { mutableStateOf<Int?>(null) }
+    // Line index whose swipe panel "Note" action opened the note-input dialog.
+    var noteDialogFor by remember { mutableStateOf<Int?>(null) }
 
     // The command bar takes over the top bar in focus mode; back exits it.
     BackHandler(enabled = focusedLine != null) { viewModel.setFocus(null) }
@@ -411,22 +417,34 @@ fun OutlineScreen(
                                 )
                             }
                             SwipeRevealRow(
-                                // Right-swipe panel: state / schedule / deadline / favorite.
+                                // Right-swipe panel: state / schedule / note / favorite.
                                 leftActions = listOf(
                                     SwipeAction("⟳", "State", c.amber, c.amberSoft) {
                                         statePickerFor = h.lineIndex
                                     },
-                                    SwipeAction("◷", "Sched", c.blue, c.blueSoft) {
+                                    SwipeAction(
+                                        label = "Schedule",
+                                        fg = c.blue,
+                                        bg = c.blueSoft,
+                                        icon = Icons.Outlined.CalendarMonth,
+                                    ) {
+                                        // Both SCHEDULED and DEADLINE live on one screen now, so a
+                                        // single entry point opens it (defaulting to the SCHEDULED tab).
                                         datePickerFor = h.lineIndex to "scheduled"
                                     },
-                                    SwipeAction("⚑", "Deadl", c.red, c.redSoft) {
-                                        datePickerFor = h.lineIndex to "deadline"
+                                    SwipeAction(
+                                        label = "Note",
+                                        fg = c.green,
+                                        bg = c.greenSoft,
+                                        icon = Icons.Outlined.EditNote,
+                                    ) {
+                                        noteDialogFor = h.lineIndex
                                     },
                                     SwipeAction("★", "Fav", c.accent, c.accentSoft, onClick = toggleFavorite),
                                 ),
                                 // Left-swipe panel: insert above / below / sub-note / refile.
                                 rightActions = listOf(
-                                    SwipeAction("↑+", "Above", c.blue, c.blueSoft) {
+                                    SwipeAction("↑+", "Above", c.amber, c.amberSoft) {
                                         viewModel.insertSiblingAbove(h) { line ->
                                             onCreateNote(NoteRef(notebookId, line))
                                         }
@@ -522,6 +540,20 @@ fun OutlineScreen(
                     )
                 }
 
+                noteDialogFor?.let { line ->
+                    val headline = doc.headlineAtLine(line)
+                    if (headline != null) {
+                        NoteDialog(
+                            title = headline.title,
+                            onDismiss = { noteDialogFor = null },
+                            onConfirm = { note ->
+                                viewModel.addNote(headline, note)
+                                noteDialogFor = null
+                            },
+                        )
+                    }
+                }
+
                 refileState?.let { refile ->
                     RefileSheet(
                         state = refile,
@@ -614,6 +646,51 @@ private fun StateChip(label: String, active: Boolean, fg: Color, bg: Color, onCl
             color = if (active) fg else c.ink2,
         )
     }
+}
+
+/** Swipe panel's "Note" action: free text logged into the headline's LOGBOOK drawer. */
+@Composable
+private fun NoteDialog(title: String, onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
+    val c = MaterialTheme.grove
+    var text by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = c.surface,
+        title = {
+            Column {
+                Text(
+                    "Add note",
+                    fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
+                    fontSize = 16.sp, color = c.ink,
+                )
+                Text(
+                    title,
+                    fontFamily = PlexSans, fontSize = 13.5.sp, color = c.ink2,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
+            }
+        },
+        text = {
+            OutlinedTextField(
+                value = text,
+                onValueChange = { text = it },
+                placeholder = { Text("Note contents", fontFamily = PlexSans, color = c.ink3) },
+                minLines = 3,
+                maxLines = 6,
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { if (text.isNotBlank()) onConfirm(text) },
+                enabled = text.isNotBlank(),
+            ) { Text("Add", color = c.accent, fontWeight = FontWeight.SemiBold) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel", color = c.ink2) }
+        },
+    )
 }
 
 /**
@@ -912,29 +989,35 @@ private fun OutlineNode(
             }
             // Scheduled / deadline chips
             headline.planning.scheduled?.takeIf { flags.timestamps }?.let { ts ->
-                Box(
+                Row(
                     Modifier
                         .padding(top = 3.dp)
                         .clip(RoundedCornerShape(5.dp))
                         .background(c.blueSoft)
                         .padding(horizontal = 5.dp, vertical = 1.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(3.dp),
                 ) {
+                    Icon(Icons.Outlined.CalendarMonth, contentDescription = null, tint = c.blue, modifier = Modifier.size(11.dp))
                     Text(
-                        "SCHEDULED: ${ts.format()}",
+                        ts.format(),
                         fontFamily = PlexMono, fontSize = 11.sp, color = c.blue,
                     )
                 }
             }
             headline.planning.deadline?.takeIf { flags.timestamps }?.let { ts ->
-                Box(
+                Row(
                     Modifier
                         .padding(top = 3.dp)
                         .clip(RoundedCornerShape(5.dp))
                         .background(c.redSoft)
                         .padding(horizontal = 5.dp, vertical = 1.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(3.dp),
                 ) {
+                    Icon(Icons.Filled.Flag, contentDescription = null, tint = c.red, modifier = Modifier.size(11.dp))
                     Text(
-                        "DEADLINE: ${ts.format()}",
+                        ts.format(),
                         fontFamily = PlexMono, fontSize = 11.sp, color = c.red,
                     )
                 }

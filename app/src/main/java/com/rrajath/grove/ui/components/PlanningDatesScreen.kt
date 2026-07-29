@@ -3,6 +3,7 @@ package com.rrajath.grove.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -33,6 +34,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,8 +47,12 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -108,6 +114,13 @@ fun PlanningDatesScreen(
         mutableStateOf(YearMonth.from(start))
     }
     var shorthand by remember { mutableStateOf("") }
+    // True right after "Clear" is tapped, so the footer button can say "Clear
+    // Dates" instead of its usual disabled-state text; cleared the moment
+    // either date is set again.
+    var showClearedLabel by remember { mutableStateOf(false) }
+    LaunchedEffect(sched, dead) {
+        if (sched != null || dead != null) showClearedLabel = false
+    }
 
     val isSched = tab == PlanningKind.SCHEDULED
     val accent = if (isSched) c.blue else c.red
@@ -187,7 +200,7 @@ fun PlanningDatesScreen(
                         fontSize = 12.5.sp, color = c.ink2,
                         modifier = Modifier
                             .clip(RoundedCornerShape(9.dp))
-                            .clickable { sched = null; dead = null }
+                            .clickable { sched = null; dead = null; showClearedLabel = true }
                             .padding(horizontal = 10.dp, vertical = 8.dp),
                     )
                 }
@@ -209,7 +222,7 @@ fun PlanningDatesScreen(
 
                     if (parse != null) {
                         Text(
-                            shorthandEcho(parse, today),
+                            shorthandEcho(parse, today, tab),
                             fontFamily = PlexMono, fontSize = 11.5.sp,
                             color = if (parsedOk != null) c.green else c.red,
                             modifier = Modifier.padding(start = 4.dp, end = 4.dp, top = 7.dp, bottom = 2.dp),
@@ -346,15 +359,25 @@ fun PlanningDatesScreen(
                             color = if (dead != null) c.red else c.ink3,
                         )
                     }
+                    val canApplyDates = sched != null || dead != null
+                    val footerLabel = when {
+                        showClearedLabel -> "Clear Dates"
+                        sched != null && dead != null -> "Apply Both Dates"
+                        sched != null -> "Apply Scheduled Date"
+                        dead != null -> "Apply Deadline"
+                        else -> "Apply Both Dates"
+                    }
                     Text(
-                        "Apply both dates",
+                        footerLabel,
                         fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
-                        fontSize = 14.5.sp, color = c.accentInk, textAlign = TextAlign.Center,
+                        fontSize = 14.5.sp,
+                        color = if (canApplyDates) c.accentInk else c.ink3,
+                        textAlign = TextAlign.Center,
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(13.dp))
-                            .background(c.accent)
-                            .clickable { onConfirm(sched, dead) }
+                            .background(if (canApplyDates) c.accent else c.surface2)
+                            .clickable(enabled = canApplyDates) { onConfirm(sched, dead) }
                             .padding(vertical = 13.dp),
                     )
                 }
@@ -746,7 +769,6 @@ private fun PlanningSection(
 }
 
 /** "Every _week_, and if I am late, _keep the original rhythm_." plus the cookie. */
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun RepeaterCard(
     repeater: Repeater,
@@ -764,27 +786,52 @@ private fun RepeaterCard(
             .border(1.dp, c.line, RoundedCornerShape(14.dp))
             .padding(12.dp),
     ) {
-        FlowRow(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            val body = androidx.compose.ui.text.TextStyle(
-                fontFamily = PlexSans, fontSize = 14.sp, color = c.ink, lineHeight = 26.sp,
-            )
-            Text("Every ", style = body)
-            InlinePick(intervalLabel(repeater), accent) {
-                val units = listOf('d', 'w', 'm', 'y')
-                val next = units[(units.indexOf(repeater.unit).coerceAtLeast(0) + 1) % units.size]
-                onChange(repeater.copy(unit = next))
-            }
-            Text(", and if I am late, ", style = body)
-            InlinePick(kindWords(repeater.type).lowercase(), accent) {
-                val kinds = RepeaterType.entries
-                onChange(repeater.copy(type = kinds[(kinds.indexOf(repeater.type) + 1) % kinds.size]))
-            }
-            Text(".", style = body)
+        // A single Text (rather than a FlowRow of separate Text composables) so the
+        // whole sentence shares one text layout: the bold accent words then sit on
+        // the exact same baseline as the plain words around them, and the trailing
+        // "." can't drift onto its own mis-aligned box (which used to read as a
+        // stray "·" floating above the line).
+        val sentence = remember(repeater.value, repeater.unit, repeater.type, accent) {
+            buildRepeaterSentence(intervalLabel(repeater), kindWords(repeater.type).lowercase(), accent)
         }
+        var layoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
+        Text(
+            text = sentence.text,
+            style = TextStyle(fontFamily = PlexSans, fontSize = 14.sp, color = c.ink, lineHeight = 26.sp),
+            onTextLayout = { layoutResult = it },
+            modifier = Modifier
+                .fillMaxWidth()
+                .pointerInput(sentence) {
+                    detectTapGestures { tapOffset ->
+                        val result = layoutResult ?: return@detectTapGestures
+                        when (val position = result.getOffsetForPosition(tapOffset)) {
+                            in sentence.intervalRange -> {
+                                val units = listOf('d', 'w', 'm', 'y')
+                                val next = units[(units.indexOf(repeater.unit).coerceAtLeast(0) + 1) % units.size]
+                                onChange(repeater.copy(unit = next))
+                            }
+                            in sentence.kindRange -> {
+                                val kinds = RepeaterType.entries
+                                onChange(repeater.copy(type = kinds[(kinds.indexOf(repeater.type) + 1) % kinds.size]))
+                            }
+                            else -> Unit
+                        }
+                    }
+                }
+                .drawBehind {
+                    val result = layoutResult ?: return@drawBehind
+                    drawDashedUnderline(result, sentence.intervalRange, accent)
+                    drawDashedUnderline(result, sentence.kindRange, accent)
+                },
+        )
 
         Row(
             Modifier.fillMaxWidth().padding(top = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
+            // Top-aligned: the cookie pill is a fixed-height single line, but
+            // kindHint() can wrap to two lines, so centering the row would
+            // float the pill below the hint's first line instead of flush
+            // with it.
+            verticalAlignment = Alignment.Top,
             horizontalArrangement = Arrangement.spacedBy(9.dp),
         ) {
             Text(
@@ -799,7 +846,7 @@ private fun RepeaterCard(
             Text(
                 kindHint(repeater),
                 fontFamily = PlexSans, fontSize = 11.5.sp, color = c.ink2, lineHeight = 16.sp,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f).padding(top = 3.dp),
             )
         }
 
@@ -833,38 +880,56 @@ private fun RepeaterCard(
     }
 }
 
+/** The repeat sentence's text plus the char ranges of its two tappable words. */
+private data class RepeaterSentence(
+    val text: AnnotatedString,
+    val intervalRange: IntRange,
+    val kindRange: IntRange,
+)
+
+private fun buildRepeaterSentence(intervalText: String, kindText: String, accent: Color): RepeaterSentence {
+    lateinit var intervalRange: IntRange
+    lateinit var kindRange: IntRange
+    val text = buildAnnotatedString {
+        append("Every ")
+        val intervalStart = length
+        withStyle(SpanStyle(color = accent, fontWeight = FontWeight.SemiBold)) { append(intervalText) }
+        intervalRange = intervalStart until length
+        append(", and if I am late, ")
+        val kindStart = length
+        withStyle(SpanStyle(color = accent, fontWeight = FontWeight.SemiBold)) { append(kindText) }
+        kindRange = kindStart until length
+        append(".")
+    }
+    return RepeaterSentence(text, intervalRange, kindRange)
+}
+
 /**
- * Dashed-underlined word that cycles through its options when tapped. The rule is
- * drawn just under the *text line*, not under the composable's box — the 26sp
- * line height that keeps this in flow with the surrounding sentence would
- * otherwise leave the rule floating well below the glyphs.
+ * Draws a dashed rule under [range] of [layout], anchored to that range's own
+ * *font baseline* (not the line box's bottom) — the 26sp line height that keeps
+ * the sentence readable pads extra leading below the glyphs, which would leave
+ * the rule floating well below the text if it were anchored to the box bottom
+ * instead. Splits across lines in case the picked word ever wraps.
  */
-@Composable
-private fun InlinePick(label: String, accent: Color, onClick: () -> Unit) {
-    var lineBottom by remember { mutableStateOf(0f) }
-    Text(
-        label,
-        fontFamily = PlexSans, fontWeight = FontWeight.SemiBold, fontSize = 14.sp,
-        color = accent, lineHeight = 26.sp,
-        onTextLayout = { layout ->
-            if (layout.lineCount > 0) lineBottom = layout.getLineBottom(0)
-        },
-        modifier = Modifier
-            .clickable(onClick = onClick)
-            .drawBehind {
-                if (lineBottom <= 0f) return@drawBehind
-                val y = lineBottom - 1.dp.toPx()
-                drawLine(
-                    color = accent,
-                    start = Offset(0f, y),
-                    end = Offset(size.width, y),
-                    strokeWidth = 1.5.dp.toPx(),
-                    pathEffect = PathEffect.dashPathEffect(
-                        floatArrayOf(3.dp.toPx(), 2.5.dp.toPx()), 0f,
-                    ),
-                )
-            },
-    )
+private fun DrawScope.drawDashedUnderline(layout: TextLayoutResult, range: IntRange, color: Color) {
+    if (range.isEmpty()) return
+    val firstLine = layout.getLineForOffset(range.first)
+    val lastLine = layout.getLineForOffset(range.last)
+    for (line in firstLine..lastLine) {
+        val start = maxOf(range.first, layout.getLineStart(line))
+        val end = minOf(range.last + 1, layout.getLineEnd(line, visibleEnd = true))
+        if (start >= end) continue
+        val xStart = layout.getHorizontalPosition(start, usePrimaryDirection = true)
+        val xEnd = layout.getHorizontalPosition(end, usePrimaryDirection = true)
+        val y = layout.getLineBaseline(line) + 2.dp.toPx()
+        drawLine(
+            color = color,
+            start = Offset(xStart, y),
+            end = Offset(xEnd, y),
+            strokeWidth = 1.5.dp.toPx(),
+            pathEffect = PathEffect.dashPathEffect(floatArrayOf(3.dp.toPx(), 2.5.dp.toPx()), 0f),
+        )
+    }
 }
 
 @Composable
@@ -1076,18 +1141,25 @@ private fun relativeDay(date: LocalDate, today: LocalDate): String {
     }
 }
 
-private fun shorthandEcho(parse: ShorthandParse, today: LocalDate): String = when (parse) {
+private fun shorthandEcho(parse: ShorthandParse, today: LocalDate, activeTab: PlanningKind): String = when (parse) {
     is ShorthandParse.Unrecognised ->
         "Not understood, try “fri”, “+2w”, “aug 3 10-11am”"
     is ShorthandParse.Ok -> {
         val sh = parse.value
-        listOfNotNull(
+        // No explicit s:/d: prefix falls back to whichever section is active
+        // (the same fallback applyShorthand() itself uses), so the echo always
+        // states which field the line will actually be applied to.
+        val target = sh.target ?: activeTab
+        val arrow = "→ ${if (target == PlanningKind.DEADLINE) "DEADLINE" else "SCHEDULED"}"
+        val segments = listOfNotNull(
             sh.date?.let { "${it.format(HumanDate)} · ${relativeDay(it, today)}" },
             sh.time?.let { t ->
                 t.format(ClockTime) + (sh.endTime?.let { "–${it.format(ClockTime)}" } ?: "")
             },
             sh.repeater?.let { r -> "every ${intervalLabel(r)} $r" },
-            sh.target?.let { "→ ${if (it == PlanningKind.DEADLINE) "DEADLINE" else "SCHEDULED"}" },
-        ).joinToString("  ·  ")
+        )
+        // The arrow segment is a destination label, not another fact to bullet
+        // alongside the date/time/repeater — no "·" separator in front of it.
+        if (segments.isEmpty()) arrow else segments.joinToString("  ·  ") + "  " + arrow
     }
 }

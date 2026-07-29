@@ -108,6 +108,130 @@ class OrgMutationsTest {
     }
 
     @Test
+    fun `markDone with repeater logs the state change and stamps LAST_REPEAT`() {
+        val child = h("Child task")
+        val result = OrgMutations.markDone(doc, child, "DONE", LocalDateTime.of(2025, 6, 11, 14, 0))
+        assertTrue(result.contains("- State \"DONE\"       from \"TODO\"       [2025-06-11 Wed 14:00]"))
+        val after = OrgParser.parse(result).findByTitle("Child task")!!
+        assertEquals("[2025-06-11 Wed 14:00]", after.properties["LAST_REPEAT"])
+        assertEquals(
+            listOf("- State \"DONE\"       from \"TODO\"       [2025-06-11 Wed 14:00]"),
+            after.logbook,
+        )
+        // Org convention: PROPERTIES precedes LOGBOOK.
+        assertTrue(result.indexOf(":PROPERTIES:") < result.indexOf(":LOGBOOK:"))
+    }
+
+    @Test
+    fun `appendLogbookEntry prepends newest entry first`() {
+        val once = OrgMutations.appendLogbookEntry(doc, h("Last"), "- entry one")
+        val redoc = OrgParser.parse(once)
+        assertEquals(listOf("- entry one"), redoc.findByTitle("Last")!!.logbook)
+
+        val twice = OrgMutations.appendLogbookEntry(redoc, redoc.findByTitle("Last")!!, "- entry two")
+        val redoc2 = OrgParser.parse(twice)
+        assertEquals(listOf("- entry two", "- entry one"), redoc2.findByTitle("Last")!!.logbook)
+    }
+
+    @Test
+    fun `appendLogbookEntry creates drawer after an existing PROPERTIES drawer`() {
+        val withProps = OrgParser.parse(
+            """
+            * Task
+            :PROPERTIES:
+            :ID: abc
+            :END:
+            body
+            """.trimIndent() + "\n"
+        )
+        val result = OrgMutations.appendLogbookEntry(withProps, withProps.findByTitle("Task")!!, "- entry")
+        val redoc = OrgParser.parse(result)
+        assertEquals(listOf("- entry"), redoc.findByTitle("Task")!!.logbook)
+        assertEquals("abc", redoc.findByTitle("Task")!!.properties["ID"])
+        assertTrue(result.indexOf(":PROPERTIES:") < result.indexOf(":LOGBOOK:"))
+    }
+
+    @Test
+    fun `appendLogbookNote creates the drawer when missing`() {
+        val ts = OrgTimestamp(java.time.LocalDate.of(2026, 7, 29), java.time.LocalTime.of(12, 25), active = false)
+        val result = OrgMutations.appendLogbookNote(doc, h("Last"), "This is a test note", ts)
+        val redoc = OrgParser.parse(result)
+        assertEquals(
+            listOf("- Note taken on [2026-07-29 Wed 12:25] \\\\", "  This is a test note"),
+            redoc.findByTitle("Last")!!.logbook,
+        )
+    }
+
+    @Test
+    fun `appendLogbookNote goes after existing history but above the most recent note`() {
+        val ts1 = OrgTimestamp(java.time.LocalDate.of(2026, 7, 29), java.time.LocalTime.of(12, 25), active = false)
+        val ts2 = OrgTimestamp(java.time.LocalDate.of(2026, 7, 30), java.time.LocalTime.of(9, 0), active = false)
+
+        // History entry already present (e.g. a DONE state change), same as markDone writes.
+        val withHistory = OrgParser.parse(
+            OrgMutations.appendLogbookEntry(doc, h("Last"), "- State \"DONE\"       from \"TODO\"       [2026-07-28 Tue 08:00]")
+        )
+        val withFirstNote = OrgParser.parse(
+            OrgMutations.appendLogbookNote(withHistory, withHistory.findByTitle("Last")!!, "first note", ts1)
+        )
+        assertEquals(
+            listOf(
+                "- State \"DONE\"       from \"TODO\"       [2026-07-28 Tue 08:00]",
+                "- Note taken on [2026-07-29 Wed 12:25] \\\\",
+                "  first note",
+            ),
+            withFirstNote.findByTitle("Last")!!.logbook,
+        )
+
+        val withSecondNote = OrgParser.parse(
+            OrgMutations.appendLogbookNote(withFirstNote, withFirstNote.findByTitle("Last")!!, "second note", ts2)
+        )
+        assertEquals(
+            listOf(
+                "- State \"DONE\"       from \"TODO\"       [2026-07-28 Tue 08:00]",
+                "- Note taken on [2026-07-30 Thu 09:00] \\\\",
+                "  second note",
+                "- Note taken on [2026-07-29 Wed 12:25] \\\\",
+                "  first note",
+            ),
+            withSecondNote.findByTitle("Last")!!.logbook,
+        )
+    }
+
+    @Test
+    fun `upsertProperty creates a drawer then updates the existing key in place`() {
+        val created = OrgMutations.upsertProperty(doc, h("Last"), "LAST_REPEAT", "[2025-06-11 Wed 14:00]")
+        val redoc = OrgParser.parse(created)
+        assertEquals("[2025-06-11 Wed 14:00]", redoc.findByTitle("Last")!!.properties["LAST_REPEAT"])
+
+        val updated = OrgMutations.upsertProperty(redoc, redoc.findByTitle("Last")!!, "LAST_REPEAT", "[2025-06-18 Wed 09:00]")
+        val redoc2 = OrgParser.parse(updated)
+        assertEquals("[2025-06-18 Wed 09:00]", redoc2.findByTitle("Last")!!.properties["LAST_REPEAT"])
+        assertEquals(1, updated.lines().count { it.trim().startsWith(":LAST_REPEAT:") })
+    }
+
+    @Test
+    fun `upsertProperty inserts into an existing PROPERTIES drawer before END`() {
+        val withProps = OrgParser.parse(
+            """
+            * Task
+            :PROPERTIES:
+            :ID: abc
+            :END:
+            body
+            """.trimIndent() + "\n"
+        )
+        val result = OrgMutations.upsertProperty(
+            withProps, withProps.findByTitle("Task")!!, "LAST_REPEAT", "[2025-06-11 Wed 14:00]",
+        )
+        val redoc = OrgParser.parse(result)
+        val props = redoc.findByTitle("Task")!!.properties
+        assertEquals("abc", props["ID"])
+        assertEquals("[2025-06-11 Wed 14:00]", props["LAST_REPEAT"])
+        assertTrue(result.contains("body"))
+    }
+
+    @Test
     fun `moveSubtree swaps siblings with bodies intact`() {
         val (result, newLine) = OrgMutations.moveSubtree(doc, h("Child task"), +1)!!
         val redoc = OrgParser.parse(result)

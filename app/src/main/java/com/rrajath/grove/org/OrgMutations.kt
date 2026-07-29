@@ -67,13 +67,23 @@ object OrgMutations {
         val today = now.toLocalDate()
         val hasRepeater = h.planning.scheduled?.repeater != null || h.planning.deadline?.repeater != null
         return if (hasRepeater) {
-            writePlanning(
+            val advanced = writePlanning(
                 doc, h,
                 h.planning.copy(
                     scheduled = h.planning.scheduled?.advanceRepeater(today),
                     deadline = h.planning.deadline?.advanceRepeater(today),
                 ),
             )
+            // The keyword itself stays unchanged for a repeater (org semantics),
+            // but the transition is still recorded — same as Emacs logging the
+            // DONE note before reverting the state back to TODO.
+            val doc1 = OrgParser.parse(advanced, doc.keywords)
+            val h1 = doc1.headlines.first { it.lineIndex == h.lineIndex }
+            val stamp = OrgTimestamp(today, time = now.toLocalTime().withSecond(0).withNano(0), active = false)
+            val logged = appendLogbookEntry(doc1, h1, logStateChangeLine(doneKeyword, h1.keyword ?: "", stamp))
+            val doc2 = OrgParser.parse(logged, doc.keywords)
+            val h2 = doc2.headlines.first { it.lineIndex == h.lineIndex }
+            upsertProperty(doc2, h2, "LAST_REPEAT", stamp.format())
         } else {
             val withClosed = writePlanning(
                 doc, h,
@@ -431,6 +441,124 @@ object OrgMutations {
             hadPlanning && newLine != null -> lines[planningLineIndex] = newLine
             hadPlanning -> lines.removeAt(planningLineIndex)
             newLine != null -> lines.add(planningLineIndex, newLine)
+        }
+        return lines.joinToString("\n")
+    }
+
+    /** Emacs' `org-log-note-headings` state-change note: `- State %-12s from %-12s %t`. */
+    private fun logStateChangeLine(newState: String, oldState: String, at: OrgTimestamp): String {
+        fun pad(s: String) = "\"$s\"".padEnd(12)
+        return "- State ${pad(newState)} from ${pad(oldState)} ${at.format()}"
+    }
+
+    /** First line right after any planning line — where the drawer run (if any) starts. */
+    private fun drawerScanStart(doc: OrgDocument, h: OrgHeadline): Int {
+        val planningLineIndex = h.lineIndex + 1
+        val hasPlanning = planningLineIndex < doc.subtreeEndLine(h) &&
+                planningLineIndex < doc.lines.size && isPlanningLine(doc.lines[planningLineIndex])
+        return if (hasPlanning) planningLineIndex + 1 else h.lineIndex + 1
+    }
+
+    /**
+     * Line index of [marker]'s own drawer-open line, if it appears in the
+     * contiguous `:PROPERTIES:`/`:LOGBOOK:` run starting at [start] — mirrors
+     * [OrgParser]'s drawer-scanning rules (drawers must immediately follow
+     * the planning line, in either order, with no gap). Returns null if
+     * [marker] isn't present or the run is interrupted before reaching it.
+     */
+    private fun findDrawerMarker(lines: List<String>, start: Int, end: Int, marker: String): Int? {
+        var cursor = start
+        while (cursor < end) {
+            val trimmed = lines[cursor].trim().uppercase()
+            if (trimmed == marker) return cursor
+            if (trimmed != ":PROPERTIES:" && trimmed != ":LOGBOOK:") return null
+            var i = cursor + 1
+            while (i < end && !lines[i].trim().equals(":END:", ignoreCase = true)) i++
+            if (i >= end) return null
+            cursor = i + 1
+        }
+        return null
+    }
+
+    /**
+     * Prepend [entry] to [h]'s `:LOGBOOK:` drawer (newest first, matching
+     * Emacs' default `org-log-states-order-reversed`), creating the drawer
+     * right after `:PROPERTIES:` (or at the top of the drawer run if there
+     * isn't one) when it doesn't exist yet.
+     */
+    fun appendLogbookEntry(doc: OrgDocument, h: OrgHeadline, entry: String): String {
+        val lines = doc.lines.toMutableList()
+        val start = drawerScanStart(doc, h)
+        val logbookMarker = findDrawerMarker(lines, start, h.bodyStart, ":LOGBOOK:")
+        if (logbookMarker != null) {
+            lines.add(logbookMarker + 1, entry)
+        } else {
+            val propertiesMarker = findDrawerMarker(lines, start, h.bodyStart, ":PROPERTIES:")
+            val insertAt = if (propertiesMarker != null) {
+                var end = propertiesMarker + 1
+                while (!lines[end].trim().equals(":END:", ignoreCase = true)) end++
+                end + 1
+            } else start
+            lines.addAll(insertAt, listOf(":LOGBOOK:", entry, ":END:"))
+        }
+        return lines.joinToString("\n")
+    }
+
+    /**
+     * Add a free-text note to [h]'s `:LOGBOOK:` drawer (org's `C-c C-z`), creating
+     * the drawer if it doesn't exist yet. Placed above the most recently added
+     * note but below any other drawer entries (state-change lines, clock
+     * entries, ...) — i.e. right before the first existing "Note taken on" line,
+     * or at the very end of the drawer (before `:END:`) when there isn't one, so
+     * a run of notes reads newest-first while staying a single contiguous block
+     * after the drawer's history.
+     */
+    fun appendLogbookNote(doc: OrgDocument, h: OrgHeadline, note: String, at: OrgTimestamp): String {
+        val entry = listOf("- Note taken on ${at.format()} \\\\") +
+                note.trim('\n').split("\n").map { "  $it" }
+        val lines = doc.lines.toMutableList()
+        val start = drawerScanStart(doc, h)
+        val logbookMarker = findDrawerMarker(lines, start, h.bodyStart, ":LOGBOOK:")
+        if (logbookMarker != null) {
+            var end = logbookMarker + 1
+            while (!lines[end].trim().equals(":END:", ignoreCase = true)) end++
+            val firstNoteLine = (logbookMarker + 1 until end)
+                .firstOrNull { lines[it].trim().startsWith("- Note taken on", ignoreCase = true) }
+            lines.addAll(firstNoteLine ?: end, entry)
+        } else {
+            val propertiesMarker = findDrawerMarker(lines, start, h.bodyStart, ":PROPERTIES:")
+            val insertAt = if (propertiesMarker != null) {
+                var end = propertiesMarker + 1
+                while (!lines[end].trim().equals(":END:", ignoreCase = true)) end++
+                end + 1
+            } else start
+            lines.addAll(insertAt, listOf(":LOGBOOK:") + entry + listOf(":END:"))
+        }
+        return lines.joinToString("\n")
+    }
+
+    private fun propertyKeyLine(key: String, line: String): Boolean {
+        val m = Regex("""^\s*:([^:\s]+):""").find(line) ?: return false
+        return m.groupValues[1].equals(key, ignoreCase = true)
+    }
+
+    /**
+     * Set [key] to [value] in [h]'s `:PROPERTIES:` drawer, replacing an
+     * existing entry for that key or inserting a new one, creating the
+     * drawer at the top of the drawer run if it doesn't exist yet.
+     */
+    fun upsertProperty(doc: OrgDocument, h: OrgHeadline, key: String, value: String): String {
+        val lines = doc.lines.toMutableList()
+        val start = drawerScanStart(doc, h)
+        val propertiesMarker = findDrawerMarker(lines, start, h.bodyStart, ":PROPERTIES:")
+        val newLine = ":$key: $value"
+        if (propertiesMarker != null) {
+            var end = propertiesMarker + 1
+            while (!lines[end].trim().equals(":END:", ignoreCase = true)) end++
+            val existing = (propertiesMarker + 1 until end).firstOrNull { propertyKeyLine(key, lines[it]) }
+            if (existing != null) lines[existing] = newLine else lines.add(end, newLine)
+        } else {
+            lines.addAll(start, listOf(":PROPERTIES:", newLine, ":END:"))
         }
         return lines.joinToString("\n")
     }
