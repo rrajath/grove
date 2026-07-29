@@ -202,6 +202,7 @@ private fun GroveNavigation(
                     },
                     // A freshly created note opens straight in edit mode (blank heading).
                     onCreateNote = { ref -> navController.navigate(Routes.note(ref.encode(), "edit", isNew = true)) },
+                    onSearchInNotebook = { navController.navigate(Routes.search(notebook = notebookId)) },
                     // Toggle: the outline's ★ swipe action both adds and removes.
                     onFavorite = { fileName, lineIndex, title ->
                         if (favorites.any { it.fileName == fileName && it.lineIndex == lineIndex }) {
@@ -344,6 +345,7 @@ private fun GroveNavigation(
             composable(Routes.SEARCH) { entry ->
                 SearchScreen(
                     initialQuery = entry.arguments?.getString("q"),
+                    initialNotebook = entry.arguments?.getString("notebook"),
                     onBack = { navController.popBackStack() },
                     onOpenNote = { ref -> navController.navigate(Routes.note(ref.encode())) },
                 )

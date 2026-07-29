@@ -27,7 +27,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.outlined.Save
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -105,18 +105,16 @@ fun EditNoteScreen(
     var confirmLeave by remember { mutableStateOf(false) }
     var showEmptyHeadingAlert by remember { mutableStateOf(false) }
     var rescheduleTarget by remember(openPlanningTarget) { mutableStateOf(openPlanningTarget) }
-    // Timestamp of the most recent auto-save, shown as a tappable check mark
-    // in the top bar once the note has been saved at least once.
+    // Timestamp of the most recent auto-save, shown as a tappable save (floppy)
+    // icon in the top bar once the note has been saved at least once.
     var lastAutoSavedAt by remember { mutableStateOf<LocalTime?>(null) }
-    // Blinks the check mark twice on each auto-save instead of a toast; tapping
-    // the check mark still shows the "saved at" toast on demand.
-    val checkAlpha = remember { Animatable(1f) }
+    // Blinks the save icon twice on each auto-save instead of a toast; tapping
+    // the icon still shows the "saved at" toast on demand.
+    val saveIconAlpha = remember { Animatable(1f) }
     val focusRequester = remember { FocusRequester() }
-    // Tracks the buffer the text field already reflects, so the
-    // external-mutation sync effect below doesn't clobber the deliberate
-    // divergence (appended blank body line) set for a fresh FAB-created note.
-    // Null until the note has been loaded into the field.
-    var syncedBuffer by remember { mutableStateOf<String?>(null) }
+    // False until the note has been loaded into the text field: the field's
+    // pre-load contents are not the user's edits and must not be reported.
+    var fieldLoaded by remember { mutableStateOf(false) }
     // Text last written into the field programmatically (initial load, metadata
     // sheet rewrite). The snapshotFlow below echoes every write straight back;
     // that echo must not be reported as a user edit, which would wrongly mark a
@@ -169,22 +167,27 @@ fun EditNoteScreen(
                 )
                 setText(state.buffer, TextRange(cursor))
             }
-            syncedBuffer = state.buffer
+            fieldLoaded = true
             if (isNewNote) focusRequester.requestFocus()
         }
     }
-    // Metadata-sheet mutations rewrite the buffer outside the text field.
-    LaunchedEffect(state.buffer) {
-        if (state.buffer != syncedBuffer && state.buffer != textState.text.toString()) {
-            setText(state.buffer, TextRange(textState.selection.start.coerceAtMost(state.buffer.length)))
+    // Metadata-sheet mutations rewrite the buffer outside the text field. Keyed
+    // on the view model's explicit revision counter, never on the buffer text:
+    // the field reports its edits one frame behind, so a text comparison could
+    // see the *previous* buffer alongside the newest field contents and push
+    // the older text back in, eating the characters typed in between.
+    LaunchedEffect(state.bufferRevision) {
+        if (!fieldLoaded || state.bufferRevision == 0L) return@LaunchedEffect
+        val buffer = state.buffer
+        if (buffer != textState.text.toString()) {
+            setText(buffer, TextRange(textState.selection.start.coerceAtMost(buffer.length)))
         }
-        syncedBuffer = state.buffer
     }
     // Report the user's own edits back to the view model. Programmatic writes
     // (setText above) are filtered out, so only real typing marks the note dirty.
     LaunchedEffect(Unit) {
         snapshotFlow { textState.text.toString() }.collect { text ->
-            if (syncedBuffer == null) return@collect
+            if (!fieldLoaded) return@collect
             if (text == echoToSkip) {
                 echoToSkip = null
                 return@collect
@@ -207,12 +210,12 @@ fun EditNoteScreen(
         }
     }
 
-    // Blink the check mark twice in quick succession on each auto-save.
+    // Blink the save icon twice in quick succession on each auto-save.
     LaunchedEffect(lastAutoSavedAt) {
         if (lastAutoSavedAt == null) return@LaunchedEffect
         repeat(2) {
-            checkAlpha.animateTo(0.15f, tween(120))
-            checkAlpha.animateTo(1f, tween(120))
+            saveIconAlpha.animateTo(0.15f, tween(120))
+            saveIconAlpha.animateTo(1f, tween(120))
         }
     }
 
@@ -233,14 +236,14 @@ fun EditNoteScreen(
                     IconGlyph("←", onClick = ::leave)
                     lastAutoSavedAt?.let { savedAt ->
                         Icon(
-                            Icons.Default.Check,
+                            Icons.Outlined.Save,
                             contentDescription = "Auto saved",
                             // Green while the buffer matches what's on disk (and
                             // blinks right after a save); grey again the moment a
                             // keystroke makes it dirty, until the next auto-save.
                             tint = if (state.dirty) c.ink3 else c.green,
                             modifier = Modifier
-                                .alpha(checkAlpha.value)
+                                .alpha(saveIconAlpha.value)
                                 .clip(RoundedCornerShape(10.dp))
                                 .clickable {
                                     val formatted = AutoSaveTimestamp.format(savedAt)

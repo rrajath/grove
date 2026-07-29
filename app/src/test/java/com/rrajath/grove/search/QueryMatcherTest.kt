@@ -128,6 +128,20 @@ class QueryMatcherTest {
     }
 
     @Test
+    fun `agenda hides done tasks from the day buckets as well as from overdue`() {
+        val openToday = note("OpenToday", keyword = "TODO", scheduled = "<2025-06-11 Wed>")
+        val doneToday = note("DoneToday", keyword = "DONE", done = true, scheduled = "<2025-06-11 Wed>")
+        val doneTomorrow = note("DoneTomorrow", keyword = "DONE", done = true, deadline = "<2025-06-12 Thu>")
+        val donePast = note("DonePast", keyword = "DONE", done = true, scheduled = "<2025-06-01 Sun>")
+
+        val agenda = QueryMatcher.agenda(listOf(openToday, doneToday, doneTomorrow, donePast), 7, today)
+        assertTrue(agenda.overdue.isEmpty())
+        // Tomorrow's only note was done, so that day has no bucket at all.
+        assertEquals(1, agenda.days.size)
+        assertEquals(listOf("OpenToday"), agenda.days[0].notes.map { it.title })
+    }
+
+    @Test
     fun `overdue sorted oldest first then priority then title`() {
         val recentB = note("RecentB", scheduled = "<2025-06-10 Tue>", priority = "B")
         val tiedA = note("TiedA", scheduled = "<2025-06-01 Sun>", priority = "A")

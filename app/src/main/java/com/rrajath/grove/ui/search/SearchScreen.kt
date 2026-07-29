@@ -94,6 +94,13 @@ fun SearchScreen(
     initialQuery: String?,
     onBack: () -> Unit,
     onOpenNote: (NoteRef) -> Unit,
+    /**
+     * Notebook to pin the search to on entry (the Outline's search action passes
+     * the file you were reading). The pin is an ordinary notebook filter from
+     * there on: the Filters sheet can point it at another file or widen it back
+     * to all notebooks, and the "searching in …" note below the field follows.
+     */
+    initialNotebook: String? = null,
     viewModel: SearchViewModel = viewModel(factory = SearchViewModel.Factory),
 ) {
     val c = MaterialTheme.grove
@@ -109,6 +116,9 @@ fun SearchScreen(
     LaunchedEffect(initialQuery) {
         if (!initialQuery.isNullOrBlank()) viewModel.submit(initialQuery)
         else focusRequester.requestFocus()
+    }
+    LaunchedEffect(initialNotebook) {
+        if (!initialNotebook.isNullOrBlank()) viewModel.pinNotebook(initialNotebook)
     }
 
     // First back press (system gesture or the in-screen arrow) clears back to the
@@ -157,6 +167,27 @@ fun SearchScreen(
                 }
                 if (state.query.isNotBlank()) {
                     IconGlyph("☆", onClick = { saveDialogOpen = true })
+                }
+            }
+
+            // Scope note: names the one notebook being searched. Driven by the
+            // live filter (not the entry argument), so retargeting it in the
+            // Filters sheet renames the file here and widening to all notebooks
+            // removes the note entirely.
+            state.filters.notebook?.let { notebook ->
+                Row(
+                    // Indented past the back arrow (10dp gutter + 44dp glyph) so
+                    // the note hangs under the search field, not the whole row.
+                    Modifier.fillMaxWidth().padding(start = 56.dp, end = 14.dp, bottom = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text("searching in ", fontFamily = PlexSans, fontSize = 11.5.sp, color = c.ink3)
+                    Text(
+                        notebook,
+                        fontFamily = PlexMono, fontWeight = FontWeight.Medium,
+                        fontSize = 11.5.sp, color = c.ink2,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    )
                 }
             }
 

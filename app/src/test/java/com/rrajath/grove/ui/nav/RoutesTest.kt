@@ -69,6 +69,23 @@ class RoutesTest {
     }
 
     @Test
+    fun `search route carries an optional pinned notebook`() {
+        assertEquals("search?q=", Routes.search())
+        assertEquals("search?q=ramen", Routes.search("ramen"))
+        // The outline's search action pins the notebook with no query typed yet.
+        assertEquals("search?q=&notebook=travel.org", Routes.search(notebook = "travel.org"))
+        assertEquals(
+            "search?q=ramen&notebook=my%20notes.org",
+            Routes.search("ramen", notebook = "my notes.org"),
+        )
+        // Every built form must still match the pattern the NavHost registers.
+        assertEquals(
+            Routes.SEARCH.substringBefore("{"),
+            Routes.search().substringBefore("&"),
+        )
+    }
+
+    @Test
     fun `conflict route encodes notebook id`() {
         assertEquals("conflict/journal.org", Routes.conflict("journal.org"))
     }

@@ -9,6 +9,7 @@ import com.rrajath.grove.capture.CaptureContext
 import com.rrajath.grove.capture.CaptureInserter
 import com.rrajath.grove.capture.CaptureTemplate
 import com.rrajath.grove.capture.TemplatesRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -16,6 +17,9 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import java.time.LocalDate
 
 sealed class SaveState {
@@ -39,6 +43,12 @@ class CaptureViewModel(private val app: GroveApplication) : ViewModel() {
     // final Save replaces it in place instead of inserting a duplicate copy.
     private var draftInsertion: CaptureInserter.Insertion? = null
 
+    // Draft writes are read-modify-write over the whole target file and are
+    // triggered from two places (the 5s idle autosave and the Save button), so
+    // they must not interleave — the loser would re-insert against a stale
+    // `draftInsertion` and leave a duplicate entry behind.
+    private val writeMutex = Mutex()
+
     /**
      * Insert [entryText] into the template's target file, creating the file
      * if it doesn't exist yet.
@@ -51,7 +61,7 @@ class CaptureViewModel(private val app: GroveApplication) : ViewModel() {
         _saveState.value = SaveState.Saving
         viewModelScope.launch {
             try {
-                upsertEntry(template, entryText, context)
+                writeMutex.withLock { upsertEntry(template, entryText, context) }
                 app.syncManager.requestSync("capture saved")
                 draftInsertion = null
                 _saveState.value = SaveState.Saved
@@ -70,7 +80,7 @@ class CaptureViewModel(private val app: GroveApplication) : ViewModel() {
         if (entryText.isBlank()) return
         viewModelScope.launch {
             try {
-                upsertEntry(template, entryText, context)
+                writeMutex.withLock { upsertEntry(template, entryText, context) }
             } catch (_: Exception) {
                 // Best-effort: a failed autosave just waits for the next tick
                 // or the explicit Save tap, which surfaces errors to the user.
@@ -83,9 +93,12 @@ class CaptureViewModel(private val app: GroveApplication) : ViewModel() {
         val prev = draftInsertion ?: return
         draftInsertion = null
         viewModelScope.launch {
-            val vault = app.vault.value ?: return@launch
-            val text = vault.open(template.targetFile)?.text ?: return@launch
-            vault.save(template.targetFile, CaptureInserter.removeInsertion(text, prev))
+            writeMutex.withLock {
+                val vault = app.vault.value ?: return@withLock
+                val text = withContext(Dispatchers.Default) { vault.open(template.targetFile)?.text }
+                    ?: return@withLock
+                vault.save(template.targetFile, CaptureInserter.removeInsertion(text, prev))
+            }
             app.syncManager.requestSync("capture discarded")
         }
     }
@@ -99,19 +112,26 @@ class CaptureViewModel(private val app: GroveApplication) : ViewModel() {
         // On a cold start (e.g. launched via app shortcut) the vault may
         // still be initializing even though a folder is configured; await it.
         val vault = app.vault.filterNotNull().first()
-        if (vault.open(template.targetFile) == null) {
-            vault.createNotebook(template.targetFile)
+        // Parsing the target file and splicing the entry into it are pure CPU
+        // over the whole document. The idle autosave fires while the user is
+        // still typing, so this stays off the main thread — a parse stall there
+        // desynchronizes the IME from the text field and swallows keystrokes.
+        val result = withContext(Dispatchers.Default) {
+            if (vault.open(template.targetFile) == null) {
+                vault.createNotebook(template.targetFile)
+            }
+            val currentText = vault.open(template.targetFile)?.text ?: ""
+            // Strip our own previous draft first so re-inserting replaces it in
+            // place rather than leaving a stale duplicate behind.
+            val baseText = draftInsertion?.let { CaptureInserter.removeInsertion(currentText, it) }
+                ?: currentText
+            CaptureInserter.insert(
+                docText = baseText,
+                location = template.location,
+                entry = entryText,
+                today = LocalDate.from(context.now),
+            )
         }
-        val currentText = vault.open(template.targetFile)?.text ?: ""
-        // Strip our own previous draft first so re-inserting replaces it in
-        // place rather than leaving a stale duplicate behind.
-        val baseText = draftInsertion?.let { CaptureInserter.removeInsertion(currentText, it) } ?: currentText
-        val result = CaptureInserter.insert(
-            docText = baseText,
-            location = template.location,
-            entry = entryText,
-            today = LocalDate.from(context.now),
-        )
         vault.save(template.targetFile, result.newText)
         draftInsertion = result
     }

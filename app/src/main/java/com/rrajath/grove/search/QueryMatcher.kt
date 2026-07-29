@@ -139,11 +139,15 @@ object QueryMatcher {
      * `ad.N`: each note appears under every day in [today, today+N) where it is
      * scheduled or due. Overdue items get their own section instead of being
      * folded into today's bucket, so both sections can be sorted independently.
+     *
+     * Both sections are outstanding work only — a note whose keyword is a
+     * done-type one is finished, so it drops out of the agenda entirely rather
+     * than lingering under its planning date.
      */
     fun agenda(notes: List<NoteMeta>, days: Int, today: LocalDate): Agenda {
-        val overdue = notes.filter { note ->
-            !note.isDoneKeyword &&
-                listOfNotNull(note.scheduledDate, note.deadlineDate).any { it.isBefore(today) }
+        val open = notes.filter { !it.isDoneKeyword }
+        val overdue = open.filter { note ->
+            listOfNotNull(note.scheduledDate, note.deadlineDate).any { it.isBefore(today) }
         }.sortedWith(
             compareBy<NoteMeta> { note ->
                 listOfNotNull(note.scheduledDate, note.deadlineDate).filter { it.isBefore(today) }.min()
@@ -152,7 +156,7 @@ object QueryMatcher {
 
         val range = (0 until days.coerceAtLeast(1)).map { today.plusDays(it.toLong()) }
         val dayEntries = range.mapNotNull { day ->
-            val dayNotes = notes.filter { note ->
+            val dayNotes = open.filter { note ->
                 listOfNotNull(note.scheduledDate, note.deadlineDate).any { it == day }
             }.sortedWith(
                 compareBy<NoteMeta> { it.priority ?: "Z" }

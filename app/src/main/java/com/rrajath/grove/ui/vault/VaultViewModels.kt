@@ -411,24 +411,30 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
     }
 
     /**
-     * Swipe-right quick action: cycle the TODO state like org's shift-cycle,
-     * stepping through every keyword and back to none:
-     * none → active… → done… → none. Plain keyword change (no CLOSED stamp);
-     * use the metadata sheet's DONE chip for org-todo "mark done" semantics.
+     * Swipe-right quick action: set the TODO state to exactly the keyword the
+     * user picked from the state sheet (null = clear it). Picking a done-type
+     * keyword applies full org-todo "mark done" semantics — a repeating
+     * SCHEDULED/DEADLINE advances instead of closing, otherwise a CLOSED stamp
+     * is written — so marking a task done from the outline behaves the same as
+     * from the metadata sheet or the agenda swipe.
      */
-    fun cycleState(headline: OrgHeadline) {
+    fun setState(headline: OrgHeadline, keyword: String?) {
         val loaded = _state.value as? DocumentUiState.Loaded ?: return
         val vault = app.vault.value ?: return
+        if (headline.keyword == keyword) return
         viewModelScope.launch {
-            val next = loaded.document.keywords.next(headline.keyword)
             val (newText, newDoc) = withContext(Dispatchers.Default) {
-                val text = OrgMutations.setKeyword(loaded.document, headline, next)
+                val text = if (keyword != null && loaded.document.keywords.isDone(keyword)) {
+                    OrgMutations.markDone(loaded.document, headline, keyword, LocalDateTime.now())
+                } else {
+                    OrgMutations.setKeyword(loaded.document, headline, keyword)
+                }
                 text to OrgParser.parse(text, loaded.document.keywords)
             }
             _state.value = DocumentUiState.Loaded(loaded.fileName, newDoc)
             vault.save(loaded.fileName, newText)
-            app.syncManager.requestSync("state cycled")
-            showToast("State → ${next ?: "none"}")
+            app.syncManager.requestSync("state set")
+            showToast("State → ${keyword ?: "none"}")
         }
     }
 

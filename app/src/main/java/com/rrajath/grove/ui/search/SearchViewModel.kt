@@ -212,6 +212,16 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
     fun setNotebookScope(name: String?) =
         filtersFlow.update { it.copy(notebook = if (it.notebook == name) null else name) }
 
+    /**
+     * Scope the search to one notebook without the toggle semantics of
+     * [setNotebookScope] — the Outline's search action arrives with a file
+     * already in mind, so re-entering the same notebook must keep it pinned
+     * rather than clearing it.
+     */
+    fun pinNotebook(name: String) {
+        filtersFlow.update { it.copy(notebook = name) }
+    }
+
     fun clearFilters() {
         filtersFlow.value = SearchFilters()
     }
