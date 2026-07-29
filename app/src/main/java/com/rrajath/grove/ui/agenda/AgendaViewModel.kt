@@ -4,17 +4,27 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rrajath.grove.GroveApplication
 import com.rrajath.grove.data.toNoteMeta
+import com.rrajath.grove.org.OrgDocument
+import com.rrajath.grove.org.OrgHeadline
+import com.rrajath.grove.org.OrgMutations
+import com.rrajath.grove.org.OrgTimestamp
 import com.rrajath.grove.search.NoteMeta
 import com.rrajath.grove.search.QueryMatcher
 import com.rrajath.grove.search.Snippets
+import com.rrajath.grove.settings.AgendaSwipeAction
+import com.rrajath.grove.ui.vault.OutlineSnack
 import com.rrajath.grove.ui.vault.factory
+import com.rrajath.grove.ui.vault.headlineAtLine
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.LocalDate
+import java.time.LocalDateTime
 
 data class AgendaResult(
     val fileName: String,
@@ -25,6 +35,9 @@ data class AgendaResult(
     val priority: String?,
     val snippet: Snippets.Snippet,
     val breadcrumb: String,
+    /** Prefills [com.rrajath.grove.ui.components.PlanningDatePicker] for the swipe-to-schedule/deadline actions. */
+    val scheduledTs: OrgTimestamp?,
+    val deadlineTs: OrgTimestamp?,
 )
 
 data class AgendaDay(val date: LocalDate, val results: List<AgendaResult>)
@@ -33,22 +46,56 @@ data class AgendaUiState(
     val overdueCount: Int = 0,
     val overdue: List<AgendaResult> = emptyList(),
     val days: List<AgendaDay> = emptyList(),
+    val swipeLeftAction: AgendaSwipeAction = AgendaSwipeAction.SET_SCHEDULED,
+    val swipeRightAction: AgendaSwipeAction = AgendaSwipeAction.MARK_DONE,
 )
 
-/** Upcoming/overdue day-grouped view (design spec §9 Agenda mode), now its own
- *  screen — distinct from Search, which is for finding a specific note. */
+/**
+ * Upcoming/overdue day-grouped view (design spec §9 Agenda mode), now its own
+ * screen — distinct from Search, which is for finding a specific note.
+ *
+ * Unlike Search, Agenda also owns a mutation path: swipe gestures (configured
+ * in Settings § Agenda) can set a heading's SCHEDULED/DEADLINE or mark it
+ * done directly from the row, without opening the note. This mirrors
+ * `DocumentViewModel`'s file-mutation pattern (open → mutate → save → sync)
+ * but keyed by fileName+lineIndex rather than an already-loaded document,
+ * since Agenda spans every notebook at once.
+ */
 class AgendaViewModel(private val app: GroveApplication) : ViewModel() {
 
     private val _state = MutableStateFlow(AgendaUiState())
     val state: StateFlow<AgendaUiState> = _state
 
+    /** Undo snackbar for swipe-to-done (design spec: ~4.2s with an UNDO action). */
+    private val _snack = MutableStateFlow<OutlineSnack?>(null)
+    val snack: StateFlow<OutlineSnack?> = _snack
+
     private var matched: List<NoteMeta> = emptyList()
     private var windowDays = INITIAL_WINDOW_DAYS
+    private var swipeLeftAction = AgendaSwipeAction.SET_SCHEDULED
+    private var swipeRightAction = AgendaSwipeAction.MARK_DONE
 
     @Volatile
     private var loadingMore = false
 
+    private var eventId = 0L
+
+    /** Single-step undo: the pre-mutation text of the one file swipe-to-done touched. */
+    private data class UndoSnapshot(val fileName: String, val text: String)
+
+    private var undoSnapshot: UndoSnapshot? = null
+
     init {
+        viewModelScope.launch {
+            app.settingsRepository.settings.collect { settings ->
+                swipeLeftAction = settings.agendaSwipeLeftAction
+                swipeRightAction = settings.agendaSwipeRightAction
+                _state.value = _state.value.copy(
+                    swipeLeftAction = swipeLeftAction,
+                    swipeRightAction = swipeRightAction,
+                )
+            }
+        }
         viewModelScope.launch {
             // Only rows with a SCHEDULED or DEADLINE: QueryMatcher.agenda buckets
             // notes purely by those dates, so an undated note can never surface
@@ -71,6 +118,8 @@ class AgendaViewModel(private val app: GroveApplication) : ViewModel() {
                 overdueCount = result.overdue.size,
                 overdue = result.overdue.map { toResult(it) },
                 days = result.days.map { entry -> AgendaDay(entry.date, entry.notes.map { toResult(it) }) },
+                swipeLeftAction = swipeLeftAction,
+                swipeRightAction = swipeRightAction,
             )
         }
     }
@@ -99,7 +148,71 @@ class AgendaViewModel(private val app: GroveApplication) : ViewModel() {
         priority = meta.priority,
         snippet = Snippets.build(meta.searchText.substringAfter('\n', ""), emptyList()),
         breadcrumb = "${meta.fileName} › ${meta.title}",
+        scheduledTs = meta.scheduled?.let { OrgTimestamp.parse(it) },
+        deadlineTs = meta.deadline?.let { OrgTimestamp.parse(it) },
     )
+
+    // --- swipe-to-act mutations ---
+
+    fun setScheduled(fileName: String, lineIndex: Int, ts: OrgTimestamp?) =
+        mutatePlanning(fileName, lineIndex) { doc, h -> OrgMutations.setScheduled(doc, h, ts) }
+
+    fun setDeadline(fileName: String, lineIndex: Int, ts: OrgTimestamp?) =
+        mutatePlanning(fileName, lineIndex) { doc, h -> OrgMutations.setDeadline(doc, h, ts) }
+
+    private fun mutatePlanning(fileName: String, lineIndex: Int, block: (OrgDocument, OrgHeadline) -> String) {
+        viewModelScope.launch {
+            val vault = app.vault.value ?: return@launch
+            val doc = vault.open(fileName) ?: return@launch
+            val headline = doc.headlineAtLine(lineIndex) ?: return@launch
+            val newText = withContext(Dispatchers.Default) { block(doc, headline) }
+            vault.save(fileName, newText)
+            app.syncManager.requestSync("agenda planning edit")
+        }
+    }
+
+    /**
+     * Swipe-to-done: sets the heading to the first configured done-type
+     * keyword — never hardcoded "DONE", so a custom `todoKeywords` config is
+     * respected — via org "mark done" semantics (`OrgMutations.markDone`:
+     * repeater advance if the planning date repeats, else a CLOSED stamp).
+     * Undoable through [undo] for as long as the snackbar is visible.
+     */
+    fun markDone(fileName: String, lineIndex: Int) {
+        viewModelScope.launch {
+            val vault = app.vault.value ?: return@launch
+            val doc = vault.open(fileName) ?: return@launch
+            val headline = doc.headlineAtLine(lineIndex) ?: return@launch
+            val doneKeyword = doc.keywords.done.firstOrNull() ?: return@launch
+            val newText = withContext(Dispatchers.Default) {
+                OrgMutations.markDone(doc, headline, doneKeyword, LocalDateTime.now())
+            }
+            undoSnapshot = UndoSnapshot(fileName, doc.text)
+            vault.save(fileName, newText)
+            app.syncManager.requestSync("agenda mark done")
+            showSnack("Marked done")
+        }
+    }
+
+    fun undo() {
+        val snap = undoSnapshot ?: return
+        undoSnapshot = null
+        _snack.value = null
+        viewModelScope.launch {
+            val vault = app.vault.value ?: return@launch
+            vault.save(snap.fileName, snap.text)
+            app.syncManager.requestSync("agenda undo")
+        }
+    }
+
+    private fun showSnack(message: String) {
+        val s = OutlineSnack(message, ++eventId)
+        _snack.value = s
+        viewModelScope.launch {
+            delay(4200)
+            if (_snack.value?.id == s.id) _snack.value = null
+        }
+    }
 
     companion object {
         val Factory = factory { AgendaViewModel(it) }

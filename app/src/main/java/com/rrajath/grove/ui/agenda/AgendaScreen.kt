@@ -2,7 +2,6 @@ package com.rrajath.grove.ui.agenda
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,42 +13,64 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.rrajath.grove.ui.components.Pill
+import com.rrajath.grove.org.OrgTimestamp
+import com.rrajath.grove.settings.AgendaSwipeAction
+import com.rrajath.grove.ui.components.GroveUndoSnackbar
+import com.rrajath.grove.ui.components.PlanningDatePicker
+import com.rrajath.grove.ui.components.ResultRowContent
 import com.rrajath.grove.ui.components.ScrollJumpButtons
+import com.rrajath.grove.ui.components.SwipeAction
+import com.rrajath.grove.ui.components.SwipeCommitRow
+import com.rrajath.grove.ui.components.annotateOrgInline
 import com.rrajath.grove.ui.screens.IconGlyph
+import com.rrajath.grove.ui.theme.GroveColors
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
-import com.rrajath.grove.ui.theme.priorityColor
 import com.rrajath.grove.ui.vault.NoteRef
+import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
+/** A pending swipe-left/swipe-right date pick, before the user confirms a date. */
+private data class DatePickerRequest(
+    val fileName: String,
+    val lineIndex: Int,
+    val target: PlanningTarget,
+    val existing: OrgTimestamp?,
+)
+
+private enum class PlanningTarget { SCHEDULED, DEADLINE }
+
 /** Upcoming/overdue agenda — a dedicated screen from the drawer's Agenda item,
  *  separate from Search (design decision: agenda answers "what's next", search
- *  answers "find a specific note"). */
+ *  answers "find a specific note"). Rows support swipe gestures (Settings §
+ *  Agenda: set scheduled date, set deadline, or mark done), each committing
+ *  immediately on release past the swipe threshold. */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun AgendaScreen(
@@ -59,8 +80,11 @@ fun AgendaScreen(
 ) {
     val c = MaterialTheme.grove
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val snack by viewModel.snack.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
     val formatter = remember { DateTimeFormatter.ofPattern("EEEE, MMM d", Locale.ENGLISH) }
+    val today = remember { LocalDate.now() }
+    var datePickerRequest by remember { mutableStateOf<DatePickerRequest?>(null) }
 
     Scaffold(containerColor = c.bg) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
@@ -74,7 +98,22 @@ fun AgendaScreen(
             }
 
             Box(Modifier.weight(1f).fillMaxWidth()) {
-                LazyColumnAgenda(listState, state, formatter, onOpenNote)
+                LazyColumnAgenda(
+                    listState = listState,
+                    state = state,
+                    formatter = formatter,
+                    today = today,
+                    onOpenNote = onOpenNote,
+                    onOpenDatePicker = { result, target ->
+                        datePickerRequest = DatePickerRequest(
+                            fileName = result.fileName,
+                            lineIndex = result.lineIndex,
+                            target = target,
+                            existing = if (target == PlanningTarget.DEADLINE) result.deadlineTs else result.scheduledTs,
+                        )
+                    },
+                    onMarkDone = { result -> viewModel.markDone(result.fileName, result.lineIndex) },
+                )
 
                 val nearBottom by remember {
                     derivedStateOf {
@@ -91,8 +130,25 @@ fun AgendaScreen(
                     listState = listState,
                     modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
                 )
+                GroveUndoSnackbar(
+                    snack = snack,
+                    onUndo = viewModel::undo,
+                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 16.dp),
+                )
             }
         }
+    }
+
+    datePickerRequest?.let { req ->
+        PlanningDatePicker(
+            existing = req.existing,
+            onDismiss = { datePickerRequest = null },
+            onConfirm = { ts ->
+                if (req.target == PlanningTarget.DEADLINE) viewModel.setDeadline(req.fileName, req.lineIndex, ts)
+                else viewModel.setScheduled(req.fileName, req.lineIndex, ts)
+                datePickerRequest = null
+            },
+        )
     }
 }
 
@@ -102,7 +158,10 @@ private fun LazyColumnAgenda(
     listState: LazyListState,
     state: AgendaUiState,
     formatter: DateTimeFormatter,
+    today: LocalDate,
     onOpenNote: (NoteRef) -> Unit,
+    onOpenDatePicker: (AgendaResult, PlanningTarget) -> Unit,
+    onMarkDone: (AgendaResult) -> Unit,
 ) {
     val c = MaterialTheme.grove
     LazyColumn(
@@ -125,22 +184,38 @@ private fun LazyColumnAgenda(
             stickyHeader(key = "overdue-header") {
                 AgendaSectionHeader("Overdue (${state.overdueCount})", color = c.red)
             }
-            items(
+            itemsIndexed(
                 state.overdue,
-                key = { "overdue-${it.fileName}@${it.lineIndex}" },
-                contentType = { "result" },
-            ) { result -> AgendaResultRow(result, onOpenNote) }
+                key = { _, it -> "overdue-${it.fileName}@${it.lineIndex}" },
+                contentType = { _, _ -> "result" },
+            ) { index, result ->
+                if (index > 0) HorizontalDivider(color = c.line)
+                AgendaResultRow(result, state.swipeLeftAction, state.swipeRightAction, onOpenNote, onOpenDatePicker, onMarkDone)
+            }
         }
         state.days.forEach { day ->
             stickyHeader(key = day.date.toString()) {
-                AgendaSectionHeader(day.date.format(formatter), color = c.accent)
+                AgendaSectionHeader(dayHeaderLabel(day.date, today, formatter), color = c.accent)
             }
-            items(
+            itemsIndexed(
                 day.results,
-                key = { "${day.date}-${it.fileName}@${it.lineIndex}" },
-                contentType = { "result" },
-            ) { result -> AgendaResultRow(result, onOpenNote) }
+                key = { _, it -> "${day.date}-${it.fileName}@${it.lineIndex}" },
+                contentType = { _, _ -> "result" },
+            ) { index, result ->
+                if (index > 0) HorizontalDivider(color = c.line)
+                AgendaResultRow(result, state.swipeLeftAction, state.swipeRightAction, onOpenNote, onOpenDatePicker, onMarkDone)
+            }
         }
+    }
+}
+
+/** "Tuesday, Jul 28 · Today" / "Wednesday, Jul 29 · Tomorrow"; every other day is plain "EEEE, MMM d". */
+private fun dayHeaderLabel(date: LocalDate, today: LocalDate, formatter: DateTimeFormatter): String {
+    val base = date.format(formatter)
+    return when (date) {
+        today -> "$base · Today"
+        today.plusDays(1) -> "$base · Tomorrow"
+        else -> base
     }
 }
 
@@ -158,51 +233,57 @@ private fun AgendaSectionHeader(text: String, color: Color) {
     )
 }
 
+/** Maps a configured [AgendaSwipeAction] to the glyph/label/color and effect for one swipe direction. */
+private fun swipeActionFor(
+    kind: AgendaSwipeAction,
+    result: AgendaResult,
+    c: GroveColors,
+    onOpenDatePicker: (AgendaResult, PlanningTarget) -> Unit,
+    onMarkDone: (AgendaResult) -> Unit,
+): SwipeAction = when (kind) {
+    AgendaSwipeAction.SET_SCHEDULED ->
+        SwipeAction("◷", "Sched", c.blue, c.blueSoft) { onOpenDatePicker(result, PlanningTarget.SCHEDULED) }
+    AgendaSwipeAction.SET_DEADLINE ->
+        SwipeAction("⚑", "Deadl", c.red, c.redSoft) { onOpenDatePicker(result, PlanningTarget.DEADLINE) }
+    AgendaSwipeAction.MARK_DONE ->
+        SwipeAction(label = "Done", fg = c.green, bg = c.greenSoft, icon = Icons.Default.Check) { onMarkDone(result) }
+}
+
 @Composable
-private fun AgendaResultRow(result: AgendaResult, onOpenNote: (NoteRef) -> Unit) {
+private fun AgendaResultRow(
+    result: AgendaResult,
+    swipeLeftAction: AgendaSwipeAction,
+    swipeRightAction: AgendaSwipeAction,
+    onOpenNote: (NoteRef) -> Unit,
+    onOpenDatePicker: (AgendaResult, PlanningTarget) -> Unit,
+    onMarkDone: (AgendaResult) -> Unit,
+) {
     val c = MaterialTheme.grove
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(13.dp))
-            .clickable { onOpenNote(NoteRef(result.fileName, result.lineIndex)) }
-            .padding(horizontal = 8.dp, vertical = 10.dp),
+    val titleText = remember(result.title, c) { annotateOrgInline(result.title, c) }
+    val snippetText = if (result.snippet.text.isNotEmpty()) {
+        remember(result.snippet.text, c) { annotateOrgInline(result.snippet.text, c) }
+    } else null
+    SwipeCommitRow(
+        leftAction = swipeActionFor(swipeLeftAction, result, c, onOpenDatePicker, onMarkDone),
+        rightAction = swipeActionFor(swipeRightAction, result, c, onOpenDatePicker, onMarkDone),
+        onTap = { onOpenNote(NoteRef(result.fileName, result.lineIndex)) },
+        shape = RoundedCornerShape(12.dp),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            result.keyword?.let { kw ->
-                Pill(
-                    kw,
-                    fg = if (result.isDone) c.green else c.amber,
-                    bg = if (result.isDone) c.greenSoft else c.amberSoft,
-                )
-                Spacer(Modifier.width(8.dp))
-            }
-            result.priority?.let { p ->
-                Text(
-                    "[#$p]",
-                    fontFamily = PlexMono, fontWeight = FontWeight.Bold,
-                    fontSize = 11.sp, color = c.priorityColor(p[0]),
-                )
-                Spacer(Modifier.width(8.dp))
-            }
+        ResultRowContent(
+            keyword = result.keyword,
+            isDone = result.isDone,
+            priority = result.priority,
+            titleText = titleText,
+            snippetText = snippetText,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 16.dp, top = 9.dp, end = 11.dp, bottom = 11.dp),
+        ) {
             Text(
-                result.title,
-                fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
-                fontSize = 15.sp, color = c.ink,
+                result.breadcrumb,
+                fontFamily = PlexMono, fontSize = 11.5.sp, color = c.ink3,
+                modifier = Modifier.padding(top = 6.dp),
             )
         }
-        if (result.snippet.text.isNotEmpty()) {
-            Text(
-                result.snippet.text,
-                fontFamily = PlexSans, fontSize = 13.5.sp, lineHeight = 1.5.em, color = c.ink2,
-                maxLines = 2, overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(top = 3.dp),
-            )
-        }
-        Text(
-            result.breadcrumb,
-            fontFamily = PlexMono, fontSize = 11.5.sp, color = c.ink3,
-            modifier = Modifier.padding(top = 3.dp),
-        )
     }
 }

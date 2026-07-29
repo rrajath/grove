@@ -217,9 +217,9 @@ fun EditNoteScreen(
     }
 
     val scrollState = rememberScrollState()
-    // Two lines of editor text (13.5sp font * 1.85 line height), so the jump
+    // Five lines of editor text (13.5sp font * 1.85 line height), so the jump
     // buttons don't flash on every keystroke as typing nudges the view.
-    val scrollButtonThresholdPx = with(LocalDensity.current) { (13.5f * 1.85f * 2).sp.toPx() }
+    val scrollButtonThresholdPx = with(LocalDensity.current) { (13.5f * 1.85f * 5).sp.toPx() }
 
     Scaffold(
         containerColor = c.bg,

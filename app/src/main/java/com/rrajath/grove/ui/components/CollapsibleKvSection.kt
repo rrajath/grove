@@ -4,6 +4,8 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -19,7 +21,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
-import androidx.compose.foundation.layout.Column
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
@@ -39,6 +40,47 @@ fun CollapsibleKvSection(
     expanded: Boolean,
     onToggle: () -> Unit,
     modifier: Modifier = Modifier,
+) {
+    val c = MaterialTheme.grove
+    CollapsibleDrawer(label, entries.size, expanded, onToggle, modifier) {
+        entries.forEach { (key, value) ->
+            Row {
+                Text("$key ", fontFamily = PlexMono, fontSize = 12.sp, lineHeight = 1.5.em, color = c.synKw)
+                Text(value, fontFamily = PlexMono, fontSize = 12.sp, lineHeight = 1.5.em, color = c.ink2)
+            }
+        }
+    }
+}
+
+/**
+ * Collapsible, faded, monospace section for a `:LOGBOOK:` drawer — same
+ * header/body chrome as [CollapsibleKvSection], but each line is raw log text
+ * (state changes, CLOCK entries) rather than a `:key: value` pair.
+ */
+@Composable
+fun CollapsibleLogSection(
+    label: String,
+    lines: List<String>,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val c = MaterialTheme.grove
+    CollapsibleDrawer(label, lines.size, expanded, onToggle, modifier) {
+        lines.forEach { line ->
+            Text(line.trim(), fontFamily = PlexMono, fontSize = 12.sp, lineHeight = 1.5.em, color = c.ink2)
+        }
+    }
+}
+
+@Composable
+private fun CollapsibleDrawer(
+    label: String,
+    count: Int,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+    modifier: Modifier = Modifier,
+    body: @Composable ColumnScope.() -> Unit,
 ) {
     val c = MaterialTheme.grove
     val caretRotation by animateFloatAsState(if (expanded) 90f else 0f, label = "collapsibleCaret")
@@ -64,19 +106,14 @@ fun CollapsibleKvSection(
             Spacer(Modifier.width(8.dp))
             Text(label, fontFamily = PlexMono, fontSize = 12.sp, color = c.ink3)
             Spacer(Modifier.weight(1f))
-            Text(entries.size.toString(), fontFamily = PlexMono, fontSize = 11.sp, color = c.ink3)
+            Text(count.toString(), fontFamily = PlexMono, fontSize = 11.sp, color = c.ink3)
         }
         if (expanded) {
             Column(
                 Modifier.padding(start = 30.dp, end = 12.dp, bottom = 10.dp),
                 verticalArrangement = Arrangement.spacedBy(3.dp),
             ) {
-                entries.forEach { (key, value) ->
-                    Row {
-                        Text("$key ", fontFamily = PlexMono, fontSize = 12.sp, lineHeight = 1.5.em, color = c.synKw)
-                        Text(value, fontFamily = PlexMono, fontSize = 12.sp, lineHeight = 1.5.em, color = c.ink2)
-                    }
-                }
+                body()
             }
         }
     }

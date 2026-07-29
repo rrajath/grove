@@ -73,12 +73,12 @@ import com.rrajath.grove.search.Snippets
 import com.rrajath.grove.ui.components.CustomDateRangePicker
 import com.rrajath.grove.ui.components.Pill
 import com.rrajath.grove.ui.components.annotateOrgInline
+import com.rrajath.grove.ui.components.ResultRowContent
 import com.rrajath.grove.ui.components.ScrollJumpButtons
 import com.rrajath.grove.ui.screens.IconGlyph
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
-import com.rrajath.grove.ui.theme.priorityColor
 import com.rrajath.grove.ui.vault.NoteRef
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -654,55 +654,38 @@ private fun highlightedOrgText(text: String, terms: List<String>, c: com.rrajath
 @Composable
 private fun SearchResultRow(result: SearchResult, matchedTerms: List<String>, onOpenNote: () -> Unit) {
     val c = MaterialTheme.grove
-    Column(
-        Modifier
+    val titleText = remember(result.title, matchedTerms, c) { highlightedOrgText(result.title, matchedTerms, c) }
+    val snippetText = if (result.snippet.text.isNotEmpty()) {
+        remember(result.snippet.text, matchedTerms, c) { highlightedOrgText(result.snippet.text, matchedTerms, c) }
+    } else null
+    val hasMeta = result.scheduledLabel != null || result.deadlineLabel != null || result.tagLine.isNotEmpty()
+    ResultRowContent(
+        keyword = result.keyword,
+        isDone = result.isDone,
+        priority = result.priority,
+        titleText = titleText,
+        snippetText = snippetText,
+        modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .clickable(onClick = onOpenNote)
             .padding(start = 16.dp, top = 9.dp, end = 11.dp, bottom = 11.dp),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            result.keyword?.let { kw ->
-                Pill(kw, fg = if (result.isDone) c.green else c.amber, bg = if (result.isDone) c.greenSoft else c.amberSoft)
-                Spacer(Modifier.width(7.dp))
-            }
-            result.priority?.let { p ->
-                Text(
-                    "[#$p]", fontFamily = PlexMono, fontWeight = FontWeight.Bold, fontSize = 11.sp,
-                    color = c.priorityColor(p[0]),
-                )
-                Spacer(Modifier.width(7.dp))
-            }
-            val titleText = remember(result.title, matchedTerms, c) {
-                highlightedOrgText(result.title, matchedTerms, c)
-            }
-            Text(titleText, fontFamily = PlexSans, fontWeight = FontWeight.SemiBold, fontSize = 14.5.sp, color = c.ink)
-        }
-        if (result.snippet.text.isNotEmpty()) {
-            val highlighted = remember(result.snippet.text, matchedTerms, c) {
-                highlightedOrgText(result.snippet.text, matchedTerms, c)
-            }
-            Text(
-                highlighted, fontFamily = PlexSans, fontSize = 12.5.sp, lineHeight = 1.5.em, color = c.ink2,
-                maxLines = 2, overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(top = 3.dp),
-            )
-        }
-        val hasMeta = result.scheduledLabel != null || result.deadlineLabel != null || result.tagLine.isNotEmpty()
-        if (hasMeta) {
-            FlowRow(
-                modifier = Modifier.padding(top = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(7.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                result.deadlineLabel?.let { DatePillText(it, overdue = result.deadlineOverdue, kind = PillKind.DEADLINE) }
-                result.scheduledLabel?.let { DatePillText(it, overdue = result.scheduledOverdue, kind = PillKind.SCHEDULED) }
-                if (result.tagLine.isNotEmpty()) {
-                    Text(result.tagLine, fontFamily = PlexMono, fontSize = 11.sp, color = c.synTag)
+        metaContent = if (hasMeta) {
+            {
+                FlowRow(
+                    modifier = Modifier.padding(top = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(7.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    result.deadlineLabel?.let { DatePillText(it, overdue = result.deadlineOverdue, kind = PillKind.DEADLINE) }
+                    result.scheduledLabel?.let { DatePillText(it, overdue = result.scheduledOverdue, kind = PillKind.SCHEDULED) }
+                    if (result.tagLine.isNotEmpty()) {
+                        Text(result.tagLine, fontFamily = PlexMono, fontSize = 11.sp, color = c.synTag)
+                    }
                 }
             }
-        }
-    }
+        } else null,
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

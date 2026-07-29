@@ -61,4 +61,25 @@ class OrgInlineLinksTest {
         val midOffset = rendered.indexOf("here")
         assertTrue(midOffset in link.range)
     }
+
+    @Test
+    fun `plain text passes through orgInlinePlainText unchanged`() {
+        assertEquals("How to Tie a Knot", orgInlinePlainText("How to Tie a Knot"))
+    }
+
+    @Test
+    fun `whole-heading link renders as its label in orgInlinePlainText`() {
+        assertEquals(
+            "How to Tie a Knot",
+            orgInlinePlainText("[[https://example.com/knots][How to Tie a Knot]]"),
+        )
+    }
+
+    @Test
+    fun `partial link renders as its label inline in orgInlinePlainText`() {
+        assertEquals(
+            "How to Tie a Knot",
+            orgInlinePlainText("How to [[https://example.com/knots][Tie]] a Knot"),
+        )
+    }
 }

@@ -171,6 +171,53 @@ class OrgParserTest {
     }
 
     @Test
+    fun `logbook drawer is parsed as raw lines, excluded from body`() {
+        val doc = OrgParser.parse(
+            "* DONE Ship the release\n" +
+                "CLOSED: [2025-01-15 Wed 10:30]\n" +
+                ":LOGBOOK:\n" +
+                "- State \"DONE\"       from \"TODO\"       [2025-01-15 Wed 10:30]\n" +
+                "CLOCK: [2025-01-15 Wed 09:00]--[2025-01-15 Wed 10:30] =>  1:30\n" +
+                ":END:\n" +
+                "Actual note body.\n"
+        )
+        val h = doc.headlines.first()
+        assertEquals(
+            listOf(
+                "- State \"DONE\"       from \"TODO\"       [2025-01-15 Wed 10:30]",
+                "CLOCK: [2025-01-15 Wed 09:00]--[2025-01-15 Wed 10:30] =>  1:30",
+            ),
+            h.logbook,
+        )
+        assertEquals(listOf("Actual note body.", ""), doc.bodyOf(h))
+    }
+
+    @Test
+    fun `properties and logbook drawers parse together in either order`() {
+        val propertiesFirst = OrgParser.parse(
+            "* Heading\n:PROPERTIES:\n:ID: abc\n:END:\n:LOGBOOK:\nCLOCK: x\n:END:\nbody\n"
+        ).headlines.first()
+        assertEquals("abc", propertiesFirst.properties["ID"])
+        assertEquals(listOf("CLOCK: x"), propertiesFirst.logbook)
+
+        val logbookFirst = OrgParser.parse(
+            "* Heading\n:LOGBOOK:\nCLOCK: x\n:END:\n:PROPERTIES:\n:ID: abc\n:END:\nbody\n"
+        ).headlines.first()
+        assertEquals("abc", logbookFirst.properties["ID"])
+        assertEquals(listOf("CLOCK: x"), logbookFirst.logbook)
+    }
+
+    @Test
+    fun `unclosed logbook drawer does not swallow the file`() {
+        val doc = OrgParser.parse(
+            "* Heading\n:LOGBOOK:\nCLOCK: x\n* Next heading\nbody\n"
+        )
+        val h = doc.findByTitle("Heading")!!
+        assertTrue(h.logbook.isEmpty())
+        assertNotNull(doc.findByTitle("Next heading"))
+    }
+
+    @Test
     fun `multiple keywords config is respected`() {
         val kw = OrgKeywords.parse("NEXT WAITING | DONE")
         val doc = OrgParser.parse("* NEXT Call bank\n* TODO not a keyword here", kw)

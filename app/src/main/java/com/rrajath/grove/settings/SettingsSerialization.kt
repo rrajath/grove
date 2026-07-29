@@ -60,6 +60,8 @@ data class SettingsExport(
     val remindersEnabled: Boolean = true,
     /** "HH:mm", e.g. "09:00". */
     val defaultReminderTime: String = "09:00",
+    val agendaSwipeLeftAction: String = AgendaSwipeAction.MARK_DONE.storageKey,
+    val agendaSwipeRightAction: String = AgendaSwipeAction.SET_SCHEDULED.storageKey,
 ) {
     /** Map back onto [base], using the enums' tolerant `fromStorage` fallbacks. */
     fun applyTo(base: GroveSettings): GroveSettings = base.copy(
@@ -89,6 +91,8 @@ data class SettingsExport(
         remindersEnabled = remindersEnabled,
         defaultReminderTime = runCatching { java.time.LocalTime.parse(defaultReminderTime) }
             .getOrDefault(GroveSettings.DEFAULT_REMINDER_TIME),
+        agendaSwipeLeftAction = AgendaSwipeAction.fromStorage(agendaSwipeLeftAction, AgendaSwipeAction.MARK_DONE),
+        agendaSwipeRightAction = AgendaSwipeAction.fromStorage(agendaSwipeRightAction, AgendaSwipeAction.SET_SCHEDULED),
     )
 
     companion object {
@@ -120,6 +124,8 @@ data class SettingsExport(
             checklistStates = s.checklistStates.storageKey,
             remindersEnabled = s.remindersEnabled,
             defaultReminderTime = s.defaultReminderTime.toString(),
+            agendaSwipeLeftAction = s.agendaSwipeLeftAction.storageKey,
+            agendaSwipeRightAction = s.agendaSwipeRightAction.storageKey,
         )
     }
 }

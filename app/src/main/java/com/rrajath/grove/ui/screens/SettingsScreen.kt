@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rrajath.grove.capture.CaptureTemplate
 import com.rrajath.grove.ui.capture.TemplatesViewModel
+import com.rrajath.grove.settings.AgendaSwipeAction
 import com.rrajath.grove.settings.ChecklistStates
 import com.rrajath.grove.settings.FontSizePreference
 import com.rrajath.grove.settings.GroveSettings
@@ -50,6 +51,7 @@ import com.rrajath.grove.settings.NoteOpenMode
 import com.rrajath.grove.settings.NotebookDisplayNameMode
 import com.rrajath.grove.settings.SyncMode
 import com.rrajath.grove.settings.ThemePreference
+import com.rrajath.grove.ui.components.DropdownPicker
 import com.rrajath.grove.ui.components.GroveTopBar
 import com.rrajath.grove.ui.components.ReminderPermissionBanner
 import com.rrajath.grove.ui.components.SegmentedControl
@@ -88,6 +90,8 @@ fun SettingsScreen(
     onSetChecklistStates: (ChecklistStates) -> Unit,
     onSetRemindersEnabled: (Boolean) -> Unit,
     onSetDefaultReminderTime: (LocalTime) -> Unit,
+    onSetAgendaSwipeLeftAction: (AgendaSwipeAction) -> Unit,
+    onSetAgendaSwipeRightAction: (AgendaSwipeAction) -> Unit,
     reminderPendingCount: Int,
     onExportSettings: (android.net.Uri) -> Unit,
     onImportSettings: (android.net.Uri) -> Unit,
@@ -395,6 +399,49 @@ fun SettingsScreen(
                 )
             }
 
+            SectionLabel("AGENDA")
+            SettingsGroup {
+                Column(Modifier.padding(horizontal = 15.dp, vertical = 10.dp)) {
+                    Text(
+                        "Swipe left",
+                        fontFamily = PlexSans, fontWeight = FontWeight.Medium,
+                        fontSize = 14.5.sp, color = c.ink,
+                        modifier = Modifier.padding(bottom = 2.dp),
+                    )
+                    Text(
+                        "Swiping an agenda item left will " + swipeActionDescription(settings.agendaSwipeLeftAction),
+                        fontFamily = PlexSans, fontSize = 12.sp, color = c.ink2,
+                        modifier = Modifier.padding(bottom = 10.dp),
+                    )
+                    DropdownPicker(
+                        options = AgendaSwipeAction.entries.map { it.label },
+                        selectedIndex = settings.agendaSwipeLeftAction.ordinal,
+                        onSelect = { onSetAgendaSwipeLeftAction(AgendaSwipeAction.entries[it]) },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                RowDivider()
+                Column(Modifier.padding(horizontal = 15.dp, vertical = 10.dp)) {
+                    Text(
+                        "Swipe right",
+                        fontFamily = PlexSans, fontWeight = FontWeight.Medium,
+                        fontSize = 14.5.sp, color = c.ink,
+                        modifier = Modifier.padding(bottom = 2.dp),
+                    )
+                    Text(
+                        "Swiping an agenda item right will " + swipeActionDescription(settings.agendaSwipeRightAction),
+                        fontFamily = PlexSans, fontSize = 12.sp, color = c.ink2,
+                        modifier = Modifier.padding(bottom = 10.dp),
+                    )
+                    DropdownPicker(
+                        options = AgendaSwipeAction.entries.map { it.label },
+                        selectedIndex = settings.agendaSwipeRightAction.ordinal,
+                        onSelect = { onSetAgendaSwipeRightAction(AgendaSwipeAction.entries[it]) },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            }
+
             SectionLabel("REMINDERS")
             ReminderPermissionBanner(pendingCount = reminderPendingCount, modifier = Modifier.padding(bottom = 10.dp))
             SettingsGroup {
@@ -600,6 +647,12 @@ private fun SettingsRow(
  * Mono) has no calt/liga ligature for "->", so two literal characters is all
  * that font would ever render.
  */
+private fun swipeActionDescription(action: AgendaSwipeAction): String = when (action) {
+    AgendaSwipeAction.SET_SCHEDULED -> "open the scheduled-date picker"
+    AgendaSwipeAction.SET_DEADLINE -> "open the deadline picker"
+    AgendaSwipeAction.MARK_DONE -> "mark it done"
+}
+
 @Composable
 private fun ChecklistStatesDescription(states: ChecklistStates) {
     val c = MaterialTheme.grove

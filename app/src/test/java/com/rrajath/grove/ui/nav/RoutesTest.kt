@@ -74,6 +74,12 @@ class RoutesTest {
     }
 
     @Test
+    fun `outline route omits narrowTo by default and appends it when set`() {
+        assertEquals("outline/travel.org", Routes.outline("travel.org"))
+        assertEquals("outline/travel.org?narrowTo=42", Routes.outline("travel.org", narrowTo = 42))
+    }
+
+    @Test
     fun `built routes match declared patterns`() {
         // outline/{notebookId}
         assertEquals(

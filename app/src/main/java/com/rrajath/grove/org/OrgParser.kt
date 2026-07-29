@@ -26,7 +26,9 @@ data class OrgHeadline(
     val tags: List<String>,
     val planning: Planning,
     val properties: Map<String, String>,
-    /** First line of body content (after planning line and properties drawer). */
+    /** Raw lines inside a `:LOGBOOK: ... :END:` drawer, marker lines excluded. */
+    val logbook: List<String> = emptyList(),
+    /** First line of body content (after planning line, properties and logbook drawers). */
     val bodyStart: Int,
     /** Exclusive end: line index of the next headline (any level) or EOF. */
     val contentEnd: Int,
@@ -233,27 +235,59 @@ object OrgParser {
             cursor++
         }
 
-        // Properties drawer
+        // Drawers (:PROPERTIES: and/or :LOGBOOK:), immediately after the planning
+        // line, in either order — org-mode allows both orderings depending on
+        // whether log notes are configured to insert above or below properties.
         val properties = linkedMapOf<String, String>()
-        if (cursor < contentEnd && lines[cursor].trim().equals(":PROPERTIES:", ignoreCase = true)) {
-            val pending = linkedMapOf<String, String>()
-            var i = cursor + 1
-            var closed = false
-            while (i < contentEnd) {
-                val line = lines[i].trim()
-                if (line.equals(":END:", ignoreCase = true)) {
-                    closed = true
-                    break
+        val logbook = mutableListOf<String>()
+        var scanningDrawers = true
+        while (scanningDrawers && cursor < contentEnd) {
+            when (lines[cursor].trim().uppercase()) {
+                ":PROPERTIES:" -> {
+                    val pending = linkedMapOf<String, String>()
+                    var i = cursor + 1
+                    var closed = false
+                    while (i < contentEnd) {
+                        val line = lines[i].trim()
+                        if (line.equals(":END:", ignoreCase = true)) {
+                            closed = true
+                            break
+                        }
+                        PROPERTY_LINE.matchEntire(lines[i])?.let { m ->
+                            pending[m.groupValues[1]] = m.groupValues[2].trim()
+                        }
+                        i++
+                    }
+                    // An unclosed drawer is body text, not properties.
+                    if (closed) {
+                        properties.putAll(pending)
+                        cursor = i + 1
+                    } else {
+                        scanningDrawers = false
+                    }
                 }
-                PROPERTY_LINE.matchEntire(lines[i])?.let { m ->
-                    pending[m.groupValues[1]] = m.groupValues[2].trim()
+                ":LOGBOOK:" -> {
+                    val pending = mutableListOf<String>()
+                    var i = cursor + 1
+                    var closed = false
+                    while (i < contentEnd) {
+                        val line = lines[i].trim()
+                        if (line.equals(":END:", ignoreCase = true)) {
+                            closed = true
+                            break
+                        }
+                        pending.add(lines[i])
+                        i++
+                    }
+                    // An unclosed drawer is body text, not a logbook.
+                    if (closed) {
+                        logbook.addAll(pending)
+                        cursor = i + 1
+                    } else {
+                        scanningDrawers = false
+                    }
                 }
-                i++
-            }
-            // An unclosed drawer is body text, not properties.
-            if (closed) {
-                properties.putAll(pending)
-                cursor = i + 1
+                else -> scanningDrawers = false
             }
         }
 
@@ -267,6 +301,7 @@ object OrgParser {
             tags = tags,
             planning = planning,
             properties = properties,
+            logbook = logbook,
             bodyStart = cursor,
             contentEnd = contentEnd,
         )

@@ -20,6 +20,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -144,6 +146,10 @@ fun SegmentedControl(
  * 56dp app bar row per design spec: leading slot, title block, trailing actions.
  * Consumes the status-bar inset itself — Scaffold does not pad the topBar slot,
  * so without this the bar sits under the status bar in edge-to-edge mode.
+ *
+ * An optional [subtitle] renders as a second row beneath the main bar, full
+ * width — for content (e.g. a breadcrumb trail) that would otherwise compete
+ * for space with wide [actions] in the fixed-height row.
  */
 @Composable
 fun GroveTopBar(
@@ -151,18 +157,27 @@ fun GroveTopBar(
     leading: @Composable () -> Unit = {},
     title: @Composable () -> Unit = {},
     actions: @Composable RowScope.() -> Unit = {},
+    subtitle: (@Composable () -> Unit)? = null,
 ) {
-    Row(
+    Column(
         modifier
             .fillMaxWidth()
-            .statusBarsPadding()
-            .height(56.dp)
-            .padding(horizontal = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .statusBarsPadding(),
     ) {
-        leading()
-        Box(Modifier.weight(1f)) { title() }
-        actions()
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .height(56.dp)
+                .padding(horizontal = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            leading()
+            Box(Modifier.weight(1f)) { title() }
+            actions()
+        }
+        subtitle?.let {
+            Box(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 10.dp)) { it() }
+        }
     }
 }
 
@@ -302,6 +317,102 @@ private fun ThemeDots(dots: List<Color>) {
                     .clip(CircleShape)
                     .background(dot)
             )
+        }
+    }
+}
+
+/**
+ * Text-options dropdown (Settings § Agenda swipe-left/swipe-right action pickers): a collapsed
+ * trigger row sharing [ThemeDropdownPicker]'s chrome, expanding into a list of options with a
+ * checkmark on the active one. Unlike [ThemeDropdownPicker] this is a general-purpose picker for
+ * any small list of string options — no swatches.
+ */
+@Composable
+fun DropdownPicker(
+    options: List<String>,
+    selectedIndex: Int,
+    onSelect: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val c = MaterialTheme.grove
+    var open by rememberSaveable { mutableStateOf(false) }
+    val chevronAngle by animateFloatAsState(if (open) 180f else 0f, label = "dropdownChevron")
+
+    Column(modifier) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(c.surface2)
+                .border(1.dp, if (open) c.accent else c.line, RoundedCornerShape(12.dp))
+                .clickable { open = !open }
+                .padding(horizontal = 11.dp, vertical = 9.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                options.getOrElse(selectedIndex) { "" },
+                color = c.ink,
+                fontFamily = PlexSans,
+                fontWeight = FontWeight.Medium,
+                fontSize = 14.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                "▾",
+                color = c.ink3,
+                fontSize = 16.5.sp,
+                modifier = Modifier.graphicsLayer { rotationZ = chevronAngle },
+            )
+        }
+        AnimatedVisibility(open) {
+            Column(
+                Modifier
+                    .padding(top = 8.dp)
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(13.dp))
+                    .background(c.surface2)
+                    .padding(6.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                options.forEachIndexed { i, label ->
+                    val active = i == selectedIndex
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(9.dp))
+                            .background(if (active) c.accentSoft else Color.Transparent)
+                            .clickable {
+                                onSelect(i)
+                                open = false
+                            }
+                            .padding(horizontal = 10.dp, vertical = 9.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            label,
+                            color = if (active) c.accentInk else c.ink,
+                            fontFamily = PlexSans,
+                            fontWeight = if (active) FontWeight.SemiBold else FontWeight.Medium,
+                            fontSize = 13.5.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f),
+                        )
+                        if (active) {
+                            Icon(
+                                Icons.Default.Check,
+                                contentDescription = null,
+                                tint = c.accentInk,
+                                modifier = Modifier.size(15.dp),
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }

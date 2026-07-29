@@ -9,7 +9,7 @@ import java.net.URLEncoder
 object Routes {
     const val ONBOARDING = "onboarding"
     const val NOTEBOOKS = "notebooks"
-    const val OUTLINE = "outline/{notebookId}"
+    const val OUTLINE = "outline/{notebookId}?narrowTo={narrowTo}"
     const val NOTE = "note/{noteId}?mode={mode}&isNew={isNew}&planning={planning}&notifId={notifId}"
     const val CAPTURE = "capture"
     const val CAPTURE_TEMPLATE = "capture/{templateId}"
@@ -38,7 +38,13 @@ object Routes {
      */
     fun encode(id: String): String = URLEncoder.encode(id, "UTF-8").replace("+", "%20")
 
-    fun outline(notebookId: String) = "outline/${encode(notebookId)}"
+    /**
+     * [narrowTo] is a heading's line index — set when navigating here from a
+     * Read Mode breadcrumb, so the Outline shows only that heading's subtree
+     * (org-narrow-to-subtree semantics) until the user taps "widen".
+     */
+    fun outline(notebookId: String, narrowTo: Int? = null) =
+        "outline/${encode(notebookId)}" + (narrowTo?.let { "?narrowTo=$it" } ?: "")
 
     /**
      * [planning] ("scheduled"/"deadline") and [notifId] carry a reminder's

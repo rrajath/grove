@@ -392,9 +392,10 @@ the widths used in Settings. `optionIcons` is an optional `List<ImageVector?>` �
 entry at an index renders a 15dp `Icon` (same active/inactive tint as the text) in place of
 that option's label; leave the list null (or that index null) for a plain text option.
 
-**When to use**: any 2-4-way exclusive toggle. Places currently: Read ↔ Edit in the note app
-bar, and several Settings rows (Font size, Default priority, Default note mode, Notebook
-display mode, Checklist states).
+**When to use**: any 2-4-way exclusive toggle with short labels. Places currently: Read ↔ Edit
+in the note app bar, and several Settings rows (Font size, Default priority, Default note mode,
+Notebook display mode, Checklist states). For longer option labels that would get squeezed,
+use `DropdownPicker` instead (e.g. Agenda swipe-left/swipe-right actions).
 
 ---
 
@@ -454,6 +455,34 @@ matching `design/Grove.dc.html`'s `themeList()` — notably the Dark theme's row
 
 ---
 
+### `DropdownPicker` — `ui/components/Common.kt`
+
+General-purpose text-options dropdown — same collapsed-trigger-plus-inline-expanding-list
+chrome as `ThemeDropdownPicker` (`surface2` fill, 12dp radius, 1dp `line` border that turns
+`accent` while open, 11×9dp padding, 11sp `ink3` chevron that rotates 180° while open), but for
+any small list of plain string options rather than the theme swatches. The trigger shows the
+selected option's label (14sp Medium `ink`). The list expands below (8dp gap): `surface2`
+container, 13dp radius, 6dp padding, 2dp row spacing. Each row is 10×9dp padding, 9dp radius;
+the active row gets an `accentSoft` background, `accentInk`/SemiBold label, and a trailing 15dp
+check icon (`Icons.Default.Check`, `accentInk`) — inactive rows are plain `ink`/Medium text on
+transparent background. Selecting a row fires `onSelect` and collapses the list.
+
+```kotlin
+DropdownPicker(
+    options = AgendaSwipeAction.entries.map { it.label },
+    selectedIndex = settings.agendaSwipeLeftAction.ordinal,
+    onSelect = { onSetAgendaSwipeLeftAction(AgendaSwipeAction.entries[it]) },
+    modifier = Modifier.fillMaxWidth(),
+)
+```
+
+**When to use**: Settings rows with 2+ mutually-exclusive text options where a segmented
+control would be too cramped for the label text (e.g. Agenda swipe-left/swipe-right action
+pickers — "Schedule Task" / "Set Deadline" / "Mark as Done"). For short labels that fit a
+compact pill row, prefer `SegmentedControl` instead.
+
+---
+
 ### `GroveTopBar` — `ui/components/Common.kt`
 
 Edge-to-edge app bar that consumes the status bar inset.
@@ -474,6 +503,29 @@ trailing slots. Renders on `bg` (no elevation / surface lift).
 
 **When to use**: every screen that has an app bar. Do not use Material3 `TopAppBar` directly —
 it does not integrate the status bar inset the same way.
+
+**Optional `subtitle` row** — a second, full-width row rendered below the 56dp bar (16dp
+horizontal padding, 10dp bottom padding), for content that needs its own line rather than
+competing with `actions` inside the fixed-height row:
+
+```kotlin
+GroveTopBar(
+    leading = { IconGlyph("←", onClick = onBack) },
+    actions = { SegmentedControl(options = listOf("Read", "Edit"), ...) },
+    subtitle = { ReadModeBreadcrumb(fileName, path, onOpenBreadcrumb) },
+)
+```
+
+Read mode (`ReadNoteScreen.kt`) is the one call site today: the breadcrumb trail
+(file name › heading › ... › current heading, each segment tappable, monospace 11.5sp
+`ink3`, `›` separators, horizontally scrolling if it overflows) used to sit in the `title`
+slot, where a long path collided with the Read/Edit segmented control. It now renders as
+`subtitle`, so row 1 is just the back button (left) and Read/Edit (right, in line with the
+back button), and the breadcrumb occupies its own row underneath.
+
+**When to use `subtitle`**: only when `title` content is wide/dynamic enough to contend with
+`actions` for space in the 56dp row (e.g. a breadcrumb trail). Short, fixed-width titles
+should stay in `title`.
 
 ---
 
@@ -525,11 +577,68 @@ SwipeRevealRow(
 Physics constants (do not change without the prototype): panel 184dp = 4 × 46dp cells,
 open threshold 66dp, rubber-band factor 0.18 past the panel, settle 340ms
 `CubicBezierEasing(0.22, 1, 0.36, 1)`. Tap on an open card closes it; action cells are
-`fg` glyph (16sp) over a 9sp Medium label on the action's `Soft` bg. The parent keeps at
-most one row open (`forceClose` + `onOpenChanged`) and snaps all rows shut on any
+a `fg`-tinted 16sp glyph or 17dp `Icon` over a 9sp Medium label on the action's `Soft` bg.
+`SwipeAction.icon` (an `ImageVector`) takes precedence over `SwipeAction.glyph` (a plain
+Unicode character) when both would apply — use `icon` when the action must match a Material
+icon used elsewhere in the app (e.g. `MARK_DONE`'s checkmark matches the synced-notebook
+`Icons.Default.Check` on the Notebooks top bar); use `glyph` for everything else. The parent
+keeps at most one row open (`forceClose` + `onOpenChanged`) and snaps all rows shut on any
 document mutation.
 
 **When to use**: outline heading rows. Reuse for any future list with swipe quick actions.
+
+---
+
+### `SwipeCommitRow` — `ui/components/SwipeRevealRow.kt`
+
+Gmail/Reminders-style swipe: swiping left or right past the 66dp open
+threshold fires the single configured action immediately on release and the
+row always springs back — unlike `SwipeRevealRow`'s reveal-then-tap panel,
+there's only ever one action per direction (Settings § Agenda), so a second
+tap to confirm would be one tap too many. Rubber-bands past a 96dp cap
+(shorter than SwipeRevealRow's 184dp panel — no persistent open state to
+travel toward). A colored full-bleed underlay (icon+label anchored near the
+edge) previews the action mid-drag.
+
+```kotlin
+SwipeCommitRow(
+    leftAction = SwipeAction("◷", "Sched", c.blue, c.blueSoft) { … },
+    rightAction = SwipeAction(label = "Done", fg = c.green, bg = c.greenSoft, icon = Icons.Default.Check) { … },
+    onTap = { onOpenNote(…) },
+    shape = RoundedCornerShape(12.dp),
+) { ResultRowContent(…) }
+```
+
+**When to use**: a list row with exactly one action per swipe direction.
+Reuse `SwipeRevealRow` instead when a row needs a multi-action panel.
+
+---
+
+### `ResultRowContent` — `ui/components/ResultRow.kt`
+
+Shared keyword-pill/priority/title/snippet layout for a Search or Agenda
+result row. Callers own the outer tap target, padding, and the divider
+between rows, plus their own text source (Search: match-highlighted;
+Agenda: plain via `annotateOrgInline`) and meta row (Search: date pills +
+tags; Agenda: file/heading breadcrumb) via a trailing `metaContent` slot.
+
+```kotlin
+ResultRowContent(
+    keyword = result.keyword,
+    isDone = result.isDone,
+    priority = result.priority,
+    titleText = titleText,       // AnnotatedString — highlighted or plain, caller's choice
+    snippetText = snippetText,   // AnnotatedString? — same
+    modifier = Modifier.fillMaxWidth().padding(start = 16.dp, top = 9.dp, end = 11.dp, bottom = 11.dp),
+) {
+    Text(result.breadcrumb, fontFamily = PlexMono, fontSize = 11.5.sp, color = c.ink3)
+}
+```
+
+**When to use**: any Search- or Agenda-shaped result row. Both screens'
+`LazyColumn`s separate rows with a thin `line`-colored `HorizontalDivider`
+(not part of this component — each screen's `items`/`itemsIndexed` loop owns
+its own dividers, same as the file-grouped Search list).
 
 ---
 
@@ -718,7 +827,9 @@ Internally: 13sp SemiBold `PlexSans`, 0.5sp letter spacing, 14dp/4dp top/bottom 
 an explicit `c.bg` background fill (matching the Scaffold) so pinned text doesn't show
 list content through it. The Overdue section (always shown in full, sorted oldest-first)
 uses `red` — the design system's existing "overdue deadlines" token — and every day
-header uses `accent`, same as before this component existed.
+header uses `accent`, same as before this component existed. Today's bucket reads
+"Tuesday, Jul 28 · Today" and tomorrow's "Wednesday, Jul 29 · Tomorrow" (`dayHeaderLabel`
+in `AgendaScreen.kt`); every other day keeps the plain "EEEE, MMM d" format.
 
 **When to use**: Agenda-only so far. Day headers used plain scrolling `Text` before this;
 if another list needs pinned section labels, reuse this pattern rather than inventing a
@@ -738,10 +849,10 @@ new one.
 | Edit Note | `note/{noteId}?mode=edit` | `GroveTopBar`, `SegmentedControl`, `OrgVisualTransformation`, formatting toolbar, `MetadataSheet` |
 | Capture Picker | (bottom sheet) | `ModalBottomSheet`, icon glyph tiles, `PlexMono` |
 | Capture Editor | `capture/{templateId}` | `GroveTopBar`, `monoBody()`, formatting toolbar |
-| Search | `search` | File-grouped results (collapsible sticky headers, `line`-divided rows, `annotateOrgInline` title/snippet rendering with match highlighting layered on top, inline `priorityColor`-coded `[#P]` next to the title matching Agenda, 2-line-max snippet), `Pill` (TODO pill), quick-start cards + Saved Searches (blank state, long-press → Rename/Delete `DropdownMenu`), Advanced expression preview + operator chips, `FilterPanel` (`ModalBottomSheet`) with faceted chip sections (Notebook/Tags/TODO state/Scheduled/Deadline/Priority + `CustomDateRangePicker` "Custom range" chip) |
-| Agenda | `agenda` | `AgendaSectionHeader` (Overdue + day sticky headers), `Pill`, `ScrollJumpButtons`, infinite scroll |
+| Search | `search` | `ResultRowContent`-based, file-grouped results (collapsible sticky headers, `line`-divided rows, `annotateOrgInline` title/snippet rendering with match highlighting layered on top, inline `priorityColor`-coded `[#P]` next to the title matching Agenda, 2-line-max snippet), `Pill` (TODO pill), quick-start cards + Saved Searches (blank state, long-press → Rename/Delete `DropdownMenu`), Advanced expression preview + operator chips, `FilterPanel` (`ModalBottomSheet`) with faceted chip sections (Notebook/Tags/TODO state/Scheduled/Deadline/Priority + `CustomDateRangePicker` "Custom range" chip) |
+| Agenda | `agenda` | `ResultRowContent`-based, `line`-divided rows wrapped in `SwipeCommitRow` (swipe-left/right per Settings § Agenda: set scheduled, set deadline, or mark done — the latter undoable via `GroveUndoSnackbar`), `AgendaSectionHeader` (Overdue + day sticky headers, Today/Tomorrow-labeled), `Pill`, `ScrollJumpButtons`, infinite scroll |
 | Conflict | `conflict/{notebookId}` | `GroveTopBar`, warning banner, unified diff view, action buttons |
-| Settings | `settings` | `GroveTopBar`, `ThemeDropdownPicker` (theme), `SegmentedControl` (font, priority, note mode, display mode, checklist states), keyword chips, `Pill` ("default"), `ReminderPermissionBanner`, `SimpleTimePicker` (default reminder time), side-by-side button pair (Export/Import settings) |
+| Settings | `settings` | `GroveTopBar`, `ThemeDropdownPicker` (theme), `SegmentedControl` (font, priority, note mode, display mode, checklist states), `DropdownPicker` (agenda swipe-left/swipe-right actions), keyword chips, `Pill` ("default"), `ReminderPermissionBanner`, `SimpleTimePicker` (default reminder time), side-by-side button pair (Export/Import settings) |
 
 ---
 

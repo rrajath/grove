@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -69,6 +70,7 @@ import com.rrajath.grove.org.OrgHeadline
 import com.rrajath.grove.org.OrgTimestamp
 import com.rrajath.grove.settings.ChecklistStates
 import com.rrajath.grove.ui.components.CollapsibleKvSection
+import com.rrajath.grove.ui.components.CollapsibleLogSection
 import com.rrajath.grove.ui.components.FavoriteStar
 import com.rrajath.grove.ui.components.GroveTopBar
 import com.rrajath.grove.ui.components.Pill
@@ -100,7 +102,13 @@ fun ReadNoteScreen(
     onOpenNote: (NoteRef) -> Unit,
     /** Double-tap anywhere switches to edit mode. */
     onEdit: () -> Unit,
-    /** Settings toggle: show collapsible sections for `:PROPERTIES:` drawers. */
+    /**
+     * A breadcrumb segment was tapped: `null` for the file/notebook segment
+     * (opens the full outline), or a heading's line index (narrows the
+     * outline to that heading's subtree).
+     */
+    onOpenBreadcrumb: (Int?) -> Unit = {},
+    /** Settings toggle: show collapsible sections for `:PROPERTIES:`/`:LOGBOOK:` drawers. */
     showPropertyDrawers: Boolean = true,
     /** Settings: how many states tapping a checklist item cycles through. */
     checklistStates: ChecklistStates = ChecklistStates.TWO,
@@ -129,7 +137,6 @@ fun ReadNoteScreen(
         topBar = {
             GroveTopBar(
                 leading = { IconGlyph("←", onClick = onBack) },
-                title = {},
                 actions = {
                     SegmentedControl(
                         options = listOf("Read", "Edit"),
@@ -137,6 +144,22 @@ fun ReadNoteScreen(
                         onSelect = { if (it == 1) onEdit() },
                         modifier = Modifier.width(140.dp),
                     )
+                },
+                subtitle = {
+                    (state as? DocumentUiState.Loaded)?.document?.let { doc ->
+                        doc.headlineAtLine(noteRef.lineIndex)?.let { h ->
+                            val path = remember(doc, h) {
+                                val chain = mutableListOf(h)
+                                var p = doc.parent(h)
+                                while (p != null) {
+                                    chain.add(0, p)
+                                    p = doc.parent(p)
+                                }
+                                chain.toList()
+                            }
+                            ReadModeBreadcrumb(noteRef.fileName, path, onOpenBreadcrumb)
+                        }
+                    }
                 },
             )
         },
@@ -193,6 +216,40 @@ fun ReadNoteScreen(
                     }
                 }
             }
+        }
+    }
+}
+
+/**
+ * Path to the current heading, e.g. "shopping.org › Errands › Groceries".
+ * Every segment is tappable: the file segment opens the full outline, each
+ * heading segment narrows the outline to that heading's subtree.
+ */
+@Composable
+private fun ReadModeBreadcrumb(
+    fileName: String,
+    path: List<OrgHeadline>,
+    onOpenBreadcrumb: (Int?) -> Unit,
+) {
+    val c = MaterialTheme.grove
+    Row(
+        Modifier.horizontalScroll(rememberScrollState()),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            fileName.removeSuffix(".org"),
+            fontFamily = PlexMono, fontSize = 11.5.sp, color = c.ink3,
+            maxLines = 1,
+            modifier = Modifier.clickable { onOpenBreadcrumb(null) },
+        )
+        path.forEach { h ->
+            Text(" › ", fontFamily = PlexMono, fontSize = 11.5.sp, color = c.ink3)
+            Text(
+                h.title,
+                fontFamily = PlexMono, fontSize = 11.5.sp, color = c.ink3,
+                maxLines = 1,
+                modifier = Modifier.clickable { onOpenBreadcrumb(h.lineIndex) },
+            )
         }
     }
 }
@@ -304,23 +361,31 @@ private fun NoteContent(
                     }
                 }
 
-                // Created / planning metadata
-                headline.properties["CREATED"]?.let { created ->
-                    Spacer(Modifier.height(6.dp))
-                    Text("Created $created", fontFamily = PlexMono, fontSize = 12.5.sp, color = c.ink3)
-                }
-
-                // Note's own :PROPERTIES: drawer.
-                if (showPropertyDrawers && headline.properties.isNotEmpty()) {
+                // Note's own :PROPERTIES: and :LOGBOOK: drawers (CREATED lives
+                // in :PROPERTIES: — shown there only, not as a separate line).
+                if (showPropertyDrawers && (headline.properties.isNotEmpty() || headline.logbook.isNotEmpty())) {
                     Spacer(Modifier.height(10.dp))
-                    CollapsibleKvSection(
-                        label = ":PROPERTIES:",
-                        entries = headline.properties.map { (k, v) -> ":$k:" to v },
-                        expanded = collapsibleExpanded["own"] == true,
-                        onToggle = {
-                            collapsibleExpanded["own"] = collapsibleExpanded["own"] != true
-                        },
-                    )
+                    if (headline.properties.isNotEmpty()) {
+                        CollapsibleKvSection(
+                            label = ":PROPERTIES:",
+                            entries = headline.properties.map { (k, v) -> ":$k:" to v },
+                            expanded = collapsibleExpanded["own"] == true,
+                            onToggle = {
+                                collapsibleExpanded["own"] = collapsibleExpanded["own"] != true
+                            },
+                        )
+                    }
+                    if (headline.logbook.isNotEmpty()) {
+                        if (headline.properties.isNotEmpty()) Spacer(Modifier.height(6.dp))
+                        CollapsibleLogSection(
+                            label = ":LOGBOOK:",
+                            lines = headline.logbook,
+                            expanded = collapsibleExpanded["own-logbook"] == true,
+                            onToggle = {
+                                collapsibleExpanded["own-logbook"] = collapsibleExpanded["own-logbook"] != true
+                            },
+                        )
+                    }
                     Spacer(Modifier.height(20.dp))
                 }
 
@@ -379,17 +444,31 @@ private fun NoteContent(
                                 FavoriteStar(modifier = Modifier.padding(top = 2.dp))
                             }
                         }
-                        if (showPropertyDrawers && child.properties.isNotEmpty()) {
+                        if (showPropertyDrawers && (child.properties.isNotEmpty() || child.logbook.isNotEmpty())) {
                             Spacer(Modifier.height(10.dp))
-                            CollapsibleKvSection(
-                                label = ":PROPERTIES:",
-                                entries = child.properties.map { (k, v) -> ":$k:" to v },
-                                expanded = collapsibleExpanded["child:${child.lineIndex}"] == true,
-                                onToggle = {
-                                    val key = "child:${child.lineIndex}"
-                                    collapsibleExpanded[key] = collapsibleExpanded[key] != true
-                                },
-                            )
+                            if (child.properties.isNotEmpty()) {
+                                CollapsibleKvSection(
+                                    label = ":PROPERTIES:",
+                                    entries = child.properties.map { (k, v) -> ":$k:" to v },
+                                    expanded = collapsibleExpanded["child:${child.lineIndex}"] == true,
+                                    onToggle = {
+                                        val key = "child:${child.lineIndex}"
+                                        collapsibleExpanded[key] = collapsibleExpanded[key] != true
+                                    },
+                                )
+                            }
+                            if (child.logbook.isNotEmpty()) {
+                                if (child.properties.isNotEmpty()) Spacer(Modifier.height(6.dp))
+                                CollapsibleLogSection(
+                                    label = ":LOGBOOK:",
+                                    lines = child.logbook,
+                                    expanded = collapsibleExpanded["child-logbook:${child.lineIndex}"] == true,
+                                    onToggle = {
+                                        val key = "child-logbook:${child.lineIndex}"
+                                        collapsibleExpanded[key] = collapsibleExpanded[key] != true
+                                    },
+                                )
+                            }
                             Spacer(Modifier.height(14.dp))
                         } else {
                             Spacer(Modifier.height(8.dp))

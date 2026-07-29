@@ -33,6 +33,8 @@ class SettingsSerializationTest {
         checklistStates = ChecklistStates.THREE,
         remindersEnabled = false,
         defaultReminderTime = java.time.LocalTime.of(7, 45),
+        agendaSwipeLeftAction = AgendaSwipeAction.MARK_DONE,
+        agendaSwipeRightAction = AgendaSwipeAction.SET_DEADLINE,
         // Device-specific fields that must NOT travel with an export.
         vaultTreeUri = "content://com.android.externalstorage/tree/primary%3Aorg",
         onboardingDone = true,
@@ -68,6 +70,8 @@ class SettingsSerializationTest {
         assertEquals(sample.checklistStates, restored.checklistStates)
         assertEquals(sample.remindersEnabled, restored.remindersEnabled)
         assertEquals(sample.defaultReminderTime, restored.defaultReminderTime)
+        assertEquals(sample.agendaSwipeLeftAction, restored.agendaSwipeLeftAction)
+        assertEquals(sample.agendaSwipeRightAction, restored.agendaSwipeRightAction)
     }
 
     @Test
@@ -93,13 +97,16 @@ class SettingsSerializationTest {
 
     @Test
     fun `unknown enum values fall back to defaults on import`() {
-        val json = """{ "theme": "sepia", "fontSize": "huge", "syncMode": "warp", "checklistStates": "four" }"""
+        val json = """{ "theme": "sepia", "fontSize": "huge", "syncMode": "warp", "checklistStates": "four",
+            "agendaSwipeLeftAction": "cartwheel", "agendaSwipeRightAction": "backflip" }"""
         val restored = SettingsSerialization.import(json, GroveSettings())
 
         assertEquals(ThemePreference.LIGHT, restored.theme)
         assertEquals(FontSizePreference.MEDIUM, restored.fontSize)
         assertEquals(SyncMode.ON_OPEN_CLOSE, restored.syncMode)
         assertEquals(ChecklistStates.TWO, restored.checklistStates)
+        assertEquals(AgendaSwipeAction.MARK_DONE, restored.agendaSwipeLeftAction)
+        assertEquals(AgendaSwipeAction.SET_SCHEDULED, restored.agendaSwipeRightAction)
     }
 
     @Test

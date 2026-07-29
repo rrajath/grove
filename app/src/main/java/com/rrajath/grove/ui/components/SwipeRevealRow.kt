@@ -16,7 +16,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -26,9 +29,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -37,12 +44,17 @@ import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
 import kotlinx.coroutines.launch
 
-/** One action cell behind a swipeable row (design spec Gestures screen). */
+/**
+ * One action cell behind a swipeable row (design spec Gestures screen). Glyph is a plain
+ * text character (e.g. "◷"); pass [icon] instead when the action needs to match a Material
+ * icon used elsewhere in the app (e.g. the "mark done" checkmark) — [icon] takes precedence.
+ */
 data class SwipeAction(
-    val glyph: String,
+    val glyph: String? = null,
     val label: String,
     val fg: Color,
     val bg: Color,
+    val icon: ImageVector? = null,
     val onClick: () -> Unit,
 )
 
@@ -146,6 +158,112 @@ fun SwipeRevealRow(
     }
 }
 
+/**
+ * A row that swipes left or right to commit a single configured action
+ * immediately on release past the open threshold (design spec Agenda screen)
+ * — unlike [SwipeRevealRow]'s reveal-then-tap panel, there is only ever one
+ * action per direction, so firing on release (Gmail/Reminders-style "swipe to
+ * complete") reads better than requiring a second tap to confirm. The row
+ * always springs back to its resting position after a release, whether or
+ * not it fired. A null action on a side disables dragging that direction.
+ */
+@Composable
+fun SwipeCommitRow(
+    leftAction: SwipeAction?,
+    rightAction: SwipeAction?,
+    onTap: () -> Unit,
+    modifier: Modifier = Modifier,
+    /** Clip applied to the foreground card (e.g. a rounded ripple boundary). */
+    shape: Shape = RectangleShape,
+    content: @Composable () -> Unit,
+) {
+    val c = MaterialTheme.grove
+    val density = LocalDensity.current
+    val thresholdPx = with(density) { OpenThreshold.toPx() }
+    val capPx = with(density) { CommitCap.toPx() }
+    val offset = remember { Animatable(0f) }
+    val scope = rememberCoroutineScope()
+    val dragRaw = remember { mutableFloatStateOf(0f) }
+
+    fun rubberBand(x: Float): Float = when {
+        x > capPx -> capPx + (x - capPx) * RubberBandFactor
+        x < -capPx -> -capPx + (x + capPx) * RubberBandFactor
+        else -> x
+    }
+
+    fun springBack() {
+        scope.launch { offset.animateTo(0f, tween(SettleMillis, easing = SettleEasing)) }
+    }
+
+    Box(modifier.clipToBounds()) {
+        if (offset.value > 0f && leftAction != null) CommitUnderlay(leftAction, anchorEnd = false)
+        if (offset.value < 0f && rightAction != null) CommitUnderlay(rightAction, anchorEnd = true)
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .graphicsLayer { translationX = offset.value }
+                .clip(shape)
+                .background(c.bg)
+                .clickable(onClick = onTap)
+                .draggable(
+                    state = rememberDraggableState { delta ->
+                        val next = dragRaw.floatValue + delta
+                        val clamped = when {
+                            next > 0f && leftAction == null -> 0f
+                            next < 0f && rightAction == null -> 0f
+                            else -> next
+                        }
+                        dragRaw.floatValue = clamped
+                        scope.launch { offset.snapTo(rubberBand(clamped)) }
+                    },
+                    orientation = Orientation.Horizontal,
+                    onDragStarted = { dragRaw.floatValue = offset.value },
+                    onDragStopped = {
+                        val fired = when {
+                            offset.value >= thresholdPx -> leftAction
+                            offset.value <= -thresholdPx -> rightAction
+                            else -> null
+                        }
+                        springBack()
+                        fired?.onClick?.invoke()
+                    },
+                ),
+        ) {
+            content()
+        }
+    }
+}
+
+// Cap for [SwipeCommitRow]'s rubber-band: shorter than SwipeRevealRow's full
+// panel width since there's no persistent open state to travel toward — just
+// enough drag room past the threshold to feel deliberate.
+private val CommitCap = 96.dp
+
+/** Single full-bleed action underlay for [SwipeCommitRow], icon+label anchored near the near edge. */
+@Composable
+private fun androidx.compose.foundation.layout.BoxScope.CommitUnderlay(action: SwipeAction, anchorEnd: Boolean) {
+    Box(
+        Modifier.matchParentSize().background(action.bg),
+        contentAlignment = if (anchorEnd) Alignment.CenterEnd else Alignment.CenterStart,
+    ) {
+        Column(
+            Modifier.padding(horizontal = 22.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            if (action.icon != null) {
+                Icon(action.icon, contentDescription = null, tint = action.fg, modifier = Modifier.size(18.dp))
+            } else {
+                Text(action.glyph.orEmpty(), fontFamily = PlexSans, fontSize = 17.sp, color = action.fg)
+            }
+            Text(
+                action.label,
+                fontFamily = PlexSans, fontWeight = FontWeight.Medium,
+                fontSize = 9.sp, color = action.fg,
+            )
+        }
+    }
+}
+
 /** The four 46dp action cells, anchored to one edge behind the card. */
 @Composable
 private fun androidx.compose.foundation.layout.BoxScope.ActionPanel(
@@ -170,7 +288,11 @@ private fun androidx.compose.foundation.layout.BoxScope.ActionPanel(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
-                Text(action.glyph, fontFamily = PlexSans, fontSize = 16.sp, color = action.fg)
+                if (action.icon != null) {
+                    Icon(action.icon, contentDescription = null, tint = action.fg, modifier = Modifier.size(17.dp))
+                } else {
+                    Text(action.glyph.orEmpty(), fontFamily = PlexSans, fontSize = 16.sp, color = action.fg)
+                }
                 Text(
                     action.label,
                     fontFamily = PlexSans, fontWeight = FontWeight.Medium,

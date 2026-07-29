@@ -10,6 +10,7 @@ import com.rrajath.grove.capture.ShareIntake
 import com.rrajath.grove.data.FavoriteNote
 import com.rrajath.grove.org.OrgMutations
 import com.rrajath.grove.search.SavedSearch
+import com.rrajath.grove.settings.AgendaSwipeAction
 import com.rrajath.grove.settings.ChecklistStates
 import com.rrajath.grove.settings.FontSizePreference
 import com.rrajath.grove.settings.GroveSettings
@@ -167,6 +168,12 @@ class AppViewModel(private val app: GroveApplication) : ViewModel() {
 
     fun setDefaultReminderTime(time: java.time.LocalTime) =
         viewModelScope.launch { settingsRepository.setDefaultReminderTime(time) }
+
+    fun setAgendaSwipeLeftAction(action: AgendaSwipeAction) =
+        viewModelScope.launch { settingsRepository.setAgendaSwipeLeftAction(action) }
+
+    fun setAgendaSwipeRightAction(action: AgendaSwipeAction) =
+        viewModelScope.launch { settingsRepository.setAgendaSwipeRightAction(action) }
 
     /** Count of reminders waiting on POST_NOTIFICATIONS/exact-alarm access (Settings › Reminders banner). */
     val reminderPendingCount: StateFlow<Int> = app.database.reminderDao().pendingCountFlow(System.currentTimeMillis())

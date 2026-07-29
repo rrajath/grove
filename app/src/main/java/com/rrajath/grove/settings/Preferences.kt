@@ -75,3 +75,15 @@ enum class ChecklistStates(val storageKey: String, val marks: List<Char>) {
             entries.firstOrNull { it.storageKey == value } ?: TWO
     }
 }
+
+/** Agenda row swipe gesture (either direction), Settings § Agenda. */
+enum class AgendaSwipeAction(val storageKey: String, val label: String) {
+    SET_SCHEDULED("set_scheduled", "Schedule Task"),
+    SET_DEADLINE("set_deadline", "Set Deadline"),
+    MARK_DONE("mark_done", "Mark as Done");
+
+    companion object {
+        fun fromStorage(value: String?, default: AgendaSwipeAction): AgendaSwipeAction =
+            entries.firstOrNull { it.storageKey == value } ?: default
+    }
+}

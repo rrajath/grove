@@ -59,6 +59,15 @@ fun annotateOrgInline(
     }
 }
 
+/**
+ * Render org inline markup as plain text: links show their description (not the raw
+ * `[[target][desc]]` syntax), and other markup (bold/italic/code/…) shows its bare text.
+ * Used where a heading's title is displayed outside of Compose text styling, e.g. a
+ * notification title.
+ */
+fun orgInlinePlainText(text: String): String =
+    InlineTokenizer.tokenize(text).joinToString("") { it.text }
+
 /** A link's character range within the string [annotateOrgInline] renders, and its target. */
 data class InlineLink(val range: IntRange, val target: String)
 

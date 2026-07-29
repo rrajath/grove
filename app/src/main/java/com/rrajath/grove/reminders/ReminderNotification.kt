@@ -10,6 +10,7 @@ import androidx.core.net.toUri
 import com.rrajath.grove.MainActivity
 import com.rrajath.grove.R
 import com.rrajath.grove.data.ReminderEntity
+import com.rrajath.grove.ui.components.orgInlinePlainText
 import com.rrajath.grove.ui.nav.Routes
 
 /**
@@ -38,7 +39,7 @@ object ReminderNotification {
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setContentTitle(reminder.headingTitle)
+            .setContentTitle(orgInlinePlainText(reminder.headingTitle))
             .setContentText("Your task is due now")
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)

@@ -186,9 +186,16 @@ private fun GroveNavigation(
             }
             composable(Routes.OUTLINE) { entry ->
                 val notebookId = entry.arguments?.getString("notebookId").orEmpty()
+                val narrowTo = entry.arguments?.getString("narrowTo")?.toIntOrNull()
                 OutlineScreen(
                     notebookId = notebookId,
+                    narrowLineIndex = narrowTo,
                     onBack = { navController.popBackStack() },
+                    onWiden = {
+                        navController.navigate(Routes.outline(notebookId)) {
+                            popUpTo(Routes.OUTLINE) { inclusive = true }
+                        }
+                    },
                     onOpenNote = { ref ->
                         // Always open in the mode configured in Settings.
                         navController.navigate(Routes.note(ref.encode(), settings.defaultNoteOpenMode.storageKey))
@@ -252,6 +259,11 @@ private fun GroveNavigation(
                                 popUpTo(Routes.NOTE) { inclusive = true }
                             }
                         },
+                        // null (file breadcrumb) opens the full outline; a heading's
+                        // line index narrows the outline to that heading's subtree.
+                        onOpenBreadcrumb = { targetLine ->
+                            navController.navigate(Routes.outline(ref.fileName, targetLine))
+                        },
                         showPropertyDrawers = settings.showPropertyDrawers,
                         checklistStates = settings.checklistStates,
                         favoriteLines = favoriteLinesFor(favorites, ref.fileName),
@@ -273,8 +285,12 @@ private fun GroveNavigation(
                     planningType = entry.arguments?.getString("type").orEmpty(),
                     notifId = entry.arguments?.getString("notifId")?.toIntOrNull(),
                     onResolved = { ref, planning, notifId ->
+                        // Tapping the notification body (blank `planning`) lands in Read
+                        // mode; only the "Reschedule" action (non-blank) needs Edit mode
+                        // to auto-open PlanningDatePicker.
+                        val mode = if (planning.isNotBlank()) "edit" else "read"
                         navController.navigate(
-                            Routes.note(ref.encode(), mode = "edit", planning = planning, notifId = notifId)
+                            Routes.note(ref.encode(), mode = mode, planning = planning, notifId = notifId)
                         ) { popUpTo(Routes.REMINDER) { inclusive = true } }
                     },
                     onFailed = {
@@ -371,6 +387,8 @@ private fun GroveNavigation(
                     onSetShareTargetFile = viewModel::setShareTargetFile,
                     onSetRemindersEnabled = viewModel::setRemindersEnabled,
                     onSetDefaultReminderTime = viewModel::setDefaultReminderTime,
+                    onSetAgendaSwipeLeftAction = viewModel::setAgendaSwipeLeftAction,
+                    onSetAgendaSwipeRightAction = viewModel::setAgendaSwipeRightAction,
                     reminderPendingCount = viewModel.reminderPendingCount.collectAsStateWithLifecycle().value,
                     onExportSettings = viewModel::exportSettings,
                     onImportSettings = viewModel::importSettings,

@@ -102,6 +102,13 @@ fun OutlineScreen(
     onBack: () -> Unit,
     onOpenNote: (NoteRef) -> Unit,
     onCreateNote: (NoteRef) -> Unit,
+    /**
+     * Line index of a heading to narrow the outline to (org-narrow-to-subtree):
+     * only that heading and its descendants are shown, until [onWiden].
+     */
+    narrowLineIndex: Int? = null,
+    /** Return to the full, unnarrowed outline. */
+    onWiden: () -> Unit = {},
     onFavorite: (fileName: String, lineIndex: Int, title: String) -> Unit = { _, _, _ -> },
     /** Line indices of favorited headlines in this notebook — marked with a ★. */
     favoriteLines: Set<Int> = emptySet(),
@@ -118,6 +125,19 @@ fun OutlineScreen(
     val snack by viewModel.snack.collectAsStateWithLifecycle()
     val refileState by viewModel.refile.collectAsStateWithLifecycle()
     LaunchedEffect(notebookId) { viewModel.load(notebookId) }
+
+    val loadedDoc = (state as? DocumentUiState.Loaded)?.document
+    // Resolved once here (not separately in the top bar and the body) so both
+    // stay in sync. Falls back to the full outline if the target heading no
+    // longer exists (e.g. it was deleted since the breadcrumb was shown).
+    val narrowTarget = remember(loadedDoc, narrowLineIndex) {
+        narrowLineIndex?.let { idx -> loadedDoc?.headlineAtLine(idx) }
+    }
+    val scopedHeadlines = remember(loadedDoc, narrowTarget) {
+        loadedDoc?.let { doc ->
+            if (narrowTarget != null) listOf(narrowTarget) + doc.subtree(narrowTarget) else doc.headlines
+        } ?: emptyList()
+    }
 
     // Collapsed line-indices and scroll survive navigating into a note and back
     // (rememberSaveable persists across the destination leaving composition).
@@ -165,7 +185,27 @@ fun OutlineScreen(
                 )
             } else {
                 GroveTopBar(
-                    leading = { IconGlyph("←", onClick = onBack) },
+                    leading = {
+                        if (narrowTarget != null) {
+                            Row(
+                                Modifier
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .clickable(onClick = onWiden)
+                                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text("←", fontSize = 19.sp, color = c.ink)
+                                Spacer(Modifier.width(6.dp))
+                                Text(
+                                    "widen",
+                                    fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
+                                    fontSize = 13.sp, color = c.accent,
+                                )
+                            }
+                        } else {
+                            IconGlyph("←", onClick = onBack)
+                        }
+                    },
                     title = {
                         Column(Modifier.padding(start = 4.dp)) {
                             Text(
@@ -173,21 +213,30 @@ fun OutlineScreen(
                                 fontFamily = PlexMono, fontWeight = FontWeight.SemiBold,
                                 fontSize = 17.sp, color = c.ink,
                             )
-                            (state as? DocumentUiState.Loaded)?.let {
-                                val noteCount = remember(it.document) {
-                                    it.document.headlines.count { h -> h.level == 1 }
-                                }
+                            if (narrowTarget != null) {
                                 Text(
-                                    "$noteCount notes",
+                                    "narrowed to “${narrowTarget.title}”",
                                     fontFamily = PlexSans, fontSize = 11.5.sp, color = c.ink2,
+                                    maxLines = 1,
+                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                                 )
+                            } else {
+                                (state as? DocumentUiState.Loaded)?.let {
+                                    val noteCount = remember(it.document) {
+                                        it.document.headlines.count { h -> h.level == 1 }
+                                    }
+                                    Text(
+                                        "$noteCount notes",
+                                        fontFamily = PlexSans, fontSize = 11.5.sp, color = c.ink2,
+                                    )
+                                }
                             }
                         }
                     },
                     actions = {
                         (state as? DocumentUiState.Loaded)?.let { loaded ->
-                            val foldable = remember(loaded.document) {
-                                loaded.document.headlines
+                            val foldable = remember(loaded.document, scopedHeadlines) {
+                                scopedHeadlines
                                     .filter { loaded.document.hasDescendants(it) }
                                     .map { it.lineIndex }
                                     .toSet()
@@ -244,18 +293,21 @@ fun OutlineScreen(
             }
         },
         floatingActionButton = {
-            // PRD §5.3: FAB adds a new top-level note to this notebook.
-            Box(
-                Modifier
-                    .size(54.dp)
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(c.accent)
-                    .clickable(onClick = {
-                        viewModel.newTopLevelNote { line -> onCreateNote(NoteRef(notebookId, line)) }
-                    }),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text("+", fontFamily = PlexSans, fontSize = 26.sp, color = c.accentInk)
+            // PRD §5.3: FAB adds a new top-level note to this notebook. Hidden while
+            // narrowed — adding a top-level note doesn't belong to the focused subtree.
+            if (narrowTarget == null) {
+                Box(
+                    Modifier
+                        .size(54.dp)
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(c.accent)
+                        .clickable(onClick = {
+                            viewModel.newTopLevelNote { line -> onCreateNote(NoteRef(notebookId, line)) }
+                        }),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text("+", fontFamily = PlexSans, fontSize = 26.sp, color = c.accentInk)
+                }
             }
         },
     ) { padding ->
@@ -272,7 +324,7 @@ fun OutlineScreen(
                 val doc = s.document
                 // Every mutation produces a new document — snap any open panel shut.
                 LaunchedEffect(doc) { openRowLine = null }
-                val visible = remember(doc, collapsed) { visibleHeadlines(doc, collapsed) }
+                val visible = remember(scopedHeadlines, collapsed) { visibleHeadlines(scopedHeadlines, collapsed) }
                 Column(Modifier.fillMaxSize().padding(padding)) {
                     if (showPreface && doc.preambleKeywords.isNotEmpty() && doc.headlines.isEmpty()) {
                         CollapsibleKvSection(
@@ -284,7 +336,7 @@ fun OutlineScreen(
                         )
                     }
                     Box(Modifier.fillMaxSize().weight(1f)) {
-                    if (doc.headlines.isEmpty()) {
+                    if (scopedHeadlines.isEmpty()) {
                         // Empty state still needs the overlays below — undoing a
                         // delete/refile of the last note happens from here.
                         Column(
@@ -347,7 +399,7 @@ fun OutlineScreen(
                                     SwipeAction("⚑", "Deadl", c.red, c.redSoft) {
                                         datePickerFor = h.lineIndex to "deadline"
                                     },
-                                    SwipeAction("★", "Fav", c.accent, c.accentSoft, toggleFavorite),
+                                    SwipeAction("★", "Fav", c.accent, c.accentSoft, onClick = toggleFavorite),
                                 ),
                                 // Left-swipe panel: insert above / below / sub-note / refile.
                                 rightActions = listOf(
@@ -562,10 +614,11 @@ private fun CommandButton(icon: ImageVector, contentDescription: String, tint: C
     }
 }
 
-private fun visibleHeadlines(doc: OrgDocument, collapsed: Set<Int>): List<OrgHeadline> {
+/** [headlines] is either the whole document or, when narrowed, just a target heading + its subtree. */
+private fun visibleHeadlines(headlines: List<OrgHeadline>, collapsed: Set<Int>): List<OrgHeadline> {
     val result = mutableListOf<OrgHeadline>()
     var hideDeeperThan: Int? = null
-    for (h in doc.headlines) {
+    for (h in headlines) {
         val hideLevel = hideDeeperThan
         if (hideLevel != null) {
             if (h.level > hideLevel) continue

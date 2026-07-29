@@ -62,6 +62,9 @@ data class GroveSettings(
     val remindersEnabled: Boolean = true,
     /** Time of day used for date-only SCHEDULED/DEADLINE stamps (no time-of-day). */
     val defaultReminderTime: LocalTime = LocalTime.of(9, 0),
+    /** Agenda row swipe-left/swipe-right gestures (Settings § Agenda). */
+    val agendaSwipeLeftAction: AgendaSwipeAction = AgendaSwipeAction.MARK_DONE,
+    val agendaSwipeRightAction: AgendaSwipeAction = AgendaSwipeAction.SET_SCHEDULED,
 ) {
     companion object {
         const val DEFAULT_TODO_KEYWORDS = "TODO IN-PROGRESS | DONE CANCELLED"
@@ -102,6 +105,8 @@ class SettingsRepository(private val context: Context) {
         val checklistStates = stringPreferencesKey("checklist_states")
         val remindersEnabled = booleanPreferencesKey("reminders_enabled")
         val defaultReminderTime = stringPreferencesKey("default_reminder_time")
+        val agendaSwipeLeftAction = stringPreferencesKey("agenda_swipe_left_action")
+        val agendaSwipeRightAction = stringPreferencesKey("agenda_swipe_right_action")
     }
 
     val settings: Flow<GroveSettings> = context.settingsDataStore.data.map { prefs ->
@@ -135,6 +140,12 @@ class SettingsRepository(private val context: Context) {
             checklistStates = ChecklistStates.fromStorage(prefs[Keys.checklistStates]),
             remindersEnabled = prefs[Keys.remindersEnabled] ?: true,
             defaultReminderTime = decodeTime(prefs[Keys.defaultReminderTime]),
+            agendaSwipeLeftAction = AgendaSwipeAction.fromStorage(
+                prefs[Keys.agendaSwipeLeftAction], AgendaSwipeAction.MARK_DONE
+            ),
+            agendaSwipeRightAction = AgendaSwipeAction.fromStorage(
+                prefs[Keys.agendaSwipeRightAction], AgendaSwipeAction.SET_SCHEDULED
+            ),
         )
     }
 
@@ -194,6 +205,8 @@ class SettingsRepository(private val context: Context) {
             p[Keys.checklistStates] = s.checklistStates.storageKey
             p[Keys.remindersEnabled] = s.remindersEnabled
             p[Keys.defaultReminderTime] = encodeTime(s.defaultReminderTime)
+            p[Keys.agendaSwipeLeftAction] = s.agendaSwipeLeftAction.storageKey
+            p[Keys.agendaSwipeRightAction] = s.agendaSwipeRightAction.storageKey
         }
     }
 
@@ -290,6 +303,14 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setDefaultReminderTime(time: LocalTime) {
         context.settingsDataStore.edit { it[Keys.defaultReminderTime] = encodeTime(time) }
+    }
+
+    suspend fun setAgendaSwipeLeftAction(action: AgendaSwipeAction) {
+        context.settingsDataStore.edit { it[Keys.agendaSwipeLeftAction] = action.storageKey }
+    }
+
+    suspend fun setAgendaSwipeRightAction(action: AgendaSwipeAction) {
+        context.settingsDataStore.edit { it[Keys.agendaSwipeRightAction] = action.storageKey }
     }
 
     suspend fun setLastRefileTarget(fileName: String, headingPath: List<String>) {
