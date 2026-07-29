@@ -24,6 +24,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -391,11 +395,11 @@ private fun NoteContent(
 
                 headline.planning.scheduled?.let {
                     Spacer(Modifier.height(6.dp))
-                    PlanningChip("SCHEDULED: ${it.format()}", fg = c.blue, bg = c.blueSoft)
+                    PlanningChip(it.format(), icon = Icons.Outlined.CalendarMonth, fg = c.blue, bg = c.blueSoft)
                 }
                 headline.planning.deadline?.let {
                     Spacer(Modifier.height(6.dp))
-                    PlanningChip("DEADLINE: ${it.format()}", fg = c.red, bg = c.redSoft)
+                    PlanningChip(it.format(), icon = Icons.Filled.Flag, fg = c.red, bg = c.redSoft)
                 }
                 Spacer(Modifier.height(16.dp))
 
@@ -573,15 +577,18 @@ private fun LinkActionMenuItems(target: String, onDismiss: () -> Unit) {
     )
 }
 
-/** A planning date shown as a soft-tinted chip (SCHEDULED blue, DEADLINE red). */
+/** A planning date shown as a soft-tinted chip (SCHEDULED blue calendar, DEADLINE red flag). */
 @Composable
-private fun PlanningChip(text: String, fg: Color, bg: Color) {
-    Box(
+private fun PlanningChip(text: String, icon: androidx.compose.ui.graphics.vector.ImageVector, fg: Color, bg: Color) {
+    Row(
         Modifier
             .clip(RoundedCornerShape(6.dp))
             .background(bg)
             .padding(horizontal = 8.dp, vertical = 3.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
+        Icon(icon, contentDescription = null, tint = fg, modifier = Modifier.size(13.dp))
         Text(text, fontFamily = PlexMono, fontSize = 12.5.sp, color = fg)
     }
 }

@@ -398,9 +398,9 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
             isDone = meta.isDoneKeyword,
             priority = meta.priority,
             snippet = Snippets.build(meta.searchText.substringAfter('\n', ""), terms),
-            scheduledLabel = scheduledLabel?.let { "SCHED $it" },
+            scheduledLabel = scheduledLabel,
             scheduledOverdue = scheduledOverdue,
-            deadlineLabel = deadlineLabel?.let { "DEADLINE $it" },
+            deadlineLabel = deadlineLabel,
             deadlineOverdue = deadlineOverdue,
             tagLine = meta.tags.joinToString(" ") { ":$it:" },
         )

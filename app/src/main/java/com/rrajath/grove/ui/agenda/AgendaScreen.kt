@@ -18,6 +18,8 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -251,9 +253,13 @@ private fun swipeActionFor(
     onMarkDone: (AgendaResult) -> Unit,
 ): SwipeAction = when (kind) {
     AgendaSwipeAction.SET_SCHEDULED ->
-        SwipeAction("◷", "Sched", c.blue, c.blueSoft) { onOpenDatePicker(result, PlanningKind.SCHEDULED) }
+        SwipeAction(label = "Sched", fg = c.blue, bg = c.blueSoft, icon = Icons.Outlined.CalendarMonth) {
+            onOpenDatePicker(result, PlanningKind.SCHEDULED)
+        }
     AgendaSwipeAction.SET_DEADLINE ->
-        SwipeAction("⚑", "Deadl", c.red, c.redSoft) { onOpenDatePicker(result, PlanningKind.DEADLINE) }
+        SwipeAction(label = "Deadl", fg = c.red, bg = c.redSoft, icon = Icons.Filled.Flag) {
+            onOpenDatePicker(result, PlanningKind.DEADLINE)
+        }
     AgendaSwipeAction.MARK_DONE ->
         SwipeAction(label = "Done", fg = c.green, bg = c.greenSoft, icon = Icons.Default.Check) { onMarkDone(result) }
 }

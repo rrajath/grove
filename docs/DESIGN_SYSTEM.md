@@ -262,14 +262,22 @@ less-prominent actions.
 | Dismiss / close | `Icons.Default.Close` | — |
 | Sync status — ok | `Icons.Default.Check` | `green` |
 | Sync status — error | `Icons.Default.Warning` | `amber` |
-| Auto-save indicator (editor / capture) | `Icons.Outlined.Save` | `green` saved, `ink3` while dirty |
+| Save indicator (edit mode) | `Icons.Outlined.Save` | `green` unsaved changes (tap saves immediately), `ink3` saved (tap shows a "last saved at" toast); blinks twice on every save |
+| Auto-save indicator (capture) | `Icons.Outlined.Save` | `green` saved, `ink3` while dirty (passive — capture has no manual tap-to-save) |
 | Sync — spinning | `Icons.Default.Sync` (animated) | `ink2` |
-| Scheduled date | `Icons.Default.Schedule` | `blue` |
-| Deadline | `Icons.Default.CalendarToday` | `red` |
+| Scheduled date | `Icons.Outlined.CalendarMonth` | `blue` |
+| Deadline | `Icons.Filled.Flag` | `red` |
 | Drag handle (templates) | `Icons.Default.DragHandle` | `ink3` |
 | Settings | `Icons.Default.Settings` | `ink2` |
 | Agenda | `Icons.Default.ViewList` | `ink2` |
 | "None" (Default priority) | `Icons.Filled.Block` | tint follows active/inactive segment color |
+
+The Scheduled/Deadline icons replace the literal "SCHEDULED"/"DEADLINE" words next
+to a formatted timestamp: Read mode's `PlanningChip`, Outline's own-heading chips,
+Search's `DatePillText`, and Agenda's swipe-action reveals (`◷`/`⚑` glyphs retired
+in favor of the same icons, keeping the "Sched"/"Deadl" labels). The full-screen
+`PlanningDatesScreen` keeps its own `◷`/`⚑` glyphs in the section rows — a separate,
+color-coded system (blue/red calendar cells) rather than a label to shorten.
 
 ### Custom Drawables
 
@@ -719,9 +727,9 @@ Top to bottom:
 
 | Region | Spec |
 |---|---|
-| Header | 8dp top / 10dp side. 40dp circular back button (`ArrowBack`, 21dp, `ink`), title 15.5sp SemiBold (1 line, ellipsized, `weight(1f)`), "Clear" 12.5sp SemiBold `ink2` in a 9dp-radius 10×8dp hit area — clears both dates |
+| Header | 8dp top / 10dp side. 40dp circular back button (`ArrowBack`, 21dp, `ink`), title 15.5sp SemiBold (1 line, ellipsized, `weight(1f)`), "Clear" 12.5sp SemiBold `ink2` in a 9dp-radius 10×8dp hit area — clears both dates and flips the footer button to read "Clear Dates" until either date is set again |
 | Shorthand box | 12dp radius, `bg` fill, 1dp border (`accent` of the focused section while non-empty, else `line`). `›` prefix `PlexMono` 14sp `ink3`, `BasicTextField` `PlexMono` 14sp with 11dp vertical padding, placeholder `d: aug 5 ++1m`. Trailing "Set" chip: 9dp radius, filled `accent` with `surface` text when the line parses, else `surface2`/`ink3` |
-| Echo line | `PlexMono` 11.5sp, `green` when parsed (`Mon, Aug 3 · in 5 days  ·  10:00–11:00`), `red` when not. Hidden while the box is empty |
+| Echo line | `PlexMono` 11.5sp, `green` when parsed (`Mon, Aug 3 · in 5 days  ·  10:00–11:00  ·  → SCHEDULED`), `red` when not. Hidden while the box is empty. The `→ SCHEDULED`/`→ DEADLINE` target always shows, falling back to whichever section is currently expanded when the line has no explicit `s:`/`d:` prefix |
 | Hint chips | `FlowRow`, 5dp gaps. `PlexMono` 11.5sp `ink3`, `surface2`, 8dp radius, 9×5dp padding. `fri` `+2w` `aug 3` `10-11am` `++1w` `d: mon` — each appends to the box |
 | Calendar card | 16dp radius `surface` + 1dp `line`, 11dp padding. Month header: 30dp circular `‹`/`›` (`ink2` 16sp) around a centered 13.5sp SemiBold `MMM yyyy`. Sunday-first 7-column grid, 2dp gaps, 37dp cells, 10dp radius, `PlexMono` 13sp. Scheduled cell = solid `blue`, deadline = solid `red` (deadline wins on a shared day), both with `surface` text and SemiBold; days strictly between them = `accentSoft` band; today = 1dp `line2` outline plus a 4dp `accent` dot 5dp from the bottom when unselected. Legend row: 11dp `blue`/`red` swatches (4dp radius) + `PlexMono` 11sp `taps set SCHEDULED`/`DEADLINE` right-aligned |
 | Lead-time note | 11.5sp `ink2`, shown when both dates are set and ordered ("7 days of lead time before it is due.") |
@@ -729,9 +737,9 @@ Top to bottom:
 | Section rows | 13dp radius, 12×11dp padding. Expanded = `blueSoft`/`redSoft` + 1dp `blue`/`red`; collapsed = `surface2` + 1dp `line`. `◷` (scheduled) / `⚑` (deadline) 15sp in the section color, then `PlexMono` 10sp Bold 0.8sp-tracked label over a 13sp SemiBold summary (`ink`, or `ink3` reading "Not set") |
 | Section body | Preset chips (`Today · Jul 29`, `Tomorrow · …`, `This weekend · …`, `Next week · …` — relative name plus its absolute `MMM d`), then the Time row, then Repeat |
 | Time row | `**Time** · All day` — label SemiBold `ink`, value Normal `ink2`. `GroveSwitch` on the right. When on: two 74dp `PlexMono` fields (`surface2`, 10dp radius, centered, committed only when the text parses as `HH:mm`) around a 13sp `ink3` "to", plus `30m`/`1h`/`2h` mini-chips right-aligned (SCHEDULED only) |
-| Repeat card | 14dp radius `surface` + 1dp `line`. Sentence "Every _week_, and if I am late, _keep the original rhythm_." at 14sp / 26sp line height, with the two underlined words cycling their options on tap. Below it the org cookie chip (`PlexMono` 11.5sp on the section's soft fill) beside an 11.5sp `ink2` explanation of `+` / `++` / `.+`, then a 34dp `−` / count / `+` stepper with Day/Week/Month/Year chips right-aligned |
+| Repeat card | 14dp radius `surface` + 1dp `line`. Sentence "Every _week_, and if I am late, _keep the original rhythm_." at 14sp / 26sp line height, with the two underlined words cycling their options on tap. Below it the org cookie chip (`PlexMono` 11.5sp on the section's soft fill) top-aligned beside an 11.5sp `ink2` explanation of `+` / `++` / `.+` (top-aligned, not centered, since the explanation can wrap to two lines and centering would float the pill below its first line), then a 34dp `−` / count / `+` stepper with Day/Week/Month/Year chips right-aligned |
 | Suggestion | Dashed 12dp-radius `line2` row "Start 3 days earlier, …", shown only when a deadline is set and the scheduled date is not; tapping it fills SCHEDULED in |
-| Footer | 1dp `line` divider over a `surface` block: two `PlexMono` 12sp raw org lines (`SCHEDULED:` in `synTs`, `DEADLINE:` in `red`, `ink3` and `-` when unset), then the full-width 13dp-radius `accent` "Apply both dates" button (14.5sp SemiBold `accentInk`, 13dp padding) |
+| Footer | 1dp `line` divider over a `surface` block: two `PlexMono` 12sp raw org lines (`SCHEDULED:` in `synTs`, `DEADLINE:` in `red`, `ink3` and `-` when unset), then a full-width 13dp-radius button (14.5sp SemiBold, 13dp padding) that is disabled (`surface2`/`ink3`) until at least one date is set, then reads "Apply Scheduled Date", "Apply Deadline", or "Apply Both Dates" depending on which are set (`accent`/`accentInk` once enabled) — or "Clear Dates" right after the header's Clear action, until a date is set again |
 
 Chips inside the sections use one shared spec: 10dp radius, 12×8dp padding,
 12.5sp Medium; selected = section `accent` fill with `accentInk` text and no

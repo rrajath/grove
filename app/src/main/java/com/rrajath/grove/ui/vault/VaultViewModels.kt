@@ -512,6 +512,29 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
         }
     }
 
+    /** Outline swipe "Note" action: org's C-c C-z, logged into the LOGBOOK drawer. */
+    fun addNote(headline: OrgHeadline, note: String) {
+        val loaded = _state.value as? DocumentUiState.Loaded ?: return
+        val vault = app.vault.value ?: return
+        if (note.isBlank()) return
+        viewModelScope.launch {
+            val (newText, newDoc) = withContext(Dispatchers.Default) {
+                val now = LocalDateTime.now()
+                val stamp = OrgTimestamp(
+                    now.toLocalDate(),
+                    time = now.toLocalTime().withSecond(0).withNano(0),
+                    active = false,
+                )
+                val text = OrgMutations.appendLogbookNote(loaded.document, headline, note.trim(), stamp)
+                text to OrgParser.parse(text, loaded.document.keywords)
+            }
+            _state.value = DocumentUiState.Loaded(loaded.fileName, newDoc)
+            vault.save(loaded.fileName, newText)
+            app.syncManager.requestSync("note added")
+            showToast("Note added")
+        }
+    }
+
     // --- refile (design spec Gestures screen) ---
 
     fun startRefile(headline: OrgHeadline) {

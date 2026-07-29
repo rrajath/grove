@@ -106,11 +106,11 @@ fun EditNoteScreen(
     var confirmLeave by remember { mutableStateOf(false) }
     var showEmptyHeadingAlert by remember { mutableStateOf(false) }
     var rescheduleTarget by remember(openPlanningTarget) { mutableStateOf(openPlanningTarget) }
-    // Timestamp of the most recent auto-save, shown as a tappable save (floppy)
-    // icon in the top bar once the note has been saved at least once.
+    // Timestamp of the most recent save (auto or manual), shown as a tappable
+    // save (floppy) icon in the top bar: green + tap-to-save-now while dirty,
+    // grey + tap-for-last-saved-toast once clean.
     var lastAutoSavedAt by remember { mutableStateOf<LocalTime?>(null) }
-    // Blinks the save icon twice on each auto-save instead of a toast; tapping
-    // the icon still shows the "saved at" toast on demand.
+    // Blinks the save icon twice on each save (auto or manual).
     val saveIconAlpha = remember { Animatable(1f) }
     val focusRequester = remember { FocusRequester() }
     // False until the note has been loaded into the text field: the field's
@@ -235,24 +235,29 @@ fun EditNoteScreen(
             GroveTopBar(
                 leading = {
                     IconGlyph("←", onClick = ::leave)
-                    lastAutoSavedAt?.let { savedAt ->
+                    // Shown once the note has either been edited or saved at least
+                    // once; a freshly opened, never-touched note shows nothing.
+                    if (state.dirty || lastAutoSavedAt != null) {
                         Icon(
                             Icons.Outlined.Save,
-                            contentDescription = "Auto saved",
-                            // Green while the buffer matches what's on disk (and
-                            // blinks right after a save); grey again the moment a
-                            // keystroke makes it dirty, until the next auto-save.
-                            tint = if (state.dirty) c.ink3 else c.green,
+                            contentDescription = if (state.dirty) "Unsaved changes, tap to save" else "Saved",
+                            // Green means there are unsaved changes and a tap saves
+                            // immediately; grey means the buffer matches what's on
+                            // disk (and blinks right after a save) — a tap then just
+                            // reports when that save happened.
+                            tint = if (state.dirty) c.green else c.ink3,
                             modifier = Modifier
                                 .alpha(saveIconAlpha.value)
                                 .clip(RoundedCornerShape(10.dp))
                                 .clickable {
-                                    val formatted = AutoSaveTimestamp.format(savedAt)
-                                    Toast.makeText(
-                                        context,
-                                        "The note was auto saved at: $formatted",
-                                        Toast.LENGTH_SHORT,
-                                    ).show()
+                                    if (state.dirty) {
+                                        trySave { lastAutoSavedAt = LocalTime.now() }
+                                    } else {
+                                        val message = lastAutoSavedAt?.let {
+                                            "The note was last saved at: ${AutoSaveTimestamp.format(it)}"
+                                        } ?: "This note hasn't been saved yet"
+                                        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                                    }
                                 }
                                 .padding(10.dp),
                         )

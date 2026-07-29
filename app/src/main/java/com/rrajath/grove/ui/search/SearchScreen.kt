@@ -30,11 +30,15 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
@@ -654,11 +658,18 @@ private fun DatePillText(label: String, overdue: Boolean, kind: PillKind) {
         kind == PillKind.DEADLINE -> c.amber to c.amberSoft
         else -> c.blue to c.blueSoft
     }
-    Text(
-        label,
-        fontFamily = PlexMono, fontWeight = FontWeight.SemiBold, fontSize = 10.5.sp, color = fg,
+    val icon = if (kind == PillKind.DEADLINE) Icons.Filled.Flag else Icons.Outlined.CalendarMonth
+    Row(
         modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(bg).padding(horizontal = 7.dp, vertical = 3.dp),
-    )
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(3.dp),
+    ) {
+        Icon(icon, contentDescription = null, tint = fg, modifier = Modifier.size(10.5.dp))
+        Text(
+            label,
+            fontFamily = PlexMono, fontWeight = FontWeight.SemiBold, fontSize = 10.5.sp, color = fg,
+        )
+    }
 }
 
 /**
