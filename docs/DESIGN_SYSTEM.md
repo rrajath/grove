@@ -262,6 +262,7 @@ less-prominent actions.
 | Dismiss / close | `Icons.Default.Close` | — |
 | Sync status — ok | `Icons.Default.Check` | `green` |
 | Sync status — error | `Icons.Default.Warning` | `amber` |
+| Auto-save indicator (editor / capture) | `Icons.Outlined.Save` | `green` saved, `ink3` while dirty |
 | Sync — spinning | `Icons.Default.Sync` (animated) | `ink2` |
 | Scheduled date | `Icons.Default.Schedule` | `blue` |
 | Deadline | `Icons.Default.CalendarToday` | `red` |

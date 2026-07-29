@@ -5,8 +5,10 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -28,12 +30,14 @@ import androidx.compose.material.icons.filled.FormatIndentDecrease
 import androidx.compose.material.icons.filled.FormatIndentIncrease
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.UnfoldLess
 import androidx.compose.material.icons.filled.UnfoldMore
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -63,6 +67,7 @@ import androidx.compose.ui.zIndex
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rrajath.grove.org.OrgDocument
 import com.rrajath.grove.org.OrgHeadline
+import com.rrajath.grove.org.OrgKeywords
 import com.rrajath.grove.org.OrgTimestamp
 import com.rrajath.grove.settings.OutlineToggle
 import com.rrajath.grove.ui.components.CollapsibleKvSection
@@ -109,6 +114,8 @@ fun OutlineScreen(
     narrowLineIndex: Int? = null,
     /** Return to the full, unnarrowed outline. */
     onWiden: () -> Unit = {},
+    /** Top-bar ⌕: opens Search with the notebook filter already pinned to this file. */
+    onSearchInNotebook: () -> Unit = {},
     onFavorite: (fileName: String, lineIndex: Int, title: String) -> Unit = { _, _, _ -> },
     /** Line indices of favorited headlines in this notebook — marked with a ★. */
     favoriteLines: Set<Int> = emptySet(),
@@ -151,6 +158,8 @@ fun OutlineScreen(
     var openRowLine by remember { mutableStateOf<Int?>(null) }
     // Which headline the date-picker dialog targets: lineIndex to "scheduled"/"deadline".
     var datePickerFor by remember { mutableStateOf<Pair<Int, String>?>(null) }
+    // Line index whose TODO state the swipe panel's "State" action is picking.
+    var statePickerFor by remember { mutableStateOf<Int?>(null) }
 
     // The command bar takes over the top bar in focus mode; back exits it.
     BackHandler(enabled = focusedLine != null) { viewModel.setFocus(null) }
@@ -262,6 +271,19 @@ fun OutlineScreen(
                                     )
                                 }
                             }
+                        }
+                        Box(
+                            Modifier
+                                .size(44.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .clickable(onClick = onSearchInNotebook),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                Icons.Default.Search,
+                                contentDescription = "Search in this notebook",
+                                tint = c.ink,
+                            )
                         }
                         var displayMenuOpen by remember { mutableStateOf(false) }
                         Box {
@@ -391,7 +413,7 @@ fun OutlineScreen(
                                 // Right-swipe panel: state / schedule / deadline / favorite.
                                 leftActions = listOf(
                                     SwipeAction("⟳", "State", c.amber, c.amberSoft) {
-                                        viewModel.cycleState(h)
+                                        statePickerFor = h.lineIndex
                                     },
                                     SwipeAction("◷", "Sched", c.blue, c.blueSoft) {
                                         datePickerFor = h.lineIndex to "scheduled"
@@ -469,6 +491,21 @@ fun OutlineScreen(
                     }
                 }
 
+                statePickerFor?.let { line ->
+                    doc.headlineAtLine(line)?.let { headline ->
+                        StatePickerSheet(
+                            title = headline.title,
+                            keywords = doc.keywords,
+                            current = headline.keyword,
+                            onPick = { keyword ->
+                                viewModel.setState(headline, keyword)
+                                statePickerFor = null
+                            },
+                            onDismiss = { statePickerFor = null },
+                        )
+                    }
+                }
+
                 datePickerFor?.let { (line, target) ->
                     val headline = doc.headlineAtLine(line)
                     val existing = if (target == "scheduled") headline?.planning?.scheduled
@@ -502,6 +539,81 @@ fun OutlineScreen(
                 }
             }
         }
+    }
+}
+
+/**
+ * TODO-state picker for the outline's right-swipe "State" action. Replaces the
+ * old tap-to-cycle behaviour, which needed one tap per intervening keyword to
+ * reach DONE; every configured state (plus "none") is one tap away here.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun StatePickerSheet(
+    title: String,
+    keywords: OrgKeywords,
+    current: String?,
+    onPick: (String?) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val c = MaterialTheme.grove
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = c.surface,
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+    ) {
+        Column(Modifier.padding(horizontal = 22.dp).padding(bottom = 30.dp)) {
+            Text(
+                "STATE",
+                fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
+                fontSize = 12.sp, letterSpacing = 1.sp, color = c.accent,
+            )
+            Text(
+                title,
+                fontFamily = PlexSans, fontSize = 13.5.sp, color = c.ink2,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                modifier = Modifier.padding(top = 4.dp, bottom = 14.dp),
+            )
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                StateChip("none", active = current == null, fg = c.ink2, bg = c.surface2) {
+                    onPick(null)
+                }
+                keywords.all.forEach { kw ->
+                    val done = keywords.isDone(kw)
+                    StateChip(
+                        label = kw,
+                        active = current == kw,
+                        fg = if (done) c.green else c.amber,
+                        bg = if (done) c.greenSoft else c.amberSoft,
+                    ) { onPick(kw) }
+                }
+            }
+        }
+    }
+}
+
+/** Matches the metadata sheet's state chips so both pickers read as one control. */
+@Composable
+private fun StateChip(label: String, active: Boolean, fg: Color, bg: Color, onClick: () -> Unit) {
+    val c = MaterialTheme.grove
+    Box(
+        Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(if (active) bg else c.surface2.copy(alpha = 0.5f))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 13.dp, vertical = 9.dp),
+    ) {
+        Text(
+            label,
+            fontFamily = PlexMono,
+            fontWeight = if (active) FontWeight.Bold else FontWeight.Normal,
+            fontSize = 12.sp,
+            color = if (active) fg else c.ink2,
+        )
     }
 }
 

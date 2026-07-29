@@ -26,7 +26,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.outlined.Save
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -167,22 +167,22 @@ fun CaptureEditorScreen(
     var showDiscardDialog by remember { mutableStateOf(false) }
     var showEmptyHeadingAlert by remember { mutableStateOf(false) }
 
-    // Mirrors the note editor's auto-save indicator: a tappable check mark
-    // in the top bar once the draft has been auto-saved at least once.
+    // Mirrors the note editor's auto-save indicator: a tappable save (floppy)
+    // icon in the top bar once the draft has been auto-saved at least once.
     var lastAutoSavedAt by remember { mutableStateOf<LocalTime?>(null) }
-    // Text as of the last auto-save, so the check mark can tell whether the
+    // Text as of the last auto-save, so the save icon can tell whether the
     // draft has drifted since then (grey) or still matches disk (green).
     var lastAutoSavedText by remember(expanded) { mutableStateOf(initialText) }
-    // Blinks the check mark twice on each auto-save instead of a toast;
-    // tapping the check mark still shows a "saved at" toast on demand.
-    val checkAlpha = remember { Animatable(1f) }
+    // Blinks the save icon twice on each auto-save instead of a toast;
+    // tapping the icon still shows a "saved at" toast on demand.
+    val saveIconAlpha = remember { Animatable(1f) }
     val toastContext = LocalContext.current
 
     LaunchedEffect(lastAutoSavedAt) {
         if (lastAutoSavedAt == null) return@LaunchedEffect
         repeat(2) {
-            checkAlpha.animateTo(0.15f, tween(120))
-            checkAlpha.animateTo(1f, tween(120))
+            saveIconAlpha.animateTo(0.15f, tween(120))
+            saveIconAlpha.animateTo(1f, tween(120))
         }
     }
 
@@ -233,14 +233,14 @@ fun CaptureEditorScreen(
                     }
                     lastAutoSavedAt?.let { savedAt ->
                         Icon(
-                            Icons.Default.Check,
+                            Icons.Outlined.Save,
                             contentDescription = "Auto saved",
                             // Green while the draft matches what's on disk (and
                             // blinks right after a save); grey again the moment a
                             // keystroke makes it dirty, until the next auto-save.
                             tint = if (draftText != lastAutoSavedText) c.ink3 else c.green,
                             modifier = Modifier
-                                .alpha(checkAlpha.value)
+                                .alpha(saveIconAlpha.value)
                                 .clip(RoundedCornerShape(10.dp))
                                 .clickable {
                                     val formatted = AutoSaveTimestamp.format(savedAt)

@@ -13,7 +13,7 @@ object Routes {
     const val NOTE = "note/{noteId}?mode={mode}&isNew={isNew}&planning={planning}&notifId={notifId}"
     const val CAPTURE = "capture"
     const val CAPTURE_TEMPLATE = "capture/{templateId}"
-    const val SEARCH = "search?q={q}"
+    const val SEARCH = "search?q={q}&notebook={notebook}"
     const val AGENDA = "agenda"
     const val CONFLICT = "conflict/{notebookId}"
     const val SETTINGS = "settings"
@@ -60,8 +60,15 @@ object Routes {
         if (templateId == null) CAPTURE else "capture/${encode(templateId)}"
     fun conflict(notebookId: String) = "conflict/${encode(notebookId)}"
     fun templateEdit(templateId: String) = "template/${encode(templateId)}"
-    fun search(query: String? = null) =
-        if (query.isNullOrBlank()) "search?q=" else "search?q=${encode(query)}"
+    /**
+     * [notebook] pins the search's notebook facet to one file — used by the
+     * Outline's search action, which searches inside the notebook you're
+     * already looking at. The user can still widen it back to all notebooks
+     * from the Filters sheet.
+     */
+    fun search(query: String? = null, notebook: String? = null) =
+        "search?q=" + (if (query.isNullOrBlank()) "" else encode(query)) +
+                (if (notebook.isNullOrBlank()) "" else "&notebook=${encode(notebook)}")
     fun reminder(fileName: String, headingPath: String, level: Int, type: String, notifId: Int) =
         "reminder/${encode(fileName)}?headingPath=${encode(headingPath)}&level=$level&type=$type&notifId=$notifId"
 }
