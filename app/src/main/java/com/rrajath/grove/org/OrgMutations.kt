@@ -41,6 +41,19 @@ object OrgMutations {
         writePlanning(doc, h, h.planning.copy(deadline = ts))
 
     /**
+     * Write SCHEDULED and DEADLINE in one edit — what the Dates screen's "Apply
+     * both dates" commits. Doing it as a single [writePlanning] keeps the two
+     * timestamps on one planning line and makes the pair a single undo step,
+     * which chaining [setScheduled] into [setDeadline] would not.
+     */
+    fun setPlanningDates(
+        doc: OrgDocument,
+        h: OrgHeadline,
+        scheduled: OrgTimestamp?,
+        deadline: OrgTimestamp?,
+    ): String = writePlanning(doc, h, h.planning.copy(scheduled = scheduled, deadline = deadline))
+
+    /**
      * Mark done per org rules: a repeating SCHEDULED/DEADLINE advances its date
      * and the keyword stays active; otherwise the keyword becomes [doneKeyword]
      * and a CLOSED stamp is added.

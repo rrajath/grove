@@ -699,21 +699,48 @@ from the current document at click time. Back gesture exits focus mode.
 
 ---
 
-### `PlanningDatePicker` — `ui/components/PlanningDatePicker.kt`
+### `PlanningDatesScreen` — `ui/components/PlanningDatesScreen.kt`
 
-Two-step SCHEDULED/DEADLINE picker used by `MetadataSheet` and `OutlineScreen`'s
-quick-schedule swipe actions. Step 1 is a standard `DatePickerDialog`; its confirm
-slot holds two `TextButton`s side by side — "Add Time" (or "Change Time" if the
-timestamp already carries a time), `ink2`, and "Set", `accent` SemiBold — with
-"Cancel" (`ink2`) in the dismiss slot. Tapping "Add Time" steps to a `TimePicker`
-inside a custom `TimePickerDialog` (Material3 ships no such dialog chrome, so this
-mirrors `DatePickerDialog`'s own look): a plain `Dialog` wrapping a 28dp-radius
-`surface` `Surface`, 24dp content padding, "Back" (`ink2`) + "Set" (`accent`
-SemiBold) right-aligned below the wheel. If the timestamp already has a time, the
-`TimePicker` opens pre-selected to that hour/minute rather than the current clock
-time. Confirming the date step alone inserts a date-only `OrgTimestamp`, dropping
-any time the entry previously had — a user must re-tap "Add Time"/"Change Time" to
-keep or set one.
+Full-window SCHEDULED + DEADLINE editor ("Dates C — one canvas" in
+`design/Grove.dc.html`). Opened by `MetadataSheet`, `OutlineScreen`'s and
+`AgendaScreen`'s quick-schedule swipe actions, and `EditNoteScreen`'s reminder
+"Reschedule" deep link. Presented as a `Dialog` with
+`usePlatformDefaultWidth = false` + `decorFitsSystemWindows = false` over a
+`fillMaxSize()` `bg` `Surface` — not a nav destination, so every entry point keeps
+its own local state and ViewModel wiring. The content column carries
+`safeDrawingPadding()` + `imePadding()` so the footer rides above the keyboard.
+
+Both dates are edited together and committed together: `onConfirm` hands back the
+pair and the caller writes them in one `OrgMutations.setPlanningDates` edit. The
+`focus` argument (`PlanningKind`) only decides which section starts expanded and
+which one calendar taps target.
+
+Top to bottom:
+
+| Region | Spec |
+|---|---|
+| Header | 8dp top / 10dp side. 40dp circular back button (`ArrowBack`, 21dp, `ink`), title 15.5sp SemiBold (1 line, ellipsized, `weight(1f)`), "Clear" 12.5sp SemiBold `ink2` in a 9dp-radius 10×8dp hit area — clears both dates |
+| Shorthand box | 12dp radius, `bg` fill, 1dp border (`accent` of the focused section while non-empty, else `line`). `›` prefix `PlexMono` 14sp `ink3`, `BasicTextField` `PlexMono` 14sp with 11dp vertical padding, placeholder `d: aug 5 ++1m`. Trailing "Set" chip: 9dp radius, filled `accent` with `surface` text when the line parses, else `surface2`/`ink3` |
+| Echo line | `PlexMono` 11.5sp, `green` when parsed (`Mon, Aug 3 · in 5 days  ·  10:00–11:00`), `red` when not. Hidden while the box is empty |
+| Hint chips | `FlowRow`, 5dp gaps. `PlexMono` 11.5sp `ink3`, `surface2`, 8dp radius, 9×5dp padding. `fri` `+2w` `aug 3` `10-11am` `++1w` `d: mon` — each appends to the box |
+| Calendar card | 16dp radius `surface` + 1dp `line`, 11dp padding. Month header: 30dp circular `‹`/`›` (`ink2` 16sp) around a centered 13.5sp SemiBold `MMM yyyy`. Sunday-first 7-column grid, 2dp gaps, 37dp cells, 10dp radius, `PlexMono` 13sp. Scheduled cell = solid `blue`, deadline = solid `red` (deadline wins on a shared day), both with `surface` text and SemiBold; days strictly between them = `accentSoft` band; today = 1dp `line2` outline plus a 4dp `accent` dot 5dp from the bottom when unselected. Legend row: 11dp `blue`/`red` swatches (4dp radius) + `PlexMono` 11sp `taps set SCHEDULED`/`DEADLINE` right-aligned |
+| Lead-time note | 11.5sp `ink2`, shown when both dates are set and ordered ("7 days of lead time before it is due.") |
+| Clash warning | Shown instead when scheduled falls after deadline: 12dp radius `redSoft` + 1dp `red`, `!` glyph `red` 14sp, 12sp `ink` copy |
+| Section rows | 13dp radius, 12×11dp padding. Expanded = `blueSoft`/`redSoft` + 1dp `blue`/`red`; collapsed = `surface2` + 1dp `line`. `◷` (scheduled) / `⚑` (deadline) 15sp in the section color, then `PlexMono` 10sp Bold 0.8sp-tracked label over a 13sp SemiBold summary (`ink`, or `ink3` reading "Not set") |
+| Section body | Preset chips (`Today · Jul 29`, `Tomorrow · …`, `This weekend · …`, `Next week · …` — relative name plus its absolute `MMM d`), then the Time row, then Repeat |
+| Time row | `**Time** · All day` — label SemiBold `ink`, value Normal `ink2`. `GroveSwitch` on the right. When on: two 74dp `PlexMono` fields (`surface2`, 10dp radius, centered, committed only when the text parses as `HH:mm`) around a 13sp `ink3` "to", plus `30m`/`1h`/`2h` mini-chips right-aligned (SCHEDULED only) |
+| Repeat card | 14dp radius `surface` + 1dp `line`. Sentence "Every _week_, and if I am late, _keep the original rhythm_." at 14sp / 26sp line height, with the two underlined words cycling their options on tap. Below it the org cookie chip (`PlexMono` 11.5sp on the section's soft fill) beside an 11.5sp `ink2` explanation of `+` / `++` / `.+`, then a 34dp `−` / count / `+` stepper with Day/Week/Month/Year chips right-aligned |
+| Suggestion | Dashed 12dp-radius `line2` row "Start 3 days earlier, …", shown only when a deadline is set and the scheduled date is not; tapping it fills SCHEDULED in |
+| Footer | 1dp `line` divider over a `surface` block: two `PlexMono` 12sp raw org lines (`SCHEDULED:` in `synTs`, `DEADLINE:` in `red`, `ink3` and `-` when unset), then the full-width 13dp-radius `accent` "Apply both dates" button (14.5sp SemiBold `accentInk`, 13dp padding) |
+
+Chips inside the sections use one shared spec: 10dp radius, 12×8dp padding,
+12.5sp Medium; selected = section `accent` fill with `accentInk` text and no
+border, unselected = `surface2` with a 1dp `line` border and `ink2` text.
+`GroveSwitch` is a 40×23dp pill (12dp radius, `accent` when on else `surface3`)
+with an 18dp `surface` knob inset 2.5dp.
+
+The shorthand grammar itself lives in `org/DateShorthand.kt`
+(`DateShorthandParser`), which is pure JVM and unit-tested.
 
 ---
 
@@ -737,8 +764,8 @@ instead of an empty box.
 
 ### `CustomDateRangePicker` — `ui/components/PlanningDatePicker.kt`
 
-Start + end date picker for Search → Filters' "Custom range" chip (Scheduled/Deadline). Unlike
-`PlanningDatePicker`, this does *not* use `DatePickerDialog` — that chrome is sized for the
+Start + end date picker for Search → Filters' "Custom range" chip (Scheduled/Deadline). This does
+*not* use `DatePickerDialog` — that chrome is sized for the
 compact single-month `DatePicker` and clips/squeezes `DateRangePicker`'s wider default title,
 headline, and two-month calendar. Instead: a plain `Dialog` (`usePlatformDefaultWidth = false`)
 wrapping a 28dp-radius `surface` `Surface` sized `fillMaxWidth(0.95f)` × `fillMaxHeight(0.85f)`,
@@ -756,14 +783,14 @@ CustomDateRangePicker(
 ```
 
 **When to use**: picking an inclusive start/end date pair. For a single date (optionally with
-time), use `PlanningDatePicker` instead.
+time) on a heading, use `PlanningDatesScreen` instead.
 
 ---
 
 ### `SimpleTimePicker` — `ui/components/PlanningDatePicker.kt`
 
 Standalone time-of-day picker (no date step) — currently used by Settings › Reminders ›
-"Default reminder time". Shares `PlanningDatePicker`'s `TimePickerDialog` chrome (a plain
+"Default reminder time". Shares the `TimePickerDialog` chrome in the same file (a plain
 `Dialog` wrapping a 28dp-radius `surface` `Surface`, 24dp content padding) rather than
 duplicating it: "Cancel" (`ink2`) in the dismiss slot, "Set" (`accent` SemiBold) in the
 confirm slot.
@@ -777,7 +804,7 @@ SimpleTimePicker(
 ```
 
 **When to use**: picking a bare time of day with no associated date. For a date (optionally
-with time), use `PlanningDatePicker` instead.
+with time) on a heading, use `PlanningDatesScreen` instead.
 
 ---
 
@@ -852,6 +879,7 @@ new one.
 | Capture Editor | `capture/{templateId}` | `GroveTopBar`, `monoBody()`, formatting toolbar |
 | Search | `search` | `ResultRowContent`-based, file-grouped results (collapsible sticky headers, `line`-divided rows, `annotateOrgInline` title/snippet rendering with match highlighting layered on top, inline `priorityColor`-coded `[#P]` next to the title matching Agenda, 2-line-max snippet), `Pill` (TODO pill), quick-start cards + Saved Searches (blank state, long-press → Rename/Delete `DropdownMenu`), Advanced expression preview + operator chips, `FilterPanel` (`ModalBottomSheet`) with faceted chip sections (Notebook/Tags/TODO state/Scheduled/Deadline/Priority + `CustomDateRangePicker` "Custom range" chip) |
 | Agenda | `agenda` | `ResultRowContent`-based, `line`-divided rows wrapped in `SwipeCommitRow` (swipe-left/right per Settings § Agenda: set scheduled, set deadline, or mark done — the latter undoable via `GroveUndoSnackbar`), `AgendaSectionHeader` (Overdue + day sticky headers, Today/Tomorrow-labeled), `Pill`, `ScrollJumpButtons`, infinite scroll |
+| Dates (SCHEDULED + DEADLINE) | (full-window dialog) | `PlanningDatesScreen` — shorthand box (`DateShorthandParser`), two-date calendar with lead-time band, per-section presets / time range / org repeater, raw org preview footer |
 | Conflict | `conflict/{notebookId}` | `GroveTopBar`, warning banner, unified diff view, action buttons |
 | Settings | `settings` | `GroveTopBar`, `ThemeDropdownPicker` (theme), `SegmentedControl` (font, priority, note mode, display mode, checklist states), `DropdownPicker` (agenda swipe-left/swipe-right actions), keyword chips, `Pill` ("default"), `ReminderPermissionBanner`, `SimpleTimePicker` (default reminder time), side-by-side button pair (Export/Import settings) |
 

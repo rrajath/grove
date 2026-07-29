@@ -32,7 +32,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.rrajath.grove.org.OrgTimestamp
-import com.rrajath.grove.ui.components.PlanningDatePicker
+import com.rrajath.grove.org.PlanningKind
+import com.rrajath.grove.ui.components.PlanningDatesScreen
 import com.rrajath.grove.ui.components.Pill
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
@@ -148,13 +149,14 @@ fun MetadataSheet(
     }
 
     datePickerFor?.let { target ->
-        val existing = if (target == "scheduled") headline?.planning?.scheduled
-        else headline?.planning?.deadline
-        PlanningDatePicker(
-            existing = existing,
+        PlanningDatesScreen(
+            title = headline?.title.orEmpty(),
+            scheduled = headline?.planning?.scheduled,
+            deadline = headline?.planning?.deadline,
+            focus = if (target == "scheduled") PlanningKind.SCHEDULED else PlanningKind.DEADLINE,
             onDismiss = { datePickerFor = null },
-            onConfirm = { ts ->
-                if (target == "scheduled") viewModel.setScheduled(ts) else viewModel.setDeadline(ts)
+            onConfirm = { sched, dead ->
+                viewModel.setPlanningDates(sched, dead)
                 datePickerFor = null
             },
         )

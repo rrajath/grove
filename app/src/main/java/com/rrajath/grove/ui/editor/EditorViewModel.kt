@@ -130,6 +130,10 @@ class EditorViewModel(private val app: GroveApplication) : ViewModel() {
     fun setScheduled(ts: OrgTimestamp?) = mutateBuffer { d, h -> OrgMutations.setScheduled(d, h, ts) }
     fun setDeadline(ts: OrgTimestamp?) = mutateBuffer { d, h -> OrgMutations.setDeadline(d, h, ts) }
 
+    /** Both planning dates in one edit — what the Dates screen commits. */
+    fun setPlanningDates(scheduled: OrgTimestamp?, deadline: OrgTimestamp?) =
+        mutateBuffer { d, h -> OrgMutations.setPlanningDates(d, h, scheduled, deadline) }
+
     /** Apply the specific [doneKeyword] the user picked (repeaters advance instead). */
     fun markDone(doneKeyword: String) {
         mutateBuffer { d, h -> OrgMutations.markDone(d, h, doneKeyword, LocalDateTime.now()) }

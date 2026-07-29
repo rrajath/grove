@@ -38,9 +38,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rrajath.grove.org.OrgTimestamp
+import com.rrajath.grove.org.PlanningKind
 import com.rrajath.grove.settings.AgendaSwipeAction
 import com.rrajath.grove.ui.components.GroveUndoSnackbar
-import com.rrajath.grove.ui.components.PlanningDatePicker
+import com.rrajath.grove.ui.components.PlanningDatesScreen
 import com.rrajath.grove.ui.components.ResultRowContent
 import com.rrajath.grove.ui.components.ScrollJumpButtons
 import com.rrajath.grove.ui.components.SwipeAction
@@ -56,15 +57,19 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-/** A pending swipe-left/swipe-right date pick, before the user confirms a date. */
+/**
+ * A pending swipe-left/swipe-right date pick, before the user confirms. The
+ * Dates screen edits both planning dates at once, so the request carries both —
+ * [target] only decides which section it opens focused on.
+ */
 private data class DatePickerRequest(
     val fileName: String,
     val lineIndex: Int,
-    val target: PlanningTarget,
-    val existing: OrgTimestamp?,
+    val target: PlanningKind,
+    val title: String,
+    val scheduled: OrgTimestamp?,
+    val deadline: OrgTimestamp?,
 )
-
-private enum class PlanningTarget { SCHEDULED, DEADLINE }
 
 /** Upcoming/overdue agenda — a dedicated screen from the drawer's Agenda item,
  *  separate from Search (design decision: agenda answers "what's next", search
@@ -109,7 +114,9 @@ fun AgendaScreen(
                             fileName = result.fileName,
                             lineIndex = result.lineIndex,
                             target = target,
-                            existing = if (target == PlanningTarget.DEADLINE) result.deadlineTs else result.scheduledTs,
+                            title = result.title,
+                            scheduled = result.scheduledTs,
+                            deadline = result.deadlineTs,
                         )
                     },
                     onMarkDone = { result -> viewModel.markDone(result.fileName, result.lineIndex) },
@@ -140,12 +147,14 @@ fun AgendaScreen(
     }
 
     datePickerRequest?.let { req ->
-        PlanningDatePicker(
-            existing = req.existing,
+        PlanningDatesScreen(
+            title = req.title,
+            scheduled = req.scheduled,
+            deadline = req.deadline,
+            focus = req.target,
             onDismiss = { datePickerRequest = null },
-            onConfirm = { ts ->
-                if (req.target == PlanningTarget.DEADLINE) viewModel.setDeadline(req.fileName, req.lineIndex, ts)
-                else viewModel.setScheduled(req.fileName, req.lineIndex, ts)
+            onConfirm = { sched, dead ->
+                viewModel.setPlanningDates(req.fileName, req.lineIndex, sched, dead)
                 datePickerRequest = null
             },
         )
@@ -160,7 +169,7 @@ private fun LazyColumnAgenda(
     formatter: DateTimeFormatter,
     today: LocalDate,
     onOpenNote: (NoteRef) -> Unit,
-    onOpenDatePicker: (AgendaResult, PlanningTarget) -> Unit,
+    onOpenDatePicker: (AgendaResult, PlanningKind) -> Unit,
     onMarkDone: (AgendaResult) -> Unit,
 ) {
     val c = MaterialTheme.grove
@@ -238,13 +247,13 @@ private fun swipeActionFor(
     kind: AgendaSwipeAction,
     result: AgendaResult,
     c: GroveColors,
-    onOpenDatePicker: (AgendaResult, PlanningTarget) -> Unit,
+    onOpenDatePicker: (AgendaResult, PlanningKind) -> Unit,
     onMarkDone: (AgendaResult) -> Unit,
 ): SwipeAction = when (kind) {
     AgendaSwipeAction.SET_SCHEDULED ->
-        SwipeAction("◷", "Sched", c.blue, c.blueSoft) { onOpenDatePicker(result, PlanningTarget.SCHEDULED) }
+        SwipeAction("◷", "Sched", c.blue, c.blueSoft) { onOpenDatePicker(result, PlanningKind.SCHEDULED) }
     AgendaSwipeAction.SET_DEADLINE ->
-        SwipeAction("⚑", "Deadl", c.red, c.redSoft) { onOpenDatePicker(result, PlanningTarget.DEADLINE) }
+        SwipeAction("⚑", "Deadl", c.red, c.redSoft) { onOpenDatePicker(result, PlanningKind.DEADLINE) }
     AgendaSwipeAction.MARK_DONE ->
         SwipeAction(label = "Done", fg = c.green, bg = c.greenSoft, icon = Icons.Default.Check) { onMarkDone(result) }
 }
@@ -255,7 +264,7 @@ private fun AgendaResultRow(
     swipeLeftAction: AgendaSwipeAction,
     swipeRightAction: AgendaSwipeAction,
     onOpenNote: (NoteRef) -> Unit,
-    onOpenDatePicker: (AgendaResult, PlanningTarget) -> Unit,
+    onOpenDatePicker: (AgendaResult, PlanningKind) -> Unit,
     onMarkDone: (AgendaResult) -> Unit,
 ) {
     val c = MaterialTheme.grove

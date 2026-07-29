@@ -160,6 +160,16 @@ class AgendaViewModel(private val app: GroveApplication) : ViewModel() {
     fun setDeadline(fileName: String, lineIndex: Int, ts: OrgTimestamp?) =
         mutatePlanning(fileName, lineIndex) { doc, h -> OrgMutations.setDeadline(doc, h, ts) }
 
+    /** Both planning dates in one edit — what the Dates screen commits. */
+    fun setPlanningDates(
+        fileName: String,
+        lineIndex: Int,
+        scheduled: OrgTimestamp?,
+        deadline: OrgTimestamp?,
+    ) = mutatePlanning(fileName, lineIndex) { doc, h ->
+        OrgMutations.setPlanningDates(doc, h, scheduled, deadline)
+    }
+
     private fun mutatePlanning(fileName: String, lineIndex: Int, block: (OrgDocument, OrgHeadline) -> String) {
         viewModelScope.launch {
             val vault = app.vault.value ?: return@launch

@@ -85,7 +85,7 @@ Because the FTS5 module is absent from Android's platform SQLite (which is why R
 
 ## Reminders (`reminders/`)
 
-A system notification fires when a heading's SCHEDULED or DEADLINE timestamp arrives, with **Complete** (flips the TODO keyword to the first done-type keyword) and **Reschedule** (deep-links back into the app to `PlanningDatePicker`) actions.
+A system notification fires when a heading's SCHEDULED or DEADLINE timestamp arrives, with **Complete** (flips the TODO keyword to the first done-type keyword) and **Reschedule** (deep-links back into the app to `PlanningDatesScreen`, focused on whichever of the two dates the reminder was for) actions.
 
 - **Identity without file mutation.** A heading is tracked by a best-effort composite key (file name + ancestor-title path + own title + level) rather than an injected `CUSTOM_ID` — renaming or moving a heading can drop tracking for that one reminder, an accepted trade-off in exchange for never writing an ID property the user didn't ask for.
 - **Pure core, thin Android shell.** `ReminderKeys` (key/notification-id derivation), `ReminderPlanning` (which reminders a parsed `OrgDocument` implies, and `triggerAtMillis` from a timestamp + the "Default reminder time" setting for date-only stamps), and `ReminderDiff` (schedule/cancel/unchanged diffing against previously stored reminders) are plain Kotlin, unit-tested like the rest of the core. `AlarmScheduler` (exact alarm via `setExactAndAllowWhileIdle`, falling back to inexact scheduling when exact-alarm access isn't granted or is revoked mid-flight), `ReminderNotification` (channel, actions, the `grove://reminder/...` deep-link URI), and `ReminderReconciler` (ties diffing to Room + `AlarmManager`) are the Android-facing layer.

@@ -69,13 +69,14 @@ import com.rrajath.grove.org.OrgDocument
 import com.rrajath.grove.org.OrgHeadline
 import com.rrajath.grove.org.OrgKeywords
 import com.rrajath.grove.org.OrgTimestamp
+import com.rrajath.grove.org.PlanningKind
 import com.rrajath.grove.settings.OutlineToggle
 import com.rrajath.grove.ui.components.CollapsibleKvSection
 import com.rrajath.grove.ui.components.FavoriteStar
 import com.rrajath.grove.ui.components.GroveTopBar
 import com.rrajath.grove.ui.components.GroveToast
 import com.rrajath.grove.ui.components.GroveUndoSnackbar
-import com.rrajath.grove.ui.components.PlanningDatePicker
+import com.rrajath.grove.ui.components.PlanningDatesScreen
 import com.rrajath.grove.ui.components.ScrollJumpButtons
 import com.rrajath.grove.ui.components.SwipeAction
 import com.rrajath.grove.ui.components.SwipeRevealRow
@@ -508,16 +509,14 @@ fun OutlineScreen(
 
                 datePickerFor?.let { (line, target) ->
                     val headline = doc.headlineAtLine(line)
-                    val existing = if (target == "scheduled") headline?.planning?.scheduled
-                    else headline?.planning?.deadline
-                    PlanningDatePicker(
-                        existing = existing,
+                    PlanningDatesScreen(
+                        title = headline?.title.orEmpty(),
+                        scheduled = headline?.planning?.scheduled,
+                        deadline = headline?.planning?.deadline,
+                        focus = if (target == "scheduled") PlanningKind.SCHEDULED else PlanningKind.DEADLINE,
                         onDismiss = { datePickerFor = null },
-                        onConfirm = { ts ->
-                            if (headline != null) {
-                                if (target == "scheduled") viewModel.setScheduled(headline, ts)
-                                else viewModel.setDeadline(headline, ts)
-                            }
+                        onConfirm = { sched, dead ->
+                            if (headline != null) viewModel.setPlanningDates(headline, sched, dead)
                             datePickerFor = null
                         },
                     )

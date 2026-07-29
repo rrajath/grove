@@ -60,9 +60,10 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rrajath.grove.org.LineEditing
 import com.rrajath.grove.org.OrgTimestamp
+import com.rrajath.grove.org.PlanningKind
 import com.rrajath.grove.reminders.ReminderNotification
 import com.rrajath.grove.ui.components.GroveTopBar
-import com.rrajath.grove.ui.components.PlanningDatePicker
+import com.rrajath.grove.ui.components.PlanningDatesScreen
 import com.rrajath.grove.ui.components.ScrollJumpButtons
 import com.rrajath.grove.ui.components.SegmentedControl
 import com.rrajath.grove.ui.screens.IconGlyph
@@ -350,14 +351,25 @@ fun EditNoteScreen(
 
     rescheduleTarget?.let { target ->
         val headline = remember(state.buffer, state.keywords) { viewModel.currentHeadline }
-        val existing = if (target == "deadline") headline?.planning?.deadline else headline?.planning?.scheduled
-        PlanningDatePicker(
-            existing = existing,
+        val isDeadline = target == "deadline"
+        PlanningDatesScreen(
+            title = headline?.title.orEmpty(),
+            scheduled = headline?.planning?.scheduled,
+            deadline = headline?.planning?.deadline,
+            focus = if (isDeadline) PlanningKind.DEADLINE else PlanningKind.SCHEDULED,
             onDismiss = { rescheduleTarget = null },
-            onConfirm = { ts ->
-                if (target == "deadline") viewModel.setDeadline(ts) else viewModel.setScheduled(ts)
+            onConfirm = { sched, dead ->
+                viewModel.setPlanningDates(sched, dead)
                 dismissNotificationId?.let { ReminderNotification.cancel(context, it) }
-                Toast.makeText(context, "Task rescheduled to ${formatRescheduled(ts)}", Toast.LENGTH_SHORT).show()
+                // The reminder that sent us here was for one of the two dates, so
+                // the toast reports that one — not whichever else was also edited.
+                val reported = if (isDeadline) dead else sched
+                Toast.makeText(
+                    context,
+                    if (reported == null) "Task rescheduled"
+                    else "Task rescheduled to ${formatRescheduled(reported)}",
+                    Toast.LENGTH_SHORT,
+                ).show()
                 rescheduleTarget = null
             },
         )

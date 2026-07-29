@@ -465,6 +465,30 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
     fun setDeadline(headline: OrgHeadline, ts: OrgTimestamp?) =
         setPlanning(headline, "Deadline", ts) { d, h -> OrgMutations.setDeadline(d, h, ts) }
 
+    /**
+     * Both planning dates in one edit — what the Dates screen commits. The toast
+     * names whichever dates survived so clearing one is still acknowledged.
+     */
+    fun setPlanningDates(headline: OrgHeadline, scheduled: OrgTimestamp?, deadline: OrgTimestamp?) {
+        val loaded = _state.value as? DocumentUiState.Loaded ?: return
+        val vault = app.vault.value ?: return
+        viewModelScope.launch {
+            val (newText, newDoc) = withContext(Dispatchers.Default) {
+                val text = OrgMutations.setPlanningDates(loaded.document, headline, scheduled, deadline)
+                text to OrgParser.parse(text, loaded.document.keywords)
+            }
+            _state.value = DocumentUiState.Loaded(loaded.fileName, newDoc)
+            vault.save(loaded.fileName, newText)
+            app.syncManager.requestSync("planning edit")
+            val fmt = DateTimeFormatter.ofPattern("EEE, MMM d")
+            val parts = listOfNotNull(
+                scheduled?.let { "Scheduled · ${it.date.format(fmt)}" },
+                deadline?.let { "Deadline · ${it.date.format(fmt)}" },
+            )
+            showToast(if (parts.isEmpty()) "Planning cleared" else parts.joinToString("  ·  "))
+        }
+    }
+
     private fun setPlanning(
         headline: OrgHeadline,
         label: String,
