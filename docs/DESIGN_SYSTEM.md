@@ -292,6 +292,20 @@ in a run of mono chips rather than standing alone as an affordance.
 | `R.drawable.ic_shortcut_quick_note` | Launcher shortcut — Quick Note |
 | `R.drawable.ic_launcher_foreground` | Adaptive icon foreground (asterisk mark) |
 | `R.drawable.ic_launcher_background` | Adaptive icon background (`#efe4cf`) |
+| `R.drawable.ic_notification` | Notification small icon — the same mark on a 24dp canvas |
+
+**Never use `ic_launcher_foreground` as a notification small icon.** It is a 108dp
+adaptive-icon foreground whose mark spans only ~30/108 so it survives the launcher's
+safe-zone crop; in a 24dp status-bar slot that renders as a speck next to system icons.
+`ic_notification` is the same five-spoke path redrawn to fill a 24dp canvas (spokes to
+r=10.5, inside the 22x22 content area Android expects).
+
+Android draws small icons as an alpha mask and tints them, so the per-theme color comes
+from `NotificationCompat.Builder.setColor` — see `icon/NotificationAppearance.kt` and
+`AppIconManager.markColor`, which resolve the same (sync-enabled, theme) pair that
+`targetAlias` uses for the launcher icon. In the notification shade, the circular badge
+is drawn from the *launcher* icon, so it follows the theme through the alias switch
+rather than through `setColor`.
 
 ### Notebook Icon Glyphs
 
@@ -591,6 +605,11 @@ Physics constants (do not change without the prototype): panel 184dp = 4 × 46dp
 open threshold 66dp, rubber-band factor 0.18 past the panel, settle 340ms
 `CubicBezierEasing(0.22, 1, 0.36, 1)`. Tap on an open card closes it; action cells are
 a `fg`-tinted 16sp glyph or 17dp `Icon` over a 9sp Medium label on the action's `Soft` bg.
+
+The glyph/icon sits in a fixed 22dp slot (`ActionMark`) so every cell's label lands on
+the same baseline. Without it, a Material `Icon` measures exactly its `size` while a text
+glyph measures its font's line height, and mixed panels (e.g. State ⟳ / Schedule icon /
+Note icon / Fav ★) show visibly misaligned labels.
 `SwipeAction.icon` (an `ImageVector`) takes precedence over `SwipeAction.glyph` (a plain
 Unicode character) when both would apply — use `icon` when the action must match a Material
 icon used elsewhere in the app (e.g. `MARK_DONE`'s checkmark matches the synced-notebook
@@ -857,7 +876,7 @@ upcoming or overdue".
 | `AgendaHeader` | 36dp circular back glyph, day headline (21sp SemiBold, -0.21sp tracking) over a `PlexMono` 12.5sp `ink2` sub-line ("July 30 · 6 scheduled"), and a 36dp `surface2` r11 ⇅ levers button |
 | `AgendaTabs` | Today/Upcoming switch: `surface2` r11 track, 3dp inset, active option raised on a `surface` r8 card with a 2dp shadow |
 | `LeversPanel` | `surface` card, 1dp `line` border, r15 — "GROUP BY" and "SHOW" chip rows plus two toggles |
-| `LeverChip` | 12sp SemiBold, 12dp/7dp padding, r9; active = `accent`/`accentInk` fill, inactive = transparent with a 1dp `line` border |
+| `LeverChip` | 12sp SemiBold, 12dp/7dp padding, r9; active = `accent`/`accentInk` fill, inactive = transparent with a 1dp `line` border. The "Show" row wraps in a `FlowRow`, since its middle chips are the vault's own TODO keywords and there can be any number of them |
 | `LeverToggle` | 36×21 r11 track (`accent` on / `surface3` off) with a 16dp `surface` knob animated between 2.5dp and 17.5dp |
 | `OverdueCard` | `redSoft` fill, 1dp `red` border, r15; collapsible ▸/▾ header with the count and a `surface` r9 "Move to today" button |
 | `GroupHeader` | Uppercased 11sp Bold key (0.77sp tracking, `ink2`), `PlexMono` 11sp count, then a 1dp `line` rule to the right edge |
@@ -899,7 +918,7 @@ Section headers scroll with the list; the prototype has no pinned headers, so th
 | Capture Picker | (bottom sheet) | `ModalBottomSheet`, icon glyph tiles, `PlexMono` |
 | Capture Editor | `capture/{templateId}` | `GroveTopBar`, `monoBody()`, formatting toolbar |
 | Search | `search` | `ResultRowContent`-based, file-grouped results (collapsible sticky headers, `line`-divided rows, `annotateOrgInline` title/snippet rendering with match highlighting layered on top, inline `priorityColor`-coded `[#P]` next to the title matching Agenda, 2-line-max snippet), `Pill` (TODO pill), quick-start cards + Saved Searches (blank state, long-press → Rename/Delete `DropdownMenu`), Advanced expression preview + operator chips, `FilterPanel` (`ModalBottomSheet`) with faceted chip sections (Notebook/Tags/TODO state/Scheduled/Deadline/Priority + `CustomDateRangePicker` "Custom range" chip) |
-| Agenda | `agenda` | "Agenda A · focus" prototype variant: `AgendaHeader` (day headline + ⇅), `AgendaTabs` (Today/Upcoming), collapsible `LeversPanel` (Group by: Date/Priority/Tag/File · Show: Open/Next only/Everything · tags and source-file toggles, all persisted in settings), `OverdueCard` (collapsible, bulk "Move to today"), scrolling `GroupHeader`s, `AgendaRowContent` rows (checkbox → toggle done, tap → open note) wrapped in `SwipeCommitRow` (swipe-left/right per Settings § Agenda: set scheduled, set deadline, or mark done). Every mutation is undoable via `GroveUndoSnackbar`; "Move to today" restores all files it touched. Infinite scroll on the Upcoming tab |
+| Agenda | `agenda` | "Agenda A · focus" prototype variant: `AgendaHeader` (day headline + ⇅), `AgendaTabs` (Today/Upcoming), collapsible `LeversPanel` (Group by: Date/Priority/Tag/File · Show: Open, one chip per configured todo-type keyword, Everything · tags and source-file toggles, all persisted in settings), `OverdueCard` (collapsible, bulk "Move to today"), scrolling `GroupHeader`s, `AgendaRowContent` rows (checkbox → toggle done, tap → open note) wrapped in `SwipeCommitRow` (swipe-left/right per Settings § Agenda: set scheduled, set deadline, or mark done). Every mutation is undoable via `GroveUndoSnackbar`; "Move to today" restores all files it touched. Infinite scroll on the Upcoming tab |
 | Dates (SCHEDULED + DEADLINE) | (full-window dialog) | `PlanningDatesScreen` — shorthand box (`DateShorthandParser`), two-date calendar with lead-time band, per-section presets / time range / org repeater, raw org preview footer |
 | Conflict | `conflict/{notebookId}` | `GroveTopBar`, warning banner, unified diff view, action buttons |
 | Settings | `settings` | `GroveTopBar`, `ThemeDropdownPicker` (theme), `SegmentedControl` (font, priority, note mode, display mode, checklist states), `DropdownPicker` (agenda swipe-left/swipe-right actions), keyword chips, `Pill` ("default"), `ReminderPermissionBanner`, `SimpleTimePicker` (default reminder time), side-by-side button pair (Export/Import settings) |

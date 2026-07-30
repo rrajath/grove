@@ -67,7 +67,7 @@ data class GroveSettings(
     val agendaSwipeRightAction: AgendaSwipeAction = AgendaSwipeAction.SET_SCHEDULED,
     // Agenda levers panel — sticky across visits, unlike the Today/Upcoming tab.
     val agendaGrouping: AgendaGrouping = AgendaGrouping.DATE,
-    val agendaStateFilter: AgendaStateFilter = AgendaStateFilter.OPEN,
+    val agendaStateFilter: AgendaStateFilter = AgendaStateFilter.Open,
     val agendaShowTags: Boolean = true,
     val agendaShowFile: Boolean = false,
 ) {

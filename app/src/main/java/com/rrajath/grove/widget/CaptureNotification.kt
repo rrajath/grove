@@ -11,6 +11,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.net.toUri
 import com.rrajath.grove.MainActivity
 import com.rrajath.grove.R
+import com.rrajath.grove.icon.NotificationAppearance
 
 /**
  * Optional persistent "Capture" notification (PRD §8) — a low-priority,
@@ -38,7 +39,8 @@ object CaptureNotification {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setColor(NotificationAppearance.markColor(context))
             .setContentTitle(context.getString(R.string.app_name))
             .setContentText("Capture a note")
             .setContentIntent(pending)

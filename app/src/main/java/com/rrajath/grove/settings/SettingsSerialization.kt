@@ -63,7 +63,7 @@ data class SettingsExport(
     val agendaSwipeLeftAction: String = AgendaSwipeAction.MARK_DONE.storageKey,
     val agendaSwipeRightAction: String = AgendaSwipeAction.SET_SCHEDULED.storageKey,
     val agendaGrouping: String = AgendaGrouping.DATE.storageKey,
-    val agendaStateFilter: String = AgendaStateFilter.OPEN.storageKey,
+    val agendaStateFilter: String = AgendaStateFilter.Open.storageKey,
     val agendaShowTags: Boolean = true,
     val agendaShowFile: Boolean = false,
 ) {

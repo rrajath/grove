@@ -85,7 +85,9 @@ Because the FTS5 module is absent from Android's platform SQLite (which is why R
 
 ## Agenda (`ui/agenda/`)
 
-`AgendaViewModel` owns its own bucketing rather than going through `QueryMatcher`, because the screen's day model is stricter than the search one: **an item belongs to exactly one day — its SCHEDULED date if it has one, otherwise its DEADLINE.** That is what makes the "Group by · Date" sections disjoint. A heading with both dates appears once, on its scheduled day, carrying a red `⚑ <date>` chip that announces the deadline. "Overdue" follows the same rule: it is that one date being in the past, not either date being in the past.
+`AgendaBuckets` owns the day model, deliberately as a pure object (no Android, no ViewModel) so the rules are JVM-testable — `AgendaViewModel` only wires settings and the index flow into it and maps the resulting buckets to rows. The model is stricter than the search one: **an item belongs to exactly one day — its SCHEDULED date if it has one, otherwise its DEADLINE.** That is what makes the "Group by · Date" sections disjoint. A heading with both dates appears once, on its scheduled day, carrying a red `⚑ <date>` chip that announces the deadline. "Overdue" follows the same rule: it is that one date being in the past, not either date being in the past. This replaced `QueryMatcher.agenda`, which bucketed a note under every day either of its dates touched.
+
+The "Show" lever is `Open` · one chip per configured todo-type keyword · `Everything`. The middle chips come from `GroveApplication.keywords`, so the filter follows whatever `todoKeywords` is set to rather than assuming `NEXT`/`WAITING`; `Open` is state-agnostic (anything not done-type, headings with no keyword included). A persisted keyword filter whose keyword has since been removed from the config falls back to `Open` rather than silently matching nothing.
 
 The levers (grouping, state filter, tags/source-file on rows) persist in `SettingsRepository` so they survive a cold start; the Today/Upcoming tab is navigational and resets each visit.
 

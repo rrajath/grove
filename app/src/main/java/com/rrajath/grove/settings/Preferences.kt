@@ -108,18 +108,39 @@ enum class AgendaGrouping(val storageKey: String, val label: String) {
 /**
  * Agenda levers § "Show" — which TODO states reach the list.
  *
- * [OPEN] and [NEXT] match the keyword names `WAITING` and `NEXT` literally, the
- * near-universal org convention the design prototype assumes. A vault whose
- * `todoKeywords` omits them simply sees [OPEN] behave as "everything not done"
- * and [NEXT] come up empty.
+ * The middle chips are the vault's own active (todo-type) keywords rather than
+ * a fixed `NEXT`/`WAITING` pair, so the filter follows whatever `todoKeywords`
+ * is configured. [Open] is state-agnostic: anything not done-type, including
+ * headings with no keyword at all.
  */
-enum class AgendaStateFilter(val storageKey: String, val label: String) {
-    OPEN("open", "Open"),
-    NEXT("next", "Next only"),
-    ALL("all", "Everything");
+sealed interface AgendaStateFilter {
+
+    val storageKey: String
+
+    /** Everything that is not a done-type keyword. */
+    data object Open : AgendaStateFilter {
+        override val storageKey: String get() = "open"
+    }
+
+    /** Every planned heading, completed ones included. */
+    data object All : AgendaStateFilter {
+        override val storageKey: String get() = "all"
+    }
+
+    /** Exactly one active keyword, e.g. `NEXT`. */
+    data class Keyword(val name: String) : AgendaStateFilter {
+        override val storageKey: String get() = "$KEYWORD_PREFIX$name"
+    }
 
     companion object {
-        fun fromStorage(value: String?): AgendaStateFilter =
-            entries.firstOrNull { it.storageKey == value } ?: OPEN
+        private const val KEYWORD_PREFIX = "kw:"
+
+        fun fromStorage(value: String?): AgendaStateFilter = when {
+            value == null -> Open
+            value == All.storageKey -> All
+            value.startsWith(KEYWORD_PREFIX) ->
+                value.removePrefix(KEYWORD_PREFIX).takeIf { it.isNotEmpty() }?.let(::Keyword) ?: Open
+            else -> Open
+        }
     }
 }

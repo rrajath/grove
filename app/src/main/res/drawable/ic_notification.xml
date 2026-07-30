@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Grove mark sized for the status bar: the same five rounded-cap spokes as
+     ic_launcher_foreground, but drawn to fill a 24dp notification canvas
+     instead of sitting inside a 108dp adaptive-icon safe zone (where the mark
+     spans only ~30/108 and renders as a speck in the status bar).
+
+     Spokes run from the center out to r=10.5 with half-width 2.94 — the
+     launcher geometry scaled by 0.7 — keeping the glyph inside the 22x22
+     content area Android expects for a notification small icon.
+
+     White because the system draws small icons as an alpha mask and applies
+     its own tint; the per-theme color is supplied via
+     NotificationCompat.Builder.setColor. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tint="#FFFFFFFF">
+    <group android:rotation="36" android:pivotX="12" android:pivotY="12">
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M9.06,12 A2.94,2.94 0 0 1 14.94,12 L14.94,22.5 A2.94,2.94 0 0 1 9.06,22.5 Z" />
+    </group>
+    <group android:rotation="108" android:pivotX="12" android:pivotY="12">
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M9.06,12 A2.94,2.94 0 0 1 14.94,12 L14.94,22.5 A2.94,2.94 0 0 1 9.06,22.5 Z" />
+    </group>
+    <group android:rotation="180" android:pivotX="12" android:pivotY="12">
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M9.06,12 A2.94,2.94 0 0 1 14.94,12 L14.94,22.5 A2.94,2.94 0 0 1 9.06,22.5 Z" />
+    </group>
+    <group android:rotation="252" android:pivotX="12" android:pivotY="12">
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M9.06,12 A2.94,2.94 0 0 1 14.94,12 L14.94,22.5 A2.94,2.94 0 0 1 9.06,22.5 Z" />
+    </group>
+    <group android:rotation="324" android:pivotX="12" android:pivotY="12">
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M9.06,12 A2.94,2.94 0 0 1 14.94,12 L14.94,22.5 A2.94,2.94 0 0 1 9.06,22.5 Z" />
+    </group>
+</vector>

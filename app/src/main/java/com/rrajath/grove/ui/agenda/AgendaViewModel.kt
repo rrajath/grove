@@ -6,6 +6,7 @@ import com.rrajath.grove.GroveApplication
 import com.rrajath.grove.data.toNoteMeta
 import com.rrajath.grove.org.OrgDocument
 import com.rrajath.grove.org.OrgHeadline
+import com.rrajath.grove.org.OrgKeywords
 import com.rrajath.grove.org.OrgMutations
 import com.rrajath.grove.org.OrgParser
 import com.rrajath.grove.org.OrgTimestamp
@@ -71,7 +72,9 @@ data class AgendaUiState(
     val overdue: List<AgendaRow> = emptyList(),
     val groups: List<AgendaGroup> = emptyList(),
     val grouping: AgendaGrouping = AgendaGrouping.DATE,
-    val stateFilter: AgendaStateFilter = AgendaStateFilter.OPEN,
+    val stateFilter: AgendaStateFilter = AgendaStateFilter.Open,
+    /** The vault's active (todo-type) keywords — one "Show" chip each, between Open and Everything. */
+    val activeKeywords: List<String> = emptyList(),
     val showTags: Boolean = true,
     val showFile: Boolean = false,
     val swipeLeftAction: AgendaSwipeAction = AgendaSwipeAction.MARK_DONE,
@@ -111,6 +114,9 @@ class AgendaViewModel(private val app: GroveApplication) : ViewModel() {
     @Volatile
     private var prefs: GroveSettings = GroveSettings()
 
+    @Volatile
+    private var keywords: OrgKeywords = OrgKeywords.DEFAULT
+
     // Session-only view state; the levers themselves persist via settings.
     private var tab = AgendaTab.TODAY
     private var leversOpen = false
@@ -130,6 +136,12 @@ class AgendaViewModel(private val app: GroveApplication) : ViewModel() {
         viewModelScope.launch {
             app.settingsRepository.settings.collect { settings ->
                 prefs = settings
+                recompute()
+            }
+        }
+        viewModelScope.launch {
+            app.keywords.collect { kw ->
+                keywords = kw
                 recompute()
             }
         }
@@ -196,26 +208,24 @@ class AgendaViewModel(private val app: GroveApplication) : ViewModel() {
     private fun buildState(): AgendaUiState {
         val today = LocalDate.now()
         val p = prefs
-        val visible = matched.filter { keep(it, p.agendaStateFilter) }
+        val active = keywords.active
+        // A persisted keyword filter can outlive the keyword itself (the user
+        // edited todoKeywords); fall back rather than showing an empty list
+        // with no chip selected.
+        val filter = p.agendaStateFilter
+            .takeUnless { it is AgendaStateFilter.Keyword && it.name !in active }
+            ?: AgendaStateFilter.Open
+        val visible = matched.filter { AgendaBuckets.keep(it, filter) }
 
-        val todayItems = visible.filter { whenDate(it) == today }
-        val overdueItems = visible
-            .filter { whenDate(it)?.isBefore(today) == true }
-            .sortedWith(
-                compareBy<NoteMeta> { whenDate(it) ?: LocalDate.MAX }
-                    .thenBy { it.priority ?: NO_PRIORITY_SORT_KEY }
-                    .thenBy { it.title.lowercase() }
-            )
-        val horizon = today.plusDays((windowDays - 1).toLong())
-        val futureItems = visible.filter {
-            val d = whenDate(it)
-            d != null && d.isAfter(today) && !d.isAfter(horizon)
-        }
+        val todayItems = AgendaBuckets.onDay(visible, today)
+        val overdueItems = AgendaBuckets.overdue(visible, today)
+        val futureItems = AgendaBuckets.upcoming(visible, today, windowDays)
 
-        val list = if (tab == AgendaTab.TODAY) todayItems else futureItems
+        val isTodayTab = tab == AgendaTab.TODAY
+        val list = if (isTodayTab) todayItems else futureItems
         // Date grouping already puts the day in the section header; every other
         // grouping mixes days together, so the rows have to carry it themselves.
-        val showDate = p.agendaGrouping != AgendaGrouping.DATE && tab != AgendaTab.TODAY
+        val showDate = p.agendaGrouping != AgendaGrouping.DATE && !isTodayTab
 
         return AgendaUiState(
             headerDay = today.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.ENGLISH),
@@ -225,53 +235,16 @@ class AgendaViewModel(private val app: GroveApplication) : ViewModel() {
             leversOpen = leversOpen,
             overdueOpen = overdueOpen,
             overdue = overdueItems.map { row(it, today, showDate = true, p = p) },
-            groups = group(list, today, showDate, p),
+            groups = AgendaBuckets.group(list, today, p.agendaGrouping, isTodayTab)
+                .map { b -> AgendaGroup(b.key, b.notes.size, b.notes.map { row(it, today, showDate, p) }) },
             grouping = p.agendaGrouping,
-            stateFilter = p.agendaStateFilter,
+            stateFilter = filter,
+            activeKeywords = active,
             showTags = p.agendaShowTags,
             showFile = p.agendaShowFile,
             swipeLeftAction = p.agendaSwipeLeftAction,
             swipeRightAction = p.agendaSwipeRightAction,
         )
-    }
-
-    private fun group(
-        list: List<NoteMeta>,
-        today: LocalDate,
-        showDate: Boolean,
-        p: GroveSettings,
-    ): List<AgendaGroup> {
-        fun bucket(key: String, notes: List<NoteMeta>, order: Comparator<NoteMeta>) =
-            AgendaGroup(key, notes.size, notes.sortedWith(order).map { row(it, today, showDate, p) })
-
-        return when (p.agendaGrouping) {
-            AgendaGrouping.DATE ->
-                if (tab == AgendaTab.TODAY) {
-                    if (list.isEmpty()) emptyList()
-                    else listOf(bucket("Scheduled today", list, BY_TIME))
-                } else {
-                    list.mapNotNull { whenDate(it) }.distinct().sorted().map { day ->
-                        bucket(dayLabel(day, today), list.filter { whenDate(it) == day }, BY_TIME)
-                    }
-                }
-
-            AgendaGrouping.PRIORITY ->
-                PRIORITY_BUCKETS.mapNotNull { (key, label) ->
-                    val notes = list.filter { it.priority == key }
-                    if (notes.isEmpty()) null else bucket(label, notes, BY_TIME)
-                }
-
-            AgendaGrouping.TAG -> {
-                val keys = LinkedHashSet<String>()
-                list.forEach { keys += tagsOf(it) }
-                keys.map { tag -> bucket(":$tag:", list.filter { tag in tagsOf(it) }, BY_PRIORITY) }
-            }
-
-            AgendaGrouping.FILE ->
-                list.map { it.fileName }.distinct().map { file ->
-                    bucket(file, list.filter { it.fileName == file }, BY_PRIORITY)
-                }
-        }
     }
 
     private fun row(m: NoteMeta, today: LocalDate, showDate: Boolean, p: GroveSettings): AgendaRow {
@@ -288,8 +261,8 @@ class AgendaViewModel(private val app: GroveApplication) : ViewModel() {
             if (showDate && anchorDate != null) {
                 val late = ChronoUnit.DAYS.between(anchorDate, today)
                 val text = (if (deadlineOnly) "⚑ " else "") +
-                    if (overdue) "${anchorDate.format(SHORT_DATE)} · ${late}d late"
-                    else dayLabel(anchorDate, today)
+                    if (overdue) "${anchorDate.format(AgendaBuckets.SHORT_DATE)} · ${late}d late"
+                    else AgendaBuckets.dayLabel(anchorDate, today)
                 add(AgendaMeta(text, if (overdue || deadlineOnly) AgendaMetaTone.DANGER else AgendaMetaTone.NORMAL))
             } else if (deadlineOnly) {
                 add(AgendaMeta("⚑ due", AgendaMetaTone.DANGER))
@@ -299,7 +272,7 @@ class AgendaViewModel(private val app: GroveApplication) : ViewModel() {
                 add(AgendaMeta(range, AgendaMetaTone.NORMAL))
             }
             if (deadlineTs != null && scheduledTs != null) {
-                add(AgendaMeta("⚑ ${deadlineTs.date.format(SHORT_DATE)}", AgendaMetaTone.DANGER))
+                add(AgendaMeta("⚑ ${deadlineTs.date.format(AgendaBuckets.SHORT_DATE)}", AgendaMetaTone.DANGER))
             }
             (scheduledTs?.repeater ?: deadlineTs?.repeater)?.let {
                 add(AgendaMeta("↻ $it", AgendaMetaTone.MUTED))
@@ -323,15 +296,6 @@ class AgendaViewModel(private val app: GroveApplication) : ViewModel() {
             deadlineTs = deadlineTs,
         )
     }
-
-    private fun keep(m: NoteMeta, filter: AgendaStateFilter) = when (filter) {
-        AgendaStateFilter.ALL -> true
-        AgendaStateFilter.NEXT -> !m.isDoneKeyword && m.keyword == NEXT_KEYWORD
-        AgendaStateFilter.OPEN -> !m.isDoneKeyword && m.keyword != WAITING_KEYWORD
-    }
-
-    /** Tags a row can be grouped under; an untagged heading gets its own bucket. */
-    private fun tagsOf(m: NoteMeta): List<String> = m.tags.ifEmpty { listOf(UNTAGGED) }
 
     // --- swipe-to-act mutations ---
 
@@ -479,53 +443,7 @@ class AgendaViewModel(private val app: GroveApplication) : ViewModel() {
         // scrolls through a long stretch with nothing scheduled.
         private const val MAX_WINDOW_DAYS = 366
 
-        /** Sorts after "A"/"B"/"C", so unprioritised rows land at the bottom of a bucket. */
-        private const val NO_PRIORITY_SORT_KEY = "Z"
-
-        /**
-         * The "Show" chips match these keyword names literally, per the design
-         * prototype. A vault that doesn't use them still gets sensible
-         * behaviour: "Open" becomes "everything not done", "Next only" empty.
-         */
-        private const val NEXT_KEYWORD = "NEXT"
-        private const val WAITING_KEYWORD = "WAITING"
-
-        private const val UNTAGGED = "untagged"
-
-        private val PRIORITY_BUCKETS = listOf(
-            "A" to "Priority A",
-            "B" to "Priority B",
-            "C" to "Priority C",
-            null to "No priority",
-        )
-
         private val HEADER_DATE: DateTimeFormatter = DateTimeFormatter.ofPattern("MMMM d", Locale.ENGLISH)
-        private val SHORT_DATE: DateTimeFormatter = DateTimeFormatter.ofPattern("MMM d", Locale.ENGLISH)
         private val CLOCK: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm", Locale.ENGLISH)
-
-        /** The day a heading lands on: its SCHEDULED date, else its DEADLINE. */
-        private fun whenDate(m: NoteMeta): LocalDate? = m.scheduledDate ?: m.deadlineDate
-
-        /** Time on whichever timestamp [whenDate] chose; untimed rows sort last. */
-        private fun timeOf(m: NoteMeta): LocalTime =
-            (if (m.scheduledDate != null) m.scheduledTime else m.deadlineTime) ?: LocalTime.MAX
-
-        private val BY_TIME: Comparator<NoteMeta> =
-            compareBy<NoteMeta> { timeOf(it) }.thenBy { it.title.lowercase() }
-
-        private val BY_PRIORITY: Comparator<NoteMeta> =
-            compareBy<NoteMeta> { it.priority ?: NO_PRIORITY_SORT_KEY }
-                .thenBy { timeOf(it) }
-                .thenBy { it.title.lowercase() }
-
-        /** "Today" / "Tomorrow" / "Yesterday" / "Friday" / "Friday, Aug 14" past a week out. */
-        private fun dayLabel(date: LocalDate, today: LocalDate): String {
-            val n = ChronoUnit.DAYS.between(today, date)
-            if (n == 0L) return "Today"
-            if (n == 1L) return "Tomorrow"
-            if (n == -1L) return "Yesterday"
-            val dow = date.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.ENGLISH)
-            return if (abs(n) > 6) "$dow, ${date.format(SHORT_DATE)}" else dow
-        }
     }
 }

@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -38,6 +39,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.rrajath.grove.ui.theme.PlexSans
@@ -250,11 +253,7 @@ private fun androidx.compose.foundation.layout.BoxScope.CommitUnderlay(action: S
             Modifier.padding(horizontal = 22.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            if (action.icon != null) {
-                Icon(action.icon, contentDescription = null, tint = action.fg, modifier = Modifier.size(18.dp))
-            } else {
-                Text(action.glyph.orEmpty(), fontFamily = PlexSans, fontSize = 17.sp, color = action.fg)
-            }
+            ActionMark(action, iconSize = 18.dp, glyphSize = 17.sp)
             Text(
                 action.label,
                 fontFamily = PlexSans, fontWeight = FontWeight.Medium,
@@ -263,6 +262,33 @@ private fun androidx.compose.foundation.layout.BoxScope.CommitUnderlay(action: S
         }
     }
 }
+
+/**
+ * A cell's [SwipeAction.icon] or [SwipeAction.glyph], centered in a fixed-height
+ * slot. The height is pinned because a Material `Icon` measures exactly
+ * [iconSize] while a text glyph measures its font's line height — left to their
+ * intrinsic sizes, icon cells and glyph cells push their labels to different
+ * baselines and the panel's labels no longer line up.
+ */
+@Composable
+private fun ActionMark(action: SwipeAction, iconSize: Dp, glyphSize: TextUnit) {
+    Box(Modifier.height(MarkSlotHeight), contentAlignment = Alignment.Center) {
+        if (action.icon != null) {
+            Icon(action.icon, contentDescription = null, tint = action.fg, modifier = Modifier.size(iconSize))
+        } else {
+            Text(
+                action.glyph.orEmpty(),
+                fontFamily = PlexSans,
+                fontSize = glyphSize,
+                lineHeight = glyphSize,
+                color = action.fg,
+            )
+        }
+    }
+}
+
+/** Tall enough for the largest mark either panel draws (18dp icon / 17sp glyph). */
+private val MarkSlotHeight = 22.dp
 
 /** The four 46dp action cells, anchored to one edge behind the card. */
 @Composable
@@ -288,11 +314,7 @@ private fun androidx.compose.foundation.layout.BoxScope.ActionPanel(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
-                if (action.icon != null) {
-                    Icon(action.icon, contentDescription = null, tint = action.fg, modifier = Modifier.size(17.dp))
-                } else {
-                    Text(action.glyph.orEmpty(), fontFamily = PlexSans, fontSize = 16.sp, color = action.fg)
-                }
+                ActionMark(action, iconSize = 17.dp, glyphSize = 16.sp)
                 Text(
                     action.label,
                     fontFamily = PlexSans, fontWeight = FontWeight.Medium,

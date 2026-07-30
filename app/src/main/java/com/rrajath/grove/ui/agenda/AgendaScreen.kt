@@ -318,8 +318,16 @@ private fun LeversPanel(
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            AgendaStateFilter.entries.forEach { f ->
-                LeverChip(f.label, active = f == state.stateFilter) { onStateFilter(f) }
+            // Open · <the vault's own todo-type keywords> · Everything
+            LeverChip("Open", active = state.stateFilter == AgendaStateFilter.Open) {
+                onStateFilter(AgendaStateFilter.Open)
+            }
+            state.activeKeywords.forEach { keyword ->
+                val filter = AgendaStateFilter.Keyword(keyword)
+                LeverChip(keyword, active = state.stateFilter == filter) { onStateFilter(filter) }
+            }
+            LeverChip("Everything", active = state.stateFilter == AgendaStateFilter.All) {
+                onStateFilter(AgendaStateFilter.All)
             }
         }
 

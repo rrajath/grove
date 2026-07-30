@@ -31,6 +31,33 @@ object AppIconManager {
 
     val ALL_ALIASES: List<String> = listOf(DEFAULT_ALIAS) + THEME_ALIASES.values
 
+    /** Mark color of the default launcher icon (`ic_launcher_foreground.xml`). */
+    private const val DEFAULT_MARK_COLOR = 0xFFCB9D62.toInt()
+
+    // Mark colors of the per-theme `ic_launcher_foreground_*.xml` drawables.
+    private val THEME_MARK_COLORS: Map<ThemePreference, Int> = mapOf(
+        ThemePreference.LIGHT to 0xFF8A5A2B.toInt(),
+        ThemePreference.DARK to 0xFFCB9D62.toInt(),
+        ThemePreference.TOKYONIGHT to 0xFF7AA2F7.toInt(),
+        ThemePreference.SYNTHWAVE to 0xFFFF7EDB.toInt(),
+        ThemePreference.DRACULA to 0xFFBD93F9.toInt(),
+        ThemePreference.CATPPUCCIN to 0xFFCBA6F7.toInt(),
+        ThemePreference.NORD to 0xFF88C0D0.toInt(),
+    )
+
+    /**
+     * The color a notification should tint the Grove mark with, for the same
+     * (enabled, theme) pair [targetAlias] resolves.
+     *
+     * Android renders a notification's small icon as an alpha mask and tints it
+     * with `NotificationCompat.Builder.setColor`, so this — not the drawable —
+     * is what actually makes the notification icon follow the launcher icon.
+     * Every `ic_launcher_foreground_*` variant is the identical five-spoke path
+     * differing only in fill, so matching the color matches the icon.
+     */
+    fun markColor(enabled: Boolean, theme: ThemePreference): Int =
+        if (enabled) THEME_MARK_COLORS[theme] ?: DEFAULT_MARK_COLOR else DEFAULT_MARK_COLOR
+
     /**
      * The alias that should be enabled for a given (enabled, theme) pair — pure
      * mapping logic, split out from [applyIcon] so it's JVM-testable without a

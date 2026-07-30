@@ -129,48 +129,4 @@ object QueryMatcher {
         )
     }
 
-    // --- agenda ---
-
-    data class AgendaEntry(val date: LocalDate, val notes: List<NoteMeta>)
-    data class Agenda(val overdue: List<NoteMeta>, val days: List<AgendaEntry>)
-
-    /**
-     * Overdue (not-done, scheduled/due before today) plus a day-grouped view for
-     * `ad.N`: each note appears under every day in [today, today+N) where it is
-     * scheduled or due. Overdue items get their own section instead of being
-     * folded into today's bucket, so both sections can be sorted independently.
-     *
-     * Both sections are outstanding work only — a note whose keyword is a
-     * done-type one is finished, so it drops out of the agenda entirely rather
-     * than lingering under its planning date.
-     */
-    fun agenda(notes: List<NoteMeta>, days: Int, today: LocalDate): Agenda {
-        val open = notes.filter { !it.isDoneKeyword }
-        val overdue = open.filter { note ->
-            listOfNotNull(note.scheduledDate, note.deadlineDate).any { it.isBefore(today) }
-        }.sortedWith(
-            compareBy<NoteMeta> { note ->
-                listOfNotNull(note.scheduledDate, note.deadlineDate).filter { it.isBefore(today) }.min()
-            }.thenBy { it.priority ?: "Z" }.thenBy { it.title.lowercase() }
-        )
-
-        val range = (0 until days.coerceAtLeast(1)).map { today.plusDays(it.toLong()) }
-        val dayEntries = range.mapNotNull { day ->
-            val dayNotes = open.filter { note ->
-                listOfNotNull(note.scheduledDate, note.deadlineDate).any { it == day }
-            }.sortedWith(
-                compareBy<NoteMeta> { it.priority ?: "Z" }
-                    .thenBy { effectiveTime(it, day) ?: LocalTime.MAX }
-                    .thenBy { it.title.lowercase() }
-            )
-            if (dayNotes.isEmpty()) null else AgendaEntry(day, dayNotes)
-        }
-        return Agenda(overdue, dayEntries)
-    }
-
-    private fun effectiveTime(note: NoteMeta, day: LocalDate): LocalTime? =
-        listOfNotNull(
-            note.scheduledTime.takeIf { note.scheduledDate == day },
-            note.deadlineTime.takeIf { note.deadlineDate == day },
-        ).minOrNull()
 }

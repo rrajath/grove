@@ -10,10 +10,12 @@ import com.rrajath.grove.capture.ShortcutSyncer
 import com.rrajath.grove.capture.TemplatesRepository
 import com.rrajath.grove.data.FavoritesRepository
 import com.rrajath.grove.data.GroveDatabase
+import com.rrajath.grove.icon.AppIconManager
 import com.rrajath.grove.org.OrgKeywords
 import com.rrajath.grove.reminders.ReminderReconciler
 import com.rrajath.grove.search.SearchRepository
 import com.rrajath.grove.settings.SettingsRepository
+import com.rrajath.grove.settings.ThemePreference
 import com.rrajath.grove.sync.SyncManager
 import com.rrajath.grove.vault.FileStore
 import com.rrajath.grove.widget.CaptureNotification
@@ -62,6 +64,27 @@ class GroveApplication : Application() {
             .stateIn(appScope, SharingStarted.Eagerly, OrgKeywords.DEFAULT)
     }
 
+    /**
+     * Tint for notification small icons, following "Sync App Icon with Theme".
+     * Eagerly shared so notification builders running in a receiver can read
+     * `.value` without suspending — see `icon/NotificationAppearance.kt`.
+     *
+     * [onCreate] touches this so the DataStore read starts at process start
+     * rather than on the first notification: `stateIn` hands out its seed until
+     * the upstream first emits, so a lazily-created flow would tint the very
+     * first notification with the default mark regardless of the setting.
+     */
+    val notificationMarkColor: StateFlow<Int> by lazy {
+        settingsRepository.settings
+            .map { AppIconManager.markColor(it.syncAppIconWithTheme, it.theme) }
+            .distinctUntilChanged()
+            .stateIn(
+                appScope,
+                SharingStarted.Eagerly,
+                AppIconManager.markColor(enabled = false, theme = ThemePreference.LIGHT),
+            )
+    }
+
     val reminderReconciler: ReminderReconciler by lazy {
         ReminderReconciler(this, database.reminderDao())
     }
@@ -94,6 +117,9 @@ class GroveApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+
+        // Warm the notification tint before anything can post a notification.
+        notificationMarkColor
 
         appScope.launch {
             fileStore.collect { syncManager.attach(it) }
