@@ -87,3 +87,39 @@ enum class AgendaSwipeAction(val storageKey: String, val label: String) {
             entries.firstOrNull { it.storageKey == value } ?: default
     }
 }
+
+/**
+ * Agenda levers § "Group by" — how the day's items are bucketed into sections.
+ * Lives in settings rather than the ViewModel because a user who always works
+ * by priority shouldn't re-pick it on every visit to the screen.
+ */
+enum class AgendaGrouping(val storageKey: String, val label: String) {
+    DATE("date", "Date"),
+    PRIORITY("priority", "Priority"),
+    TAG("tag", "Tag"),
+    FILE("file", "File");
+
+    companion object {
+        fun fromStorage(value: String?): AgendaGrouping =
+            entries.firstOrNull { it.storageKey == value } ?: DATE
+    }
+}
+
+/**
+ * Agenda levers § "Show" — which TODO states reach the list.
+ *
+ * [OPEN] and [NEXT] match the keyword names `WAITING` and `NEXT` literally, the
+ * near-universal org convention the design prototype assumes. A vault whose
+ * `todoKeywords` omits them simply sees [OPEN] behave as "everything not done"
+ * and [NEXT] come up empty.
+ */
+enum class AgendaStateFilter(val storageKey: String, val label: String) {
+    OPEN("open", "Open"),
+    NEXT("next", "Next only"),
+    ALL("all", "Everything");
+
+    companion object {
+        fun fromStorage(value: String?): AgendaStateFilter =
+            entries.firstOrNull { it.storageKey == value } ?: OPEN
+    }
+}

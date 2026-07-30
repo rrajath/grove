@@ -65,6 +65,11 @@ data class GroveSettings(
     /** Agenda row swipe-left/swipe-right gestures (Settings § Agenda). */
     val agendaSwipeLeftAction: AgendaSwipeAction = AgendaSwipeAction.MARK_DONE,
     val agendaSwipeRightAction: AgendaSwipeAction = AgendaSwipeAction.SET_SCHEDULED,
+    // Agenda levers panel — sticky across visits, unlike the Today/Upcoming tab.
+    val agendaGrouping: AgendaGrouping = AgendaGrouping.DATE,
+    val agendaStateFilter: AgendaStateFilter = AgendaStateFilter.OPEN,
+    val agendaShowTags: Boolean = true,
+    val agendaShowFile: Boolean = false,
 ) {
     companion object {
         const val DEFAULT_TODO_KEYWORDS = "TODO IN-PROGRESS | DONE CANCELLED"
@@ -107,6 +112,10 @@ class SettingsRepository(private val context: Context) {
         val defaultReminderTime = stringPreferencesKey("default_reminder_time")
         val agendaSwipeLeftAction = stringPreferencesKey("agenda_swipe_left_action")
         val agendaSwipeRightAction = stringPreferencesKey("agenda_swipe_right_action")
+        val agendaGrouping = stringPreferencesKey("agenda_grouping")
+        val agendaStateFilter = stringPreferencesKey("agenda_state_filter")
+        val agendaShowTags = booleanPreferencesKey("agenda_show_tags")
+        val agendaShowFile = booleanPreferencesKey("agenda_show_file")
     }
 
     val settings: Flow<GroveSettings> = context.settingsDataStore.data.map { prefs ->
@@ -146,6 +155,10 @@ class SettingsRepository(private val context: Context) {
             agendaSwipeRightAction = AgendaSwipeAction.fromStorage(
                 prefs[Keys.agendaSwipeRightAction], AgendaSwipeAction.SET_SCHEDULED
             ),
+            agendaGrouping = AgendaGrouping.fromStorage(prefs[Keys.agendaGrouping]),
+            agendaStateFilter = AgendaStateFilter.fromStorage(prefs[Keys.agendaStateFilter]),
+            agendaShowTags = prefs[Keys.agendaShowTags] ?: true,
+            agendaShowFile = prefs[Keys.agendaShowFile] ?: false,
         )
     }
 
@@ -207,6 +220,10 @@ class SettingsRepository(private val context: Context) {
             p[Keys.defaultReminderTime] = encodeTime(s.defaultReminderTime)
             p[Keys.agendaSwipeLeftAction] = s.agendaSwipeLeftAction.storageKey
             p[Keys.agendaSwipeRightAction] = s.agendaSwipeRightAction.storageKey
+            p[Keys.agendaGrouping] = s.agendaGrouping.storageKey
+            p[Keys.agendaStateFilter] = s.agendaStateFilter.storageKey
+            p[Keys.agendaShowTags] = s.agendaShowTags
+            p[Keys.agendaShowFile] = s.agendaShowFile
         }
     }
 
@@ -311,6 +328,22 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setAgendaSwipeRightAction(action: AgendaSwipeAction) {
         context.settingsDataStore.edit { it[Keys.agendaSwipeRightAction] = action.storageKey }
+    }
+
+    suspend fun setAgendaGrouping(grouping: AgendaGrouping) {
+        context.settingsDataStore.edit { it[Keys.agendaGrouping] = grouping.storageKey }
+    }
+
+    suspend fun setAgendaStateFilter(filter: AgendaStateFilter) {
+        context.settingsDataStore.edit { it[Keys.agendaStateFilter] = filter.storageKey }
+    }
+
+    suspend fun setAgendaShowTags(show: Boolean) {
+        context.settingsDataStore.edit { it[Keys.agendaShowTags] = show }
+    }
+
+    suspend fun setAgendaShowFile(show: Boolean) {
+        context.settingsDataStore.edit { it[Keys.agendaShowFile] = show }
     }
 
     suspend fun setLastRefileTarget(fileName: String, headingPath: List<String>) {

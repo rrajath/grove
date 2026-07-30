@@ -62,6 +62,10 @@ data class SettingsExport(
     val defaultReminderTime: String = "09:00",
     val agendaSwipeLeftAction: String = AgendaSwipeAction.MARK_DONE.storageKey,
     val agendaSwipeRightAction: String = AgendaSwipeAction.SET_SCHEDULED.storageKey,
+    val agendaGrouping: String = AgendaGrouping.DATE.storageKey,
+    val agendaStateFilter: String = AgendaStateFilter.OPEN.storageKey,
+    val agendaShowTags: Boolean = true,
+    val agendaShowFile: Boolean = false,
 ) {
     /** Map back onto [base], using the enums' tolerant `fromStorage` fallbacks. */
     fun applyTo(base: GroveSettings): GroveSettings = base.copy(
@@ -93,6 +97,10 @@ data class SettingsExport(
             .getOrDefault(GroveSettings.DEFAULT_REMINDER_TIME),
         agendaSwipeLeftAction = AgendaSwipeAction.fromStorage(agendaSwipeLeftAction, AgendaSwipeAction.MARK_DONE),
         agendaSwipeRightAction = AgendaSwipeAction.fromStorage(agendaSwipeRightAction, AgendaSwipeAction.SET_SCHEDULED),
+        agendaGrouping = AgendaGrouping.fromStorage(agendaGrouping),
+        agendaStateFilter = AgendaStateFilter.fromStorage(agendaStateFilter),
+        agendaShowTags = agendaShowTags,
+        agendaShowFile = agendaShowFile,
     )
 
     companion object {
@@ -126,6 +134,10 @@ data class SettingsExport(
             defaultReminderTime = s.defaultReminderTime.toString(),
             agendaSwipeLeftAction = s.agendaSwipeLeftAction.storageKey,
             agendaSwipeRightAction = s.agendaSwipeRightAction.storageKey,
+            agendaGrouping = s.agendaGrouping.storageKey,
+            agendaStateFilter = s.agendaStateFilter.storageKey,
+            agendaShowTags = s.agendaShowTags,
+            agendaShowFile = s.agendaShowFile,
         )
     }
 }

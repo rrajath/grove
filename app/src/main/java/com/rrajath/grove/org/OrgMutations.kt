@@ -101,6 +101,19 @@ object OrgMutations {
         }
     }
 
+    /**
+     * Inverse of [markDone] for the non-repeating case: restore [activeKeyword]
+     * and drop the CLOSED stamp, the way `org-todo` back to TODO does. A
+     * repeating heading never reaches a done keyword in the first place, so
+     * there is nothing to invert there.
+     */
+    fun reopen(doc: OrgDocument, h: OrgHeadline, activeKeyword: String?): String {
+        val cleared = writePlanning(doc, h, h.planning.copy(closed = null))
+        val redoc = OrgParser.parse(cleared, doc.keywords)
+        val again = redoc.headlines.first { it.lineIndex == h.lineIndex }
+        return setKeyword(redoc, again, activeKeyword)
+    }
+
     private val CHECKBOX_LINE = Regex("""^(\s*(?:[-+]|\d+[.)])\s+)\[([ Xx-])\](.*)$""")
 
     /**

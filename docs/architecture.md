@@ -83,6 +83,14 @@ Because the FTS5 module is absent from Android's platform SQLite (which is why R
 
 `SearchViewModel` no longer holds the whole vault in memory. It keeps only a `NoteFacetRow` projection — no titles, no bodies — to build the filter catalog and the blank-state quick counts, and loads full rows per search, scoped to the candidates. The Agenda screen likewise reads only rows that actually have a SCHEDULED or DEADLINE. `NoteMeta` lazily caches its parsed scheduled/deadline/closed/created dates; sorting and the agenda view use those instead of re-running the timestamp regex per comparison.
 
+## Agenda (`ui/agenda/`)
+
+`AgendaViewModel` owns its own bucketing rather than going through `QueryMatcher`, because the screen's day model is stricter than the search one: **an item belongs to exactly one day — its SCHEDULED date if it has one, otherwise its DEADLINE.** That is what makes the "Group by · Date" sections disjoint. A heading with both dates appears once, on its scheduled day, carrying a red `⚑ <date>` chip that announces the deadline. "Overdue" follows the same rule: it is that one date being in the past, not either date being in the past.
+
+The levers (grouping, state filter, tags/source-file on rows) persist in `SettingsRepository` so they survive a cold start; the Today/Upcoming tab is navigational and resets each visit.
+
+Agenda is also a mutation surface, not just a view: the row checkbox toggles done (`OrgMutations.markDone` / `reopen`), swipe gestures write planning dates, and the overdue card's "Move to today" rewrites every overdue heading at once. That last one edits several files, so the undo snapshot is a *list* of pre-mutation file texts rather than a single one. Within a file, headings are rewritten highest-line-first and the document re-parsed between edits, since adding a planning line shifts every line index below it.
+
 ## Reminders (`reminders/`)
 
 A system notification fires when a heading's SCHEDULED or DEADLINE timestamp arrives, with **Complete** (flips the TODO keyword to the first done-type keyword) and **Reschedule** (deep-links back into the app to `PlanningDatesScreen`, focused on whichever of the two dates the reminder was for) actions.

@@ -279,6 +279,10 @@ in favor of the same icons, keeping the "Sched"/"Deadl" labels). The full-screen
 `PlanningDatesScreen` keeps its own `◷`/`⚑` glyphs in the section rows — a separate,
 color-coded system (blue/red calendar cells) rather than a label to shorten.
 
+Agenda's own row meta strip is the other exception: it uses literal `⚑` (deadline)
+and `↻` (repeater) characters inline in `PlexMono` text, since they sit mid-sentence
+in a run of mono chips rather than standing alone as an affordance.
+
 ### Custom Drawables
 
 | Resource | Usage |
@@ -840,36 +844,45 @@ Conflict screen's own warning banner for that pattern).
 
 ---
 
-### `AgendaSectionHeader` — `ui/agenda/AgendaScreen.kt` (private)
+### Agenda screen components — `ui/agenda/AgendaScreen.kt` (all private)
 
-Pinned section label for the dedicated Agenda screen, using Compose Foundation's
-`stickyHeader` (first use of the API in the app) so the current section's label stays
-visible at the top of the list while its rows scroll underneath, until the next section
-takes its place. Agenda used to be a search mode (`ad.N`) on the Search screen; it's now
-its own screen (route `agenda`, drawer shortcut) — Search answers "find a specific note",
-Agenda answers "what's upcoming or overdue".
+The Agenda screen follows the "Agenda A · focus" variant in `design/Grove.dc.html`
+(markup at `:703`, logic in `agVals()`/`agRow()` at `:2565`). Agenda used to be a
+search mode (`ad.N`) on the Search screen; it's now its own screen (route `agenda`,
+drawer shortcut) — Search answers "find a specific note", Agenda answers "what's
+upcoming or overdue".
 
-```kotlin
-stickyHeader(key = "overdue-header") {
-    AgendaSectionHeader("Overdue (${agenda.overdueCount})", color = c.red)
-}
-// ...
-stickyHeader(key = day.date.toString()) {
-    AgendaSectionHeader(day.date.format(formatter), color = c.accent)
-}
-```
+| Component | Shape |
+|---|---|
+| `AgendaHeader` | 36dp circular back glyph, day headline (21sp SemiBold, -0.21sp tracking) over a `PlexMono` 12.5sp `ink2` sub-line ("July 30 · 6 scheduled"), and a 36dp `surface2` r11 ⇅ levers button |
+| `AgendaTabs` | Today/Upcoming switch: `surface2` r11 track, 3dp inset, active option raised on a `surface` r8 card with a 2dp shadow |
+| `LeversPanel` | `surface` card, 1dp `line` border, r15 — "GROUP BY" and "SHOW" chip rows plus two toggles |
+| `LeverChip` | 12sp SemiBold, 12dp/7dp padding, r9; active = `accent`/`accentInk` fill, inactive = transparent with a 1dp `line` border |
+| `LeverToggle` | 36×21 r11 track (`accent` on / `surface3` off) with a 16dp `surface` knob animated between 2.5dp and 17.5dp |
+| `OverdueCard` | `redSoft` fill, 1dp `red` border, r15; collapsible ▸/▾ header with the count and a `surface` r9 "Move to today" button |
+| `GroupHeader` | Uppercased 11sp Bold key (0.77sp tracking, `ink2`), `PlexMono` 11sp count, then a 1dp `line` rule to the right edge |
+| `AgendaRowContent` | 20dp circular checkbox, state chip + title, `PlexMono` 11.5sp meta strip, 17dp r5 priority badge |
+| `AgendaCheckbox` | 1.5dp ring tinted by priority (`line2` when unprioritised), filled `green` with a 12dp ✓ once done |
+| `StateChip` | 9.5sp Bold `PlexMono`, r4 — `NEXT`/done → `green`/`greenSoft`, `WAITING` → `ink3`/`surface2`, anything else → `synTodo`/`amberSoft` |
 
-Internally: 13sp SemiBold `PlexSans`, 0.5sp letter spacing, 14dp/4dp top/bottom padding,
-an explicit `c.bg` background fill (matching the Scaffold) so pinned text doesn't show
-list content through it. The Overdue section (always shown in full, sorted oldest-first)
-uses `red` — the design system's existing "overdue deadlines" token — and every day
-header uses `accent`, same as before this component existed. Today's bucket reads
-"Tuesday, Jul 28 · Today" and tomorrow's "Wednesday, Jul 29 · Tomorrow" (`dayHeaderLabel`
-in `AgendaScreen.kt`); every other day keeps the plain "EEEE, MMM d" format.
+Two deliberate departures from the shared design system, both taken from the
+prototype:
 
-**When to use**: Agenda-only so far. Day headers used plain scrolling `Text` before this;
-if another list needs pinned section labels, reuse this pattern rather than inventing a
-new one.
+- **`agendaPriorityColor`** paints priority C **blue**, not the `green` that
+  `GroveColors.priorityColor` uses. Green reads as "done" next to this screen's
+  green checkboxes. Everywhere else (Search, `ResultRowContent`) keeps the shared
+  scale.
+- **`AgendaTabs`** is not `SegmentedControl`. The shared control fills its active
+  option with `accent`; the prototype's agenda tabs raise it on a `surface` card.
+
+A completed row is faded wholesale via `Modifier.alpha(0.55f)` — checkbox, chip,
+title, and meta together — rather than only muting the title color.
+
+Section headers scroll with the list; the prototype has no pinned headers, so the
+`stickyHeader` treatment this screen previously used was dropped.
+
+**When to use**: Agenda-only. These are tuned to one prototype screen; reach for
+`SegmentedControl`, `Pill`, and `ResultRowContent` elsewhere.
 
 ---
 
@@ -886,7 +899,7 @@ new one.
 | Capture Picker | (bottom sheet) | `ModalBottomSheet`, icon glyph tiles, `PlexMono` |
 | Capture Editor | `capture/{templateId}` | `GroveTopBar`, `monoBody()`, formatting toolbar |
 | Search | `search` | `ResultRowContent`-based, file-grouped results (collapsible sticky headers, `line`-divided rows, `annotateOrgInline` title/snippet rendering with match highlighting layered on top, inline `priorityColor`-coded `[#P]` next to the title matching Agenda, 2-line-max snippet), `Pill` (TODO pill), quick-start cards + Saved Searches (blank state, long-press → Rename/Delete `DropdownMenu`), Advanced expression preview + operator chips, `FilterPanel` (`ModalBottomSheet`) with faceted chip sections (Notebook/Tags/TODO state/Scheduled/Deadline/Priority + `CustomDateRangePicker` "Custom range" chip) |
-| Agenda | `agenda` | `ResultRowContent`-based, `line`-divided rows wrapped in `SwipeCommitRow` (swipe-left/right per Settings § Agenda: set scheduled, set deadline, or mark done — the latter undoable via `GroveUndoSnackbar`), `AgendaSectionHeader` (Overdue + day sticky headers, Today/Tomorrow-labeled), `Pill`, `ScrollJumpButtons`, infinite scroll |
+| Agenda | `agenda` | "Agenda A · focus" prototype variant: `AgendaHeader` (day headline + ⇅), `AgendaTabs` (Today/Upcoming), collapsible `LeversPanel` (Group by: Date/Priority/Tag/File · Show: Open/Next only/Everything · tags and source-file toggles, all persisted in settings), `OverdueCard` (collapsible, bulk "Move to today"), scrolling `GroupHeader`s, `AgendaRowContent` rows (checkbox → toggle done, tap → open note) wrapped in `SwipeCommitRow` (swipe-left/right per Settings § Agenda: set scheduled, set deadline, or mark done). Every mutation is undoable via `GroveUndoSnackbar`; "Move to today" restores all files it touched. Infinite scroll on the Upcoming tab |
 | Dates (SCHEDULED + DEADLINE) | (full-window dialog) | `PlanningDatesScreen` — shorthand box (`DateShorthandParser`), two-date calendar with lead-time band, per-section presets / time range / org repeater, raw org preview footer |
 | Conflict | `conflict/{notebookId}` | `GroveTopBar`, warning banner, unified diff view, action buttons |
 | Settings | `settings` | `GroveTopBar`, `ThemeDropdownPicker` (theme), `SegmentedControl` (font, priority, note mode, display mode, checklist states), `DropdownPicker` (agenda swipe-left/swipe-right actions), keyword chips, `Pill` ("default"), `ReminderPermissionBanner`, `SimpleTimePicker` (default reminder time), side-by-side button pair (Export/Import settings) |

@@ -174,9 +174,10 @@
     <div onClick="{{ goEditor }}" style="{{ chipEditor }}">Editor</div>
     <div onClick="{{ goCapturePicker }}" style="{{ chipCapture }}">Capture</div>
     <div onClick="{{ goSearchB }}" style="{{ chipSearchB }}">Search</div>
-    <div onClick="{{ goDatesA }}" style="{{ chipDatesA }}">Dates A · tabs</div>
-    <div onClick="{{ goDatesB }}" style="{{ chipDatesB }}">Dates B · split</div>
-    <div onClick="{{ goDatesC }}" style="{{ chipDatesC }}">Dates C · one canvas</div>
+    <div onClick="{{ goDates }}" style="{{ chipDates }}">Dates</div>
+    <div onClick="{{ goAgA }}" style="{{ chipAgA }}">Agenda A · focus</div>
+    <div onClick="{{ goAgB }}" style="{{ chipAgB }}">Agenda B · stream</div>
+    <div onClick="{{ goAgC }}" style="{{ chipAgC }}">Agenda C · day plan</div>
     <div onClick="{{ goConflict }}" style="{{ chipConflict }}">Conflict</div>
     <div onClick="{{ goSettings }}" style="{{ chipSettings }}">Settings</div>
   </div>
@@ -699,271 +700,236 @@
         </div>
       </sc-if>
 
-      <!-- ========== DATES A — one sheet, two tabs ========== -->
-      <sc-if value="{{ isDatesA }}" hint-placeholder-val="{{ false }}">
-        <div data-screen-label="Dates A" style="position:absolute; inset:0; display:flex; flex-direction:column;">
-          <div style="padding:8px 10px 0; display:flex; align-items:center; gap:4px;">
-            <div onClick="{{ goOutline }}" style="width:40px; height:40px; flex:0 0 40px; display:grid; place-items:center; border-radius:50%; cursor:pointer; font-size:21px; color:var(--ink);" style-hover="background:var(--surface-2);">←</div>
-            <span style="font-size:15.5px; font-weight:600;">home.org</span>
-          </div>
-          <div style="margin:6px 14px 0; padding:11px 13px; background:var(--surface); border:1px solid var(--line); border-radius:14px; font-family:'IBM Plex Mono',monospace; font-size:12px; line-height:1.75;">
-            <div><span style="color:var(--syn-star); font-weight:600;">**</span> <span style="color:var(--syn-todo); font-weight:700;">TODO</span> <span style="color:var(--ink); font-weight:600;">Pay rent</span></div>
-            <div><span style="color:var(--syn-kw);">SCHEDULED:</span> <span style="color:var(--syn-ts);">{{ dtCSched }}</span> <span style="{{ dtFlashS }}">✓</span></div>
-            <div><span style="color:var(--syn-kw);">DEADLINE:</span> <span style="color:var(--red);">{{ dtCDead }}</span> <span style="{{ dtFlashD }}">✓</span></div>
-          </div>
-
-          <div style="position:absolute; left:0; right:0; bottom:0; top:150px; background:var(--surface); border-top:1px solid var(--line); border-radius:20px 20px 0 0; box-shadow:var(--shadow); display:flex; flex-direction:column; animation:groveSheet .26s cubic-bezier(.2,.8,.2,1);">
-            <div style="padding:10px 0 2px; display:grid; place-items:center;"><div style="width:36px; height:4px; border-radius:2px; background:var(--line-2);"></div></div>
-            <div style="padding:4px 14px 10px; display:flex; align-items:center; gap:8px;">
-              <div style="flex:1; font-size:16.5px; font-weight:600;">Dates</div>
-              <span onClick="{{ dtClearBoth }}" style="{{ dtLinkStyle }}" style-hover="background:var(--surface-2);">Clear both</span>
+      <!-- ========== AGENDA A — focus: today first, grouping levers ========== -->
+      <sc-if value="{{ isAgA }}" hint-placeholder-val="{{ false }}">
+        <div data-screen-label="Agenda A" style="position:absolute; inset:0; display:flex; flex-direction:column;">
+          <div style="flex:0 0 auto; padding:10px 14px 0; display:flex; align-items:flex-start; gap:8px;">
+            <div onClick="{{ goHome }}" style="width:36px; height:36px; flex:0 0 36px; margin-left:-8px; display:grid; place-items:center; border-radius:50%; cursor:pointer; font-size:20px; color:var(--ink);" style-hover="background:var(--surface-2);">←</div>
+            <div style="flex:1; min-width:0;">
+              <div style="font-size:21px; font-weight:600; letter-spacing:-0.01em;">{{ agDateBig }}</div>
+              <div style="font-size:12.5px; color:var(--ink-2); margin-top:1px; font-family:'IBM Plex Mono',monospace;">{{ agDateSub }} · {{ agTodayCount }} scheduled</div>
             </div>
-            <div style="display:flex; gap:8px; padding:0 14px 12px;">
-              <div onClick="{{ dtTabS }}" style="{{ dtTabSStyle }}">
-                <div style="font-size:10px; font-weight:700; letter-spacing:0.08em; font-family:'IBM Plex Mono',monospace; color:var(--blue);">SCHEDULED</div>
-                <div style="{{ dtSumSStyle }}">{{ dtSumS }}</div>
-              </div>
-              <div onClick="{{ dtTabD }}" style="{{ dtTabDStyle }}">
-                <div style="font-size:10px; font-weight:700; letter-spacing:0.08em; font-family:'IBM Plex Mono',monospace; color:var(--red);">DEADLINE</div>
-                <div style="{{ dtSumDStyle }}">{{ dtSumD }}</div>
-              </div>
+            <div onClick="{{ agLeversToggle }}" style="width:36px; height:36px; flex:0 0 36px; display:grid; place-items:center; border-radius:11px; cursor:pointer; font-size:15px; color:var(--ink-2); background:var(--surface-2);">⇅</div>
+          </div>
+
+          <div style="flex:0 0 auto; margin:11px 14px 0; padding:3px; display:flex; gap:3px; background:var(--surface-2); border-radius:11px;">
+            <div onClick="{{ agTabToday }}" style="{{ agSegToday }}">Today</div>
+            <div onClick="{{ agTabUp }}" style="{{ agSegUp }}">Upcoming</div>
+          </div>
+
+          <div style="{{ agLeversStyle }} flex:0 0 auto; margin:10px 14px 0; padding:12px 13px 13px; background:var(--surface); border:1px solid var(--line); border-radius:15px;">
+            <div style="font-size:10.5px; text-transform:uppercase; letter-spacing:0.07em; color:var(--ink-3); padding-bottom:8px;">Group by</div>
+            <div style="display:flex; flex-wrap:wrap; gap:6px;">
+              <sc-for list="{{ agGroupChips }}" as="g" hint-placeholder-count="4"><div onClick="{{ g.onClick }}" style="{{ g.style }}">{{ g.label }}</div></sc-for>
             </div>
+            <div style="font-size:10.5px; text-transform:uppercase; letter-spacing:0.07em; color:var(--ink-3); padding:14px 0 8px;">Show</div>
+            <div style="display:flex; flex-wrap:wrap; gap:6px;">
+              <sc-for list="{{ agStChips }}" as="g" hint-placeholder-count="3"><div onClick="{{ g.onClick }}" style="{{ g.style }}">{{ g.label }}</div></sc-for>
+            </div>
+            <div style="display:flex; align-items:center; gap:10px; padding-top:14px;">
+              <span style="flex:1; font-size:13px;">Tags on rows</span>
+              <div onClick="{{ agToggleTags }}" style="{{ agTrackTags }}"><div style="{{ agKnobTags }}"></div></div>
+            </div>
+            <div style="display:flex; align-items:center; gap:10px; padding-top:11px;">
+              <span style="flex:1; font-size:13px;">Source file on rows</span>
+              <div onClick="{{ agToggleFile }}" style="{{ agTrackFile }}"><div style="{{ agKnobFile }}"></div></div>
+            </div>
+          </div>
 
-            <div style="flex:1; overflow-y:auto; padding:0 14px 14px;">
-              <div style="font-size:11.5px; color:var(--ink-2); line-height:1.5; padding:0 2px 9px;">{{ dtActiveHint }}</div>
-
-              <div style="{{ dtShortBoxStyle }}">
-                <span style="font-size:14px; color:var(--ink-3); font-family:'IBM Plex Mono',monospace;">›</span>
-                <input value="{{ dtShortVal }}" onChange="{{ dtOnShort }}" onKeyDown="{{ dtOnShortKey }}" placeholder="fri 10-11am ++1w" style="flex:1; min-width:0; border:none; outline:none; background:transparent; font-family:'IBM Plex Mono',monospace; font-size:14px; color:var(--ink); padding:11px 0;">
-                <div onClick="{{ dtShortGo }}" style="{{ dtShortGoStyle }}">Set</div>
-              </div>
-              <div style="{{ dtEchoStyle }}">{{ dtEcho }}</div>
-              <div style="display:flex; flex-wrap:wrap; gap:5px; padding:8px 0 0;">
-                <sc-for list="{{ dtHints }}" as="h" hint-placeholder-count="6">
-                  <div onClick="{{ h.onClick }}" style="{{ h.style }}">{{ h.label }}</div>
-                </sc-for>
-              </div>
-
-              <div style="display:flex; flex-wrap:wrap; gap:6px; padding:16px 0 0;">
-                <sc-for list="{{ dtPresets }}" as="p" hint-placeholder-count="4">
-                  <div onClick="{{ p.onClick }}" style="{{ p.style }}">{{ p.label }}<span style="font-size:11px; opacity:.6; font-family:'IBM Plex Mono',monospace;">{{ p.sub }}</span></div>
-                </sc-for>
-              </div>
-
-              <div style="margin-top:14px; padding:11px 11px 12px; background:var(--bg); border:1px solid var(--line); border-radius:14px;">
-                <div style="display:flex; align-items:center; gap:6px; margin-bottom:8px;">
-                  <span onClick="{{ dtPrev }}" style="width:30px; height:30px; display:grid; place-items:center; border-radius:50%; cursor:pointer; color:var(--ink-2); font-size:16px;" style-hover="background:var(--surface-2);">‹</span>
-                  <span style="flex:1; text-align:center; font-size:13.5px; font-weight:600;">{{ dtMonthLabel }}</span>
-                  <span onClick="{{ dtNext }}" style="width:30px; height:30px; display:grid; place-items:center; border-radius:50%; cursor:pointer; color:var(--ink-2); font-size:16px;" style-hover="background:var(--surface-2);">›</span>
+          <div style="flex:1; overflow-y:auto; padding:12px 14px 20px;">
+            <sc-if value="{{ agHasOver }}" hint-placeholder-val="{{ true }}">
+              <div style="margin-bottom:14px; padding:11px 12px 12px; border-radius:15px; background:var(--red-soft); border:1px solid var(--red);">
+                <div onClick="{{ agOverToggle }}" style="display:flex; align-items:center; gap:9px; cursor:pointer;">
+                  <span style="font-size:12px; color:var(--red);">{{ agOverCaret }}</span>
+                  <span style="flex:1; font-size:13.5px; font-weight:600; color:var(--ink);">{{ agOverCount }} overdue</span>
+                  <span onClick="{{ agRescheduleAll }}" style="font-size:11.5px; font-weight:600; padding:6px 10px; border-radius:9px; background:var(--surface); color:var(--red); cursor:pointer;">Move to today</span>
                 </div>
-                <div style="display:grid; grid-template-columns:repeat(7,1fr); gap:2px;">
-                  <sc-for list="{{ dtDow }}" as="w" hint-placeholder-count="7"><div style="text-align:center; font-size:10px; color:var(--ink-3); padding-bottom:4px;">{{ w }}</div></sc-for>
-                  <sc-for list="{{ dtCellsOne }}" as="c" hint-placeholder-count="35"><div onClick="{{ c.onClick }}" style="{{ c.style }}">{{ c.label }}<div style="{{ c.dot }}"></div></div></sc-for>
-                </div>
-              </div>
-
-              <div style="display:flex; align-items:center; gap:10px; padding:16px 2px 0;">
-                <div style="flex:1;">
-                  <div style="font-size:14px; font-weight:600;">Time</div>
-                  <div style="font-size:11.5px; color:var(--ink-2); margin-top:2px;">{{ dtTimeLabel }}</div>
-                </div>
-                <div onClick="{{ dtTimeToggle }}" style="{{ dtTrackOn }}"><div style="{{ dtKnobOn }}"></div></div>
-              </div>
-              <sc-if value="{{ dtTimeOn }}" hint-placeholder-val="{{ false }}">
-                <div style="display:flex; align-items:center; gap:8px; padding:11px 0 0;">
-                  <input value="{{ dtT1 }}" onChange="{{ dtOnT1 }}" placeholder="09:00" style="{{ dtTimeInputStyle }}">
-                  <span style="font-size:13px; color:var(--ink-3);">to</span>
-                  <input value="{{ dtT2 }}" onChange="{{ dtOnT2 }}" placeholder="—" style="{{ dtTimeInputStyle }}">
-                  <div style="display:flex; gap:5px; margin-left:auto;">
-                    <sc-for list="{{ dtDurChips }}" as="c" hint-placeholder-count="3"><div onClick="{{ c.onClick }}" style="{{ dtMiniStyle }}">{{ c.label }}</div></sc-for>
-                  </div>
-                </div>
-              </sc-if>
-
-              <div style="display:flex; align-items:center; gap:10px; padding:18px 2px 0;">
-                <div style="flex:1; display:flex; align-items:center; gap:8px;">
-                  <span style="font-size:14px; font-weight:600;">Repeat</span>
-                  <span style="{{ dtRepCookieStyle }}">{{ dtRepCookieLabel }}</span>
-                </div>
-                <div onClick="{{ dtRepToggle }}" style="{{ dtRepTrack }}"><div style="{{ dtRepKnob }}"></div></div>
-              </div>
-              <sc-if value="{{ dtRepOn }}" hint-placeholder-val="{{ true }}">
-                <div style="display:flex; align-items:center; gap:10px; padding:12px 0 0;">
-                  <span style="font-size:13px; color:var(--ink-2);">Every</span>
-                  <div onClick="{{ dtRepNDec }}" style="{{ dtStepStyle }}">−</div>
-                  <span style="min-width:22px; text-align:center; font-size:15px; font-weight:600; font-family:'IBM Plex Mono',monospace;">{{ dtRepN }}</span>
-                  <div onClick="{{ dtRepNInc }}" style="{{ dtStepStyle }}">+</div>
-                  <div style="display:flex; gap:5px; margin-left:auto; flex-wrap:wrap; justify-content:flex-end;">
-                    <sc-for list="{{ dtRepUnits }}" as="u" hint-placeholder-count="4"><div onClick="{{ u.onClick }}" style="{{ u.style }}">{{ u.label }}</div></sc-for>
-                  </div>
-                </div>
-                <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.07em; color:var(--ink-3); padding:16px 2px 8px;">If I am late</div>
-                <div style="display:flex; flex-direction:column; gap:7px;">
-                  <sc-for list="{{ dtRepKinds }}" as="k" hint-placeholder-count="3">
-                    <div onClick="{{ k.onClick }}" style="{{ k.style }}">
-                      <div style="{{ k.dotStyle }}"></div>
+                <div style="{{ agOverBody }} padding-top:4px;">
+                  <sc-for list="{{ agOverRows }}" as="r" hint-placeholder-count="3">
+                    <div style="{{ r.rowStyle }}">
+                      <div onClick="{{ r.onToggle }}" style="{{ r.boxStyle }}">{{ r.boxMark }}</div>
                       <div style="flex:1; min-width:0;">
-                        <div style="display:flex; align-items:center; gap:8px;">
-                          <span style="font-size:13.5px; font-weight:600;">{{ k.label }}</span>
-                          <span style="{{ k.cookieStyle }}">{{ k.cookie }}</span>
+                        <div style="{{ r.titleStyle }}">{{ r.title }}</div>
+                        <div style="display:flex; flex-wrap:wrap; align-items:center; gap:9px; margin-top:4px;">
+                          <sc-for list="{{ r.meta }}" as="m" hint-placeholder-count="2"><span style="{{ m.style }}">{{ m.text }}</span></sc-for>
                         </div>
-                        <div style="font-size:11.5px; color:var(--ink-2); line-height:1.45; margin-top:3px; text-wrap:pretty;">{{ k.hint }}</div>
                       </div>
+                      <span style="{{ r.pStyle }}">{{ r.pLabel }}</span>
                     </div>
                   </sc-for>
                 </div>
-              </sc-if>
-
-              <div style="{{ dtWarnStyle }}">
-                <span style="font-size:14px; color:var(--red);">!</span>
-                <span style="font-size:12px; color:var(--ink); line-height:1.45; text-wrap:pretty;">{{ dtWarnText }}</span>
               </div>
-              <div style="{{ dtNoteStyle }}">{{ dtNoteText }}</div>
-              <div onClick="{{ dtSuggestApply }}" style="{{ dtSuggestStyle }}"><span style="color:var(--accent);">+</span>{{ dtSuggestText }}</div>
-            </div>
+            </sc-if>
 
-            <div style="flex:0 0 auto; border-top:1px solid var(--line); padding:10px 14px 14px; background:var(--surface);">
-              <div style="padding:1px 2px 10px;">
-                <div style="{{ dtRawSchedStyle }}">{{ dtRawSched }}</div>
-                <div style="{{ dtRawDeadStyle }}">{{ dtRawDead }}</div>
+            <sc-for list="{{ agGroups }}" as="g" hint-placeholder-count="3">
+              <div style="padding-bottom:14px;">
+                <div style="display:flex; align-items:center; gap:8px; padding:0 2px 4px;">
+                  <span style="font-size:11px; font-weight:700; letter-spacing:0.07em; text-transform:uppercase; color:var(--ink-2);">{{ g.key }}</span>
+                  <span style="font-size:11px; font-family:'IBM Plex Mono',monospace; color:var(--ink-3);">{{ g.count }}</span>
+                  <div style="flex:1; height:1px; background:var(--line);"></div>
+                </div>
+                <sc-for list="{{ g.rows }}" as="r" hint-placeholder-count="3">
+                  <div style="{{ r.rowStyle }}">
+                    <div onClick="{{ r.onToggle }}" style="{{ r.boxStyle }}">{{ r.boxMark }}</div>
+                    <div style="flex:1; min-width:0;">
+                      <div style="display:flex; align-items:baseline; gap:7px;">
+                        <sc-if value="{{ r.hasSt }}" hint-placeholder-val="{{ true }}"><span style="{{ r.stStyle }}">{{ r.st }}</span></sc-if>
+                        <span style="{{ r.titleStyle }}">{{ r.title }}</span>
+                      </div>
+                      <div style="display:flex; flex-wrap:wrap; align-items:center; gap:9px; margin-top:4px;">
+                        <sc-for list="{{ r.meta }}" as="m" hint-placeholder-count="2"><span style="{{ m.style }}">{{ m.text }}</span></sc-for>
+                      </div>
+                    </div>
+                    <span style="{{ r.pStyle }}">{{ r.pLabel }}</span>
+                  </div>
+                </sc-for>
               </div>
-              <div onClick="{{ dtApplyBoth }}" style="{{ dtApplyStyle }}">Apply both dates</div>
-            </div>
+            </sc-for>
           </div>
         </div>
       </sc-if>
 
-      <!-- ========== DATES B — separate buttons, single-purpose sheet ========== -->
-      <sc-if value="{{ isDatesB }}" hint-placeholder-val="{{ false }}">
-        <div data-screen-label="Dates B" style="position:absolute; inset:0; display:flex; flex-direction:column;">
-          <div style="padding:8px 10px 0; display:flex; align-items:center; gap:4px;">
-            <div onClick="{{ goOutline }}" style="width:40px; height:40px; flex:0 0 40px; display:grid; place-items:center; border-radius:50%; cursor:pointer; font-size:21px; color:var(--ink);" style-hover="background:var(--surface-2);">←</div>
-            <span style="font-size:15.5px; font-weight:600;">home.org</span>
+      <!-- ========== AGENDA B — stream: week rail + continuous days ========== -->
+      <sc-if value="{{ isAgB }}" hint-placeholder-val="{{ false }}">
+        <div data-screen-label="Agenda B" style="position:absolute; inset:0; display:flex; flex-direction:column;">
+          <div style="flex:0 0 auto; padding:10px 14px 0; display:flex; align-items:center; gap:8px;">
+            <div onClick="{{ goHome }}" style="width:36px; height:36px; flex:0 0 36px; margin-left:-8px; display:grid; place-items:center; border-radius:50%; cursor:pointer; font-size:20px; color:var(--ink);" style-hover="background:var(--surface-2);">←</div>
+            <div style="flex:1; font-size:17px; font-weight:600;">Upcoming</div>
+            <div onClick="{{ agLeversToggle }}" style="{{ agLeverBtn }}">Filter ⇅</div>
           </div>
 
-          <div style="padding:10px 14px 0;">
-            <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.07em; color:var(--ink-3); padding:0 2px 8px;">Swipe actions</div>
-            <div style="padding:11px 13px; background:var(--surface); border:1px solid var(--line); border-radius:14px;">
-              <div style="display:flex; align-items:center; gap:8px;">
-                <span style="font-size:10px; font-weight:700; letter-spacing:0.05em; font-family:'IBM Plex Mono',monospace; padding:3px 6px; border-radius:5px; color:var(--syn-todo); background:var(--amber-soft);">TODO</span>
-                <span style="font-size:15px; font-weight:600;">Pay rent</span>
-              </div>
-              <div style="font-family:'IBM Plex Mono',monospace; font-size:12px; line-height:1.75; margin-top:7px;">
-                <div><span style="color:var(--syn-kw);">SCHEDULED:</span> <span style="color:var(--syn-ts);">{{ dtCSched }}</span> <span style="{{ dtFlashS }}">✓</span></div>
-                <div><span style="color:var(--syn-kw);">DEADLINE:</span> <span style="color:var(--red);">{{ dtCDead }}</span> <span style="{{ dtFlashD }}">✓</span></div>
-              </div>
-              <div style="display:flex; gap:7px; margin-top:11px;">
-                <div onClick="{{ dtBOpenSched }}" style="{{ dtBtnSched }}"><span style="font-size:16px;">◷</span><span style="font-size:11.5px; font-weight:600;">Schedule</span></div>
-                <div onClick="{{ dtBOpenDead }}" style="{{ dtBtnDead }}"><span style="font-size:16px;">⚑</span><span style="font-size:11.5px; font-weight:600;">Deadline</span></div>
-              </div>
+          <div style="flex:0 0 auto; padding:11px 0 10px; border-bottom:1px solid var(--line);">
+            <div style="display:flex; gap:5px; overflow-x:auto; padding:0 14px;">
+              <sc-for list="{{ agStrip }}" as="d" hint-placeholder-count="14">
+                <div onClick="{{ d.onClick }}" style="{{ d.style }}">
+                  <div style="{{ d.dowStyle }}">{{ d.dow }}</div>
+                  <div style="{{ d.numStyle }}">{{ d.num }}</div>
+                  <div style="{{ d.loadStyle }}"></div>
+                </div>
+              </sc-for>
             </div>
-            <div style="font-size:11.5px; color:var(--ink-2); line-height:1.5; padding:12px 4px 0; text-wrap:pretty;">Two separate entry points. Each opens its own single-purpose sheet — no tabs to reason about, but setting both is two trips.</div>
           </div>
 
-          <sc-if value="{{ dtBOpen }}" hint-placeholder-val="{{ true }}">
-            <div onClick="{{ dtBClose }}" style="position:absolute; inset:0; background:var(--scrim); z-index:22; animation:groveScrim .18s ease;"></div>
-            <div style="position:absolute; left:0; right:0; bottom:0; top:86px; z-index:23; background:var(--surface); border-radius:20px 20px 0 0; box-shadow:var(--shadow); display:flex; flex-direction:column; animation:groveSheet .26s cubic-bezier(.2,.8,.2,1);">
-              <div style="{{ dtBBarStyle }}"></div>
-              <div style="padding:12px 14px 10px; display:flex; align-items:flex-start; gap:8px;">
+          <div style="{{ agLeversStyle }} flex:0 0 auto; padding:11px 14px 12px; border-bottom:1px solid var(--line); background:var(--surface);">
+            <div style="display:flex; flex-wrap:wrap; gap:6px;">
+              <sc-for list="{{ agStChips }}" as="g" hint-placeholder-count="3"><div onClick="{{ g.onClick }}" style="{{ g.style }}">{{ g.label }}</div></sc-for>
+            </div>
+            <div style="display:flex; align-items:center; gap:10px; padding-top:12px;">
+              <span style="flex:1; font-size:13px;">Source file on rows</span>
+              <div onClick="{{ agToggleFile }}" style="{{ agTrackFile }}"><div style="{{ agKnobFile }}"></div></div>
+            </div>
+          </div>
+
+          <div style="flex:1; overflow-y:auto; padding:6px 14px 20px;">
+            <sc-for list="{{ agBDays }}" as="g" hint-placeholder-count="4">
+              <div style="padding:10px 0 4px;">
+                <div style="display:flex; align-items:baseline; gap:8px; padding:0 2px 2px;">
+                  <span style="font-size:13.5px; font-weight:600;">{{ g.key }}</span>
+                  <span style="font-size:11.5px; font-family:'IBM Plex Mono',monospace; color:var(--ink-3);">{{ g.sub }}</span>
+                </div>
+                <sc-for list="{{ g.rows }}" as="r" hint-placeholder-count="2">
+                  <div style="{{ r.rowStyle }} border-bottom:1px solid var(--line);">
+                    <div onClick="{{ r.onToggle }}" style="{{ r.boxStyle }}">{{ r.boxMark }}</div>
+                    <div style="flex:1; min-width:0;">
+                      <div style="display:flex; align-items:baseline; gap:7px;">
+                        <sc-if value="{{ r.hasSt }}" hint-placeholder-val="{{ true }}"><span style="{{ r.stStyle }}">{{ r.st }}</span></sc-if>
+                        <span style="{{ r.titleStyle }}">{{ r.title }}</span>
+                      </div>
+                      <div style="display:flex; flex-wrap:wrap; align-items:center; gap:9px; margin-top:4px;">
+                        <sc-for list="{{ r.meta }}" as="m" hint-placeholder-count="2"><span style="{{ m.style }}">{{ m.text }}</span></sc-for>
+                      </div>
+                    </div>
+                    <span style="{{ r.pStyle }}">{{ r.pLabel }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- ========== AGENDA C — day plan: timeline + anytime + deadline gutter ========== -->
+      <sc-if value="{{ isAgC }}" hint-placeholder-val="{{ false }}">
+        <div data-screen-label="Agenda C" style="position:absolute; inset:0; display:flex; flex-direction:column;">
+          <div style="flex:0 0 auto; padding:10px 14px 0; display:flex; align-items:flex-start; gap:8px;">
+            <div onClick="{{ goHome }}" style="width:36px; height:36px; flex:0 0 36px; margin-left:-8px; display:grid; place-items:center; border-radius:50%; cursor:pointer; font-size:20px; color:var(--ink);" style-hover="background:var(--surface-2);">←</div>
+            <div style="flex:1; min-width:0;">
+              <div style="font-size:19px; font-weight:600; letter-spacing:-0.01em;">{{ agDayTitle }}</div>
+              <div style="font-size:12px; color:var(--ink-2); margin-top:1px; font-family:'IBM Plex Mono',monospace;">{{ agDaySub }}</div>
+            </div>
+          </div>
+
+          <div style="flex:0 0 auto; display:flex; gap:5px; overflow-x:auto; padding:11px 14px 11px;">
+            <sc-for list="{{ agStrip }}" as="d" hint-placeholder-count="14">
+              <div onClick="{{ d.onClick }}" style="{{ d.style }}">
+                <div style="{{ d.dowStyle }}">{{ d.dow }}</div>
+                <div style="{{ d.numStyle }}">{{ d.num }}</div>
+                <div style="{{ d.loadStyle }}"></div>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="flex:1; overflow-y:auto; padding:0 14px 20px;">
+            <sc-if value="{{ agHasDeadlines }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex; gap:7px; overflow-x:auto; padding-bottom:12px;">
+                <sc-for list="{{ agDeadlines }}" as="d" hint-placeholder-count="2">
+                  <div style="{{ d.style }}">
+                    <span style="color:var(--red);">⚑</span>
+                    <span style="flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:500;">{{ d.label }}</span>
+                    <span style="font-family:'IBM Plex Mono',monospace; color:var(--ink-2); font-size:11px;">{{ d.when }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
+
+            <div style="display:flex; align-items:center; gap:8px; padding:2px 2px 6px;">
+              <span style="font-size:11px; font-weight:700; letter-spacing:0.07em; text-transform:uppercase; color:var(--ink-2);">Anytime</span>
+              <span style="font-size:11px; font-family:'IBM Plex Mono',monospace; color:var(--ink-3);">{{ agAnytimeCount }}</span>
+              <div style="flex:1; height:1px; background:var(--line);"></div>
+            </div>
+            <sc-for list="{{ agAnytime }}" as="r" hint-placeholder-count="3">
+              <div style="{{ r.rowStyle }}">
+                <div onClick="{{ r.onToggle }}" style="{{ r.boxStyle }}">{{ r.boxMark }}</div>
                 <div style="flex:1; min-width:0;">
-                  <div style="{{ dtBTitleStyle }}">{{ dtActiveLabel }}</div>
-                  <div style="font-size:11.5px; color:var(--ink-2); margin-top:4px; line-height:1.45; text-wrap:pretty;">{{ dtActiveHint }}</div>
+                  <div style="display:flex; align-items:baseline; gap:7px;">
+                    <sc-if value="{{ r.hasSt }}" hint-placeholder-val="{{ true }}"><span style="{{ r.stStyle }}">{{ r.st }}</span></sc-if>
+                    <span style="{{ r.titleStyle }}">{{ r.title }}</span>
+                  </div>
+                  <div style="display:flex; flex-wrap:wrap; align-items:center; gap:9px; margin-top:4px;">
+                    <sc-for list="{{ r.meta }}" as="m" hint-placeholder-count="2"><span style="{{ m.style }}">{{ m.text }}</span></sc-for>
+                  </div>
                 </div>
-                <span onClick="{{ dtClearOne }}" style="{{ dtLinkStyle }}" style-hover="background:var(--surface-2);">Clear</span>
+                <span style="{{ r.pStyle }}">{{ r.pLabel }}</span>
               </div>
+            </sc-for>
 
-              <div style="flex:1; overflow-y:auto; padding:0 14px 14px;">
-                <div style="{{ dtShortBoxStyle }}">
-                  <span style="font-size:14px; color:var(--ink-3); font-family:'IBM Plex Mono',monospace;">›</span>
-                  <input value="{{ dtShortVal }}" onChange="{{ dtOnShort }}" onKeyDown="{{ dtOnShortKey }}" placeholder="fri 10-11am ++1w" style="flex:1; min-width:0; border:none; outline:none; background:transparent; font-family:'IBM Plex Mono',monospace; font-size:14px; color:var(--ink); padding:11px 0;">
-                  <div onClick="{{ dtShortGo }}" style="{{ dtShortGoStyle }}">Set</div>
-                </div>
-                <div style="{{ dtEchoStyle }}">{{ dtEcho }}</div>
-
-                <div style="display:flex; flex-wrap:wrap; gap:6px; padding:12px 0 0;">
-                  <sc-for list="{{ dtPresets }}" as="p" hint-placeholder-count="4">
-                    <div onClick="{{ p.onClick }}" style="{{ p.style }}">{{ p.label }}<span style="font-size:11px; opacity:.6; font-family:'IBM Plex Mono',monospace;">{{ p.sub }}</span></div>
-                  </sc-for>
-                </div>
-
-                <div style="margin-top:14px; padding:11px 11px 12px; background:var(--bg); border:1px solid var(--line); border-radius:14px;">
-                  <div style="display:flex; align-items:center; gap:6px; margin-bottom:8px;">
-                    <span onClick="{{ dtPrev }}" style="width:30px; height:30px; display:grid; place-items:center; border-radius:50%; cursor:pointer; color:var(--ink-2); font-size:16px;" style-hover="background:var(--surface-2);">‹</span>
-                    <span style="flex:1; text-align:center; font-size:13.5px; font-weight:600;">{{ dtMonthLabel }}</span>
-                    <span onClick="{{ dtNext }}" style="width:30px; height:30px; display:grid; place-items:center; border-radius:50%; cursor:pointer; color:var(--ink-2); font-size:16px;" style-hover="background:var(--surface-2);">›</span>
-                  </div>
-                  <div style="display:grid; grid-template-columns:repeat(7,1fr); gap:2px;">
-                    <sc-for list="{{ dtDow }}" as="w" hint-placeholder-count="7"><div style="text-align:center; font-size:10px; color:var(--ink-3); padding-bottom:4px;">{{ w }}</div></sc-for>
-                    <sc-for list="{{ dtCellsOne }}" as="c" hint-placeholder-count="35"><div onClick="{{ c.onClick }}" style="{{ c.style }}">{{ c.label }}<div style="{{ c.dot }}"></div></div></sc-for>
-                  </div>
-                </div>
-
-                <div style="display:flex; align-items:center; gap:10px; padding:16px 2px 0;">
-                  <div style="flex:1;">
-                    <div style="font-size:14px; font-weight:600;">Time</div>
-                    <div style="font-size:11.5px; color:var(--ink-2); margin-top:2px;">{{ dtTimeLabel }}</div>
-                  </div>
-                  <div onClick="{{ dtTimeToggle }}" style="{{ dtTrackOn }}"><div style="{{ dtKnobOn }}"></div></div>
-                </div>
-                <sc-if value="{{ dtTimeOn }}" hint-placeholder-val="{{ false }}">
-                  <div style="display:flex; align-items:center; gap:8px; padding:11px 0 0; flex-wrap:wrap;">
-                    <input value="{{ dtT1 }}" onChange="{{ dtOnT1 }}" placeholder="09:00" style="{{ dtTimeInputStyle }}">
-                    <span style="font-size:13px; color:var(--ink-3);">to</span>
-                    <input value="{{ dtT2 }}" onChange="{{ dtOnT2 }}" placeholder="—" style="{{ dtTimeInputStyle }}">
-                    <div style="display:flex; gap:5px;">
-                      <sc-for list="{{ dtTimeChips }}" as="c" hint-placeholder-count="4"><div onClick="{{ c.onClick }}" style="{{ dtMiniStyle }}">{{ c.label }}</div></sc-for>
-                    </div>
-                  </div>
-                </sc-if>
-
-                <div style="display:flex; align-items:center; gap:10px; padding:18px 2px 0;">
-                  <div style="flex:1; display:flex; align-items:center; gap:8px;">
-                    <span style="font-size:14px; font-weight:600;">Repeat</span>
-                    <span style="{{ dtRepCookieStyle }}">{{ dtRepCookieLabel }}</span>
-                  </div>
-                  <div onClick="{{ dtRepToggle }}" style="{{ dtRepTrack }}"><div style="{{ dtRepKnob }}"></div></div>
-                </div>
-                <sc-if value="{{ dtRepOn }}" hint-placeholder-val="{{ true }}">
-                  <div style="display:flex; align-items:center; gap:9px; padding:12px 0 0;">
-                    <span style="font-size:13.5px; color:var(--ink-2);">Every</span>
-                    <div onClick="{{ dtRepNDec }}" style="{{ dtStepStyle }}">−</div>
-                    <span style="min-width:22px; text-align:center; font-size:15px; font-weight:600; font-family:'IBM Plex Mono',monospace;">{{ dtRepN }}</span>
-                    <div onClick="{{ dtRepNInc }}" style="{{ dtStepStyle }}">+</div>
-                    <span onClick="{{ dtRepCycleUnit }}" style="{{ dtInlinePick }}">{{ dtRepUnitPlural }}</span>
-                  </div>
-                  <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.07em; color:var(--ink-3); padding:16px 2px 8px;">If I am late</div>
-                  <div style="display:flex; flex-direction:column; gap:7px;">
-                    <sc-for list="{{ dtRepKinds }}" as="k" hint-placeholder-count="3">
-                      <div onClick="{{ k.onClick }}" style="{{ k.style }}">
-                        <div style="{{ k.dotStyle }}"></div>
-                        <div style="flex:1; min-width:0;">
-                          <div style="display:flex; align-items:center; gap:8px;">
-                            <span style="font-size:13.5px; font-weight:600;">{{ k.label }}</span>
-                            <span style="{{ k.cookieStyle }}">{{ k.cookie }}</span>
-                          </div>
-                          <div style="font-size:11.5px; color:var(--ink-2); line-height:1.45; margin-top:3px; text-wrap:pretty;">{{ k.hint }}</div>
-                        </div>
-                      </div>
-                    </sc-for>
-                  </div>
-                </sc-if>
-              </div>
-
-              <div style="flex:0 0 auto; border-top:1px solid var(--line); padding:10px 14px 14px;">
-                <div style="{{ dtRawOne }}">{{ dtRawOneText }}</div>
-                <div style="display:flex; align-items:center; gap:8px; margin-top:10px;">
-                  <div onClick="{{ dtApplyOne }}" style="{{ dtApplyStyle }} flex:1;">Apply</div>
-                  <div onClick="{{ dtBSwitch }}" style="{{ dtLinkStyle }}" style-hover="background:var(--surface-2);">{{ dtBSwitchText }}</div>
-                </div>
-              </div>
+            <div style="display:flex; align-items:center; gap:8px; padding:14px 2px 8px;">
+              <span style="font-size:11px; font-weight:700; letter-spacing:0.07em; text-transform:uppercase; color:var(--ink-2);">Timed</span>
+              <div style="flex:1; height:1px; background:var(--line);"></div>
             </div>
-          </sc-if>
+            <div style="{{ agGridStyle }}">
+              <sc-for list="{{ agHours }}" as="h" hint-placeholder-count="14">
+                <div style="{{ h.style }}">
+                  <span style="flex:0 0 44px; font-size:10.5px; font-family:'IBM Plex Mono',monospace; color:var(--ink-3); margin-top:-4px;">{{ h.label }}</span>
+                  <div style="flex:1; height:1px; margin-top:6px; background:var(--line);"></div>
+                </div>
+              </sc-for>
+              <sc-for list="{{ agBlocks }}" as="b" hint-placeholder-count="3">
+                <div style="{{ b.style }}">
+                  <div style="{{ b.titleStyle }}">{{ b.title }}</div>
+                  <div style="{{ b.timeStyle }}">{{ b.time }}</div>
+                </div>
+
+              </sc-for>
+              <div style="{{ agNowStyle }}"><div style="{{ agNowDot }}"></div></div>
+            </div>
+          </div>
         </div>
       </sc-if>
 
-      <!-- ========== DATES C — one canvas, both dates on the same grid ========== -->
-      <sc-if value="{{ isDatesC }}" hint-placeholder-val="{{ false }}">
-        <div data-screen-label="Dates C" style="position:absolute; inset:0; display:flex; flex-direction:column;">
+      <!-- ========== DATES — one canvas, both dates on the same grid ========== -->
+      <sc-if value="{{ isDates }}" hint-placeholder-val="{{ false }}">
+        <div data-screen-label="Dates" style="position:absolute; inset:0; display:flex; flex-direction:column;">
           <div style="padding:8px 10px 0; display:flex; align-items:center; gap:4px;">
             <div onClick="{{ goOutline }}" style="width:40px; height:40px; flex:0 0 40px; display:grid; place-items:center; border-radius:50%; cursor:pointer; font-size:21px; color:var(--ink);" style-hover="background:var(--surface-2);">←</div>
             <span style="font-size:15.5px; font-weight:600;">Pay rent</span>
@@ -1705,6 +1671,7 @@ class Component extends DCLogic {
       cSched:'<2026-08-01 Sat +1m>', cDead:'<2026-08-05 Wed +1m>', flash:null,
       bOpen: null, swipe: false,
     },
+    ag: { tab:'today', group:'date', st:'open', day:'2026-07-29', done:{}, overOpen:false, levers:false, showTags:true, showFile:false },
     fontSize: 'Medium',
     notes: [
       { id:'1', level:1, title:'Japan — Spring 2025', tag:'trip', fav:true, arch:'./archive.org::* Trips' },
@@ -2562,6 +2529,194 @@ class Component extends DCLogic {
     };
   }
 
+  // ===== AGENDA =====
+  AG = [
+    {id:'t1', st:'TODO', p:'A', title:'Call TransUnion for identity verification', file:'organize.org', tag:'phone', dead:'2026-07-24', note:'833-806-1627'},
+    {id:'t2', st:'TODO', p:null, title:'Car service appointment', file:'projects.org', tag:'errand', sched:'2026-07-27'},
+    {id:'t3', st:'WAITING', p:null, title:'Reply from the letting agent', file:'inbox.org', tag:'waiting', sched:'2026-07-22'},
+    {id:'t4', st:'', p:null, title:'Standup', file:'work.org', tag:'work', sched:'2026-07-29', t1:'09:30', t2:'09:45'},
+    {id:'t5', st:'', p:null, title:'Dentist', file:'personal.org', tag:'health', sched:'2026-07-29', t1:'11:00', t2:'12:00'},
+    {id:'t6', st:'NEXT', p:'A', title:'Submit weekly report', file:'work.org', tag:'work', dead:'2026-07-29', rep:'+1w'},
+    {id:'t7', st:'NEXT', p:'B', title:'Review PR #482 — parser edge cases', file:'work.org', tag:'work', sched:'2026-07-29', t1:'16:00', t2:'17:00'},
+    {id:'t8', st:'TODO', p:'C', title:'Water the plants', file:'home.org', tag:'home', sched:'2026-07-29', rep:'++1w'},
+    {id:'t9', st:'TODO', p:'C', title:'Email Sara about the lease renewal', file:'home.org', tag:'email', sched:'2026-07-29'},
+    {id:'t10', st:'TODO', p:'B', title:'Pack for the Lisbon trip', file:'travel.org', tag:'travel', sched:'2026-07-30'},
+    {id:'t11', st:'TODO', p:null, title:'Check box test', file:'scratch.org', tag:null, sched:'2026-07-30'},
+    {id:'t12', st:'NEXT', p:'B', title:'Draft Q3 retro notes', file:'work.org', tag:'work', sched:'2026-07-31', t1:'10:00', t2:'11:30'},
+    {id:'t13', st:'TODO', p:'A', title:'Pay rent', file:'money.org', tag:'money', sched:'2026-08-01', dead:'2026-08-05', rep:'+1m'},
+    {id:'t14', st:'TODO', p:null, title:'Renew library books', file:'home.org', tag:'errand', dead:'2026-08-03'},
+    {id:'t15', st:'TODO', p:'A', title:'Renew passport', file:'organize.org', tag:'admin', dead:'2026-08-12'},
+    {id:'t16', st:'TODO', p:null, title:'Test task', file:'inbox.org', tag:null, sched:'2026-08-19'},
+  ];
+  agWhen(t){ return t.sched || t.dead; }
+  agPColor(p){ return p==='A' ? 'var(--red)' : p==='B' ? 'var(--amber)' : p==='C' ? 'var(--blue)' : 'var(--ink-3)'; }
+  agStColor(st){ return st==='NEXT' ? 'var(--green)' : st==='WAITING' ? 'var(--ink-3)' : 'var(--syn-todo)'; }
+  agStBg(st){ return st==='NEXT' ? 'var(--green-soft)' : st==='WAITING' ? 'var(--surface-2)' : 'var(--amber-soft)'; }
+  agDayLabel(iso){ const n = this.dtDiff(this.AG_T, iso);
+    if(n===0) return 'Today'; if(n===1) return 'Tomorrow'; if(n===-1) return 'Yesterday';
+    const d = this.dtP(iso);
+    return ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][d.getDay()] + (Math.abs(n) > 6 ? ', '+this.dtMonName(d.getMonth())+' '+d.getDate() : ''); }
+  agShort(iso){ const d=this.dtP(iso); return this.dtMonName(d.getMonth())+' '+d.getDate(); }
+  get AG_T(){ return '2026-07-29'; }
+
+  agToggle(id){ const done = { ...(this.state.ag.done||{}) }; done[id] = !done[id]; this.setState(st => ({ ag: { ...st.ag, done } })); }
+  agSet(p){ this.setState(st => ({ ag: { ...st.ag, ...p } })); }
+
+  agRow(t, opts){
+    const o = opts || {}, a = this.state.ag, done = !!(a.done||{})[t.id], T = this.AG_T, M = 'font-family:\'IBM Plex Mono\',monospace;';
+    const when = this.agWhen(t), over = when && this.dtDiff(T, when) < 0;
+    const isDead = !!t.dead && (!t.sched || o.asDeadline);
+    const pc = this.agPColor(t.p);
+    const meta = [];
+    if (o.showDate && when) meta.push({ text: (isDead ? '⚑ ' : '') + (over ? this.agShort(when)+' · '+Math.abs(this.dtDiff(T,when))+'d late' : this.agDayLabel(when)), style: 'font-size:11.5px; '+M+' color:'+(over ? 'var(--red)' : isDead ? 'var(--red)' : 'var(--ink-2)')+';' });
+    else if (isDead) meta.push({ text: '⚑ due', style: 'font-size:11.5px; '+M+' color:var(--red);' });
+    if (t.t1) meta.push({ text: t.t1 + (t.t2 ? '–'+t.t2 : ''), style: 'font-size:11.5px; '+M+' color:var(--ink-2);' });
+    if (t.dead && t.sched && !o.asDeadline) meta.push({ text: '⚑ '+this.agShort(t.dead), style: 'font-size:11.5px; '+M+' color:var(--red);' });
+    if (t.rep) meta.push({ text: '↻ '+t.rep, style: 'font-size:11.5px; '+M+' color:var(--ink-3);' });
+    if (t.tag && a.showTags !== false) meta.push({ text: ':'+t.tag+':', style: 'font-size:11.5px; '+M+' color:var(--syn-tag);' });
+    if (a.showFile) meta.push({ text: t.file, style: 'font-size:11.5px; '+M+' color:var(--ink-3);' });
+    return {
+      id: t.id, title: t.title, st: t.st, hasSt: !!t.st, p: t.p, meta,
+      onToggle: () => this.agToggle(t.id),
+      boxStyle: 'flex:0 0 20px; width:20px; height:20px; margin-top:1px; border-radius:50%; cursor:pointer; display:grid; place-items:center; font-size:11px; border:1.5px solid '+(done ? 'var(--green)' : t.p ? pc : 'var(--line-2)')+'; background:'+(done ? 'var(--green)' : 'transparent')+'; color:var(--surface);',
+      boxMark: done ? '✓' : '',
+      titleStyle: 'font-size:14px; font-weight:500; line-height:1.35; text-wrap:pretty; color:'+(done ? 'var(--ink-3)' : 'var(--ink)')+'; text-decoration:'+(done ? 'line-through' : 'none')+';',
+      stStyle: 'flex:0 0 auto; font-size:9.5px; font-weight:700; letter-spacing:0.05em; '+M+' padding:2px 5px; border-radius:4px; color:'+this.agStColor(t.st)+'; background:'+this.agStBg(t.st)+';',
+      pStyle: t.p ? 'flex:0 0 auto; font-size:10px; font-weight:700; '+M+' width:17px; height:17px; border-radius:5px; display:grid; place-items:center; color:'+pc+'; background:var(--surface-2);' : 'display:none;',
+      pLabel: t.p || '',
+      rowStyle: 'display:flex; gap:10px; padding:10px 2px; opacity:'+(done ? '.55' : '1')+'; transition:opacity .15s ease;',
+    };
+  }
+
+  agVals(){
+    const s = this.state, a = s.ag, T = this.AG_T, M = 'font-family:\'IBM Plex Sans\',sans-serif;';
+    const items = this.AG.filter(t => a.st === 'all' || (a.st === 'next' ? t.st === 'NEXT' : t.st !== 'WAITING'));
+    const when = t => this.agWhen(t);
+    const overdue = items.filter(t => when(t) && this.dtDiff(T, when(t)) < 0).sort((x,y) => when(x) < when(y) ? -1 : 1);
+    const today = items.filter(t => when(t) === T);
+    const future = items.filter(t => when(t) && this.dtDiff(T, when(t)) > 0).sort((x,y) => when(x) < when(y) ? -1 : 1);
+    const byTime = (x,y) => (x.t1 || '99') < (y.t1 || '99') ? -1 : 1;
+    const byPrio = (x,y) => ('ABCZ'.indexOf(x.p||'Z')) - ('ABCZ'.indexOf(y.p||'Z')) || byTime(x,y);
+
+    const chip = (on) => 'font-size:12px; font-weight:600; padding:7px 12px; border-radius:9px; cursor:pointer; white-space:nowrap; border:1px solid '+(on?'transparent':'var(--line)')+'; background:'+(on?'var(--accent)':'transparent')+'; color:'+(on?'var(--accent-ink)':'var(--ink-2)')+';';
+    const seg = (on) => 'flex:1; text-align:center; font-size:12.5px; font-weight:600; padding:7px 4px; border-radius:8px; cursor:pointer; background:'+(on?'var(--surface)':'transparent')+'; color:'+(on?'var(--ink)':'var(--ink-2)')+'; box-shadow:'+(on?'var(--shadow)':'none')+';';
+
+    // ---- A: focus ----
+    const aList = a.tab === 'today' ? today : future;
+    let aGroups;
+    if (a.group === 'priority') {
+      aGroups = [['A','Priority A'],['B','Priority B'],['C','Priority C'],[null,'No priority']]
+        .map(g => ({ key: g[1], count: aList.filter(t => (t.p||null) === g[0]).length, accent: this.agPColor(g[0]),
+                     rows: aList.filter(t => (t.p||null) === g[0]).sort(byTime).map(t => this.agRow(t, { showDate: a.tab !== 'today' })) }))
+        .filter(g => g.count);
+    } else if (a.group === 'tag') {
+      const tags = [...new Set(aList.map(t => t.tag || 'untagged'))];
+      aGroups = tags.map(tg => ({ key: ':'+tg+':', count: aList.filter(t => (t.tag||'untagged') === tg).length, accent: 'var(--syn-tag)',
+        rows: aList.filter(t => (t.tag||'untagged') === tg).sort(byPrio).map(t => this.agRow(t, { showDate: a.tab !== 'today' })) }));
+    } else if (a.group === 'file') {
+      const fs = [...new Set(aList.map(t => t.file))];
+      aGroups = fs.map(fl => ({ key: fl, count: aList.filter(t => t.file === fl).length, accent: 'var(--ink-3)',
+        rows: aList.filter(t => t.file === fl).sort(byPrio).map(t => this.agRow(t, { showDate: a.tab !== 'today' })) }));
+    } else {
+      const days = [...new Set(aList.map(when))].sort();
+      aGroups = a.tab === 'today'
+        ? [{ key: 'Scheduled today', count: today.length, accent: 'var(--accent)', rows: today.slice().sort(byTime).map(t => this.agRow(t, {})) }]
+        : days.map(d => ({ key: this.agDayLabel(d), count: aList.filter(t => when(t) === d).length, accent: 'var(--accent)',
+            rows: aList.filter(t => when(t) === d).sort(byTime).map(t => this.agRow(t, {})) }));
+    }
+
+    // ---- B: stream ----
+    const strip = [];
+    for (let i = -1; i < 13; i++) {
+      const iso = this.dtAdd(T, i, 'd'), d = this.dtP(iso);
+      const n = items.filter(t => when(t) === iso).length + (i === 0 ? overdue.length : 0);
+      const on = iso === (a.day || T);
+      strip.push({ dow: ['S','M','T','W','T','F','S'][d.getDay()], num: String(d.getDate()), iso,
+        style: 'flex:0 0 auto; width:42px; padding:7px 0 6px; border-radius:12px; cursor:pointer; text-align:center; background:'+(on?'var(--accent)':'transparent')+'; color:'+(on?'var(--accent-ink)':'var(--ink)')+'; border:1px solid '+(on?'transparent':(iso===T?'var(--line-2)':'transparent'))+';',
+        dowStyle: 'font-size:9.5px; letter-spacing:.06em; opacity:.65;',
+        numStyle: 'font-size:15px; font-weight:600; font-family:\'IBM Plex Mono\',monospace; margin-top:2px;',
+        loadStyle: 'height:3px; border-radius:2px; margin:5px 8px 0; background:'+(n?(on?'var(--accent-ink)':'var(--accent)'):'transparent')+'; opacity:'+(n>2?'1':n?'.45':'0')+';',
+        onClick: () => this.agSet({ day: iso }),
+      });
+    }
+    const bDays = [];
+    if (overdue.length) bDays.push({ key: 'Overdue', sub: overdue.length+' item'+(overdue.length>1?'s':''), accent: 'var(--red)',
+      rows: overdue.map(t => this.agRow(t, { showDate: true })) });
+    [...new Set(items.map(when).filter(d => d && this.dtDiff(T, d) >= 0))].sort().slice(0, 8).forEach(d => {
+      bDays.push({ key: this.agDayLabel(d), sub: this.agShort(d), accent: d === T ? 'var(--accent)' : 'var(--ink-3)',
+        rows: items.filter(t => when(t) === d).sort(byTime).map(t => this.agRow(t, {})) });
+    });
+
+    // ---- C: day plan ----
+    const day = a.day || T;
+    const dayItems = items.filter(t => when(t) === day);
+    const timed = dayItems.filter(t => t.t1).sort(byTime);
+    const anytime = dayItems.filter(t => !t.t1).sort(byPrio).map(t => this.agRow(t, {}));
+    const deadlines = items.filter(t => t.dead && this.dtDiff(day, t.dead) >= 0 && this.dtDiff(day, t.dead) <= 7)
+      .map(t => ({ label: t.title, when: this.dtDiff(day, t.dead) === 0 ? 'today' : 'in '+this.dtDiff(day, t.dead)+'d',
+        style: 'display:flex; align-items:center; gap:7px; flex:0 0 auto; padding:7px 11px; border-radius:10px; background:var(--red-soft); font-size:11.5px; color:var(--ink); max-width:220px;' }));
+    const H0 = 8, H1 = 21, RH = 60;
+    const hours = [];
+    for (let h = H0; h <= H1; h++) hours.push({ label: this.dtPad(h)+':00', style: 'height:'+RH+'px; display:flex; align-items:flex-start; gap:9px;' });
+    const mins = t => +t.slice(0,2)*60 + +t.slice(3);
+    const blocks = timed.map(t => {
+      const top = (mins(t.t1) - H0*60) / 60 * RH, span = ((mins(t.t2||t.t1) - mins(t.t1)) / 60) * RH - 3, h = Math.max(24, span), tight = span < 46;
+      const c = t.p ? this.agPColor(t.p) : 'var(--blue)';
+      return { title: t.title, time: t.t1 + (t.t2 ? '–'+t.t2 : ''), tight, wide: !tight,
+        style: 'position:absolute; left:56px; right:2px; top:'+top+'px; height:'+h+'px; border-radius:11px; padding:'+(tight?'0 11px':'7px 11px')+'; overflow:hidden; display:flex; flex-direction:'+(tight?'row':'column')+'; align-items:'+(tight?'center':'stretch')+'; gap:'+(tight?'9px':'0')+'; background:var(--surface); border:1px solid var(--line); border-left:3px solid '+c+';',
+        titleStyle: 'flex:1; min-width:0; font-size:13px; font-weight:600; line-height:1.25; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;',
+        timeStyle: 'flex:0 0 auto; font-size:11px; font-family:\'IBM Plex Mono\',monospace; color:var(--ink-2); margin-top:'+(tight?'0':'2px')+';' };
+    });
+    const nowTop = (mins('09:41') - H0*60) / 60 * RH;
+
+    return {
+      isAgA: s.screen==='agA', isAgB: s.screen==='agB', isAgC: s.screen==='agC',
+      goAgA: () => this.go('agA'), goAgB: () => this.go('agB'), goAgC: () => this.go('agC'),
+      chipAgA: this.chip(s.screen==='agA'), chipAgB: this.chip(s.screen==='agB'), chipAgC: this.chip(s.screen==='agC'),
+
+      agDateBig: 'Wednesday', agDateSub: 'July 29',
+      agTodayCount: String(today.length), agOverCount: String(overdue.length),
+      agHasOver: overdue.length > 0,
+      agOverRows: overdue.map(t => this.agRow(t, { showDate: true })),
+      agOverOpen: !!a.overOpen,
+      agOverToggle: () => this.agSet({ overOpen: !a.overOpen }),
+      agOverCaret: a.overOpen ? '▾' : '▸',
+      agOverBody: a.overOpen ? '' : 'display:none;',
+      agRescheduleAll: () => this.agSet({ done: { ...(a.done||{}), ...Object.fromEntries(overdue.map(t => [t.id, false])) }, overOpen: false }),
+
+      agTabToday: () => this.agSet({ tab: 'today' }), agTabUp: () => this.agSet({ tab: 'upcoming' }),
+      agSegToday: seg(a.tab === 'today'), agSegUp: seg(a.tab !== 'today'),
+      agGroups: aGroups,
+      agGroupChips: [['date','Date'],['priority','Priority'],['tag','Tag'],['file','File']].map(g => ({
+        label: g[1], style: chip(a.group === g[0]), onClick: () => this.agSet({ group: g[0] }) })),
+      agStChips: [['open','Open'],['next','Next only'],['all','Everything']].map(g => ({
+        label: g[1], style: chip(a.st === g[0]), onClick: () => this.agSet({ st: g[0] }) })),
+      agLeversOpen: !!a.levers,
+      agLeversToggle: () => this.agSet({ levers: !a.levers }),
+      agLeversStyle: a.levers ? '' : 'display:none;',
+      agLeverBtn: 'display:flex; align-items:center; gap:7px; font-size:12.5px; font-weight:600; padding:8px 13px; border-radius:11px; cursor:pointer; background:var(--surface-2); color:var(--ink-2);',
+      agGroupLabel: ({date:'Date',priority:'Priority',tag:'Tag',file:'File'})[a.group],
+      agTagsOn: a.showTags !== false, agFileOn: !!a.showFile,
+      agToggleTags: () => this.agSet({ showTags: a.showTags === false }),
+      agToggleFile: () => this.agSet({ showFile: !a.showFile }),
+      agTrackTags: 'width:36px; height:21px; border-radius:11px; flex:0 0 auto; cursor:pointer; position:relative; background:'+(a.showTags !== false ? 'var(--accent)' : 'var(--surface-3)')+';',
+      agKnobTags: 'position:absolute; top:2.5px; left:'+(a.showTags !== false ? '17.5px' : '2.5px')+'; width:16px; height:16px; border-radius:50%; background:var(--surface); transition:left .15s ease;',
+      agTrackFile: 'width:36px; height:21px; border-radius:11px; flex:0 0 auto; cursor:pointer; position:relative; background:'+(a.showFile ? 'var(--accent)' : 'var(--surface-3)')+';',
+      agKnobFile: 'position:absolute; top:2.5px; left:'+(a.showFile ? '17.5px' : '2.5px')+'; width:16px; height:16px; border-radius:50%; background:var(--surface); transition:left .15s ease;',
+
+      agStrip: strip, agBDays: bDays,
+      agBEmpty: bDays.length === 0,
+
+      agDayTitle: this.agDayLabel(day), agDaySub: this.agShort(day) + ' · ' + dayItems.length + ' item' + (dayItems.length === 1 ? '' : 's'),
+      agHours: hours, agBlocks: blocks, agAnytime: anytime,
+      agGridStyle: 'position:relative; height:'+((H1 - H0 + 1) * RH)+'px;',
+      agNowStyle: 'position:absolute; left:44px; right:2px; top:'+nowTop+'px; height:1.5px; background:var(--red);',
+      agNowDot: 'position:absolute; left:-4px; top:-3.2px; width:8px; height:8px; border-radius:50%; background:var(--red);',
+      agDeadlines: deadlines, agHasDeadlines: deadlines.length > 0,
+      agAnytimeCount: anytime.length + ' unscheduled',
+    };
+  }
+
   // ===== SCHEDULED / DEADLINE date-time model =====
   dtToday(){ return '2026-07-29'; }
   dtPad(n){ return String(n).padStart(2,'0'); }
@@ -2711,9 +2866,9 @@ class Component extends DCLogic {
     } }));
 
     return {
-      isDatesA: s.screen==='datesA', isDatesB: s.screen==='datesB', isDatesC: s.screen==='datesC',
-      goDatesA: () => this.go('datesA'), goDatesB: () => this.go('datesB'), goDatesC: () => this.go('datesC'),
-      chipDatesA: this.chip(s.screen==='datesA'), chipDatesB: this.chip(s.screen==='datesB'), chipDatesC: this.chip(s.screen==='datesC'),
+      isDates: s.screen==='dates',
+      goDates: () => this.go('dates'),
+      chipDates: this.chip(s.screen==='dates'),
 
       dtCSched: d.cSched || '—', dtCDead: d.cDead || '—',
       dtFlashS: 'font-size:11px; color:var(--green); '+(d.flash==='both'||d.flash==='sched' ? '' : 'display:none;'),
@@ -2925,6 +3080,7 @@ class Component extends DCLogic {
       iconSpokes28: this.spokeSet(8, 3.4),
       iconSpokesLauncher: this.spokeSet(16, 7),
       ...this.dtVals(),
+      ...this.agVals(),
     };
   }
 }
