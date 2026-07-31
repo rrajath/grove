@@ -71,6 +71,7 @@ object ReminderPlanning {
             planningType = type.storageKey,
             triggerAtMillis = triggerAtMillis(ts, defaultReminderTime, zone),
             notificationId = ReminderKeys.notificationId(key),
+            hasExplicitTime = ts.time != null,
         )
     }
 }

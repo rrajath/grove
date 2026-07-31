@@ -13,6 +13,7 @@ import com.rrajath.grove.data.GroveDatabase
 import com.rrajath.grove.icon.AppIconManager
 import com.rrajath.grove.icon.NotificationAppearance
 import com.rrajath.grove.org.OrgKeywords
+import com.rrajath.grove.reminders.ReminderDigestScheduler
 import com.rrajath.grove.reminders.ReminderReconciler
 import com.rrajath.grove.search.SearchRepository
 import com.rrajath.grove.settings.SettingsRepository
@@ -187,6 +188,20 @@ class GroveApplication : Application() {
                             .toMap()
                         reminderReconciler.reconcileAll(documents, defaultTime, enabled)
                     }
+                }
+        }
+
+        appScope.launch {
+            // The daily digest ("You have X tasks due today") is a single alarm
+            // independent of the per-heading ones above — no drop(1): the very
+            // first emission (current settings on cold start) must (re)arm it too,
+            // since AlarmManager alarms don't survive a process being killed.
+            settingsRepository.settings
+                .map { it.remindersEnabled to it.defaultReminderTime }
+                .distinctUntilChanged()
+                .collect { (enabled, defaultTime) ->
+                    if (enabled) ReminderDigestScheduler.scheduleNext(this@GroveApplication, defaultTime)
+                    else ReminderDigestScheduler.cancel(this@GroveApplication)
                 }
         }
 

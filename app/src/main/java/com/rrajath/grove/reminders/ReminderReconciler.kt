@@ -26,7 +26,9 @@ class ReminderReconciler(
     // applyPlan() is JVM-unit-testable with a fake dao and no Context. Production
     // uses the defaults (which delegate to the AlarmManager/notification objects).
     private val hasPermission: () -> Boolean = { AlarmScheduler.hasNotificationPermission(context!!) },
-    private val notify: (ReminderEntity) -> Unit = { ReminderNotification.show(context!!, it) },
+    // Date-only reminders (no explicit time-of-day) don't fire their own
+    // notification — they're counted into the daily digest instead.
+    private val notify: (ReminderEntity) -> Unit = { if (it.hasExplicitTime) ReminderNotification.show(context!!, it) },
     private val scheduleAlarm: (ReminderEntity) -> Unit = { AlarmScheduler.schedule(context!!, it) },
     private val cancelAlarm: (ReminderEntity) -> Unit = { AlarmScheduler.cancel(context!!, it) },
 ) {

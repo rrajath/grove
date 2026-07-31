@@ -346,7 +346,10 @@ private fun GroveNavigation(
                     onOpenNote = { ref -> navController.navigate(Routes.note(ref.encode())) },
                 )
             }
-            composable(Routes.AGENDA) {
+            composable(
+                Routes.AGENDA,
+                deepLinks = listOf(androidx.navigation.navDeepLink { uriPattern = "grove://agenda" }),
+            ) {
                 AgendaScreen(
                     onBack = { navController.popBackStack() },
                     onOpenNote = { ref -> navController.navigate(Routes.note(ref.encode())) },

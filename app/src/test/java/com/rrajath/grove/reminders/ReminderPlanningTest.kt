@@ -70,6 +70,17 @@ class ReminderPlanningTest {
     }
 
     @Test
+    fun `hasExplicitTime reflects whether the timestamp carries a time-of-day`() {
+        val doc = OrgParser.parse(
+            "* TODO A\nSCHEDULED: <2026-07-24 Fri>\n" +
+                "* TODO B\nSCHEDULED: <2026-07-24 Fri 14:30>\n"
+        )
+        val result = ReminderPlanning.desiredReminders("a.org", doc, nineAm, remindersEnabled = true, zone = zone)
+        assertEquals(false, result.single { it.headingTitle == "A" }.hasExplicitTime)
+        assertEquals(true, result.single { it.headingTitle == "B" }.hasExplicitTime)
+    }
+
+    @Test
     fun `nested headings key by their ancestor path`() {
         val doc = OrgParser.parse("* Project\n** TODO Sub task\nSCHEDULED: <2026-07-24 Fri>\n")
         val result = ReminderPlanning.desiredReminders("a.org", doc, nineAm, remindersEnabled = true, zone = zone)

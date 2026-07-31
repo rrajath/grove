@@ -7,6 +7,9 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.WindowCompat
 import com.rrajath.grove.settings.FontSizePreference
 import com.rrajath.grove.settings.ThemePreference
 
@@ -66,6 +69,20 @@ fun GroveTheme(
     content: @Composable () -> Unit,
 ) {
     val groveColors = groveColorsFor(theme)
+    // enableEdgeToEdge()'s default SystemBarStyle.auto picks icon color from the
+    // *system* dark/light setting, not Grove's own per-theme isDark — so a light
+    // Grove theme chosen while the OS is in dark mode (or vice versa) ends up with
+    // status/nav bar icons that don't contrast the app's actual background.
+    // Every theme switch must re-assert the bar appearance itself.
+    val view = LocalView.current
+    if (!view.isInEditMode) {
+        SideEffect {
+            val window = (view.context as? android.app.Activity)?.window ?: return@SideEffect
+            val controller = WindowCompat.getInsetsController(window, view)
+            controller.isAppearanceLightStatusBars = !groveColors.isDark
+            controller.isAppearanceLightNavigationBars = !groveColors.isDark
+        }
+    }
     CompositionLocalProvider(LocalGroveColors provides groveColors) {
         MaterialTheme(
             colorScheme = materialScheme(groveColors),

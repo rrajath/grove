@@ -80,7 +80,7 @@ import com.rrajath.grove.ui.components.Pill
 import com.rrajath.grove.ui.components.PlanningDatesScreen
 import com.rrajath.grove.ui.components.StatePickerSheet
 import com.rrajath.grove.ui.components.SwipeAction
-import com.rrajath.grove.ui.components.SwipeRevealRow
+import com.rrajath.grove.ui.components.SwipeCommitRow
 import com.rrajath.grove.ui.components.annotateOrgInline
 import com.rrajath.grove.ui.components.ResultRowContent
 import com.rrajath.grove.ui.components.ScrollJumpButtons
@@ -650,9 +650,6 @@ private fun GroupedResultsList(
     onOpenSchedulePicker: (SearchResult) -> Unit,
 ) {
     val c = MaterialTheme.grove
-    // At most one row's swipe panel open at a time — the same "key of the open
-    // row" pattern the Outline uses for its own SwipeRevealRow list.
-    var openRowKey by remember { mutableStateOf<String?>(null) }
     LazyColumn(state = listState, modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 4.dp)) {
         groups.forEach { group ->
             val collapsed = collapsedFiles[group.fileName] == true
@@ -667,28 +664,17 @@ private fun GroupedResultsList(
             if (!collapsed) {
                 itemsIndexed(group.results, key = { _, r -> "${group.fileName}-${r.lineIndex}" }, contentType = { _, _ -> "result" }) { index, result ->
                     if (index > 0) HorizontalDivider(color = MaterialTheme.grove.line)
-                    val rowKey = "${group.fileName}-${result.lineIndex}"
-                    SwipeRevealRow(
+                    SwipeCommitRow(
                         // Swipe left-to-right: cycle the TODO state via a bottom sheet.
-                        leftActions = listOf(
-                            SwipeAction("⟳", "State", c.amber, c.amberSoft) { onOpenStatePicker(result) },
-                        ),
+                        leftAction = SwipeAction("⟳", "State", c.amber, c.amberSoft) { onOpenStatePicker(result) },
                         // Swipe right-to-left: schedule this task.
-                        rightActions = listOf(
-                            SwipeAction(
-                                label = "Schedule",
-                                fg = c.blue,
-                                bg = c.blueSoft,
-                                icon = Icons.Outlined.CalendarMonth,
-                            ) { onOpenSchedulePicker(result) },
-                        ),
-                        enabled = true,
-                        forceClose = openRowKey != rowKey,
-                        onOpenChanged = { open ->
-                            openRowKey = if (open) rowKey else if (openRowKey == rowKey) null else openRowKey
-                        },
+                        rightAction = SwipeAction(
+                            label = "Schedule",
+                            fg = c.blue,
+                            bg = c.blueSoft,
+                            icon = Icons.Outlined.CalendarMonth,
+                        ) { onOpenSchedulePicker(result) },
                         onTap = { onOpenNote(NoteRef(group.fileName, result.lineIndex)) },
-                        onLongPress = {},
                     ) {
                         SearchResultRow(result, matchedTerms)
                     }

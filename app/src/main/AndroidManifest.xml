@@ -265,6 +265,7 @@
 
         <!-- SCHEDULED/DEADLINE reminder notifications. -->
         <receiver android:name=".reminders.ReminderAlarmReceiver" android:exported="false" />
+        <receiver android:name=".reminders.ReminderDigestReceiver" android:exported="false" />
         <receiver
             android:name=".reminders.ReminderActionReceiver"
             android:exported="false">
