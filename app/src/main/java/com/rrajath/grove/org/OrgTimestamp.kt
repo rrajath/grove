@@ -3,6 +3,7 @@ package com.rrajath.grove.org
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalTime
+import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
 
@@ -58,6 +59,28 @@ data class OrgTimestamp(
 
     override fun toString(): String = format()
 
+    /**
+     * Reader-facing rendering of the same timestamp: `Jul 30`, `Jul 30 12:00`,
+     * `Jul 30 12:00-13:30`, `Jul 30, 2027` for a date outside [today]'s year.
+     *
+     * Drops the org brackets and the day abbreviation (the month name already
+     * reads as a date) but keeps a repeater and warning cookie verbatim — those
+     * change what the timestamp *means*, so hiding them would lose information.
+     * [format] remains the canonical on-disk form; this is display only.
+     */
+    fun formatHuman(today: LocalDate = LocalDate.now()): String {
+        val sb = StringBuilder()
+        sb.append(HUMAN_DATE.format(date))
+        if (date.year != today.year) sb.append(", ").append(date.year)
+        if (time != null) {
+            sb.append(' ').append(formatTime(time))
+            if (endTime != null) sb.append('-').append(formatTime(endTime))
+        }
+        if (repeater != null) sb.append(' ').append(repeater)
+        if (warning != null) sb.append(' ').append(warning)
+        return sb.toString()
+    }
+
     companion object {
         // <2025-04-30 Wed 10:00-11:30 +1w -2d> with every part after the date optional
         private val PATTERN = Regex(
@@ -65,6 +88,10 @@ data class OrgTimestamp(
         )
 
         private val REPEATER = Regex("""([.+]?\+)(\d+)([hdwmy])""")
+
+        /** `Jul 30` — the reader-facing date, see [formatHuman]. */
+        private val HUMAN_DATE: DateTimeFormatter =
+            DateTimeFormatter.ofPattern("MMM d", Locale.ENGLISH)
 
         private fun formatTime(t: LocalTime): String =
             "%02d:%02d".format(t.hour, t.minute)

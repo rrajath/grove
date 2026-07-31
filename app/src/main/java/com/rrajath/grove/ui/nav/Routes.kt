@@ -10,7 +10,7 @@ object Routes {
     const val ONBOARDING = "onboarding"
     const val NOTEBOOKS = "notebooks"
     const val OUTLINE = "outline/{notebookId}?narrowTo={narrowTo}"
-    const val NOTE = "note/{noteId}?mode={mode}&isNew={isNew}&planning={planning}&notifId={notifId}"
+    const val NOTE = "note/{noteId}?mode={mode}&isNew={isNew}"
     const val CAPTURE = "capture"
     const val CAPTURE_TEMPLATE = "capture/{templateId}"
     const val SEARCH = "search?q={q}&notebook={notebook}"
@@ -19,8 +19,14 @@ object Routes {
     const val SETTINGS = "settings"
     const val TEMPLATE_EDIT = "template/{templateId}"
     const val SYNC_LOG = "settings/synclog"
-    /** Reminder "Reschedule" deep link: resolved to a NoteRef, then handed off to NOTE. */
-    const val REMINDER = "reminder/{fileName}?headingPath={headingPath}&level={level}&type={type}&notifId={notifId}"
+    /**
+     * Tapping a reminder notification's *body*: the heading is identified by its
+     * composite key, which has to be resolved against the vault to get a line
+     * index, so it lands here first and is then handed off to NOTE in read mode.
+     * (The "Reschedule" action does not come through here — it opens
+     * `RescheduleActivity` in its own task instead of entering the app.)
+     */
+    const val REMINDER = "reminder/{fileName}?headingPath={headingPath}&level={level}"
 
     /** Sentinel templateId that opens the editor in create mode. */
     const val NEW_TEMPLATE_ID = "new"
@@ -46,16 +52,8 @@ object Routes {
     fun outline(notebookId: String, narrowTo: Int? = null) =
         "outline/${encode(notebookId)}" + (narrowTo?.let { "?narrowTo=$it" } ?: "")
 
-    /**
-     * [planning] ("scheduled"/"deadline") and [notifId] carry a reminder's
-     * "Reschedule" action through to `EditNoteScreen`, which auto-opens
-     * `PlanningDatePicker` for that timestamp and dismisses that notification
-     * on confirm; both are omitted for ordinary note navigation.
-     */
-    fun note(noteId: String, mode: String = "read", isNew: Boolean = false, planning: String? = null, notifId: Int? = null) =
-        "note/${encode(noteId)}?mode=$mode&isNew=$isNew" +
-                (planning?.let { "&planning=$it" } ?: "") +
-                (notifId?.let { "&notifId=$it" } ?: "")
+    fun note(noteId: String, mode: String = "read", isNew: Boolean = false) =
+        "note/${encode(noteId)}?mode=$mode&isNew=$isNew"
     fun capture(templateId: String? = null) =
         if (templateId == null) CAPTURE else "capture/${encode(templateId)}"
     fun conflict(notebookId: String) = "conflict/${encode(notebookId)}"
@@ -69,6 +67,6 @@ object Routes {
     fun search(query: String? = null, notebook: String? = null) =
         "search?q=" + (if (query.isNullOrBlank()) "" else encode(query)) +
                 (if (notebook.isNullOrBlank()) "" else "&notebook=${encode(notebook)}")
-    fun reminder(fileName: String, headingPath: String, level: Int, type: String, notifId: Int) =
-        "reminder/${encode(fileName)}?headingPath=${encode(headingPath)}&level=$level&type=$type&notifId=$notifId"
+    fun reminder(fileName: String, headingPath: String, level: Int) =
+        "reminder/${encode(fileName)}?headingPath=${encode(headingPath)}&level=$level"
 }

@@ -395,11 +395,11 @@ private fun NoteContent(
 
                 headline.planning.scheduled?.let {
                     Spacer(Modifier.height(6.dp))
-                    PlanningChip(it.format(), icon = Icons.Outlined.CalendarMonth, fg = c.blue, bg = c.blueSoft)
+                    PlanningChip(it.formatHuman(), icon = Icons.Outlined.CalendarMonth, fg = c.blue, bg = c.blueSoft)
                 }
                 headline.planning.deadline?.let {
                     Spacer(Modifier.height(6.dp))
-                    PlanningChip(it.format(), icon = Icons.Filled.Flag, fg = c.red, bg = c.redSoft)
+                    PlanningChip(it.formatHuman(), icon = Icons.Filled.Flag, fg = c.red, bg = c.redSoft)
                 }
                 Spacer(Modifier.height(16.dp))
 
@@ -577,7 +577,12 @@ private fun LinkActionMenuItems(target: String, onDismiss: () -> Unit) {
     )
 }
 
-/** A planning date shown as a soft-tinted chip (SCHEDULED blue calendar, DEADLINE red flag). */
+/**
+ * A planning date shown as a soft-tinted chip (SCHEDULED blue calendar,
+ * DEADLINE red flag). [text] is the human form (`OrgTimestamp.formatHuman`),
+ * not the raw org stamp — Read mode is prose, Edit mode is where the literal
+ * `<2026-07-30 Thu>` belongs.
+ */
 @Composable
 private fun PlanningChip(text: String, icon: androidx.compose.ui.graphics.vector.ImageVector, fg: Color, bg: Color) {
     Row(

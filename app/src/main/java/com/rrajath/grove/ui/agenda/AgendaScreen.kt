@@ -241,8 +241,14 @@ private fun AgendaHeader(
 
 /**
  * Today/Upcoming switch. Distinct from the shared `SegmentedControl`: the
- * prototype's agenda tabs raise the active option on a `surface` card with a
- * shadow rather than filling it with `accent`.
+ * prototype's agenda tabs raise the active option on a `surface` card rather
+ * than filling it with `accent`.
+ *
+ * The card alone is nearly invisible on the dark themes — an elevation shadow
+ * has almost no contrast to cast against `surface2` — so the active option also
+ * carries a 1dp `accent` border, and inactive labels drop to `ink3` to widen the
+ * gap. That keeps the "raised card, not filled pill" character while still
+ * reading as selected on every theme.
  */
 @Composable
 private fun AgendaTabs(
@@ -267,6 +273,10 @@ private fun AgendaTabs(
                     .then(if (active) Modifier.shadow(2.dp, RoundedCornerShape(8.dp)) else Modifier)
                     .clip(RoundedCornerShape(8.dp))
                     .background(if (active) c.surface else Color.Transparent)
+                    .then(
+                        if (active) Modifier.border(1.dp, c.accent, RoundedCornerShape(8.dp))
+                        else Modifier
+                    )
                     .clickable { onSelect(value) }
                     .padding(horizontal = 4.dp, vertical = 7.dp),
                 contentAlignment = Alignment.Center,
@@ -274,7 +284,7 @@ private fun AgendaTabs(
                 Text(
                     label,
                     fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
-                    fontSize = 12.5.sp, color = if (active) c.ink else c.ink2,
+                    fontSize = 12.5.sp, color = if (active) c.ink else c.ink3,
                 )
             }
         }

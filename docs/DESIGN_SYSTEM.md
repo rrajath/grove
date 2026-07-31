@@ -272,6 +272,14 @@ less-prominent actions.
 | Agenda | `Icons.Default.ViewList` | `ink2` |
 | "None" (Default priority) | `Icons.Filled.Block` | tint follows active/inactive segment color |
 
+Read mode's `PlanningChip` renders the *human* form of the timestamp —
+`OrgTimestamp.formatHuman()`: `Jul 30`, `Jul 30 12:00`, `Jul 30 12:00-13:30`,
+plus the year (`Jul 30, 2027`) only when it isn't the current one, and any
+repeater/warning cookie kept verbatim. Read mode is prose; the literal
+`<2026-07-30 Thu>` belongs in Edit mode and on disk (`OrgTimestamp.format()`),
+which is unchanged. Other surfaces that show a raw stamp (Outline row chips)
+have not been converted.
+
 The Scheduled/Deadline icons replace the literal "SCHEDULED"/"DEADLINE" words next
 to a formatted timestamp: Read mode's `PlanningChip`, Outline's own-heading chips,
 Search's `DatePillText`, and Agenda's swipe-action reveals (`◷`/`⚑` glyphs retired
@@ -893,6 +901,11 @@ prototype:
   scale.
 - **`AgendaTabs`** is not `SegmentedControl`. The shared control fills its active
   option with `accent`; the prototype's agenda tabs raise it on a `surface` card.
+  The card carries a **1dp `accent` border** and its label is `ink`, against
+  `ink3` for the inactive option — the elevation shadow alone has almost nothing
+  to cast against `surface2` on the dark themes, so the border is what actually
+  marks the selection. Keep both levers if you restyle it: dropping either one
+  puts the tabs back to reading as unselected in dark mode.
 
 A completed row is faded wholesale via `Modifier.alpha(0.55f)` — checkbox, chip,
 title, and meta together — rather than only muting the title color.
@@ -920,6 +933,7 @@ Section headers scroll with the list; the prototype has no pinned headers, so th
 | Search | `search` | `ResultRowContent`-based, file-grouped results (collapsible sticky headers, `line`-divided rows, `annotateOrgInline` title/snippet rendering with match highlighting layered on top, inline `priorityColor`-coded `[#P]` next to the title matching Agenda, 2-line-max snippet), `Pill` (TODO pill), quick-start cards + Saved Searches (blank state, long-press → Rename/Delete `DropdownMenu`), Advanced expression preview + operator chips, `FilterPanel` (`ModalBottomSheet`) with faceted chip sections (Notebook/Tags/TODO state/Scheduled/Deadline/Priority + `CustomDateRangePicker` "Custom range" chip) |
 | Agenda | `agenda` | "Agenda A · focus" prototype variant: `AgendaHeader` (day headline + ⇅), `AgendaTabs` (Today/Upcoming), collapsible `LeversPanel` (Group by: Date/Priority/Tag/File · Show: Open, one chip per configured todo-type keyword, Everything · tags and source-file toggles, all persisted in settings), `OverdueCard` (collapsible, bulk "Move to today"), scrolling `GroupHeader`s, `AgendaRowContent` rows (checkbox → toggle done, tap → open note) wrapped in `SwipeCommitRow` (swipe-left/right per Settings § Agenda: set scheduled, set deadline, or mark done). Every mutation is undoable via `GroveUndoSnackbar`; "Move to today" restores all files it touched. Infinite scroll on the Upcoming tab |
 | Dates (SCHEDULED + DEADLINE) | (full-window dialog) | `PlanningDatesScreen` — shorthand box (`DateShorthandParser`), two-date calendar with lead-time band, per-section presets / time range / org repeater, raw org preview footer |
+| Reschedule (from a reminder notification) | (own activity, `RescheduleActivity`) | The same `PlanningDatesScreen` over a transparent window in its own task. Confirming writes the dates, toasts "Task rescheduled to …", and finishes back to whatever app the user came from — it never enters Grove's own navigation |
 | Conflict | `conflict/{notebookId}` | `GroveTopBar`, warning banner, unified diff view, action buttons |
 | Settings | `settings` | `GroveTopBar`, `ThemeDropdownPicker` (theme), `SegmentedControl` (font, priority, note mode, display mode, checklist states), `DropdownPicker` (agenda swipe-left/swipe-right actions), keyword chips, `Pill` ("default"), `ReminderPermissionBanner`, `SimpleTimePicker` (default reminder time), side-by-side button pair (Export/Import settings) |
 

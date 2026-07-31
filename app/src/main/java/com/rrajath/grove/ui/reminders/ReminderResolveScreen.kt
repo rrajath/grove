@@ -15,32 +15,30 @@ import com.rrajath.grove.ui.theme.grove
 import com.rrajath.grove.ui.vault.NoteRef
 
 /**
- * Resolves a reminder's "Reschedule" deep link (fileName + composite heading
+ * Resolves a reminder notification's deep link (fileName + composite heading
  * key) into that heading's *current* line index — the vault must be opened
  * and parsed to know it, so this is a brief loading step before landing on
- * `EditNoteScreen` with `Routes.note(..., planning = ..., notifId = ...)`.
+ * `ReadNoteScreen` via `Routes.note`.
  */
 @Composable
 fun ReminderResolveScreen(
     fileName: String,
     headingPath: String,
     level: Int,
-    planningType: String,
-    notifId: Int?,
-    onResolved: (ref: NoteRef, planning: String, notifId: Int?) -> Unit,
+    onResolved: (ref: NoteRef) -> Unit,
     onFailed: () -> Unit,
 ) {
     val c = MaterialTheme.grove
     val app = LocalContext.current.applicationContext as GroveApplication
 
-    LaunchedEffect(fileName, headingPath, level, planningType) {
+    LaunchedEffect(fileName, headingPath, level) {
         val vault = app.vault.value
         val doc = vault?.open(fileName)
         val headline = doc?.let { ReminderKeys.findHeadline(it, headingPath, level) }
         if (vault == null || doc == null || headline == null) {
             onFailed()
         } else {
-            onResolved(NoteRef(fileName, headline.lineIndex), planningType.lowercase(), notifId)
+            onResolved(NoteRef(fileName, headline.lineIndex))
         }
     }
 

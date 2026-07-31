@@ -83,6 +83,32 @@ class OrgTimestampTest {
     }
 
     @Test
+    fun `formatHuman drops brackets and day name`() {
+        val today = LocalDate.of(2025, 4, 1)
+        fun human(text: String) = OrgTimestamp.parse(text)!!.formatHuman(today)
+
+        assertEquals("Apr 30", human("<2025-04-30 Wed>"))
+        assertEquals("Jun 11 14:32", human("[2025-06-11 Wed 14:32]"))
+        assertEquals("May 1 10:00-11:30", human("<2025-05-01 Thu 10:00-11:30>"))
+    }
+
+    @Test
+    fun `formatHuman keeps the year only outside the current one`() {
+        val ts = OrgTimestamp.parse("<2025-04-30 Wed>")!!
+        assertEquals("Apr 30", ts.formatHuman(today = LocalDate.of(2025, 12, 31)))
+        assertEquals("Apr 30, 2025", ts.formatHuman(today = LocalDate.of(2026, 1, 1)))
+    }
+
+    @Test
+    fun `formatHuman keeps repeater and warning cookies`() {
+        assertEquals(
+            "May 1 10:00-11:30 ++2d -1d",
+            OrgTimestamp.parse("<2025-05-01 Thu 10:00-11:30 ++2d -1d>")!!
+                .formatHuman(today = LocalDate.of(2025, 4, 1)),
+        )
+    }
+
+    @Test
     fun `cumulative repeater advances by one interval`() {
         val ts = OrgTimestamp.parse("<2025-04-30 Wed +1w>")!!
         val advanced = ts.advanceRepeater(today = LocalDate.of(2025, 6, 1))

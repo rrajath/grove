@@ -11,6 +11,7 @@ import com.rrajath.grove.capture.TemplatesRepository
 import com.rrajath.grove.data.FavoritesRepository
 import com.rrajath.grove.data.GroveDatabase
 import com.rrajath.grove.icon.AppIconManager
+import com.rrajath.grove.icon.NotificationAppearance
 import com.rrajath.grove.org.OrgKeywords
 import com.rrajath.grove.reminders.ReminderReconciler
 import com.rrajath.grove.search.SearchRepository
@@ -120,6 +121,17 @@ class GroveApplication : Application() {
 
         // Warm the notification tint before anything can post a notification.
         notificationMarkColor
+
+        appScope.launch {
+            // Notifications bake in their color at post time, so a theme switch
+            // would otherwise leave everything already in the shade wearing the
+            // previous theme's mark while the launcher icon had moved on.
+            // drop(1): the first emission is the value everything was posted
+            // with, not a change.
+            notificationMarkColor
+                .drop(1)
+                .collect { NotificationAppearance.retintActive(this@GroveApplication) }
+        }
 
         appScope.launch {
             fileStore.collect { syncManager.attach(it) }

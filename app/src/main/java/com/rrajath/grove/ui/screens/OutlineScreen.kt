@@ -1000,7 +1000,7 @@ private fun OutlineNode(
                 ) {
                     Icon(Icons.Outlined.CalendarMonth, contentDescription = null, tint = c.blue, modifier = Modifier.size(11.dp))
                     Text(
-                        ts.format(),
+                        ts.formatHuman(),
                         fontFamily = PlexMono, fontSize = 11.sp, color = c.blue,
                     )
                 }
@@ -1017,7 +1017,7 @@ private fun OutlineNode(
                 ) {
                     Icon(Icons.Filled.Flag, contentDescription = null, tint = c.red, modifier = Modifier.size(11.dp))
                     Text(
-                        ts.format(),
+                        ts.formatHuman(),
                         fontFamily = PlexMono, fontSize = 11.sp, color = c.red,
                     )
                 }

@@ -2,4 +2,18 @@
 <resources>
 
     <style name="Theme.Grove" parent="android:Theme.Material.Light.NoActionBar" />
+
+    <!--
+      RescheduleActivity's window: the dates dialog is drawn by Compose and fills
+      the screen itself, so the host window only has to be invisible. Translucent
+      (rather than Theme.Grove) keeps the app the user came from on screen while
+      settings and the vault resolve, instead of flashing a light-theme panel.
+    -->
+    <style name="Theme.Grove.Transparent" parent="Theme.Grove">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowAnimationStyle">@null</item>
+        <item name="android:backgroundDimEnabled">false</item>
+    </style>
 </resources>

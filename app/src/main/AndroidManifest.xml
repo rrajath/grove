@@ -64,6 +64,23 @@
             </intent-filter>
         </activity>
 
+        <!--
+          A reminder notification's "Reschedule" action. Its own empty
+          taskAffinity puts it in a task separate from MainActivity's, so
+          confirming a new date finishes it and returns the user to whatever app
+          they pulled the notification shade down from — Grove's own task is
+          neither launched nor disturbed. Excluded from recents for the same
+          reason: it is a one-shot errand, not somewhere to come back to.
+        -->
+        <activity
+            android:name=".ui.reminders.RescheduleActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:launchMode="singleInstance"
+            android:taskAffinity=""
+            android:theme="@style/Theme.Grove.Transparent"
+            android:windowSoftInputMode="adjustResize" />
+
         <!-- Launcher icon aliases for "Sync App Icon with Theme" (Settings > Appearance).
              Exactly one of these is enabled at a time via AppIconManager. -->
         <activity-alias

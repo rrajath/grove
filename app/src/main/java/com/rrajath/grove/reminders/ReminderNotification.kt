@@ -13,6 +13,7 @@ import com.rrajath.grove.data.ReminderEntity
 import com.rrajath.grove.icon.NotificationAppearance
 import com.rrajath.grove.ui.components.orgInlinePlainText
 import com.rrajath.grove.ui.nav.Routes
+import com.rrajath.grove.ui.reminders.RescheduleActivity
 
 /**
  * The "<heading> is due now" notification: title = heading text, body = fixed
@@ -67,36 +68,25 @@ object ReminderNotification {
         )
     }
 
-    private fun rescheduleAction(context: Context, reminder: ReminderEntity): PendingIntent {
-        val intent = Intent(Intent.ACTION_VIEW, rescheduleUri(reminder))
-            .setClass(context, MainActivity::class.java)
-        return PendingIntent.getActivity(
-            context, reminder.notificationId, intent,
+    /**
+     * "Reschedule" opens [RescheduleActivity] — its own task, not Grove's — so
+     * picking a date and confirming returns the user to whatever app they pulled
+     * the shade down from, rather than leaving them parked in Grove's editor.
+     */
+    private fun rescheduleAction(context: Context, reminder: ReminderEntity): PendingIntent =
+        PendingIntent.getActivity(
+            context, reminder.notificationId,
+            RescheduleActivity.intent(context, reminder.key),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
-    }
-
-    /**
-     * `grove://reminder/{fileName}?headingPath=&level=&type=&notifId=` — resolved
-     * by `ReminderResolveScreen` into the note's current line, then handed to
-     * `EditNoteScreen` to open [PlanningDatePicker] for [reminder]'s planning type.
-     */
-    private fun rescheduleUri(reminder: ReminderEntity): android.net.Uri =
-        ("grove://reminder/${Routes.encode(reminder.fileName)}" +
-                "?headingPath=${Routes.encode(reminder.headingPath)}" +
-                "&level=${reminder.headingLevel}" +
-                "&type=${reminder.planningType}" +
-                "&notifId=${reminder.notificationId}").toUri()
 
     /**
      * Tapping the notification body (as opposed to its "Reschedule" action)
-     * should just land on the due heading, not auto-open [PlanningDatePicker] —
-     * an empty `type` makes `ReminderResolveScreen` resolve the same heading
-     * while `GroveApp`'s `takeIf { isNotBlank() }` drops the blank planning arg.
+     * lands on the due heading in read mode. `ReminderResolveScreen` turns the
+     * composite key into the heading's current line index.
      */
     private fun contentUri(reminder: ReminderEntity): android.net.Uri =
         ("grove://reminder/${Routes.encode(reminder.fileName)}" +
                 "?headingPath=${Routes.encode(reminder.headingPath)}" +
-                "&level=${reminder.headingLevel}" +
-                "&type=").toUri()
+                "&level=${reminder.headingLevel}").toUri()
 }

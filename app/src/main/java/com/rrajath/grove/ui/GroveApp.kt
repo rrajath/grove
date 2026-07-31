@@ -230,10 +230,6 @@ private fun GroveNavigation(
                 val noteId = entry.arguments?.getString("noteId").orEmpty()
                 val mode = entry.arguments?.getString("mode") ?: "read"
                 val isNew = entry.arguments?.getString("isNew") == "true"
-                // Non-empty only when this note was opened via a reminder's
-                // "Reschedule" action (see Routes.note's planning/notifId doc).
-                val planning = entry.arguments?.getString("planning")?.takeIf { it.isNotBlank() }
-                val notifId = entry.arguments?.getString("notifId")?.toIntOrNull()
                 val ref = NoteRef.decode(noteId)
                 if (ref == null) {
                     navController.popBackStack()
@@ -247,8 +243,6 @@ private fun GroveNavigation(
                                 popUpTo(Routes.NOTE) { inclusive = true }
                             }
                         },
-                        openPlanningTarget = planning,
-                        dismissNotificationId = notifId,
                     )
                 } else {
                     ReadNoteScreen(
@@ -275,7 +269,7 @@ private fun GroveNavigation(
                 Routes.REMINDER,
                 deepLinks = listOf(
                     androidx.navigation.navDeepLink {
-                        uriPattern = "grove://reminder/{fileName}?headingPath={headingPath}&level={level}&type={type}&notifId={notifId}"
+                        uriPattern = "grove://reminder/{fileName}?headingPath={headingPath}&level={level}"
                     },
                 ),
             ) { entry ->
@@ -283,15 +277,9 @@ private fun GroveNavigation(
                     fileName = entry.arguments?.getString("fileName").orEmpty(),
                     headingPath = entry.arguments?.getString("headingPath").orEmpty(),
                     level = entry.arguments?.getString("level")?.toIntOrNull() ?: 1,
-                    planningType = entry.arguments?.getString("type").orEmpty(),
-                    notifId = entry.arguments?.getString("notifId")?.toIntOrNull(),
-                    onResolved = { ref, planning, notifId ->
-                        // Tapping the notification body (blank `planning`) lands in Read
-                        // mode; only the "Reschedule" action (non-blank) needs Edit mode
-                        // to auto-open PlanningDatePicker.
-                        val mode = if (planning.isNotBlank()) "edit" else "read"
+                    onResolved = { ref ->
                         navController.navigate(
-                            Routes.note(ref.encode(), mode = mode, planning = planning, notifId = notifId)
+                            Routes.note(ref.encode(), mode = "read")
                         ) { popUpTo(Routes.REMINDER) { inclusive = true } }
                     },
                     onFailed = {
