@@ -15,7 +15,12 @@
       "Bash(jj log *)",
       "Bash(git reset *)",
       "Bash(git commit -m ' *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(jj file *)",
+      "Bash(jj status *)",
+      "mcp__plugin_context-mode_context-mode__ctx_batch_execute",
+      "Bash(sort -t. -k3 -n)",
+      "Read(//tmp/**)"
     ]
   }
 }

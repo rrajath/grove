@@ -84,6 +84,10 @@ Whenever a task adds, modifies, or styles any UI element, read that file first a
 - For read mode, build a custom `AnnotatedString` renderer mapping org AST nodes to Compose composables (`Text`, `Column`, etc.); no `WebView`.
 - Org table rendering is deferred to v2 — show as monospace plain text in v1.
 
+## Other guidelines
+- Whenever anything gets added, modified or deleted in the Settings pages, modify the Import/Export Settings workflows accordingly.
+- After every commit, update the CHANGELOG.md file with the changelog.
+
 ## Key Design Decisions (from PRD §15)
 
 | Decision | Resolution |

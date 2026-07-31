@@ -92,10 +92,26 @@ jobs:
           path: app/build/outputs/apk/release/*.apk
           if-no-files-found: error
 
+      # CHANGELOG.md must carry an entry for the version about to be released,
+      # keyed off the same VERSION computed above — this is what keeps the
+      # changelog and GitHub Releases from drifting apart again. Fails the
+      # push instead of publishing an undocumented release.
+      - name: Verify CHANGELOG.md has an entry for this version
+        if: github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        run: |
+          set -euo pipefail
+          if ! grep -q "^## \[$VERSION\]" CHANGELOG.md; then
+            echo "::error::CHANGELOG.md has no '## [$VERSION]' entry. Rename '## [Unreleased]' to '## [$VERSION] - $(date -u +%Y-%m-%d)' (with the changes underneath) before pushing to main." >&2
+            exit 1
+          fi
+
       # Publish a GitHub Release with both APKs on every push to the default
       # branch. The tag is "v$VERSION" — the same VERSION computed once above,
       # and the same format build.gradle.kts uses for the Sentry release — so
       # GitHub and Sentry always agree on what a given build is called.
+      # Release notes are lifted straight from the matching CHANGELOG.md
+      # section (guaranteed to exist by the verify step above), so the
+      # changelog stays the single source of truth for both.
       # Re-runs of the same commit re-upload the assets instead of failing on
       # an existing tag.
       - name: Publish GitHub Release
@@ -105,6 +121,12 @@ jobs:
         run: |
           set -euo pipefail
           TAG="v$VERSION"
+          CHANGELOG_SECTION="$(awk -v ver="$VERSION" '
+            $0 ~ "^## \\[" ver "\\]" { found=1; next }
+            found && /^## \[/ { exit }
+            found { print }
+          ' CHANGELOG.md | awk 'NF{p=1} p')"
+          NOTES="$(printf '%s\n\n_Commit: %s_' "$CHANGELOG_SECTION" "${GITHUB_SHA:0:7}")"
           # The release APK is app-release.apk when signed, app-release-unsigned.apk otherwise.
           ASSETS=$(ls app/build/outputs/apk/debug/*.apk app/build/outputs/apk/release/*.apk)
           if gh release view "$TAG" >/dev/null 2>&1; then
@@ -113,5 +135,5 @@ jobs:
             gh release create "$TAG" $ASSETS \
               --target "$GITHUB_SHA" \
               --title "$TAG" \
-              --notes "Automated release for $TAG (commit ${GITHUB_SHA:0:7})."
+              --notes "$NOTES"
           fi
