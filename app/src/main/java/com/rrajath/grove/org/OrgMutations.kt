@@ -114,6 +114,27 @@ object OrgMutations {
         return setKeyword(redoc, again, activeKeyword)
     }
 
+    /**
+     * Single entry point for every "change this heading's TODO state" UI action
+     * (metadata sheet chips, Outline/Search swipe state pickers): picking a
+     * done-type [newKeyword] applies full "mark done" semantics, and leaving a
+     * done-type keyword — including clearing it to no keyword at all — always
+     * drops the stale CLOSED stamp via [reopen], the way `org-todo` does. A
+     * plain keyword-to-keyword change with neither end done-type is a bare
+     * [setKeyword].
+     */
+    fun changeKeyword(
+        doc: OrgDocument,
+        h: OrgHeadline,
+        newKeyword: String?,
+        keywords: OrgKeywords,
+        now: LocalDateTime,
+    ): String = when {
+        newKeyword != null && keywords.isDone(newKeyword) -> markDone(doc, h, newKeyword, now)
+        h.keyword != null && keywords.isDone(h.keyword) -> reopen(doc, h, newKeyword)
+        else -> setKeyword(doc, h, newKeyword)
+    }
+
     private val CHECKBOX_LINE = Regex("""^(\s*(?:[-+]|\d+[.)])\s+)\[([ Xx-])\](.*)$""")
 
     /**

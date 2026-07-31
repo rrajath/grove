@@ -1,8 +1,6 @@
 package com.rrajath.grove.ui.editor
 
 import android.widget.Toast
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -42,7 +40,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -90,13 +87,12 @@ fun EditNoteScreen(
     val textState = rememberTextFieldState()
     var metadataOpen by remember { mutableStateOf(false) }
     var confirmLeave by remember { mutableStateOf(false) }
+    var confirmDiscardBlankHeading by remember { mutableStateOf(false) }
     var showEmptyHeadingAlert by remember { mutableStateOf(false) }
     // Timestamp of the most recent save (auto or manual), shown as a tappable
     // save (floppy) icon in the top bar: green + tap-to-save-now while dirty,
     // grey + tap-for-last-saved-toast once clean.
     var lastAutoSavedAt by remember { mutableStateOf<LocalTime?>(null) }
-    // Blinks the save icon twice on each save (auto or manual).
-    val saveIconAlpha = remember { Animatable(1f) }
     val focusRequester = remember { FocusRequester() }
     // False until the note has been loaded into the text field: the field's
     // pre-load contents are not the user's edits and must not be reported.
@@ -128,10 +124,11 @@ fun EditNoteScreen(
 
     fun leave() {
         when {
+            // A blank heading can't be saved, so leaving always means discarding
+            // the note (heading, any body text, all of it) — always confirm
+            // first rather than silently dropping whatever was typed.
+            isNewNote && viewModel.isCurrentHeadingBlank() -> confirmDiscardBlankHeading = true
             state.dirty -> confirmLeave = true
-            // New note with still-blank heading: silently remove it from file.
-            isNewNote && viewModel.isCurrentHeadingBlank() ->
-                viewModel.deleteSubtree(onDeleted = onBack)
             else -> onBack()
         }
     }
@@ -196,15 +193,6 @@ fun EditNoteScreen(
         }
     }
 
-    // Blink the save icon twice in quick succession on each auto-save.
-    LaunchedEffect(lastAutoSavedAt) {
-        if (lastAutoSavedAt == null) return@LaunchedEffect
-        repeat(2) {
-            saveIconAlpha.animateTo(0.15f, tween(120))
-            saveIconAlpha.animateTo(1f, tween(120))
-        }
-    }
-
     val scrollState = rememberScrollState()
     // Five lines of editor text (13.5sp font * 1.85 line height), so the jump
     // buttons don't flash on every keystroke as typing nudges the view.
@@ -232,7 +220,6 @@ fun EditNoteScreen(
                             // reports when that save happened.
                             tint = if (state.dirty) c.green else c.ink3,
                             modifier = Modifier
-                                .alpha(saveIconAlpha.value)
                                 .clip(RoundedCornerShape(10.dp))
                                 .clickable {
                                     if (state.dirty) {
@@ -365,12 +352,39 @@ fun EditNoteScreen(
             dismissButton = {
                 androidx.compose.material3.TextButton(onClick = {
                     confirmLeave = false
-                    if (isNewNote && viewModel.isCurrentHeadingBlank()) {
-                        viewModel.deleteSubtree(onDeleted = onBack)
-                    } else {
-                        onBack()
-                    }
+                    onBack()
                 }) { Text("Discard", color = c.red) }
+            },
+        )
+    }
+
+    if (confirmDiscardBlankHeading) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { confirmDiscardBlankHeading = false },
+            containerColor = c.surface,
+            title = {
+                Text(
+                    "Discard note?",
+                    fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
+                    fontSize = 16.sp, color = c.ink,
+                )
+            },
+            text = {
+                Text(
+                    "This note needs a heading before it can be saved. Leaving now will discard it, including any text you've added.",
+                    fontFamily = PlexSans, fontSize = 14.sp, color = c.ink2,
+                )
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    confirmDiscardBlankHeading = false
+                    viewModel.deleteSubtree(onDeleted = onBack)
+                }) { Text("Discard", color = c.red) }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { confirmDiscardBlankHeading = false }) {
+                    Text("Keep Editing", color = c.accent, fontWeight = FontWeight.SemiBold)
+                }
             },
         )
     }

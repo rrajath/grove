@@ -43,6 +43,14 @@ import com.rrajath.grove.ui.screens.OutlineScreen
 import com.rrajath.grove.ui.screens.ReadNoteScreen
 import com.rrajath.grove.ui.search.SearchScreen
 import com.rrajath.grove.ui.screens.SettingsScreen
+import com.rrajath.grove.ui.screens.settings.SettingsAgendaScreen
+import com.rrajath.grove.ui.screens.settings.SettingsAppearanceScreen
+import com.rrajath.grove.ui.screens.settings.SettingsBackupScreen
+import com.rrajath.grove.ui.screens.settings.SettingsCaptureTemplatesScreen
+import com.rrajath.grove.ui.screens.settings.SettingsNotesScreen
+import com.rrajath.grove.ui.screens.settings.SettingsRemindersScreen
+import com.rrajath.grove.ui.screens.settings.SettingsSharingScreen
+import com.rrajath.grove.ui.screens.settings.SettingsSyncScreen
 import com.rrajath.grove.ui.screens.SyncLogScreen
 import com.rrajath.grove.ui.vault.NoteRef
 import com.rrajath.grove.ui.theme.GroveTheme
@@ -352,34 +360,88 @@ private fun GroveNavigation(
             }
             composable(Routes.SETTINGS) {
                 SettingsScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenAppearance = { navController.navigate(Routes.SETTINGS_APPEARANCE) },
+                    onOpenCaptureTemplates = { navController.navigate(Routes.SETTINGS_CAPTURE_TEMPLATES) },
+                    onOpenSync = { navController.navigate(Routes.SETTINGS_SYNC) },
+                    onOpenNotes = { navController.navigate(Routes.SETTINGS_NOTES) },
+                    onOpenAgenda = { navController.navigate(Routes.SETTINGS_AGENDA) },
+                    onOpenReminders = { navController.navigate(Routes.SETTINGS_REMINDERS) },
+                    onOpenSharing = { navController.navigate(Routes.SETTINGS_SHARING) },
+                    onOpenBackup = { navController.navigate(Routes.SETTINGS_BACKUP) },
+                )
+            }
+            composable(Routes.SETTINGS_APPEARANCE) {
+                SettingsAppearanceScreen(
                     settings = settings,
                     onBack = { navController.popBackStack() },
                     onSetTheme = viewModel::setTheme,
                     onSetSyncAppIconWithTheme = viewModel::setSyncAppIconWithTheme,
                     onSetShowPreface = viewModel::setShowPreface,
                     onSetShowPropertyDrawers = viewModel::setShowPropertyDrawers,
-                    onSetNotebookDisplayNameMode = viewModel::setNotebookDisplayNameMode,
-                    onSetChecklistStates = viewModel::setChecklistStates,
                     onSetFontSize = viewModel::setFontSize,
                     onSetNoteOpenMode = viewModel::setDefaultNoteOpenMode,
+                )
+            }
+            composable(Routes.SETTINGS_CAPTURE_TEMPLATES) {
+                SettingsCaptureTemplatesScreen(
+                    settings = settings,
+                    onBack = { navController.popBackStack() },
                     onEditTemplate = { id ->
                         navController.navigate(Routes.templateEdit(id ?: Routes.NEW_TEMPLATE_ID))
                     },
+                    onSetCaptureNotification = viewModel::setCaptureNotification,
+                )
+            }
+            composable(Routes.SETTINGS_SYNC) {
+                SettingsSyncScreen(
+                    settings = settings,
+                    onBack = { navController.popBackStack() },
                     onSetSyncMode = viewModel::setSyncMode,
                     onSetPeriodicMinutes = viewModel::setPeriodicSyncMinutes,
                     onOpenSyncLog = { navController.navigate(Routes.SYNC_LOG) },
+                    onSetVaultUri = viewModel::setVaultTreeUri,
+                )
+            }
+            composable(Routes.SETTINGS_NOTES) {
+                SettingsNotesScreen(
+                    settings = settings,
+                    onBack = { navController.popBackStack() },
                     onSetTodoKeywords = viewModel::setTodoKeywords,
                     onSetDefaultPriority = viewModel::setDefaultPriority,
+                    onSetNotebookDisplayNameMode = viewModel::setNotebookDisplayNameMode,
+                    onSetChecklistStates = viewModel::setChecklistStates,
                     onSetAddId = viewModel::setAddIdToNewNotes,
                     onSetAddCreated = viewModel::setAddCreatedToNewNotes,
-                    onSetCaptureNotification = viewModel::setCaptureNotification,
-                    onSetVaultUri = viewModel::setVaultTreeUri,
-                    onSetShareTargetFile = viewModel::setShareTargetFile,
-                    onSetRemindersEnabled = viewModel::setRemindersEnabled,
-                    onSetDefaultReminderTime = viewModel::setDefaultReminderTime,
+                )
+            }
+            composable(Routes.SETTINGS_AGENDA) {
+                SettingsAgendaScreen(
+                    settings = settings,
+                    onBack = { navController.popBackStack() },
                     onSetAgendaSwipeLeftAction = viewModel::setAgendaSwipeLeftAction,
                     onSetAgendaSwipeRightAction = viewModel::setAgendaSwipeRightAction,
+                )
+            }
+            composable(Routes.SETTINGS_REMINDERS) {
+                SettingsRemindersScreen(
+                    settings = settings,
+                    onBack = { navController.popBackStack() },
+                    onSetRemindersEnabled = viewModel::setRemindersEnabled,
+                    onSetDefaultReminderTime = viewModel::setDefaultReminderTime,
                     reminderPendingCount = viewModel.reminderPendingCount.collectAsStateWithLifecycle().value,
+                )
+            }
+            composable(Routes.SETTINGS_SHARING) {
+                SettingsSharingScreen(
+                    settings = settings,
+                    onBack = { navController.popBackStack() },
+                    onSetShareTargetFile = viewModel::setShareTargetFile,
+                )
+            }
+            composable(Routes.SETTINGS_BACKUP) {
+                SettingsBackupScreen(
+                    onBack = { navController.popBackStack() },
                     onExportSettings = viewModel::exportSettings,
                     onImportSettings = viewModel::importSettings,
                 )

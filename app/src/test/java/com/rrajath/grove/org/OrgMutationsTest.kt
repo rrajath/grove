@@ -122,6 +122,53 @@ class OrgMutationsTest {
         assertTrue(result.indexOf(":PROPERTIES:") < result.indexOf(":LOGBOOK:"))
     }
 
+    private val doneDoc = OrgParser.parse(
+        """
+        * DONE Wrap up
+        CLOSED: [2025-06-11 Wed 14:30]
+        """.trimIndent() + "\n"
+    )
+
+    @Test
+    fun `changeKeyword away from a done state to a todo keyword drops CLOSED`() {
+        val result = OrgParser.parse(
+            OrgMutations.changeKeyword(doneDoc, doneDoc.headlines.first(), "TODO", doneDoc.keywords, LocalDateTime.now())
+        )
+        val after = result.headlines.first()
+        assertEquals("TODO", after.keyword)
+        assertNull(after.planning.closed)
+    }
+
+    @Test
+    fun `changeKeyword to no keyword at all also drops CLOSED`() {
+        val result = OrgParser.parse(
+            OrgMutations.changeKeyword(doneDoc, doneDoc.headlines.first(), null, doneDoc.keywords, LocalDateTime.now())
+        )
+        val after = result.headlines.first()
+        assertNull(after.keyword)
+        assertNull(after.planning.closed)
+    }
+
+    @Test
+    fun `changeKeyword to a done keyword applies markDone semantics`() {
+        val result = OrgParser.parse(
+            OrgMutations.changeKeyword(doc, h("Last"), "DONE", doc.keywords, LocalDateTime.of(2025, 6, 11, 14, 30))
+        )
+        val after = result.findByTitle("Last")!!
+        assertEquals("DONE", after.keyword)
+        assertEquals("[2025-06-11 Wed 14:30]", after.planning.closed!!.format())
+    }
+
+    @Test
+    fun `changeKeyword between two open keywords is a plain rewrite`() {
+        val result = OrgParser.parse(
+            OrgMutations.changeKeyword(doc, h("Last"), "IN-PROGRESS", doc.keywords, LocalDateTime.now())
+        )
+        val after = result.findByTitle("Last")!!
+        assertEquals("IN-PROGRESS", after.keyword)
+        assertNull(after.planning.closed)
+    }
+
     @Test
     fun `appendLogbookEntry prepends newest entry first`() {
         val once = OrgMutations.appendLogbookEntry(doc, h("Last"), "- entry one")

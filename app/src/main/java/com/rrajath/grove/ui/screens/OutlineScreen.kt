@@ -8,7 +8,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -40,7 +39,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -71,7 +69,6 @@ import androidx.compose.ui.zIndex
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rrajath.grove.org.OrgDocument
 import com.rrajath.grove.org.OrgHeadline
-import com.rrajath.grove.org.OrgKeywords
 import com.rrajath.grove.org.OrgTimestamp
 import com.rrajath.grove.org.PlanningKind
 import com.rrajath.grove.settings.OutlineToggle
@@ -82,6 +79,7 @@ import com.rrajath.grove.ui.components.GroveToast
 import com.rrajath.grove.ui.components.GroveUndoSnackbar
 import com.rrajath.grove.ui.components.PlanningDatesScreen
 import com.rrajath.grove.ui.components.ScrollJumpButtons
+import com.rrajath.grove.ui.components.StatePickerSheet
 import com.rrajath.grove.ui.components.SwipeAction
 import com.rrajath.grove.ui.components.SwipeRevealRow
 import com.rrajath.grove.ui.components.annotateOrgInline
@@ -570,81 +568,6 @@ fun OutlineScreen(
                 }
             }
         }
-    }
-}
-
-/**
- * TODO-state picker for the outline's right-swipe "State" action. Replaces the
- * old tap-to-cycle behaviour, which needed one tap per intervening keyword to
- * reach DONE; every configured state (plus "none") is one tap away here.
- */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun StatePickerSheet(
-    title: String,
-    keywords: OrgKeywords,
-    current: String?,
-    onPick: (String?) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    val c = MaterialTheme.grove
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        containerColor = c.surface,
-        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-    ) {
-        Column(Modifier.padding(horizontal = 22.dp).padding(bottom = 30.dp)) {
-            Text(
-                "STATE",
-                fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
-                fontSize = 12.sp, letterSpacing = 1.sp, color = c.accent,
-            )
-            Text(
-                title,
-                fontFamily = PlexSans, fontSize = 13.5.sp, color = c.ink2,
-                maxLines = 1,
-                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                modifier = Modifier.padding(top = 4.dp, bottom = 14.dp),
-            )
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                StateChip("none", active = current == null, fg = c.ink2, bg = c.surface2) {
-                    onPick(null)
-                }
-                keywords.all.forEach { kw ->
-                    val done = keywords.isDone(kw)
-                    StateChip(
-                        label = kw,
-                        active = current == kw,
-                        fg = if (done) c.green else c.amber,
-                        bg = if (done) c.greenSoft else c.amberSoft,
-                    ) { onPick(kw) }
-                }
-            }
-        }
-    }
-}
-
-/** Matches the metadata sheet's state chips so both pickers read as one control. */
-@Composable
-private fun StateChip(label: String, active: Boolean, fg: Color, bg: Color, onClick: () -> Unit) {
-    val c = MaterialTheme.grove
-    Box(
-        Modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(if (active) bg else c.surface2.copy(alpha = 0.5f))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 13.dp, vertical = 9.dp),
-    ) {
-        Text(
-            label,
-            fontFamily = PlexMono,
-            fontWeight = if (active) FontWeight.Bold else FontWeight.Normal,
-            fontSize = 12.sp,
-            color = if (active) fg else c.ink2,
-        )
     }
 }
 

@@ -11,9 +11,13 @@ class ThemeTest {
         assertEquals(GroveLightColors, groveColorsFor(ThemePreference.LIGHT))
         assertEquals(GroveDarkColors, groveColorsFor(ThemePreference.DARK))
         assertEquals(GroveTokyoNightColors, groveColorsFor(ThemePreference.TOKYONIGHT))
+        assertEquals(GroveTokyoDayColors, groveColorsFor(ThemePreference.TOKYODAY))
         assertEquals(GroveSynthwaveColors, groveColorsFor(ThemePreference.SYNTHWAVE))
         assertEquals(GroveDraculaColors, groveColorsFor(ThemePreference.DRACULA))
         assertEquals(GroveCatppuccinColors, groveColorsFor(ThemePreference.CATPPUCCIN))
+        assertEquals(GroveCatppuccinLatteColors, groveColorsFor(ThemePreference.CATPPUCCINLATTE))
         assertEquals(GroveNordColors, groveColorsFor(ThemePreference.NORD))
+        assertEquals(GroveRosePineDawnColors, groveColorsFor(ThemePreference.ROSEPINEDAWN))
+        assertEquals(GroveRosePineMoonColors, groveColorsFor(ThemePreference.ROSEPINEMOON))
     }
 }

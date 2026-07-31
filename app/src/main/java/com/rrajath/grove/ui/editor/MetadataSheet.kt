@@ -69,7 +69,7 @@ fun MetadataSheet(
                     label = "none",
                     active = current == null,
                     fg = c.ink2, bg = c.surface2,
-                ) { viewModel.setKeyword(null) }
+                ) { viewModel.changeKeyword(null) }
                 state.keywords.all.forEach { kw ->
                     Spacer(Modifier.width(6.dp))
                     val done = state.keywords.isDone(kw)
@@ -79,7 +79,7 @@ fun MetadataSheet(
                         fg = if (done) c.green else c.amber,
                         bg = if (done) c.greenSoft else c.amberSoft,
                     ) {
-                        if (done) viewModel.markDone(kw) else viewModel.setKeyword(kw)
+                        viewModel.changeKeyword(kw)
                     }
                 }
             }
@@ -119,7 +119,7 @@ fun MetadataSheet(
             if (suggestions.isNotEmpty()) {
                 LazyRow(Modifier.padding(top = 6.dp)) {
                     items(suggestions) { tag ->
-                        Pill(tag, fg = c.accent, bg = c.accentSoft, onClick = {
+                        Pill(tag, fg = c.accent, bg = c.accentSoft, outline = true, onClick = {
                             val parts = tagsText.trim().split(Regex("\\s+")).dropLast(1) + tag
                             tagsText = parts.joinToString(" ")
                             viewModel.setTags(parts.filter { it.isNotEmpty() })

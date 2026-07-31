@@ -44,20 +44,26 @@ import com.rrajath.grove.settings.ThemePreference
 import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
 
-/** Small rounded pill badge ("Modified", "1 conflict", "Recommended"…). */
+/**
+ * Small rounded pill badge ("Modified", "1 conflict", "Recommended"…). Filled
+ * by default (solid [bg]); pass [outline] = true for a transparent-fill,
+ * [fg]-bordered chip instead — used to tell tag pills apart from filled
+ * TODO-state pills at a glance.
+ */
 @Composable
 fun Pill(
     text: String,
     fg: Color,
     bg: Color,
     modifier: Modifier = Modifier,
+    outline: Boolean = false,
     onClick: (() -> Unit)? = null,
 ) {
     val clickMod = if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier
     Box(
         modifier
             .clip(RoundedCornerShape(20.dp))
-            .background(bg)
+            .then(if (outline) Modifier.border(1.dp, fg, RoundedCornerShape(20.dp)) else Modifier.background(bg))
             .then(clickMod)
             .padding(horizontal = 9.dp, vertical = 3.dp)
     ) {
@@ -189,15 +195,26 @@ private data class ThemeSwatch(
     val dots: List<Color>,
 )
 
-/** Preview colors per design/GroveThemes.dc.html `themeList()` — intentionally hardcoded rather than derived from [com.rrajath.grove.ui.theme.GroveColors], since e.g. the dark theme's chip uses its surface color rather than its bg for legibility. */
+/**
+ * Preview colors per design/GroveThemes.dc.html `themeList()` — intentionally hardcoded rather
+ * than derived from [com.rrajath.grove.ui.theme.GroveColors], since e.g. the dark theme's chip
+ * uses its surface color rather than its bg for legibility. Ordered light themes first (alphabetical
+ * by label), then dark themes (alphabetical by label) — Settings § Appearance.
+ */
 private val ThemeSwatches = listOf(
-    ThemeSwatch(ThemePreference.LIGHT, "Light", Color(0xFFF3EDE1), Color(0xFF2A251F), listOf(Color(0xFF8A5A2B), Color(0xFF4F7A3A), Color(0xFF3F6F86))),
-    ThemeSwatch(ThemePreference.DARK, "Dark", Color(0xFF201C15), Color(0xFFECE4D5), listOf(Color(0xFFCB9D62), Color(0xFF8FB46A), Color(0xFF7FB0C4))),
-    ThemeSwatch(ThemePreference.TOKYONIGHT, "Tokyo Night", Color(0xFF1A1B26), Color(0xFFC0CAF5), listOf(Color(0xFF7AA2F7), Color(0xFFBB9AF7), Color(0xFF7DCFFF))),
-    ThemeSwatch(ThemePreference.SYNTHWAVE, "Synthwave", Color(0xFF262335), Color(0xFFF8F8F2), listOf(Color(0xFFFF7EDB), Color(0xFF03EDF9), Color(0xFFFEDE5D))),
+    // Light
+    ThemeSwatch(ThemePreference.CATPPUCCINLATTE, "Catppuccin Latte", Color(0xFFEFF1F5), Color(0xFF4C4F69), listOf(Color(0xFF8839EF), Color(0xFFD20F39), Color(0xFF40A02B))),
+    ThemeSwatch(ThemePreference.LIGHT, "Grove Light", Color(0xFFF3EDE1), Color(0xFF2A251F), listOf(Color(0xFF8A5A2B), Color(0xFF4F7A3A), Color(0xFF3F6F86))),
+    ThemeSwatch(ThemePreference.ROSEPINEDAWN, "Rosé Pine Dawn", Color(0xFFFAF4ED), Color(0xFF575279), listOf(Color(0xFFD7827E), Color(0xFF286983), Color(0xFF907AA9))),
+    ThemeSwatch(ThemePreference.TOKYODAY, "Tokyo Day", Color(0xFFE1E2E7), Color(0xFF3760BF), listOf(Color(0xFF2E7DE9), Color(0xFF9854F1), Color(0xFF587539))),
+    // Dark
+    ThemeSwatch(ThemePreference.CATPPUCCIN, "Catppuccin Mocha", Color(0xFF1E1E2E), Color(0xFFCDD6F4), listOf(Color(0xFFCBA6F7), Color(0xFFF38BA8), Color(0xFFA6E3A1))),
     ThemeSwatch(ThemePreference.DRACULA, "Dracula", Color(0xFF282A36), Color(0xFFF8F8F2), listOf(Color(0xFFBD93F9), Color(0xFFFF79C6), Color(0xFF50FA7B))),
-    ThemeSwatch(ThemePreference.CATPPUCCIN, "Catppuccin", Color(0xFF1E1E2E), Color(0xFFCDD6F4), listOf(Color(0xFFCBA6F7), Color(0xFFF38BA8), Color(0xFFA6E3A1))),
+    ThemeSwatch(ThemePreference.DARK, "Grove Dark", Color(0xFF201C15), Color(0xFFECE4D5), listOf(Color(0xFFCB9D62), Color(0xFF8FB46A), Color(0xFF7FB0C4))),
     ThemeSwatch(ThemePreference.NORD, "Nord", Color(0xFF2E3440), Color(0xFFECEFF4), listOf(Color(0xFF88C0D0), Color(0xFFA3BE8C), Color(0xFFB48EAD))),
+    ThemeSwatch(ThemePreference.ROSEPINEMOON, "Rosé Pine Moon", Color(0xFF232136), Color(0xFFE0DEF4), listOf(Color(0xFFEA9A97), Color(0xFF3E8FB0), Color(0xFF9CCFD8))),
+    ThemeSwatch(ThemePreference.SYNTHWAVE, "Synthwave", Color(0xFF262335), Color(0xFFF8F8F2), listOf(Color(0xFFFF7EDB), Color(0xFF03EDF9), Color(0xFFFEDE5D))),
+    ThemeSwatch(ThemePreference.TOKYONIGHT, "Tokyo Night", Color(0xFF1A1B26), Color(0xFFC0CAF5), listOf(Color(0xFF7AA2F7), Color(0xFFBB9AF7), Color(0xFF7DCFFF))),
 )
 
 /**

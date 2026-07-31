@@ -140,6 +140,20 @@
         </activity-alias>
 
         <activity-alias
+            android:name=".IconTokyoDay"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_tokyoday"
+            android:roundIcon="@mipmap/ic_launcher_tokyoday_round"
+            android:label="@string/app_name"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
             android:name=".IconSynthwave"
             android:enabled="false"
             android:exported="true"
@@ -182,11 +196,53 @@
         </activity-alias>
 
         <activity-alias
+            android:name=".IconCatppuccinLatte"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_catppuccinlatte"
+            android:roundIcon="@mipmap/ic_launcher_catppuccinlatte_round"
+            android:label="@string/app_name"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
             android:name=".IconNord"
             android:enabled="false"
             android:exported="true"
             android:icon="@mipmap/ic_launcher_nord"
             android:roundIcon="@mipmap/ic_launcher_nord_round"
+            android:label="@string/app_name"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".IconRosePineDawn"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_rosepinedawn"
+            android:roundIcon="@mipmap/ic_launcher_rosepinedawn_round"
+            android:label="@string/app_name"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".IconRosePineMoon"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_rosepinemoon"
+            android:roundIcon="@mipmap/ic_launcher_rosepinemoon_round"
             android:label="@string/app_name"
             android:targetActivity=".MainActivity">
             <intent-filter>

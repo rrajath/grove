@@ -124,7 +124,13 @@ class EditorViewModel(private val app: GroveApplication) : ViewModel() {
         }
     }
 
-    fun setKeyword(keyword: String?) = mutateBuffer { d, h -> OrgMutations.setKeyword(d, h, keyword) }
+    /**
+     * Metadata sheet's state chips: routes through [OrgMutations.changeKeyword] so
+     * picking a plain (non-done) keyword away from a done state also clears the
+     * stale CLOSED stamp, the same as `OrgMutations.reopen`.
+     */
+    fun changeKeyword(keyword: String?) =
+        mutateBuffer { d, h -> OrgMutations.changeKeyword(d, h, keyword, d.keywords, LocalDateTime.now()) }
     fun setPriority(priority: Char?) = mutateBuffer { d, h -> OrgMutations.setPriority(d, h, priority) }
     fun setTags(tags: List<String>) = mutateBuffer { d, h -> OrgMutations.setTags(d, h, tags) }
     fun setScheduled(ts: OrgTimestamp?) = mutateBuffer { d, h -> OrgMutations.setScheduled(d, h, ts) }
@@ -133,11 +139,6 @@ class EditorViewModel(private val app: GroveApplication) : ViewModel() {
     /** Both planning dates in one edit — what the Dates screen commits. */
     fun setPlanningDates(scheduled: OrgTimestamp?, deadline: OrgTimestamp?) =
         mutateBuffer { d, h -> OrgMutations.setPlanningDates(d, h, scheduled, deadline) }
-
-    /** Apply the specific [doneKeyword] the user picked (repeaters advance instead). */
-    fun markDone(doneKeyword: String) {
-        mutateBuffer { d, h -> OrgMutations.markDone(d, h, doneKeyword, LocalDateTime.now()) }
-    }
 
     /**
      * Write the buffer back into the file. Refuses (sets [EditorUiState.staleFile])

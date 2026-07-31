@@ -86,21 +86,34 @@ val starColor = MaterialTheme.grove.starColor(headingLevel)
 
 ### Additional Themes
 
-Beyond Light/Dark, `GroveColors` ships five more curated palettes (all dark-family, `isDark = true`),
-each a full-opacity port of the named community theme. Full token values live in `ui/theme/Color.kt`
-(`GroveTokyoNightColors`, `GroveSynthwaveColors`, `GroveDraculaColors`, `GroveCatppuccinColors`,
-`GroveNordColors`) — this table covers the core tokens only.
+Beyond Grove Light/Grove Dark, `GroveColors` ships nine more curated palettes, each a full-opacity
+port of the named community theme. Full token values live in `ui/theme/Color.kt`
+(`GroveTokyoNightColors`, `GroveTokyoDayColors`, `GroveSynthwaveColors`, `GroveDraculaColors`,
+`GroveCatppuccinColors`, `GroveCatppuccinLatteColors`, `GroveNordColors`, `GroveRosePineDawnColors`,
+`GroveRosePineMoonColors`) — this table covers the core tokens only. The Settings theme picker
+labels the built-in Light/Dark pair "Grove Light"/"Grove Dark" to read as a matched set alongside
+the other theme families; their `ThemePreference` enum entries and storage keys (`LIGHT`/`DARK`,
+`"light"`/`"dark"`) are unchanged.
 
-| Theme | `bg` | `surface` | `ink` | `accent` | `green` | `amber` | `red` | `blue` | `violet` |
-|---|---|---|---|---|---|---|---|---|---|
-| Tokyo Night | `#1a1b26` | `#1f2335` | `#c0caf5` | `#7aa2f7` | `#9ece6a` | `#e0af68` | `#f7768e` | `#7dcfff` | `#bb9af7` |
-| Synthwave | `#262335` | `#2a2140` | `#f8f8f2` | `#ff7edb` | `#72f1b8` | `#fede5d` | `#fe4450` | `#03edf9` | `#b967ff`* |
-| Dracula | `#282a36` | `#2d2f3d` | `#f8f8f2` | `#bd93f9` | `#50fa7b` | `#ffb86c` | `#ff5555` | `#8be9fd` | `#bd93f9` |
-| Catppuccin | `#1e1e2e` | `#292a3d` | `#cdd6f4` | `#cba6f7` | `#a6e3a1` | `#fab387` | `#f38ba8` | `#89b4fa` | `#f5c2e7` |
-| Nord | `#2e3440` | `#333b4a` | `#eceff4` | `#88c0d0` | `#a3be8c` | `#ebcb8b` | `#bf616a` | `#81a1c1` | `#b48ead` |
+| Theme | `isDark` | `bg` | `surface` | `ink` | `accent` | `green` | `amber` | `red` | `blue` | `violet` |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Tokyo Night | dark | `#1a1b26` | `#1f2335` | `#c0caf5` | `#7aa2f7` | `#9ece6a` | `#e0af68` | `#f7768e` | `#7dcfff` | `#bb9af7` |
+| Tokyo Day | light | `#e1e2e7` | `#edeef2` | `#3760bf` | `#2e7de9` | `#587539` | `#b15c00` | `#f52a65` | `#007197` | `#9854f1` |
+| Synthwave | dark | `#262335` | `#2a2140` | `#f8f8f2` | `#ff7edb` | `#72f1b8` | `#fede5d` | `#fe4450` | `#03edf9` | `#b967ff`* |
+| Dracula | dark | `#282a36` | `#2d2f3d` | `#f8f8f2` | `#bd93f9` | `#50fa7b` | `#ffb86c` | `#ff5555` | `#8be9fd` | `#bd93f9` |
+| Catppuccin Mocha | dark | `#1e1e2e` | `#292a3d` | `#cdd6f4` | `#cba6f7` | `#a6e3a1` | `#fab387` | `#f38ba8` | `#89b4fa` | `#f5c2e7` |
+| Catppuccin Latte | light | `#eff1f5` | `#e6e9ef` | `#4c4f69` | `#8839ef` | `#40a02b` | `#df8e1d` | `#d20f39` | `#1e66f5` | `#7287fd` |
+| Nord | dark | `#2e3440` | `#333b4a` | `#eceff4` | `#88c0d0` | `#a3be8c` | `#ebcb8b` | `#bf616a` | `#81a1c1` | `#b48ead` |
+| Rosé Pine Dawn | light | `#faf4ed` | `#fffaf3` | `#575279` | `#907aa9` | `#286983` | `#ea9d34` | `#b4637a` | `#56949f` | `#907aa9` |
+| Rosé Pine Moon | dark | `#232136` | `#2a273f` | `#e0def4` | `#c4a7e7` | `#3e8fb0` | `#f6c177` | `#eb6f92` | `#9ccfd8` | `#c4a7e7` |
 
 \* Synthwave has no purple/violet in its source palette — this value is derived (blended between
 its accent pink and blue) to keep the heading-star cycle's 5th color visually distinct.
+
+Themes tagged `light` in the table above are non-`isDark` (light-family) palettes, following the
+same token-layering convention as Grove Light (e.g. `surface` distinct from `bg`, dark `ink` on a
+light `bg`) rather than the dark-family convention Tokyo Night/Synthwave/Dracula/Catppuccin
+Mocha/Nord/Rosé Pine Moon use.
 
 ### Material ColorScheme Mapping
 
@@ -262,7 +275,7 @@ less-prominent actions.
 | Dismiss / close | `Icons.Default.Close` | — |
 | Sync status — ok | `Icons.Default.Check` | `green` |
 | Sync status — error | `Icons.Default.Warning` | `amber` |
-| Save indicator (edit mode) | `Icons.Outlined.Save` | `green` unsaved changes (tap saves immediately), `ink3` saved (tap shows a "last saved at" toast); blinks twice on every save |
+| Save indicator (edit mode) | `Icons.Outlined.Save` | `green` unsaved changes (tap saves immediately), `ink3` saved (tap shows a "last saved at" toast); a plain color swap on save, no blink/animation |
 | Auto-save indicator (capture) | `Icons.Outlined.Save` | `green` saved, `ink3` while dirty (passive — capture has no manual tap-to-save) |
 | Sync — spinning | `Icons.Default.Sync` (animated) | `ink2` |
 | Scheduled date | `Icons.Outlined.CalendarMonth` | `blue` |
@@ -359,20 +372,27 @@ icons (those use Unicode glyphs on colored tiles).
 
 ### `Pill` — `ui/components/Common.kt`
 
-Rounded badge for status labels and short counts.
+Rounded badge for status labels and short counts. Filled by default; pass `outline = true` for a
+transparent-fill, border-only variant.
 
 ```kotlin
 Pill(text = "Modified", fg = c.amber, bg = c.amberSoft)
 Pill(text = "1 conflict", fg = c.amber, bg = c.amberSoft, onClick = { openConflict() })
 Pill(text = "Recommended", fg = c.green, bg = c.greenSoft)
 Pill(text = "✓", fg = c.green, bg = Color.Transparent)
+Pill(text = "trip", fg = c.accent, bg = c.accentSoft, outline = true) // tag pill, Read mode
 ```
 
 Internally: 20dp corner radius, 9dp horizontal / 3dp vertical padding, 11.5sp SemiBold PlexSans.
+`outline = true` swaps the solid `bg` fill for a transparent background with a 1dp `fg`-colored
+border instead (same shape/typography otherwise).
 
 **When to use**: sync status badges on notebook rows, conflict indicators, inline contextual labels
-(e.g., "Recommended", "auto-created"). Not for TODO/DONE keyword chips — those use a 5dp radius
-inline chip pattern.
+(e.g., "Recommended", "auto-created") — these stay filled. Not for TODO/DONE keyword chips — those
+use a 5dp radius inline chip pattern (outline screen only; read mode's TODO/keyword chips do use
+`Pill`, filled). In Read mode and the Metadata sheet's tag suggestions, tag pills use `outline =
+true` so they read as a distinct, lighter-weight category from the filled TODO-state pills sitting
+next to them.
 
 ---
 
@@ -383,10 +403,15 @@ Amber ★ marking a favorited heading.
 ```kotlin
 FavoriteStar()                                        // drawer-style inline use
 FavoriteStar(modifier = Modifier.padding(top = 2.dp)) // nudged onto a heading's first line
+FavoriteStar(modifier = Modifier.padding(top = 8.dp).offset(x = 3.dp)) // read-mode title row
 ```
 
 Internally: a single `★` glyph, 12sp PlexSans in `amber`. No background, not tappable —
-favoriting happens through the outline node menu, the star is display-only.
+favoriting happens through the outline node menu, the star is display-only. The glyph's own
+right-side font bearing leaves a small gap between its visual edge and its layout box's edge, so
+call sites that need it flush against something to its right (e.g. Read mode's title row, meant
+to align with the `:PROPERTIES:` drawer's right edge below it) add a small `offset(x = 3.dp)`
+nudge alongside the usual top padding.
 
 **When to use**: anywhere a favorited headline is rendered — right-aligned at the end of
 outline rows and read-mode heading lines (top-padded so it sits on the first line of a
@@ -465,7 +490,7 @@ content — never mutates the underlying `.org` file.
 
 ### `ThemeDropdownPicker` — `ui/components/Common.kt`
 
-Theme picker (Settings → Appearance → Theme) as a collapsed trigger plus an inline expanding
+Theme picker (Settings → Look and Feel → Theme) as a collapsed trigger plus an inline expanding
 list — no popup menu. The trigger row (`surface2` fill, 12dp radius, 1dp `line` border that
 turns `accent` while open, 11×9dp padding) shows the active theme's three 9dp dots, its name
 (14sp Medium `ink`), and an 11sp `ink3` chevron that rotates 180° while open. The list expands
@@ -485,6 +510,10 @@ ThemeDropdownPicker(
 Preview colors (bg/ink/dots) are hardcoded per theme rather than derived from `GroveColors`,
 matching `design/Grove.dc.html`'s `themeList()` — notably the Dark theme's row uses its
 `surface` color, not `bg`, for legibility against the picker's own surface background.
+
+List order: light themes first, then dark themes, each group alphabetical by label (Catppuccin
+Latte, Grove Light, Rosé Pine Dawn, Tokyo Day, then Catppuccin Mocha, Dracula, Grove Dark, Nord,
+Rosé Pine Moon, Synthwave, Tokyo Night) — not declaration order in `ThemePreference`.
 
 **When to use**: the single Settings theme picker. Not a general-purpose dropdown component.
 
@@ -930,12 +959,20 @@ Section headers scroll with the list; the prototype has no pinned headers, so th
 | Edit Note | `note/{noteId}?mode=edit` | `GroveTopBar`, `SegmentedControl`, `OrgVisualTransformation`, formatting toolbar, `MetadataSheet` |
 | Capture Picker | (bottom sheet) | `ModalBottomSheet`, icon glyph tiles, `PlexMono` |
 | Capture Editor | `capture/{templateId}` | `GroveTopBar`, `monoBody()`, formatting toolbar |
-| Search | `search` | `ResultRowContent`-based, file-grouped results (collapsible sticky headers, `line`-divided rows, `annotateOrgInline` title/snippet rendering with match highlighting layered on top, inline `priorityColor`-coded `[#P]` next to the title matching Agenda, 2-line-max snippet), `Pill` (TODO pill), quick-start cards + Saved Searches (blank state, long-press → Rename/Delete `DropdownMenu`), Advanced expression preview + operator chips, `FilterPanel` (`ModalBottomSheet`) with faceted chip sections (Notebook/Tags/TODO state/Scheduled/Deadline/Priority + `CustomDateRangePicker` "Custom range" chip) |
+| Search | `search` | `ResultRowContent`-based, file-grouped results (collapsible sticky headers, `line`-divided rows, `annotateOrgInline` title/snippet rendering with match highlighting layered on top, inline `priorityColor`-coded `[#P]` next to the title matching Agenda, 2-line-max snippet) wrapped in `SwipeRevealRow` (swipe left-to-right reveals a "Cycle state" cell opening the shared `StatePickerSheet`; swipe right-to-left reveals a "Schedule" cell opening `PlanningDatesScreen` focused on SCHEDULED — same components as the Outline's own row swipe, applied across files via `SearchViewModel.setState`/`setPlanningDates`), `Pill` (TODO pill), quick-start cards + Saved Searches (blank state, long-press → Rename/Delete `DropdownMenu`), Advanced expression preview + operator chips, `FilterPanel` (`ModalBottomSheet`) with faceted chip sections (Notebook/Tags/TODO state/Scheduled/Deadline/Priority + `CustomDateRangePicker` "Custom range" chip) |
 | Agenda | `agenda` | "Agenda A · focus" prototype variant: `AgendaHeader` (day headline + ⇅), `AgendaTabs` (Today/Upcoming), collapsible `LeversPanel` (Group by: Date/Priority/Tag/File · Show: Open, one chip per configured todo-type keyword, Everything · tags and source-file toggles, all persisted in settings), `OverdueCard` (collapsible, bulk "Move to today"), scrolling `GroupHeader`s, `AgendaRowContent` rows (checkbox → toggle done, tap → open note) wrapped in `SwipeCommitRow` (swipe-left/right per Settings § Agenda: set scheduled, set deadline, or mark done). Every mutation is undoable via `GroveUndoSnackbar`; "Move to today" restores all files it touched. Infinite scroll on the Upcoming tab |
 | Dates (SCHEDULED + DEADLINE) | (full-window dialog) | `PlanningDatesScreen` — shorthand box (`DateShorthandParser`), two-date calendar with lead-time band, per-section presets / time range / org repeater, raw org preview footer |
 | Reschedule (from a reminder notification) | (own activity, `RescheduleActivity`) | The same `PlanningDatesScreen` over a transparent window in its own task. Confirming writes the dates, toasts "Task rescheduled to …", and finishes back to whatever app the user came from — it never enters Grove's own navigation |
 | Conflict | `conflict/{notebookId}` | `GroveTopBar`, warning banner, unified diff view, action buttons |
-| Settings | `settings` | `GroveTopBar`, `ThemeDropdownPicker` (theme), `SegmentedControl` (font, priority, note mode, display mode, checklist states), `DropdownPicker` (agenda swipe-left/swipe-right actions), keyword chips, `Pill` ("default"), `ReminderPermissionBanner`, `SimpleTimePicker` (default reminder time), side-by-side button pair (Export/Import settings) |
+| Settings (hub) | `settings` | `GroveTopBar`, a single `SettingsGroup` list of eight section pages (Look and Feel, Capture Templates, Sync, Notes, Agenda, Reminders, Sharing, Backup), each row a `SettingsRow` with a one-line description and `›` chevron; app version footer |
+| Settings › Look and Feel | `settings/appearance` | `ThemeDropdownPicker` (theme, ordered light-then-dark alphabetically within each), sync-app-icon-with-theme preview tile, `SegmentedControl` (font size, default note mode) |
+| Settings › Capture Templates | `settings/templates` | Reorderable template list, "＋ New template" row, capture-from-notification toggle |
+| Settings › Sync | `settings/sync` | Folder picker, auto-sync mode list, periodic interval `SegmentedControl`, "View sync log" row |
+| Settings › Notes | `settings/notes` | TODO keywords text field + "Apply" action, `SegmentedControl` (default priority, notebook display name, checklist states), Add ID/Add CREATED toggles |
+| Settings › Agenda | `settings/agenda` | `DropdownPicker` (agenda swipe-left/swipe-right actions) |
+| Settings › Reminders | `settings/reminders` | `ReminderPermissionBanner`, enable-reminders toggle, `SimpleTimePicker` (default reminder time) |
+| Settings › Sharing | `settings/sharing` | Shared-content-target text field |
+| Settings › Backup | `settings/backup` | Explanatory copy, side-by-side button pair (Export/Import settings) |
 
 ---
 

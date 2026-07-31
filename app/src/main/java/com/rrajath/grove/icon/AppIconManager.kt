@@ -23,10 +23,14 @@ object AppIconManager {
         ThemePreference.LIGHT to ".IconLight",
         ThemePreference.DARK to ".IconDark",
         ThemePreference.TOKYONIGHT to ".IconTokyoNight",
+        ThemePreference.TOKYODAY to ".IconTokyoDay",
         ThemePreference.SYNTHWAVE to ".IconSynthwave",
         ThemePreference.DRACULA to ".IconDracula",
         ThemePreference.CATPPUCCIN to ".IconCatppuccin",
+        ThemePreference.CATPPUCCINLATTE to ".IconCatppuccinLatte",
         ThemePreference.NORD to ".IconNord",
+        ThemePreference.ROSEPINEDAWN to ".IconRosePineDawn",
+        ThemePreference.ROSEPINEMOON to ".IconRosePineMoon",
     )
 
     val ALL_ALIASES: List<String> = listOf(DEFAULT_ALIAS) + THEME_ALIASES.values
@@ -39,10 +43,14 @@ object AppIconManager {
         ThemePreference.LIGHT to 0xFF8A5A2B.toInt(),
         ThemePreference.DARK to 0xFFCB9D62.toInt(),
         ThemePreference.TOKYONIGHT to 0xFF7AA2F7.toInt(),
+        ThemePreference.TOKYODAY to 0xFF2E7DE9.toInt(),
         ThemePreference.SYNTHWAVE to 0xFFFF7EDB.toInt(),
         ThemePreference.DRACULA to 0xFFBD93F9.toInt(),
         ThemePreference.CATPPUCCIN to 0xFFCBA6F7.toInt(),
+        ThemePreference.CATPPUCCINLATTE to 0xFF8839EF.toInt(),
         ThemePreference.NORD to 0xFF88C0D0.toInt(),
+        ThemePreference.ROSEPINEDAWN to 0xFF907AA9.toInt(),
+        ThemePreference.ROSEPINEMOON to 0xFFC4A7E7.toInt(),
     )
 
     /**

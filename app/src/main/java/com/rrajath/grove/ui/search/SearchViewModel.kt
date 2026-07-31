@@ -9,6 +9,8 @@ import com.rrajath.grove.data.NoteEntity
 import com.rrajath.grove.data.NoteFacetRow
 import com.rrajath.grove.data.rawQuery
 import com.rrajath.grove.data.toNoteMeta
+import com.rrajath.grove.org.OrgKeywords
+import com.rrajath.grove.org.OrgMutations
 import com.rrajath.grove.org.OrgTimestamp
 import com.rrajath.grove.search.DatePresence
 import com.rrajath.grove.search.FacetNarrowing
@@ -21,6 +23,7 @@ import com.rrajath.grove.search.SavedSearch
 import com.rrajath.grove.search.SearchQuery
 import com.rrajath.grove.search.Snippets
 import com.rrajath.grove.ui.vault.factory
+import com.rrajath.grove.ui.vault.headlineAtLine
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -36,6 +39,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import java.util.Locale
@@ -90,6 +94,9 @@ data class SearchResult(
     val deadlineLabel: String?,
     val deadlineOverdue: Boolean,
     val tagLine: String,
+    /** Raw timestamps (vs. the display-only labels above) for the swipe-to-schedule action's date picker. */
+    val scheduledTs: OrgTimestamp?,
+    val deadlineTs: OrgTimestamp?,
 )
 
 data class SearchFileGroup(val fileName: String, val results: List<SearchResult>)
@@ -126,6 +133,9 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
 
     val savedSearches: StateFlow<List<SavedSearch>> = app.searchRepository.savedSearches
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    /** Configured TODO keywords, for the swipe-to-cycle state sheet. */
+    val keywords: StateFlow<OrgKeywords> = app.keywords
 
     private val queryFlow = MutableStateFlow("")
     private val filtersFlow = MutableStateFlow(SearchFilters())
@@ -185,6 +195,42 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
     fun renameSavedSearch(id: String, name: String) {
         if (name.isBlank()) return
         viewModelScope.launch { app.searchRepository.renameSearch(id, name.trim()) }
+    }
+
+    /**
+     * Swipe-to-cycle-state action: set a result's TODO state to exactly the
+     * keyword picked from the state sheet (null = clear it), via
+     * [OrgMutations.changeKeyword] — same "mark done" / "reopen and drop
+     * CLOSED" semantics as the Outline's own state sheet. Results span many
+     * files, so (unlike the Outline's single open document) the target file is
+     * opened and saved on demand, the way Agenda's row swipes do.
+     */
+    fun setState(fileName: String, lineIndex: Int, keyword: String?) {
+        viewModelScope.launch {
+            val vault = app.vault.value ?: return@launch
+            val doc = vault.open(fileName) ?: return@launch
+            val headline = doc.headlineAtLine(lineIndex) ?: return@launch
+            if (headline.keyword == keyword) return@launch
+            val newText = withContext(Dispatchers.Default) {
+                OrgMutations.changeKeyword(doc, headline, keyword, doc.keywords, LocalDateTime.now())
+            }
+            vault.save(fileName, newText)
+            app.syncManager.requestSync("search state set")
+        }
+    }
+
+    /** Swipe-to-schedule action: both planning dates in one edit, as the Dates screen commits. */
+    fun setPlanningDates(fileName: String, lineIndex: Int, scheduled: OrgTimestamp?, deadline: OrgTimestamp?) {
+        viewModelScope.launch {
+            val vault = app.vault.value ?: return@launch
+            val doc = vault.open(fileName) ?: return@launch
+            val headline = doc.headlineAtLine(lineIndex) ?: return@launch
+            val newText = withContext(Dispatchers.Default) {
+                OrgMutations.setPlanningDates(doc, headline, scheduled, deadline)
+            }
+            vault.save(fileName, newText)
+            app.syncManager.requestSync("search planning edit")
+        }
     }
 
     fun toggleTag(tag: String) = filtersFlow.update { it.copy(tags = it.tags.toggled(tag)) }
@@ -403,6 +449,8 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
             deadlineLabel = deadlineLabel,
             deadlineOverdue = deadlineOverdue,
             tagLine = meta.tags.joinToString(" ") { ":$it:" },
+            scheduledTs = meta.scheduled?.let { OrgTimestamp.parse(it) },
+            deadlineTs = meta.deadline?.let { OrgTimestamp.parse(it) },
         )
     }
 

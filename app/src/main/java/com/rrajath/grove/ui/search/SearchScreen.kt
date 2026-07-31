@@ -72,10 +72,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.rrajath.grove.org.PlanningKind
 import com.rrajath.grove.search.SavedSearch
 import com.rrajath.grove.search.Snippets
 import com.rrajath.grove.ui.components.CustomDateRangePicker
 import com.rrajath.grove.ui.components.Pill
+import com.rrajath.grove.ui.components.PlanningDatesScreen
+import com.rrajath.grove.ui.components.StatePickerSheet
+import com.rrajath.grove.ui.components.SwipeAction
+import com.rrajath.grove.ui.components.SwipeRevealRow
 import com.rrajath.grove.ui.components.annotateOrgInline
 import com.rrajath.grove.ui.components.ResultRowContent
 import com.rrajath.grove.ui.components.ScrollJumpButtons
@@ -110,9 +115,12 @@ fun SearchScreen(
     val c = MaterialTheme.grove
     val state by viewModel.state.collectAsStateWithLifecycle()
     val savedSearches by viewModel.savedSearches.collectAsStateWithLifecycle()
+    val keywords by viewModel.keywords.collectAsStateWithLifecycle()
     var advancedOpen by remember { mutableStateOf(false) }
     var filterPanelOpen by remember { mutableStateOf(false) }
     var saveDialogOpen by remember { mutableStateOf(false) }
+    var statePickerFor by remember { mutableStateOf<SearchResult?>(null) }
+    var schedulePickerFor by remember { mutableStateOf<SearchResult?>(null) }
     val focusRequester = remember { FocusRequester() }
     val listState = rememberLazyListState()
     val collapsedFiles = remember { mutableStateMapOf<String, Boolean>() }
@@ -234,7 +242,15 @@ fun SearchScreen(
                         onDeleteSaved = viewModel::deleteSavedSearch,
                     )
                     state.groups.isEmpty() -> NoResultsState(onOpenFilters = { filterPanelOpen = true })
-                    else -> GroupedResultsList(listState, state.groups, state.matchedTerms, collapsedFiles, onOpenNote)
+                    else -> GroupedResultsList(
+                        listState = listState,
+                        groups = state.groups,
+                        matchedTerms = state.matchedTerms,
+                        collapsedFiles = collapsedFiles,
+                        onOpenNote = onOpenNote,
+                        onOpenStatePicker = { statePickerFor = it },
+                        onOpenSchedulePicker = { schedulePickerFor = it },
+                    )
                 }
                 ScrollJumpButtons(
                     listState = listState,
@@ -290,6 +306,33 @@ fun SearchScreen(
             },
             dismissButton = {
                 TextButton(onClick = { saveDialogOpen = false }) { Text("Cancel", color = c.ink2) }
+            },
+        )
+    }
+
+    statePickerFor?.let { result ->
+        StatePickerSheet(
+            title = result.title,
+            keywords = keywords,
+            current = result.keyword,
+            onPick = { keyword ->
+                viewModel.setState(result.fileName, result.lineIndex, keyword)
+                statePickerFor = null
+            },
+            onDismiss = { statePickerFor = null },
+        )
+    }
+
+    schedulePickerFor?.let { result ->
+        PlanningDatesScreen(
+            title = result.title,
+            scheduled = result.scheduledTs,
+            deadline = result.deadlineTs,
+            focus = PlanningKind.SCHEDULED,
+            onDismiss = { schedulePickerFor = null },
+            onConfirm = { sched, dead ->
+                viewModel.setPlanningDates(result.fileName, result.lineIndex, sched, dead)
+                schedulePickerFor = null
             },
         )
     }
@@ -603,7 +646,13 @@ private fun GroupedResultsList(
     matchedTerms: List<String>,
     collapsedFiles: androidx.compose.runtime.snapshots.SnapshotStateMap<String, Boolean>,
     onOpenNote: (NoteRef) -> Unit,
+    onOpenStatePicker: (SearchResult) -> Unit,
+    onOpenSchedulePicker: (SearchResult) -> Unit,
 ) {
+    val c = MaterialTheme.grove
+    // At most one row's swipe panel open at a time — the same "key of the open
+    // row" pattern the Outline uses for its own SwipeRevealRow list.
+    var openRowKey by remember { mutableStateOf<String?>(null) }
     LazyColumn(state = listState, modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 4.dp)) {
         groups.forEach { group ->
             val collapsed = collapsedFiles[group.fileName] == true
@@ -618,7 +667,31 @@ private fun GroupedResultsList(
             if (!collapsed) {
                 itemsIndexed(group.results, key = { _, r -> "${group.fileName}-${r.lineIndex}" }, contentType = { _, _ -> "result" }) { index, result ->
                     if (index > 0) HorizontalDivider(color = MaterialTheme.grove.line)
-                    SearchResultRow(result, matchedTerms) { onOpenNote(NoteRef(group.fileName, result.lineIndex)) }
+                    val rowKey = "${group.fileName}-${result.lineIndex}"
+                    SwipeRevealRow(
+                        // Swipe left-to-right: cycle the TODO state via a bottom sheet.
+                        leftActions = listOf(
+                            SwipeAction("⟳", "State", c.amber, c.amberSoft) { onOpenStatePicker(result) },
+                        ),
+                        // Swipe right-to-left: schedule this task.
+                        rightActions = listOf(
+                            SwipeAction(
+                                label = "Schedule",
+                                fg = c.blue,
+                                bg = c.blueSoft,
+                                icon = Icons.Outlined.CalendarMonth,
+                            ) { onOpenSchedulePicker(result) },
+                        ),
+                        enabled = true,
+                        forceClose = openRowKey != rowKey,
+                        onOpenChanged = { open ->
+                            openRowKey = if (open) rowKey else if (openRowKey == rowKey) null else openRowKey
+                        },
+                        onTap = { onOpenNote(NoteRef(group.fileName, result.lineIndex)) },
+                        onLongPress = {},
+                    ) {
+                        SearchResultRow(result, matchedTerms)
+                    }
                 }
             }
         }
@@ -694,7 +767,7 @@ private fun highlightedOrgText(text: String, terms: List<String>, c: com.rrajath
 }
 
 @Composable
-private fun SearchResultRow(result: SearchResult, matchedTerms: List<String>, onOpenNote: () -> Unit) {
+private fun SearchResultRow(result: SearchResult, matchedTerms: List<String>) {
     val c = MaterialTheme.grove
     val titleText = remember(result.title, matchedTerms, c) { highlightedOrgText(result.title, matchedTerms, c) }
     val snippetText = if (result.snippet.text.isNotEmpty()) {
@@ -710,7 +783,6 @@ private fun SearchResultRow(result: SearchResult, matchedTerms: List<String>, on
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .clickable(onClick = onOpenNote)
             .padding(start = 16.dp, top = 9.dp, end = 11.dp, bottom = 11.dp),
         metaContent = if (hasMeta) {
             {

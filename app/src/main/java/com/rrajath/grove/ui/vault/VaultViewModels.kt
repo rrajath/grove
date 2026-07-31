@@ -415,8 +415,10 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
      * user picked from the state sheet (null = clear it). Picking a done-type
      * keyword applies full org-todo "mark done" semantics — a repeating
      * SCHEDULED/DEADLINE advances instead of closing, otherwise a CLOSED stamp
-     * is written — so marking a task done from the outline behaves the same as
-     * from the metadata sheet or the agenda swipe.
+     * is written; leaving a done-type keyword (including clearing it to none)
+     * drops that stamp — via [OrgMutations.changeKeyword], so marking a task
+     * done/reopening it from the outline behaves the same as from the metadata
+     * sheet, Search's state sheet, or the agenda swipe.
      */
     fun setState(headline: OrgHeadline, keyword: String?) {
         val loaded = _state.value as? DocumentUiState.Loaded ?: return
@@ -424,11 +426,9 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
         if (headline.keyword == keyword) return
         viewModelScope.launch {
             val (newText, newDoc) = withContext(Dispatchers.Default) {
-                val text = if (keyword != null && loaded.document.keywords.isDone(keyword)) {
-                    OrgMutations.markDone(loaded.document, headline, keyword, LocalDateTime.now())
-                } else {
-                    OrgMutations.setKeyword(loaded.document, headline, keyword)
-                }
+                val text = OrgMutations.changeKeyword(
+                    loaded.document, headline, keyword, loaded.document.keywords, LocalDateTime.now(),
+                )
                 text to OrgParser.parse(text, loaded.document.keywords)
             }
             _state.value = DocumentUiState.Loaded(loaded.fileName, newDoc)

@@ -1,0 +1,271 @@
+package com.rrajath.grove.ui.screens.settings
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.rrajath.grove.capture.CaptureTemplate
+import com.rrajath.grove.settings.AgendaSwipeAction
+import com.rrajath.grove.settings.ChecklistStates
+import com.rrajath.grove.ui.components.GroveTopBar
+import com.rrajath.grove.ui.screens.IconGlyph
+import com.rrajath.grove.ui.theme.PlexMono
+import com.rrajath.grove.ui.theme.PlexSans
+import com.rrajath.grove.ui.theme.grove
+
+/**
+ * Shared chrome for every settings sub-page (Settings §11 split into one page
+ * per section): back-arrow app bar + the same scrollable, 16dp-gutter column
+ * every section used when they all lived on one screen.
+ */
+@Composable
+internal fun SettingsPageScaffold(
+    title: String,
+    onBack: () -> Unit,
+    content: @Composable () -> Unit,
+) {
+    val c = MaterialTheme.grove
+    Scaffold(
+        containerColor = c.bg,
+        topBar = {
+            GroveTopBar(
+                leading = { IconGlyph("←", onClick = onBack) },
+                title = {
+                    Text(
+                        title,
+                        style = MaterialTheme.typography.titleLarge,
+                        color = c.ink,
+                        modifier = Modifier.padding(start = 4.dp),
+                    )
+                },
+            )
+        },
+    ) { padding ->
+        Column(
+            Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 20.dp),
+        ) {
+            content()
+        }
+    }
+}
+
+@Composable
+internal fun SectionLabel(text: String) {
+    Text(
+        text,
+        fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
+        fontSize = 12.sp, letterSpacing = 1.sp,
+        color = MaterialTheme.grove.accent,
+        modifier = Modifier.padding(start = 4.dp, top = 4.dp, bottom = 10.dp),
+    )
+}
+
+@Composable
+internal fun SettingsGroup(content: @Composable () -> Unit) {
+    val c = MaterialTheme.grove
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(15.dp))
+            .background(c.surface)
+            .border(1.dp, c.line, RoundedCornerShape(15.dp)),
+    ) {
+        content()
+    }
+}
+
+@Composable
+internal fun RowDivider() {
+    HorizontalDivider(color = MaterialTheme.grove.line, modifier = Modifier.padding(horizontal = 15.dp))
+}
+
+@Composable
+internal fun SettingsRow(
+    label: String,
+    description: String? = null,
+    descriptionContent: (@Composable () -> Unit)? = null,
+    onClick: (() -> Unit)? = null,
+    trailing: @Composable () -> Unit,
+) {
+    val clickMod = if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .then(clickMod)
+            .padding(horizontal = 15.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(
+                label,
+                fontFamily = PlexSans, fontWeight = FontWeight.Medium,
+                fontSize = 14.5.sp, color = MaterialTheme.grove.ink,
+            )
+            if (descriptionContent != null) {
+                Box(Modifier.padding(top = 2.dp)) { descriptionContent() }
+            } else if (description != null) {
+                Text(
+                    description,
+                    fontFamily = PlexSans, fontSize = 12.sp, color = MaterialTheme.grove.ink2,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
+            }
+        }
+        Spacer(Modifier.width(12.dp))
+        trailing()
+    }
+}
+
+@Composable
+internal fun ToggleRow(
+    label: String,
+    checked: Boolean,
+    description: String? = null,
+    onToggle: (Boolean) -> Unit,
+) {
+    val c = MaterialTheme.grove
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clickable { onToggle(!checked) }
+            .padding(horizontal = 15.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(
+                label,
+                fontFamily = PlexSans, fontWeight = FontWeight.Medium,
+                fontSize = 14.5.sp, color = c.ink,
+            )
+            if (description != null) {
+                Text(
+                    description,
+                    fontFamily = PlexSans, fontSize = 12.sp, color = c.ink2,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
+            }
+        }
+        Spacer(Modifier.width(12.dp))
+        androidx.compose.material3.Switch(
+            checked = checked,
+            onCheckedChange = onToggle,
+            colors = androidx.compose.material3.SwitchDefaults.colors(
+                checkedTrackColor = c.accent,
+                checkedThumbColor = c.accentInk,
+                uncheckedTrackColor = c.surface3,
+                uncheckedThumbColor = c.surface,
+            ),
+        )
+    }
+}
+
+@Composable
+internal fun SmallAction(glyph: String, enabled: Boolean, onClick: () -> Unit) {
+    val c = MaterialTheme.grove
+    Box(
+        Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = 8.dp, vertical = 6.dp),
+    ) {
+        Text(
+            glyph,
+            fontFamily = PlexMono, fontSize = 13.sp,
+            color = if (enabled) c.ink2 else c.line2,
+        )
+    }
+}
+
+@Composable
+internal fun TemplateSettingsRow(
+    template: CaptureTemplate,
+    onEdit: () -> Unit,
+    onMoveUp: (() -> Unit)?,
+    onMoveDown: (() -> Unit)?,
+    onDelete: () -> Unit,
+) {
+    val c = MaterialTheme.grove
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onEdit)
+            .padding(horizontal = 15.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(template.icon, fontFamily = PlexMono, fontSize = 15.sp, color = c.accent)
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                template.name,
+                fontFamily = PlexSans, fontWeight = FontWeight.Medium,
+                fontSize = 14.5.sp, color = c.ink,
+            )
+            Text(
+                "${template.targetFile} · ${template.location.describe()}",
+                fontFamily = PlexMono, fontSize = 12.sp, color = c.ink2,
+            )
+        }
+        SmallAction("↑", enabled = onMoveUp != null) { onMoveUp?.invoke() }
+        SmallAction("↓", enabled = onMoveDown != null) { onMoveDown?.invoke() }
+        SmallAction("✕", enabled = true, onClick = onDelete)
+    }
+}
+
+/**
+ * "Checklist states" row description: just the "[ ] → [x]" / "[ ] → [-] → [x]"
+ * bracket notation, set entirely in `PlexMono` (design system mono-body token).
+ * Uses the single-character arrow U+2192 rather than "->" — PlexMono (IBM Plex
+ * Mono) has no calt/liga ligature for "->", so two literal characters is all
+ * that font would ever render.
+ */
+@Composable
+internal fun ChecklistStatesDescription(states: ChecklistStates) {
+    val c = MaterialTheme.grove
+    val bracketNotation = if (states == ChecklistStates.TWO) {
+        "[ ] → [x]"
+    } else {
+        "[ ] → [-] → [x]"
+    }
+    Text(
+        bracketNotation,
+        fontFamily = PlexMono, fontSize = 12.sp, color = c.ink2,
+    )
+}
+
+internal fun swipeActionDescription(action: AgendaSwipeAction): String = when (action) {
+    AgendaSwipeAction.SET_SCHEDULED -> "open the scheduled-date picker"
+    AgendaSwipeAction.SET_DEADLINE -> "open the deadline picker"
+    AgendaSwipeAction.MARK_DONE -> "mark it done"
+}
+
+/** Friendly folder name from a SAF tree URI ("content://…/tree/primary%3Aorg" → "org"). */
+internal fun uriDisplayName(uri: String): String {
+    val last = java.net.URLDecoder.decode(uri.substringAfterLast("/"), "UTF-8")
+    return last.substringAfterLast(':').ifEmpty { last }
+}

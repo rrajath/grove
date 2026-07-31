@@ -6,10 +6,14 @@ enum class ThemePreference(val storageKey: String) {
     LIGHT("light"),
     DARK("dark"),
     TOKYONIGHT("tokyonight"),
+    TOKYODAY("tokyoday"),
     SYNTHWAVE("synthwave"),
     DRACULA("dracula"),
     CATPPUCCIN("catppuccin"),
-    NORD("nord");
+    CATPPUCCINLATTE("catppuccinlatte"),
+    NORD("nord"),
+    ROSEPINEDAWN("rosepinedawn"),
+    ROSEPINEMOON("rosepinemoon");
 
     companion object {
         fun fromStorage(value: String?): ThemePreference =
