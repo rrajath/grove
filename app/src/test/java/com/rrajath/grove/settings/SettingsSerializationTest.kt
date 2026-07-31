@@ -32,6 +32,7 @@ class SettingsSerializationTest {
         showPropertyDrawers = false,
         checklistStates = ChecklistStates.THREE,
         remindersEnabled = false,
+        morningBriefEnabled = false,
         defaultReminderTime = java.time.LocalTime.of(7, 45),
         agendaSwipeLeftAction = AgendaSwipeAction.MARK_DONE,
         agendaSwipeRightAction = AgendaSwipeAction.SET_DEADLINE,
@@ -69,6 +70,7 @@ class SettingsSerializationTest {
         assertEquals(sample.showPropertyDrawers, restored.showPropertyDrawers)
         assertEquals(sample.checklistStates, restored.checklistStates)
         assertEquals(sample.remindersEnabled, restored.remindersEnabled)
+        assertEquals(sample.morningBriefEnabled, restored.morningBriefEnabled)
         assertEquals(sample.defaultReminderTime, restored.defaultReminderTime)
         assertEquals(sample.agendaSwipeLeftAction, restored.agendaSwipeLeftAction)
         assertEquals(sample.agendaSwipeRightAction, restored.agendaSwipeRightAction)

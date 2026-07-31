@@ -22,7 +22,7 @@ class ReminderDigestReceiver : BroadcastReceiver() {
         app.appScope.launch {
             try {
                 val settings = app.settingsRepository.settings.first()
-                if (settings.remindersEnabled) {
+                if (settings.remindersEnabled && settings.morningBriefEnabled) {
                     val reminders = app.database.reminderDao().all()
                     val count = ReminderDigest.count(reminders, LocalDate.now())
                     if (count > 0) ReminderNotification.showDigest(context, count)

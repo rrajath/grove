@@ -89,7 +89,7 @@ fun CustomDateRangePicker(
 
 /**
  * Standalone time-of-day picker (no date step) — e.g. Settings › Reminders ›
- * "Default reminder time". Shares [TimePickerDialog]'s chrome with [PlanningDatePicker].
+ * "Send reminder at". Shares [TimePickerDialog]'s chrome with [PlanningDatePicker].
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -118,7 +118,7 @@ fun SimpleTimePicker(
 /**
  * Material3 ships no `TimePickerDialog`; this mirrors [DatePickerDialog]'s chrome.
  * Internal (not private) so other same-module time pickers (e.g. Settings ›
- * Reminders › "Default reminder time") can reuse the same chrome.
+ * Reminders › "Send reminder at") can reuse the same chrome.
  */
 @Composable
 internal fun TimePickerDialog(

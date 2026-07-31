@@ -63,11 +63,13 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
@@ -107,7 +109,7 @@ fun SearchScreen(
      * Notebook to pin the search to on entry (the Outline's search action passes
      * the file you were reading). The pin is an ordinary notebook filter from
      * there on: the Filters sheet can point it at another file or widen it back
-     * to all notebooks, and the "searching in …" note below the field follows.
+     * to all notebooks, and the mirrored `b.` token in the search field follows.
      */
     initialNotebook: String? = null,
     viewModel: SearchViewModel = viewModel(factory = SearchViewModel.Factory),
@@ -124,6 +126,19 @@ fun SearchScreen(
     val focusRequester = remember { FocusRequester() }
     val listState = rememberLazyListState()
     val collapsedFiles = remember { mutableStateMapOf<String, Boolean>() }
+
+    // TextFieldValue (not the plain-String overload) so a programmatic change —
+    // an operator chip tap or a Filters-panel selection mirroring into the
+    // field — can place the cursor at the end instead of Compose's default of
+    // resetting it to the start. Typed input keeps whatever selection the IME
+    // reports; only changes that didn't originate from this field's own
+    // onValueChange move the cursor.
+    var fieldValue by remember { mutableStateOf(TextFieldValue(state.query)) }
+    LaunchedEffect(state.query) {
+        if (state.query != fieldValue.text) {
+            fieldValue = TextFieldValue(state.query, selection = TextRange(state.query.length))
+        }
+    }
 
     LaunchedEffect(initialQuery) {
         if (!initialQuery.isNullOrBlank()) viewModel.submit(initialQuery)
@@ -160,8 +175,11 @@ fun SearchScreen(
                     Text("⌕", fontFamily = PlexMono, fontSize = 14.sp, color = c.ink3)
                     Spacer(Modifier.width(8.dp))
                     BasicTextField(
-                        value = state.query,
-                        onValueChange = viewModel::onQueryChange,
+                        value = fieldValue,
+                        onValueChange = { new ->
+                            fieldValue = new
+                            viewModel.onQueryChange(new.text)
+                        },
                         singleLine = true,
                         textStyle = TextStyle(fontFamily = PlexSans, fontSize = 15.sp, color = c.ink),
                         cursorBrush = SolidColor(c.accent),
@@ -179,27 +197,6 @@ fun SearchScreen(
                 }
                 if (state.query.isNotBlank()) {
                     IconGlyph("☆", onClick = { saveDialogOpen = true })
-                }
-            }
-
-            // Scope note: names the one notebook being searched. Driven by the
-            // live filter (not the entry argument), so retargeting it in the
-            // Filters sheet renames the file here and widening to all notebooks
-            // removes the note entirely.
-            state.filters.notebook?.let { notebook ->
-                Row(
-                    // Indented past the back arrow (10dp gutter + 44dp glyph) so
-                    // the note hangs under the search field, not the whole row.
-                    Modifier.fillMaxWidth().padding(start = 56.dp, end = 14.dp, bottom = 2.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text("searching in ", fontFamily = PlexSans, fontSize = 11.5.sp, color = c.ink3)
-                    Text(
-                        notebook,
-                        fontFamily = PlexMono, fontWeight = FontWeight.Medium,
-                        fontSize = 11.5.sp, color = c.ink2,
-                        maxLines = 1, overflow = TextOverflow.Ellipsis,
-                    )
                 }
             }
 
@@ -223,7 +220,6 @@ fun SearchScreen(
             }
 
             if (advancedOpen) {
-                ExprPreview(viewModel.composedExpression())
                 AdvancedPanel(onChipTap = { op ->
                     viewModel.onQueryChange((state.query.trim() + " " + op.substringBefore('.') + ".").trim())
                 })
@@ -274,7 +270,8 @@ fun SearchScreen(
             onSetScheduledRange = viewModel::setScheduledRange,
             onSetDeadline = viewModel::setDeadlinePreset,
             onSetDeadlineRange = viewModel::setDeadlineRange,
-            onSetNotebook = viewModel::setNotebookScope,
+            onToggleNotebook = viewModel::toggleNotebook,
+            onClearNotebooks = viewModel::clearNotebooks,
             onClear = viewModel::clearFilters,
             onDismiss = { filterPanelOpen = false },
         )
@@ -356,27 +353,24 @@ private fun AdvancedToggle(active: Boolean, onClick: () -> Unit) {
     }
 }
 
-@Composable
-private fun ExprPreview(text: String) {
-    val c = MaterialTheme.grove
-    Text(
-        text,
-        fontFamily = PlexMono, fontSize = 12.5.sp, color = c.ink,
-        maxLines = 1, overflow = TextOverflow.Ellipsis,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 14.dp)
-            .padding(bottom = 6.dp)
-            .clip(RoundedCornerShape(10.dp))
-            .background(c.surface)
-            .border(1.dp, c.line, RoundedCornerShape(10.dp))
-            .padding(horizontal = 11.dp, vertical = 9.dp),
-    )
-}
+/** One line per operator, shown from the (i) button — see [AdvancedPanel]. */
+private val OPERATOR_LEGEND = listOf(
+    "space" to "AND — every term must match",
+    "OR" to "starts a new AND-group — either side can match",
+    ". prefix" to "NOT — excludes rather than requires",
+    "o.PROP" to "sort by PROP (priority, scheduled, deadline, created, title, notebook)",
+    "t.TAG / tn.TAG" to "tag anywhere in the heading / on this heading only",
+    "i.STATE" to "TODO keyword (i.none = no keyword)",
+    "b.NOTEBOOK" to "restrict to one notebook",
+    "p.PRIORITY" to "priority letter (A/B/C)",
+    "s./d." to "scheduled/deadline within a period (3d, 1w, today…)",
+    "c./cr." to "closed/created within a period",
+)
 
 @Composable
 private fun AdvancedPanel(onChipTap: (String) -> Unit) {
     val c = MaterialTheme.grove
+    var legendOpen by remember { mutableStateOf(false) }
     Column(
         Modifier
             .fillMaxWidth()
@@ -386,10 +380,39 @@ private fun AdvancedPanel(onChipTap: (String) -> Unit) {
             .border(1.dp, c.line, RoundedCornerShape(13.dp))
             .padding(13.dp),
     ) {
-        Text(
-            "Operators — space = AND · OR · prefix . = NOT · o.PROP sorts",
-            fontFamily = PlexSans, fontSize = 11.5.sp, color = c.ink2,
-        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "Operators", fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
+                fontSize = 11.5.sp, color = c.ink2, modifier = Modifier.weight(1f),
+            )
+            Box {
+                Text(
+                    "ⓘ", fontFamily = PlexMono, fontSize = 13.sp, color = c.ink3,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .clickable { legendOpen = true }
+                        .padding(4.dp),
+                )
+                DropdownMenu(expanded = legendOpen, onDismissRequest = { legendOpen = false }) {
+                    Column(Modifier.padding(horizontal = 14.dp, vertical = 8.dp)) {
+                        OPERATOR_LEGEND.forEach { (token, desc) ->
+                            Text(
+                                buildAnnotatedString {
+                                    withStyle(SpanStyle(fontFamily = PlexMono, fontWeight = FontWeight.SemiBold, color = c.ink)) {
+                                        append(token)
+                                    }
+                                    withStyle(SpanStyle(fontFamily = PlexSans, color = c.ink2)) {
+                                        append("  $desc")
+                                    }
+                                },
+                                fontSize = 12.sp,
+                                modifier = Modifier.padding(vertical = 3.dp),
+                            )
+                        }
+                    }
+                }
+            }
+        }
         Spacer(Modifier.height(8.dp))
         Row {
             OPERATOR_CHIPS.take(3).forEach { OpChip(it, onChipTap); Spacer(Modifier.width(8.dp)) }
@@ -801,12 +824,18 @@ private fun FilterPanel(
     onSetScheduledRange: (LocalDate, LocalDate) -> Unit,
     onSetDeadline: (DatePreset) -> Unit,
     onSetDeadlineRange: (LocalDate, LocalDate) -> Unit,
-    onSetNotebook: (String?) -> Unit,
+    onToggleNotebook: (String) -> Unit,
+    onClearNotebooks: () -> Unit,
     onClear: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     val c = MaterialTheme.grove
     var rangeTarget by remember { mutableStateOf<PillKind?>(null) }
+    // Hundreds of tags/notebooks would otherwise flood the sheet — each section
+    // starts at 10 and grows by 10 per "Load more" tap; reset whenever the
+    // panel is freshly opened since it's recomposed from scratch each time.
+    var visibleNotebooks by remember(catalog.notebooks) { mutableStateOf(minOf(10, catalog.notebooks.size)) }
+    var visibleTags by remember(catalog.tags) { mutableStateOf(minOf(10, catalog.tags.size)) }
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         containerColor = c.surface,
@@ -850,18 +879,44 @@ private fun FilterPanel(
                     .padding(horizontal = 16.dp),
             ) {
                 FilterSection("Notebook") {
-                    PanelChip("All notebooks", filters.notebook == null) { onSetNotebook(null) }
-                    catalog.notebooks.forEach { nb -> PanelChip(nb, filters.notebook == nb) { onSetNotebook(nb) } }
+                    PanelChip("All notebooks", filters.notebooks.isEmpty() && filters.excludedNotebooks.isEmpty()) {
+                        onClearNotebooks()
+                    }
+                    catalog.notebooks.take(visibleNotebooks).forEach { nb ->
+                        val st = facetState(nb, filters.notebooks, filters.excludedNotebooks)
+                        PanelChip(nb, included = st == FacetState.INCLUDED, excluded = st == FacetState.EXCLUDED) {
+                            onToggleNotebook(nb)
+                        }
+                    }
+                    if (visibleNotebooks < catalog.notebooks.size) {
+                        LoadMoreChip(catalog.notebooks.size - visibleNotebooks) {
+                            visibleNotebooks = minOf(visibleNotebooks + 10, catalog.notebooks.size)
+                        }
+                    }
                 }
                 if (catalog.tags.isNotEmpty()) {
                     FilterSection("Tags") {
-                        catalog.tags.forEach { tag -> PanelChip(":$tag:", filters.tags.contains(tag)) { onToggleTag(tag) } }
+                        catalog.tags.take(visibleTags).forEach { tag ->
+                            val st = facetState(tag, filters.tags, filters.excludedTags)
+                            PanelChip(":$tag:", included = st == FacetState.INCLUDED, excluded = st == FacetState.EXCLUDED) {
+                                onToggleTag(tag)
+                            }
+                        }
+                        if (visibleTags < catalog.tags.size) {
+                            LoadMoreChip(catalog.tags.size - visibleTags) {
+                                visibleTags = minOf(visibleTags + 10, catalog.tags.size)
+                            }
+                        }
                     }
                 }
                 if (catalog.states.isNotEmpty()) {
                     FilterSection("TODO state") {
                         catalog.states.forEach { st ->
-                            PanelChip(if (st == NO_STATE) "no state" else st, filters.states.contains(st)) { onToggleState(st) }
+                            val label = if (st == NO_STATE) "no state" else st
+                            val chipState = facetState(st, filters.states, filters.excludedStates)
+                            PanelChip(label, included = chipState == FacetState.INCLUDED, excluded = chipState == FacetState.EXCLUDED) {
+                                onToggleState(st)
+                            }
                         }
                     }
                 }
@@ -884,7 +939,12 @@ private fun FilterPanel(
                     }
                 }
                 FilterSection("Priority") {
-                    listOf("A", "B", "C").forEach { p -> PanelChip("[#$p]", filters.priorities.contains(p)) { onTogglePriority(p) } }
+                    listOf("A", "B", "C").forEach { p ->
+                        val st = facetState(p, filters.priorities, filters.excludedPriorities)
+                        PanelChip("[#$p]", included = st == FacetState.INCLUDED, excluded = st == FacetState.EXCLUDED) {
+                            onTogglePriority(p)
+                        }
+                    }
                 }
                 Spacer(Modifier.height(4.dp))
             }
@@ -944,20 +1004,55 @@ private fun FilterSection(label: String, content: @Composable FlowRowScope.() ->
     }
 }
 
+/** [excluded] renders a NOT-styled chip (see [FacetState.EXCLUDED]); date
+ *  presets and other non-tri-state chips just pass [included]. */
 @Composable
-private fun PanelChip(label: String, active: Boolean, onClick: () -> Unit) {
+private fun PanelChip(label: String, included: Boolean, excluded: Boolean = false, onClick: () -> Unit) {
     val c = MaterialTheme.grove
+    val bg = when {
+        included -> c.accent
+        excluded -> c.redSoft
+        else -> c.surface
+    }
+    val border = when {
+        included -> Color.Transparent
+        excluded -> c.red
+        else -> c.line
+    }
+    val fg = when {
+        included -> c.accentInk
+        excluded -> c.red
+        else -> c.ink2
+    }
     Box(
         Modifier
             .clip(RoundedCornerShape(9.dp))
-            .background(if (active) c.accent else c.surface)
-            .border(1.dp, if (active) Color.Transparent else c.line, RoundedCornerShape(9.dp))
+            .background(bg)
+            .border(1.dp, border, RoundedCornerShape(9.dp))
             .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 7.dp),
     ) {
         Text(
-            label, fontFamily = PlexSans, fontWeight = FontWeight.SemiBold, fontSize = 12.5.sp,
-            color = if (active) c.accentInk else c.ink2,
+            if (excluded) "¬ $label" else label,
+            fontFamily = PlexSans, fontWeight = FontWeight.SemiBold, fontSize = 12.5.sp,
+            color = fg,
+        )
+    }
+}
+
+@Composable
+private fun LoadMoreChip(remaining: Int, onClick: () -> Unit) {
+    val c = MaterialTheme.grove
+    Box(
+        Modifier
+            .clip(RoundedCornerShape(9.dp))
+            .background(c.surface2)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 7.dp),
+    ) {
+        Text(
+            "Load ${minOf(10, remaining)} more",
+            fontFamily = PlexSans, fontWeight = FontWeight.SemiBold, fontSize = 12.5.sp, color = c.ink2,
         )
     }
 }

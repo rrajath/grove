@@ -166,6 +166,9 @@ class AppViewModel(private val app: GroveApplication) : ViewModel() {
     fun setRemindersEnabled(enabled: Boolean) =
         viewModelScope.launch { settingsRepository.setRemindersEnabled(enabled) }
 
+    fun setMorningBriefEnabled(enabled: Boolean) =
+        viewModelScope.launch { settingsRepository.setMorningBriefEnabled(enabled) }
+
     fun setDefaultReminderTime(time: java.time.LocalTime) =
         viewModelScope.launch { settingsRepository.setDefaultReminderTime(time) }
 

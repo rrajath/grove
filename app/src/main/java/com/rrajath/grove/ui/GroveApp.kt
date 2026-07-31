@@ -25,6 +25,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.rrajath.grove.GroveApplication
+import com.rrajath.grove.capture.ShortcutSyncer
 import com.rrajath.grove.icon.AppIconManager
 import com.rrajath.grove.settings.GroveSettings
 import com.rrajath.grove.ui.agenda.AgendaScreen
@@ -55,6 +57,7 @@ import com.rrajath.grove.ui.screens.SyncLogScreen
 import com.rrajath.grove.ui.vault.NoteRef
 import com.rrajath.grove.ui.theme.GroveTheme
 import com.rrajath.grove.ui.theme.grove
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 @Composable
@@ -75,6 +78,14 @@ fun GroveApp(
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_STOP) {
                 AppIconManager.applyIcon(context, syncIcon, iconTheme)
+                // Dynamic shortcuts published while the old alias was still
+                // enabled are now stranded on it; republish against whichever
+                // alias applyIcon just switched to.
+                val app = context.applicationContext as GroveApplication
+                app.appScope.launch {
+                    val templates = app.templatesRepository.templates.first()
+                    ShortcutSyncer.sync(app, templates, iconTheme, syncIcon)
+                }
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -431,6 +442,7 @@ private fun GroveNavigation(
                     settings = settings,
                     onBack = { navController.popBackStack() },
                     onSetRemindersEnabled = viewModel::setRemindersEnabled,
+                    onSetMorningBriefEnabled = viewModel::setMorningBriefEnabled,
                     onSetDefaultReminderTime = viewModel::setDefaultReminderTime,
                     reminderPendingCount = viewModel.reminderPendingCount.collectAsStateWithLifecycle().value,
                 )

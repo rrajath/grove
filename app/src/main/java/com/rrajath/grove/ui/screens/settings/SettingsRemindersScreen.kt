@@ -26,6 +26,7 @@ fun SettingsRemindersScreen(
     settings: GroveSettings,
     onBack: () -> Unit,
     onSetRemindersEnabled: (Boolean) -> Unit,
+    onSetMorningBriefEnabled: (Boolean) -> Unit,
     onSetDefaultReminderTime: (LocalTime) -> Unit,
     reminderPendingCount: Int,
 ) {
@@ -41,10 +42,17 @@ fun SettingsRemindersScreen(
                 checked = settings.remindersEnabled,
                 onToggle = onSetRemindersEnabled,
             )
-            if (settings.remindersEnabled) {
+            RowDivider()
+            ToggleRow(
+                label = "Morning Brief",
+                description = "Organize your day",
+                checked = settings.morningBriefEnabled,
+                onToggle = onSetMorningBriefEnabled,
+            )
+            if (settings.morningBriefEnabled) {
                 RowDivider()
                 SettingsRow(
-                    label = "Default reminder time",
+                    label = "Send reminder at",
                     description = "Used for SCHEDULED/DEADLINE stamps with no time of day",
                     onClick = { showReminderTimePicker = true },
                 ) {

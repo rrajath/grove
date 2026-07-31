@@ -21,7 +21,7 @@ class ReminderBootReceiver : BroadcastReceiver() {
             try {
                 app.reminderReconciler.rearmAll()
                 val settings = app.settingsRepository.settings.first()
-                if (settings.remindersEnabled) {
+                if (settings.remindersEnabled && settings.morningBriefEnabled) {
                     ReminderDigestScheduler.scheduleNext(context, settings.defaultReminderTime)
                 }
             } finally {

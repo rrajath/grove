@@ -60,6 +60,8 @@ data class GroveSettings(
     val checklistStates: ChecklistStates = ChecklistStates.TWO,
     /** SCHEDULED/DEADLINE reminder notifications (see `reminders` package). */
     val remindersEnabled: Boolean = true,
+    /** Daily digest ("You have X tasks due today") opt-in; requires [remindersEnabled] too. */
+    val morningBriefEnabled: Boolean = true,
     /** Time of day used for date-only SCHEDULED/DEADLINE stamps (no time-of-day). */
     val defaultReminderTime: LocalTime = LocalTime.of(9, 0),
     /** Agenda row swipe-left/swipe-right gestures (Settings § Agenda). */
@@ -109,6 +111,7 @@ class SettingsRepository(private val context: Context) {
         val lastRefileHeadingPath = stringPreferencesKey("last_refile_heading_path")
         val checklistStates = stringPreferencesKey("checklist_states")
         val remindersEnabled = booleanPreferencesKey("reminders_enabled")
+        val morningBriefEnabled = booleanPreferencesKey("morning_brief_enabled")
         val defaultReminderTime = stringPreferencesKey("default_reminder_time")
         val agendaSwipeLeftAction = stringPreferencesKey("agenda_swipe_left_action")
         val agendaSwipeRightAction = stringPreferencesKey("agenda_swipe_right_action")
@@ -148,6 +151,7 @@ class SettingsRepository(private val context: Context) {
             lastRefileHeadingPath = prefs[Keys.lastRefileHeadingPath] ?: "",
             checklistStates = ChecklistStates.fromStorage(prefs[Keys.checklistStates]),
             remindersEnabled = prefs[Keys.remindersEnabled] ?: true,
+            morningBriefEnabled = prefs[Keys.morningBriefEnabled] ?: true,
             defaultReminderTime = decodeTime(prefs[Keys.defaultReminderTime]),
             agendaSwipeLeftAction = AgendaSwipeAction.fromStorage(
                 prefs[Keys.agendaSwipeLeftAction], AgendaSwipeAction.MARK_DONE
@@ -217,6 +221,7 @@ class SettingsRepository(private val context: Context) {
             p[Keys.notebookDisplayNameMode] = s.notebookDisplayNameMode.storageKey
             p[Keys.checklistStates] = s.checklistStates.storageKey
             p[Keys.remindersEnabled] = s.remindersEnabled
+            p[Keys.morningBriefEnabled] = s.morningBriefEnabled
             p[Keys.defaultReminderTime] = encodeTime(s.defaultReminderTime)
             p[Keys.agendaSwipeLeftAction] = s.agendaSwipeLeftAction.storageKey
             p[Keys.agendaSwipeRightAction] = s.agendaSwipeRightAction.storageKey
@@ -316,6 +321,10 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setRemindersEnabled(enabled: Boolean) {
         context.settingsDataStore.edit { it[Keys.remindersEnabled] = enabled }
+    }
+
+    suspend fun setMorningBriefEnabled(enabled: Boolean) {
+        context.settingsDataStore.edit { it[Keys.morningBriefEnabled] = enabled }
     }
 
     suspend fun setDefaultReminderTime(time: LocalTime) {

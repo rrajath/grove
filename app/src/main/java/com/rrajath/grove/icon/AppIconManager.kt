@@ -75,6 +75,17 @@ object AppIconManager {
         if (enabled) THEME_ALIASES[theme] ?: DEFAULT_ALIAS else DEFAULT_ALIAS
 
     /**
+     * The launcher-alias [ComponentName] that is (or is about to become) the
+     * enabled `LAUNCHER` component for a given (enabled, theme) pair. Dynamic
+     * shortcuts must bind to this via `ShortcutInfoCompat.Builder.setActivity`
+     * — omitting it makes a shortcut resolve against whichever alias happens
+     * to be enabled at publish time, which silently drops the shortcut off
+     * the launcher the next time [applyIcon] switches the enabled alias.
+     */
+    fun targetAliasComponent(context: Context, enabled: Boolean, theme: ThemePreference): ComponentName =
+        ComponentName(context.packageName, "$MANIFEST_PACKAGE${targetAlias(enabled, theme)}")
+
+    /**
      * Enables the alias matching [theme] when [enabled] is true (icon follows
      * the selected theme); otherwise enables the default alias. Disables every
      * other alias so exactly one launcher icon is ever active.

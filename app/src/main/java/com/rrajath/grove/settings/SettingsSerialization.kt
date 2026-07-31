@@ -58,6 +58,7 @@ data class SettingsExport(
     val notebookDisplayNameMode: String = NotebookDisplayNameMode.FILENAME.storageKey,
     val checklistStates: String = ChecklistStates.TWO.storageKey,
     val remindersEnabled: Boolean = true,
+    val morningBriefEnabled: Boolean = true,
     /** "HH:mm", e.g. "09:00". */
     val defaultReminderTime: String = "09:00",
     val agendaSwipeLeftAction: String = AgendaSwipeAction.MARK_DONE.storageKey,
@@ -93,6 +94,7 @@ data class SettingsExport(
         notebookDisplayNameMode = NotebookDisplayNameMode.fromStorage(notebookDisplayNameMode),
         checklistStates = ChecklistStates.fromStorage(checklistStates),
         remindersEnabled = remindersEnabled,
+        morningBriefEnabled = morningBriefEnabled,
         defaultReminderTime = runCatching { java.time.LocalTime.parse(defaultReminderTime) }
             .getOrDefault(GroveSettings.DEFAULT_REMINDER_TIME),
         agendaSwipeLeftAction = AgendaSwipeAction.fromStorage(agendaSwipeLeftAction, AgendaSwipeAction.MARK_DONE),
@@ -131,6 +133,7 @@ data class SettingsExport(
             notebookDisplayNameMode = s.notebookDisplayNameMode.storageKey,
             checklistStates = s.checklistStates.storageKey,
             remindersEnabled = s.remindersEnabled,
+            morningBriefEnabled = s.morningBriefEnabled,
             defaultReminderTime = s.defaultReminderTime.toString(),
             agendaSwipeLeftAction = s.agendaSwipeLeftAction.storageKey,
             agendaSwipeRightAction = s.agendaSwipeRightAction.storageKey,

@@ -10,6 +10,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.core.content.pm.ShortcutInfoCompat
 import androidx.core.content.pm.ShortcutManagerCompat
 import androidx.core.graphics.drawable.IconCompat
+import com.rrajath.grove.icon.AppIconManager
 import com.rrajath.grove.settings.ThemePreference
 import com.rrajath.grove.ui.theme.GroveLightColors
 import com.rrajath.grove.ui.theme.groveColorsFor
@@ -36,11 +37,21 @@ object ShortcutSyncer {
         val bg = colors.accent.toArgb()
         val fg = colors.accentInk.toArgb()
         val max = ShortcutManagerCompat.getMaxShortcutCountPerActivity(context).takeIf { it > 0 } ?: 4
-        val shortcuts = templates.take(max).map { toShortcut(context, it, bg, fg) }
+        // Bind explicitly to the alias that owns the launcher slot right now
+        // (or is about to, if this sync races AppIconManager.applyIcon at
+        // ON_STOP) so the shortcuts stay attached to it after the switch.
+        val ownerAlias = AppIconManager.targetAliasComponent(context, iconThemed, theme)
+        val shortcuts = templates.take(max).map { toShortcut(context, it, bg, fg, ownerAlias) }
         ShortcutManagerCompat.setDynamicShortcuts(context, shortcuts)
     }
 
-    private fun toShortcut(context: Context, template: CaptureTemplate, bg: Int, fg: Int): ShortcutInfoCompat {
+    private fun toShortcut(
+        context: Context,
+        template: CaptureTemplate,
+        bg: Int,
+        fg: Int,
+        ownerAlias: android.content.ComponentName,
+    ): ShortcutInfoCompat {
         val intent = Intent(Intent.ACTION_VIEW, Uri.parse("grove://capture/${template.id}"))
             .setClassName(context.packageName, "com.rrajath.grove.MainActivity")
         return ShortcutInfoCompat.Builder(context, template.id)
@@ -48,6 +59,7 @@ object ShortcutSyncer {
             .setLongLabel("New ${template.name}")
             .setIcon(IconCompat.createWithBitmap(glyphBitmap(template.icon, bg, fg)))
             .setIntent(intent)
+            .setActivity(ownerAlias)
             .build()
     }
 

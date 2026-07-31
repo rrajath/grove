@@ -197,11 +197,14 @@ class GroveApplication : Application() {
             // first emission (current settings on cold start) must (re)arm it too,
             // since AlarmManager alarms don't survive a process being killed.
             settingsRepository.settings
-                .map { it.remindersEnabled to it.defaultReminderTime }
+                .map { Triple(it.remindersEnabled, it.morningBriefEnabled, it.defaultReminderTime) }
                 .distinctUntilChanged()
-                .collect { (enabled, defaultTime) ->
-                    if (enabled) ReminderDigestScheduler.scheduleNext(this@GroveApplication, defaultTime)
-                    else ReminderDigestScheduler.cancel(this@GroveApplication)
+                .collect { (remindersEnabled, morningBriefEnabled, defaultTime) ->
+                    if (remindersEnabled && morningBriefEnabled) {
+                        ReminderDigestScheduler.scheduleNext(this@GroveApplication, defaultTime)
+                    } else {
+                        ReminderDigestScheduler.cancel(this@GroveApplication)
+                    }
                 }
         }
 

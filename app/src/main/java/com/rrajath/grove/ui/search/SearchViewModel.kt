@@ -62,23 +62,49 @@ data class DateRange(val start: LocalDate, val end: LocalDate) {
     operator fun contains(date: LocalDate): Boolean = !date.isBefore(start) && !date.isAfter(end)
 }
 
+/**
+ * Each facet is tri-state: a value is included, excluded (NOT), or absent from
+ * both sets — [FilterPanel]'s chips cycle a tapped value through exactly those
+ * three states. Included values OR together (e.g. tag=work OR tag=urgent);
+ * excluded values each independently rule a note out.
+ */
 data class SearchFilters(
     val tags: Set<String> = emptySet(),
+    val excludedTags: Set<String> = emptySet(),
     val states: Set<String> = emptySet(),
+    val excludedStates: Set<String> = emptySet(),
     val priorities: Set<String> = emptySet(),
+    val excludedPriorities: Set<String> = emptySet(),
     val scheduled: DatePreset = DatePreset.ANY,
     val scheduledRange: DateRange? = null,
     val deadline: DatePreset = DatePreset.ANY,
     val deadlineRange: DateRange? = null,
-    val notebook: String? = null,
+    val notebooks: Set<String> = emptySet(),
+    val excludedNotebooks: Set<String> = emptySet(),
 ) {
     val activeCount: Int
-        get() = (if (tags.isNotEmpty()) 1 else 0) +
-            (if (states.isNotEmpty()) 1 else 0) +
-            (if (priorities.isNotEmpty()) 1 else 0) +
+        get() = (if (tags.isNotEmpty() || excludedTags.isNotEmpty()) 1 else 0) +
+            (if (states.isNotEmpty() || excludedStates.isNotEmpty()) 1 else 0) +
+            (if (priorities.isNotEmpty() || excludedPriorities.isNotEmpty()) 1 else 0) +
             (if (scheduled != DatePreset.ANY) 1 else 0) +
             (if (deadline != DatePreset.ANY) 1 else 0) +
-            (if (notebook != null) 1 else 0)
+            (if (notebooks.isNotEmpty() || excludedNotebooks.isNotEmpty()) 1 else 0)
+}
+
+/** A facet chip's current tri-state, for [FilterPanel]'s chip styling. */
+enum class FacetState { NONE, INCLUDED, EXCLUDED }
+
+fun <T> facetState(value: T, included: Set<T>, excluded: Set<T>): FacetState = when {
+    value in included -> FacetState.INCLUDED
+    value in excluded -> FacetState.EXCLUDED
+    else -> FacetState.NONE
+}
+
+/** Cycles [value] through include -> exclude -> none across the given pair of sets. */
+private fun <T> cycleFacet(included: Set<T>, excluded: Set<T>, value: T): Pair<Set<T>, Set<T>> = when (value) {
+    in included -> (included - value) to (excluded + value)
+    in excluded -> included to (excluded - value)
+    else -> (included + value) to excluded
 }
 
 data class SearchResult(
@@ -151,6 +177,11 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
     private var vaultNoteCount = 0
     private var vaultNotebookCount = 0
 
+    /** The filter-derived tokens last spliced into the query text, so the next
+     *  filter change can find-and-replace just that substring (see [runSearch]
+     *  doc on filters staying authoritative — this splice is display-only). */
+    private var lastFilterExpr: String = ""
+
     init {
         viewModelScope.launch {
             app.database.indexDao().noteFacets()
@@ -168,6 +199,25 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
             // search screen is up).
             combine(queryFlow.debounce(300), facets.filterNotNull(), filtersFlow) { q, _, f -> q to f }
                 .collect { (q, f) -> runSearch(q, f) }
+        }
+        viewModelScope.launch {
+            // Mirrors Filters-panel selections into the editable query field as
+            // t./i./b./p. expression tokens, so picking a facet is visible and
+            // hand-editable right in the field instead of a separate read-only
+            // preview. Matching itself still runs off the structured filters
+            // (see matchesFilters), so hand-editing or deleting the mirrored
+            // tokens only changes what's displayed, not what's excluded.
+            filtersFlow.collect { f ->
+                val newExpr = filterExpression(f)
+                if (newExpr != lastFilterExpr) {
+                    val spliced = spliceFilterExpr(_state.value.query, lastFilterExpr, newExpr)
+                    lastFilterExpr = newExpr
+                    if (spliced != _state.value.query) {
+                        _state.value = _state.value.copy(query = spliced)
+                        queryFlow.value = spliced
+                    }
+                }
+            }
         }
     }
 
@@ -233,9 +283,27 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
         }
     }
 
-    fun toggleTag(tag: String) = filtersFlow.update { it.copy(tags = it.tags.toggled(tag)) }
-    fun toggleState(state: String) = filtersFlow.update { it.copy(states = it.states.toggled(state)) }
-    fun togglePriority(priority: String) = filtersFlow.update { it.copy(priorities = it.priorities.toggled(priority)) }
+    fun toggleTag(tag: String) = filtersFlow.update {
+        val (inc, exc) = cycleFacet(it.tags, it.excludedTags, tag)
+        it.copy(tags = inc, excludedTags = exc)
+    }
+
+    fun toggleState(state: String) = filtersFlow.update {
+        val (inc, exc) = cycleFacet(it.states, it.excludedStates, state)
+        it.copy(states = inc, excludedStates = exc)
+    }
+
+    fun togglePriority(priority: String) = filtersFlow.update {
+        val (inc, exc) = cycleFacet(it.priorities, it.excludedPriorities, priority)
+        it.copy(priorities = inc, excludedPriorities = exc)
+    }
+
+    fun toggleNotebook(name: String) = filtersFlow.update {
+        val (inc, exc) = cycleFacet(it.notebooks, it.excludedNotebooks, name)
+        it.copy(notebooks = inc, excludedNotebooks = exc)
+    }
+
+    fun clearNotebooks() = filtersFlow.update { it.copy(notebooks = emptySet(), excludedNotebooks = emptySet()) }
 
     fun setScheduledPreset(preset: DatePreset) =
         filtersFlow.update {
@@ -255,17 +323,14 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
     fun setDeadlineRange(start: LocalDate, end: LocalDate) =
         filtersFlow.update { it.copy(deadline = DatePreset.CUSTOM, deadlineRange = DateRange(start, end)) }
 
-    fun setNotebookScope(name: String?) =
-        filtersFlow.update { it.copy(notebook = if (it.notebook == name) null else name) }
-
     /**
-     * Scope the search to one notebook without the toggle semantics of
-     * [setNotebookScope] — the Outline's search action arrives with a file
-     * already in mind, so re-entering the same notebook must keep it pinned
-     * rather than clearing it.
+     * Scope the search to exactly one notebook, replacing any existing
+     * notebook selection — the Outline's search action arrives with a file
+     * already in mind, so this pins that file rather than toggling it in
+     * alongside whatever else was selected.
      */
     fun pinNotebook(name: String) {
-        filtersFlow.update { it.copy(notebook = name) }
+        filtersFlow.update { it.copy(notebooks = setOf(name), excludedNotebooks = emptySet()) }
     }
 
     fun clearFilters() {
@@ -288,15 +353,16 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
         filtersFlow.value = SearchFilters()
     }
 
-    /** Human-readable preview of the composed query + active filters, for the
-     *  Advanced panel — informational only, not re-parsed. */
-    fun composedExpression(): String {
-        val f = _state.value.filters
+    /** The filter-panel selection expressed as query tokens, in the same
+     *  t./i./b./p. syntax the field itself parses — see [lastFilterExpr]. */
+    private fun filterExpression(f: SearchFilters): String {
         val parts = mutableListOf<String>()
-        _state.value.query.trim().takeIf { it.isNotEmpty() }?.let { parts += it }
         f.tags.sorted().forEach { parts += "t.$it" }
-        f.states.sorted().forEach { parts += "i.${if (it == NO_STATE) "none" else it.lowercase()}" }
+        f.excludedTags.sorted().forEach { parts += ".t.$it" }
+        f.states.sorted().forEach { parts += "i.${stateToken(it)}" }
+        f.excludedStates.sorted().forEach { parts += ".i.${stateToken(it)}" }
         f.priorities.sorted().forEach { parts += "p.$it" }
+        f.excludedPriorities.sorted().forEach { parts += ".p.$it" }
         if (f.scheduled == DatePreset.CUSTOM && f.scheduledRange != null) {
             parts += "s.${f.scheduledRange.start}..${f.scheduledRange.end}"
         } else if (f.scheduled != DatePreset.ANY) {
@@ -307,8 +373,26 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
         } else if (f.deadline != DatePreset.ANY) {
             parts += "d.${f.deadline.token}"
         }
-        f.notebook?.let { parts += "b.${it.removeSuffix(".org")}" }
-        return if (parts.isEmpty()) "(everything)" else parts.joinToString(" ")
+        f.notebooks.sorted().forEach { parts += "b.${it.removeSuffix(".org")}" }
+        f.excludedNotebooks.sorted().forEach { parts += ".b.${it.removeSuffix(".org")}" }
+        return parts.joinToString(" ")
+    }
+
+    private fun stateToken(state: String) = if (state == NO_STATE) "none" else state.lowercase()
+
+    /** Replaces the previous filter-token substring with the new one inside
+     *  [current], leaving whatever the user typed themselves untouched. */
+    private fun spliceFilterExpr(current: String, old: String, new: String): String {
+        val withoutOld = if (old.isNotEmpty() && current.contains(old)) {
+            current.replace(old, " ").replace(Regex("\\s+"), " ").trim()
+        } else {
+            current.trim()
+        }
+        return when {
+            new.isEmpty() -> withoutOld
+            withoutOld.isEmpty() -> new
+            else -> "$withoutOld $new"
+        }
     }
 
     private suspend fun runSearch(raw: String, filters: SearchFilters) {
@@ -387,7 +471,10 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
     }
 
     private fun SearchFilters.toNarrowing() = FacetNarrowing(
-        notebook = notebook,
+        // A superset-only optimization (see NoteCandidateQuery's doc comment):
+        // excludes and multi-notebook selection aren't pushed to SQL, they're
+        // just left for matchesFilters below to decide in Kotlin.
+        notebook = notebooks.singleOrNull(),
         states = states - NO_STATE,
         includeNoState = NO_STATE in states,
         priorities = priorities,
@@ -405,15 +492,20 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
 
     private fun matchesFilters(note: NoteMeta, f: SearchFilters, today: LocalDate): Boolean {
         if (f.tags.isNotEmpty() && f.tags.none { note.inheritedTags.contains(it) }) return false
-        if (f.states.isNotEmpty() && (note.keyword ?: NO_STATE) !in f.states) return false
+        if (f.excludedTags.isNotEmpty() && f.excludedTags.any { note.inheritedTags.contains(it) }) return false
+        val state = note.keyword ?: NO_STATE
+        if (f.states.isNotEmpty() && state !in f.states) return false
+        if (f.excludedStates.isNotEmpty() && state in f.excludedStates) return false
         if (f.priorities.isNotEmpty() && note.priority !in f.priorities) return false
+        if (f.excludedPriorities.isNotEmpty() && note.priority in f.excludedPriorities) return false
         if (f.scheduled != DatePreset.ANY &&
             !datePresetMatches(note.scheduledDate, f.scheduled, today, f.scheduledRange, note.isDoneKeyword)
         ) return false
         if (f.deadline != DatePreset.ANY &&
             !datePresetMatches(note.deadlineDate, f.deadline, today, f.deadlineRange, note.isDoneKeyword)
         ) return false
-        if (f.notebook != null && note.fileName != f.notebook) return false
+        if (f.notebooks.isNotEmpty() && note.fileName !in f.notebooks) return false
+        if (f.excludedNotebooks.isNotEmpty() && note.fileName in f.excludedNotebooks) return false
         return true
     }
 
@@ -519,5 +611,3 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
         private val DAY_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("EEE d MMM", Locale.ENGLISH)
     }
 }
-
-private fun <T> Set<T>.toggled(value: T): Set<T> = if (contains(value)) this - value else this + value
