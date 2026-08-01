@@ -258,6 +258,40 @@ Use `Modifier.shadow()` only on the FAB and bottom sheet; everywhere else rely o
 
 ---
 
+## Motion
+
+### Screen transitions: `ui/nav/NavTransitions.kt`
+
+Every Grove route is a full-screen surface, so route changes use the **fade-through**
+from the [Android predictive-back guidelines][pb], never a slide. Sliding one
+full-screen surface off while another slides on reads as paging through images
+rather than as moving between levels of the app.
+
+[pb]: https://developer.android.com/design/ui/mobile/guides/patterns/predictive-back
+
+| | Scale | Opacity |
+|---|---|---|
+| Leaving on back (`popExit`) | 100% → 90% | 100% → 0% over the first 35% |
+| Arriving on back (`popEnter`) | 110% → 100% | 0% → 100%, starting at 35% |
+| Leaving on forward (`exit`) | 100% → 110% | 100% → 0% over the first 35% |
+| Arriving on forward (`enter`) | 90% → 100% | 0% → 100%, starting at 35% |
+
+Because both surfaces shrink on a back and both grow on a forward, the scene reads
+as one continuous zoom rather than a cross-dissolve. Neither screen is visible at the
+35% mark; the `bg` fill behind the `NavHost` shows through.
+
+Full committed duration 450ms. Fades use the guidelines' `CubicBezierEasing(0.1, 0.1, 0, 1)`;
+scale uses `STANDARD_DECELERATE` = `CubicBezierEasing(0, 0, 0, 1)`, since the guidelines
+call for a decelerating curve rather than raw linear gesture progress.
+
+`NavHost` seeks this transition with the system back gesture's progress (the manifest
+opts in via `android:enableOnBackInvokedCallback`), so the previous screen fades in
+exactly as far as the user has dragged and rewinds if they release before the commit
+point. Any new `enterTransition`/`exitTransition` must go through these four values;
+`EnterTransition.None` disables predictive back entirely.
+
+---
+
 ## Icon Conventions
 
 ### Material Icons
