@@ -28,6 +28,8 @@ updated and push.
 
 ## [Unreleased]
 
+## [1.0.151] - 2026-08-01
+
 ### Changed
 - Screen transitions now use the fade-through from the Android predictive-back
   guidelines instead of a horizontal slide, which had made moving between
