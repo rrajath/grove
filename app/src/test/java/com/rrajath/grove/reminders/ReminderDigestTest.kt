@@ -17,15 +17,18 @@ class ReminderDigestTest {
         date: LocalDate,
         type: PlanningType,
         time: java.time.LocalTime = java.time.LocalTime.of(9, 0),
+        hasExplicitTime: Boolean = false,
+        headingPath: String = key,
     ) = ReminderEntity(
         key = key,
         fileName = "a.org",
-        headingPath = key,
-        headingTitle = key,
+        headingPath = headingPath,
+        headingTitle = headingPath,
         headingLevel = 1,
         planningType = type.storageKey,
         triggerAtMillis = LocalDateTime.of(date, time).atZone(zone).toInstant().toEpochMilli(),
         notificationId = ReminderKeys.notificationId(key),
+        hasExplicitTime = hasExplicitTime,
     )
 
     @Test
@@ -41,12 +44,30 @@ class ReminderDigestTest {
     }
 
     @Test
-    fun `a heading scheduled and due today counts in both buckets`() {
+    fun `distinct headings scheduled and due today each count once`() {
         val reminders = listOf(
             entity("sched-today", today, PlanningType.SCHEDULED),
             entity("deadline-today", today, PlanningType.DEADLINE),
         )
         assertEquals(2, ReminderDigest.count(reminders, today, zone))
+    }
+
+    @Test
+    fun `a single heading with both SCHEDULED and DEADLINE due today counts once, matching Agenda`() {
+        val reminders = listOf(
+            entity("task-sched", today, PlanningType.SCHEDULED, headingPath = "task"),
+            entity("task-deadline", today, PlanningType.DEADLINE, headingPath = "task"),
+        )
+        assertEquals(1, ReminderDigest.count(reminders, today, zone))
+    }
+
+    @Test
+    fun `a single heading overdue on both SCHEDULED and DEADLINE counts once`() {
+        val reminders = listOf(
+            entity("task-sched", today.minusDays(3), PlanningType.SCHEDULED, headingPath = "task"),
+            entity("task-deadline", today.minusDays(1), PlanningType.DEADLINE, headingPath = "task"),
+        )
+        assertEquals(1, ReminderDigest.count(reminders, today, zone))
     }
 
     @Test
@@ -58,5 +79,15 @@ class ReminderDigestTest {
     fun `future-only reminders count zero`() {
         val reminders = listOf(entity("future", today.plusDays(1), PlanningType.SCHEDULED))
         assertEquals(0, ReminderDigest.count(reminders, today, zone))
+    }
+
+    @Test
+    fun `reminders with an explicit time are excluded, they fire their own notification`() {
+        val reminders = listOf(
+            entity("timed-overdue", today.minusDays(1), PlanningType.SCHEDULED, hasExplicitTime = true),
+            entity("timed-today", today, PlanningType.DEADLINE, hasExplicitTime = true),
+            entity("date-only-today", today, PlanningType.SCHEDULED),
+        )
+        assertEquals(1, ReminderDigest.count(reminders, today, zone))
     }
 }
