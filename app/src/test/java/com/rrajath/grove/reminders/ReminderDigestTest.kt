@@ -17,6 +17,7 @@ class ReminderDigestTest {
         date: LocalDate,
         type: PlanningType,
         time: java.time.LocalTime = java.time.LocalTime.of(9, 0),
+        hasExplicitTime: Boolean = false,
     ) = ReminderEntity(
         key = key,
         fileName = "a.org",
@@ -26,6 +27,7 @@ class ReminderDigestTest {
         planningType = type.storageKey,
         triggerAtMillis = LocalDateTime.of(date, time).atZone(zone).toInstant().toEpochMilli(),
         notificationId = ReminderKeys.notificationId(key),
+        hasExplicitTime = hasExplicitTime,
     )
 
     @Test
@@ -58,5 +60,15 @@ class ReminderDigestTest {
     fun `future-only reminders count zero`() {
         val reminders = listOf(entity("future", today.plusDays(1), PlanningType.SCHEDULED))
         assertEquals(0, ReminderDigest.count(reminders, today, zone))
+    }
+
+    @Test
+    fun `reminders with an explicit time are excluded, they fire their own notification`() {
+        val reminders = listOf(
+            entity("timed-overdue", today.minusDays(1), PlanningType.SCHEDULED, hasExplicitTime = true),
+            entity("timed-today", today, PlanningType.DEADLINE, hasExplicitTime = true),
+            entity("date-only-today", today, PlanningType.SCHEDULED),
+        )
+        assertEquals(1, ReminderDigest.count(reminders, today, zone))
     }
 }

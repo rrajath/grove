@@ -28,6 +28,12 @@ updated and push.
 
 ## [Unreleased]
 
+### Fixed
+- Reminder digest ("You have X tasks due today") was double-counting tasks
+  that carry an explicit time-of-day: those already get their own individual
+  notification, so the digest now only bundles date-only reminders, matching
+  its intended count
+
 ## [1.0.151] - 2026-08-01
 
 ### Changed

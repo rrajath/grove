@@ -22,11 +22,16 @@ object ReminderDigest {
         fun dateOf(r: ReminderEntity): LocalDate =
             Instant.ofEpochMilli(r.triggerAtMillis).atZone(zone).toLocalDate()
 
-        val overdue = reminders.count { dateOf(it).isBefore(today) }
-        val scheduledToday = reminders.count {
+        // Reminders with an explicit time-of-day fire their own "due now" notification
+        // (see ReminderReconciler/ReminderAlarmReceiver); only date-only reminders belong
+        // in the digest, otherwise a timed task gets counted twice.
+        val dateOnly = reminders.filterNot { it.hasExplicitTime }
+
+        val overdue = dateOnly.count { dateOf(it).isBefore(today) }
+        val scheduledToday = dateOnly.count {
             it.planningType == PlanningType.SCHEDULED.storageKey && dateOf(it) == today
         }
-        val deadlineToday = reminders.count {
+        val deadlineToday = dateOnly.count {
             it.planningType == PlanningType.DEADLINE.storageKey && dateOf(it) == today
         }
         return overdue + scheduledToday + deadlineToday
