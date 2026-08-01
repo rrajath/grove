@@ -6,19 +6,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 **Versioning:** this project does not use manual SemVer bumps. Every version is
 `1.0.<N>`, where `N` is the number of commits reachable from the release commit
-(`git rev-list --count HEAD`). CI computes the same value via
-`./gradlew -q printVersionName`, tags it `v1.0.<N>`, and publishes it as a
-GitHub Release on every push to `main` — so every entry below corresponds 1:1
-to a real GitHub Release, and the numbers can never drift apart again.
+(`git rev-list --count HEAD`) — the same value `./gradlew -q printVersionName`
+prints. Every entry below corresponds 1:1 to a real GitHub Release.
 
 The three entries marked *(local build, no GitHub Release)* predate commit 54,
 which is when the release workflow was first added — those changes shipped
 locally but nothing was ever tagged or published for them.
 
-**Cutting a release:** before pushing to `main`, run `./gradlew -q printVersionName`,
-rename `[Unreleased]` below to `[<that version>] - <today's date>`, and commit
-it together with the change. CI will tag and publish the matching GitHub
-Release automatically.
+**Cutting a release is fully automatic.** Add your changes under
+`## [Unreleased]` as you go (that part still takes a human — nobody else knows
+what the change was for). On push to `main`, CI computes the version, and:
+- if `## [Unreleased]` has content, it tags `v1.0.<N>`, publishes a GitHub
+  Release with both APKs using that content as the release notes, then pushes
+  a follow-up commit renaming `## [Unreleased]` to `## [1.0.<N>] - <date>`
+  and opening a fresh empty `## [Unreleased]` above it;
+- if `## [Unreleased]` is empty, the push builds and tests as normal but no
+  release is cut.
+
+Nothing needs to be run or renamed by hand — just keep the Unreleased section
+updated and push.
 
 ## [Unreleased]
 

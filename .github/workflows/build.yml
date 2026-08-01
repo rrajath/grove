@@ -92,41 +92,46 @@ jobs:
           path: app/build/outputs/apk/release/*.apk
           if-no-files-found: error
 
-      # CHANGELOG.md must carry an entry for the version about to be released,
-      # keyed off the same VERSION computed above — this is what keeps the
-      # changelog and GitHub Releases from drifting apart again. Fails the
-      # push instead of publishing an undocumented release.
-      - name: Verify CHANGELOG.md has an entry for this version
+      # Nothing to release if nobody added anything under Unreleased since the
+      # last cut — that's the signal for "this push doesn't need a release,"
+      # not the mere act of pushing. Pulls the section content (not the
+      # header) into GITHUB_ENV via the multiline heredoc form so later steps
+      # can reuse it verbatim as release notes.
+      - name: Read Unreleased section from CHANGELOG.md
         if: github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
         run: |
           set -euo pipefail
-          if ! grep -q "^## \[$VERSION\]" CHANGELOG.md; then
-            echo "::error::CHANGELOG.md has no '## [$VERSION]' entry. Rename '## [Unreleased]' to '## [$VERSION] - $(date -u +%Y-%m-%d)' (with the changes underneath) before pushing to main." >&2
-            exit 1
+          NOTES="$(awk '
+            /^## \[Unreleased\]$/ { found=1; next }
+            found && /^## \[/ { exit }
+            found { print }
+          ' CHANGELOG.md | awk 'NF{p=1} p')"
+          if [ -z "$NOTES" ]; then
+            echo "HAS_RELEASE=false" >> "$GITHUB_ENV"
+            echo "No content under '## [Unreleased]' in CHANGELOG.md — skipping release for this push."
+          else
+            echo "HAS_RELEASE=true" >> "$GITHUB_ENV"
+            {
+              echo "RELEASE_NOTES<<CHANGELOG_EOF"
+              echo "$NOTES"
+              echo "CHANGELOG_EOF"
+            } >> "$GITHUB_ENV"
           fi
 
-      # Publish a GitHub Release with both APKs on every push to the default
-      # branch. The tag is "v$VERSION" — the same VERSION computed once above,
-      # and the same format build.gradle.kts uses for the Sentry release — so
-      # GitHub and Sentry always agree on what a given build is called.
-      # Release notes are lifted straight from the matching CHANGELOG.md
-      # section (guaranteed to exist by the verify step above), so the
-      # changelog stays the single source of truth for both.
-      # Re-runs of the same commit re-upload the assets instead of failing on
-      # an existing tag.
+      # Publish a GitHub Release with both APKs, but only when there was
+      # something under Unreleased to publish. The tag is "v$VERSION" — the
+      # same VERSION computed above and the same format build.gradle.kts uses
+      # for the Sentry release — so GitHub and Sentry always agree on what a
+      # given build is called. Re-runs of the same commit re-upload the
+      # assets instead of failing on an existing tag.
       - name: Publish GitHub Release
-        if: github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        if: github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && env.HAS_RELEASE == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           TAG="v$VERSION"
-          CHANGELOG_SECTION="$(awk -v ver="$VERSION" '
-            $0 ~ "^## \\[" ver "\\]" { found=1; next }
-            found && /^## \[/ { exit }
-            found { print }
-          ' CHANGELOG.md | awk 'NF{p=1} p')"
-          NOTES="$(printf '%s\n\n_Commit: %s_' "$CHANGELOG_SECTION" "${GITHUB_SHA:0:7}")"
+          NOTES="$(printf '%s\n\n_Commit: %s_' "$RELEASE_NOTES" "${GITHUB_SHA:0:7}")"
           # The release APK is app-release.apk when signed, app-release-unsigned.apk otherwise.
           ASSETS=$(ls app/build/outputs/apk/debug/*.apk app/build/outputs/apk/release/*.apk)
           if gh release view "$TAG" >/dev/null 2>&1; then
@@ -137,3 +142,31 @@ jobs:
               --title "$TAG" \
               --notes "$NOTES"
           fi
+
+      # Moves what was just released out of Unreleased and into its own
+      # "## [$VERSION] - <date>" heading, then pushes that as a follow-up
+      # commit — this is the step that removes the manual
+      # `./gradlew -q printVersionName` + hand-editing CHANGELOG.md
+      # previously required before every release-worthy push. [skip ci] stops
+      # this bot commit from triggering (and re-releasing on) itself.
+      - name: Archive released version in CHANGELOG.md
+        if: github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && env.HAS_RELEASE == 'true'
+        run: |
+          set -euo pipefail
+          DATE="$(date -u +%Y-%m-%d)"
+          awk -v ver="$VERSION" -v date="$DATE" '
+            /^## \[Unreleased\]$/ && !done {
+              print
+              print ""
+              print "## [" ver "] - " date
+              done=1
+              next
+            }
+            { print }
+          ' CHANGELOG.md > CHANGELOG.md.tmp
+          mv CHANGELOG.md.tmp CHANGELOG.md
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add CHANGELOG.md
+          git commit -m "chore: cut CHANGELOG.md entry for $VERSION [skip ci]"
+          git push origin "HEAD:${{ github.event.repository.default_branch }}"
