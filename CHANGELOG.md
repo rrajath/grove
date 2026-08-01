@@ -28,6 +28,13 @@ updated and push.
 
 ## [Unreleased]
 
+### Changed
+- Screen transitions now use the fade-through from the Android predictive-back
+  guidelines instead of a horizontal slide, which had made moving between
+  screens look like swiping through full-screen photos. Dragging back fades the
+  previous screen in and scales it down into place, following the gesture and
+  rewinding if you let go early; going forward mirrors it as a zoom in
+
 ## [1.0.147] - 2026-08-01
 
 ### Added

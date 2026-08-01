@@ -1,7 +1,5 @@
 package com.rrajath.grove.ui
 
-import androidx.compose.animation.AnimatedContentTransitionScope
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.DrawerValue
@@ -35,6 +33,10 @@ import com.rrajath.grove.ui.editor.EditNoteScreen
 import com.rrajath.grove.ui.capture.CapturePickerSheet
 import com.rrajath.grove.ui.capture.TemplateEditScreen
 import com.rrajath.grove.ui.nav.Routes
+import com.rrajath.grove.ui.nav.navEnterTransition
+import com.rrajath.grove.ui.nav.navExitTransition
+import com.rrajath.grove.ui.nav.navPopEnterTransition
+import com.rrajath.grove.ui.nav.navPopExitTransition
 import com.rrajath.grove.ui.reminders.ReminderResolveScreen
 import com.rrajath.grove.ui.screens.ConflictScreen
 import com.rrajath.grove.ui.screens.GroveDrawerContent
@@ -59,8 +61,6 @@ import com.rrajath.grove.ui.theme.GroveTheme
 import com.rrajath.grove.ui.theme.grove
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-
-private const val NAV_TRANSITION_MS = 300
 
 @Composable
 fun GroveApp(
@@ -180,21 +180,13 @@ private fun GroveNavigation(
             modifier = Modifier
                 .fillMaxSize()
                 .background(MaterialTheme.grove.bg),
-            // Real (non-None) transitions are required for predictive back: NavHost
-            // wires the system back gesture's progress into these so the previous
-            // screen slides in and is partially visible while the user drags.
-            enterTransition = {
-                slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Left, tween(NAV_TRANSITION_MS))
-            },
-            exitTransition = {
-                slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Left, tween(NAV_TRANSITION_MS))
-            },
-            popEnterTransition = {
-                slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Right, tween(NAV_TRANSITION_MS))
-            },
-            popExitTransition = {
-                slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Right, tween(NAV_TRANSITION_MS))
-            },
+            // Predictive-back fade-through (see ui/nav/NavTransitions.kt). NavHost
+            // seeks these with the system back gesture's progress, so the previous
+            // screen fades in as far as the user has dragged and rewinds on release.
+            enterTransition = navEnterTransition,
+            exitTransition = navExitTransition,
+            popEnterTransition = navPopEnterTransition,
+            popExitTransition = navPopExitTransition,
         ) {
             composable(Routes.ONBOARDING) {
                 OnboardingScreen(
