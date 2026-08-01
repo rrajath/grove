@@ -28,6 +28,8 @@ updated and push.
 
 ## [Unreleased]
 
+## [1.0.155] - 2026-08-01
+
 ### Fixed
 - Reminder digest ("You have X tasks due today") was double-counting tasks
   that carry an explicit time-of-day: those already get their own individual
