@@ -28,6 +28,8 @@ updated and push.
 
 ## [Unreleased]
 
+## [1.0.147] - 2026-08-01
+
 ### Added
 - Predictive back gesture support: navigating between screens now slides the
   previous screen in, partially visible, while dragging back
