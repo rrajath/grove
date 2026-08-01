@@ -33,6 +33,11 @@ updated and push.
   that carry an explicit time-of-day: those already get their own individual
   notification, so the digest now only bundles date-only reminders, matching
   its intended count
+- Digest count no longer disagrees with Agenda by one when a heading carries
+  both a SCHEDULED and a DEADLINE date landing on the same side of today: it
+  now collapses to a single task the same way Agenda's "a heading belongs to
+  exactly one day" rule does, instead of counting the heading's two reminders
+  table rows separately
 
 ## [1.0.151] - 2026-08-01
 

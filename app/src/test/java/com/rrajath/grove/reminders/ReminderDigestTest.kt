@@ -18,11 +18,12 @@ class ReminderDigestTest {
         type: PlanningType,
         time: java.time.LocalTime = java.time.LocalTime.of(9, 0),
         hasExplicitTime: Boolean = false,
+        headingPath: String = key,
     ) = ReminderEntity(
         key = key,
         fileName = "a.org",
-        headingPath = key,
-        headingTitle = key,
+        headingPath = headingPath,
+        headingTitle = headingPath,
         headingLevel = 1,
         planningType = type.storageKey,
         triggerAtMillis = LocalDateTime.of(date, time).atZone(zone).toInstant().toEpochMilli(),
@@ -43,12 +44,30 @@ class ReminderDigestTest {
     }
 
     @Test
-    fun `a heading scheduled and due today counts in both buckets`() {
+    fun `distinct headings scheduled and due today each count once`() {
         val reminders = listOf(
             entity("sched-today", today, PlanningType.SCHEDULED),
             entity("deadline-today", today, PlanningType.DEADLINE),
         )
         assertEquals(2, ReminderDigest.count(reminders, today, zone))
+    }
+
+    @Test
+    fun `a single heading with both SCHEDULED and DEADLINE due today counts once, matching Agenda`() {
+        val reminders = listOf(
+            entity("task-sched", today, PlanningType.SCHEDULED, headingPath = "task"),
+            entity("task-deadline", today, PlanningType.DEADLINE, headingPath = "task"),
+        )
+        assertEquals(1, ReminderDigest.count(reminders, today, zone))
+    }
+
+    @Test
+    fun `a single heading overdue on both SCHEDULED and DEADLINE counts once`() {
+        val reminders = listOf(
+            entity("task-sched", today.minusDays(3), PlanningType.SCHEDULED, headingPath = "task"),
+            entity("task-deadline", today.minusDays(1), PlanningType.DEADLINE, headingPath = "task"),
+        )
+        assertEquals(1, ReminderDigest.count(reminders, today, zone))
     }
 
     @Test

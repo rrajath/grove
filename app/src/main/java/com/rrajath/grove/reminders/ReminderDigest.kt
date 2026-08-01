@@ -11,10 +11,12 @@ import java.time.ZoneId
  * date-only reminders (see [ReminderEntity.hasExplicitTime]) fired at the
  * default reminder time.
  *
- * X sums three buckets rather than counting each heading once: overdue +
- * scheduled-today + deadline-today. A heading carrying both a SCHEDULED and a
- * DEADLINE landing on the same day is counted in both buckets, since the
- * reminders table already tracks them as two distinct entries.
+ * X must agree with what the Agenda screen shows for the same set of tasks
+ * (see `AgendaBuckets.whenDate`), so this mirrors its rule: a heading belongs
+ * to exactly one day, its SCHEDULED date if it has one, otherwise its
+ * DEADLINE. A heading carrying both a SCHEDULED and a DEADLINE reminder is
+ * therefore collapsed to one task here too, even though the reminders table
+ * tracks them as two distinct rows.
  */
 object ReminderDigest {
 
@@ -27,13 +29,16 @@ object ReminderDigest {
         // in the digest, otherwise a timed task gets counted twice.
         val dateOnly = reminders.filterNot { it.hasExplicitTime }
 
-        val overdue = dateOnly.count { dateOf(it).isBefore(today) }
-        val scheduledToday = dateOnly.count {
-            it.planningType == PlanningType.SCHEDULED.storageKey && dateOf(it) == today
-        }
-        val deadlineToday = dateOnly.count {
-            it.planningType == PlanningType.DEADLINE.storageKey && dateOf(it) == today
-        }
-        return overdue + scheduledToday + deadlineToday
+        // One SCHEDULED and one DEADLINE row can both belong to the same heading;
+        // collapse them to that heading's single anchor date before counting.
+        val anchorDates = dateOnly
+            .groupBy { Triple(it.fileName, it.headingPath, it.headingLevel) }
+            .mapNotNull { (_, entries) ->
+                val scheduled = entries.firstOrNull { it.planningType == PlanningType.SCHEDULED.storageKey }
+                val deadline = entries.firstOrNull { it.planningType == PlanningType.DEADLINE.storageKey }
+                (scheduled ?: deadline)?.let(::dateOf)
+            }
+
+        return anchorDates.count { !it.isAfter(today) }
     }
 }
