@@ -1,4 +1,4 @@
-# Handoff: Grove — Android Org-Mode Notes App
+# Handoff: Grove, Android Org-Mode Notes App
 
 ## Overview
 
@@ -12,7 +12,7 @@ PRD: `prd-android-orgmode-app.md`
 
 ## About the Design Files
 
-`Grove.dc.html` is a **high-fidelity interactive prototype** built in HTML — not production code. It demonstrates pixel-accurate layouts, colors, typography, interactions, and navigation flows for 9 screens plus an app icon spec.
+`Grove.dc.html` is a **high-fidelity interactive prototype** built in HTML, not production code. It demonstrates pixel-accurate layouts, colors, typography, interactions, and navigation flows for 9 screens plus an app icon spec.
 
 **Your task:** Recreate these designs in Kotlin + Jetpack Compose, following the design tokens, typography, and interaction specs below. Use Compose's `MaterialTheme` as the foundation and override it with the custom token set. Do not ship the HTML prototype.
 
@@ -26,7 +26,7 @@ PRD: `prd-android-orgmode-app.md`
 
 ## Design Tokens
 
-### Color System — Light Theme
+### Color System: Light Theme
 
 | Token | Hex | Usage |
 |---|---|---|
@@ -51,7 +51,7 @@ PRD: `prd-android-orgmode-app.md`
 | `--blue` | `#3f6f86` | Timestamps, keywords, IN-PROGRESS state |
 | `--blue-soft` | `rgba(63,111,134,0.13)` | Blue chip background |
 
-### Color System — Dark Theme
+### Color System: Dark Theme
 
 | Token | Hex |
 |---|---|
@@ -144,7 +144,7 @@ Use these as `elevation` overrides in Compose; avoid the default Material shadow
 
 ## Screens
 
-### 1. Onboarding — Setup Sync
+### 1. Onboarding: Setup Sync
 
 **Purpose:** First-run welcome, explains Syncthing setup, lets user pick a local folder or skip.
 
@@ -257,14 +257,14 @@ Tag `":admin:"`: `syn-tag` color, 11sp mono, right edge
 
 **Mock content (travel.org):**
 ```
-▾ * Japan — Spring 2025                                    :trip:
+▾ * Japan: Spring 2025                                    :trip:
     ○ ** TODO  Book Kyoto ryokan               :booking:
          ◷ Wed, Apr 9
-    ▸ ** Kyoto — Day 2  … 3                    :kyoto:
+    ▸ ** Kyoto: Day 2  … 3                    :kyoto:
     ○ ** DONE  ~~Order JR Rail Pass~~
 ――――――――――――――――――――――――――――――――――――
-▸ * Portugal — Summer  … 6                               :trip:
-▸ * Weekend trips — ideas  … 4                           :ideas:
+▸ * Portugal: Summer  … 6                               :trip:
+▸ * Weekend trips: ideas  … 4                           :ideas:
 ○ * TODO [#A]  Renew passport                            :admin:
      DEADLINE: Fri, Jun 27
 ```
@@ -281,7 +281,7 @@ Tag `":admin:"`: `syn-tag` color, 11sp mono, right edge
 
 **Content** (padded 24dp, scroll):
 1. Tag chips row: "trip", "kyoto" → `accent-soft` bg, `accent` text, 11sp 600, 20dp radius, 3×9dp padding, gap 7dp
-2. H1: "Kyoto — Day 2" → `IBM Plex Serif` 25sp 600, letter-spacing -0.01em
+2. H1: "Kyoto: Day 2" → `IBM Plex Serif` 25sp 600, letter-spacing -0.01em
 3. Created date: "Created Mon, Apr 14 2025" → `ink-3` 12.5sp `IBM Plex Mono`
 4. Body paragraph: `IBM Plex Serif` 16sp 400, 1.65 line-height. **Bold** = 600, *italic* = italic
 5. H2: "Lunch" → `IBM Plex Serif` 19sp 600, margin-top 24dp
@@ -381,7 +381,7 @@ Ferry back from the island...      ← ink body text + blinking cursor
 
 **Purpose:** Search notes by text. Supports both plain and advanced structured queries.
 
-**Layout** (no separate app bar — inline search):
+**Layout** (no separate app bar; inline search):
 - Top row: ← back + search field. Field: `surface` bg, `line` border, 13dp radius, 42dp height, 12dp padding. Leading: magnifier 14dp (ring 1.8dp + diagonal bar). Trailing: × clear. Content: query "ramen" (15sp `ink`).
 - Results meta row: "⚑ Advanced" chip toggle + "3 results across 3 notebooks" (`ink-2` 12.5sp)
 
@@ -435,7 +435,7 @@ Divider: 1px `line` at 2dp–14dp margin.
 
 **App Bar (56dp):** ← back | "Settings" (19sp 600)
 
-**Section groups** — each section:
+**Section groups**, each section:
 - Label: 12sp uppercase letter-spacing 0.07em `accent` 600, `margin 0 4dp 10dp`
 - Group container: `surface` bg, `line` border, 15dp radius, overflow hidden, margin-bottom 24dp
 - Rows: 14dp vertical padding, 15dp horizontal, `line` border-bottom between rows (except last)
@@ -465,7 +465,7 @@ Divider: 1px `line` at 2dp–14dp margin.
 
 ## App Icon
 
-**Design:** A single org-mode asterisk mark — three rounded bars rotated 0°/60°/120°, color `accent` (light: `#8a5a2b`, dark: adapts), on an `accent-soft` squircle tile.
+**Design:** A single org-mode asterisk mark: three rounded bars rotated 0°/60°/120°, color `accent` (light: `#8a5a2b`, dark: adapts), on an `accent-soft` squircle tile.
 
 **Construction (vector):**
 - Tile: adaptive icon squircle, `accent-soft` fill, subtle 1dp `line` border
@@ -492,7 +492,7 @@ This exact mark is reused as the brand icon throughout the app (top bar, nav dra
 | Screen navigation | Standard Compose NavHost transitions (slide) |
 | FAB tap | 0.92 alpha flash (active state) |
 | Blinking cursor | 1-second steps(1) alternating opacity (1s blink interval) |
-| Theme switch | Instant (no transition — CSS var transitions are unreliable; use `remember` + `derivedStateOf`) |
+| Theme switch | Instant (no transition; CSS var transitions are unreliable; use `remember` + `derivedStateOf`) |
 | List row hover/press | Background changes to `surface` / `surface-2` |
 
 ---
@@ -522,7 +522,7 @@ Navigation: use `NavHost` with routes: `onboarding`, `notebooks`, `outline/{note
 
 | File | Description |
 |---|---|
-| `README.md` | This document — complete design spec |
+| `README.md` | This document: complete design spec |
 | `Grove.dc.html` | Interactive high-fidelity prototype (open in Chrome/Edge) |
 
 Open `Grove.dc.html` directly in a browser to interact with all 9 screens. Use the "Jump to" chips to navigate between screens and the Light/Dark toggle to switch themes.
@@ -533,7 +533,7 @@ Open `Grove.dc.html` directly in a browser to interact with all 9 screens. Use t
 
 - Use `BasicTextField` with custom `VisualTransformation` for the org syntax editor. The `VisualTransformation` should tokenize the org line and apply `SpanStyle` per token type using the syn-* color tokens above.
 - For read mode, build a custom `AnnotatedString` renderer that maps org AST nodes to Compose composables (`Text` with `SpanStyle`, `Column` for blocks, custom `OrgTable` composable deferred to v2).
-- `MaterialTheme.colorScheme` — override `background`, `surface`, `primary`, `onPrimary`, `onBackground`, `secondary` etc. with the custom token values. Add extension properties for the non-Material tokens (`accent`, `ink`, `syn-star`, etc.).
+- `MaterialTheme.colorScheme`: override `background`, `surface`, `primary`, `onPrimary`, `onBackground`, `secondary` etc. with the custom token values. Add extension properties for the non-Material tokens (`accent`, `ink`, `syn-star`, etc.).
 - Font loading: add IBM Plex Sans, Serif, Mono to `res/font/` as downloadable fonts or bundled TTFs. Define a custom `Typography` object.
 - Navigation drawer: use `ModalNavigationDrawer` (Material 3) with custom drawer content matching the spec.
 - Bottom sheets: use `ModalBottomSheet` (Material 3).

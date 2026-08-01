@@ -1,7 +1,7 @@
 package com.rrajath.grove.ui
 
-import androidx.compose.animation.EnterTransition
-import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.DrawerValue
@@ -59,6 +59,8 @@ import com.rrajath.grove.ui.theme.GroveTheme
 import com.rrajath.grove.ui.theme.grove
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+
+private const val NAV_TRANSITION_MS = 300
 
 @Composable
 fun GroveApp(
@@ -131,7 +133,7 @@ private fun GroveNavigation(
             as com.rrajath.grove.GroveApplication
 
     // Shared-into-Grove content is appended to the configured file directly
-    // (PRD §10) — observed so it works even when the app was already running.
+    // (PRD §10); observed so it works even when the app was already running.
     val pendingShare by app.pendingShare.collectAsStateWithLifecycle()
     LaunchedEffect(pendingShare) {
         if (pendingShare != null) viewModel.consumeSharedContent()
@@ -178,10 +180,21 @@ private fun GroveNavigation(
             modifier = Modifier
                 .fillMaxSize()
                 .background(MaterialTheme.grove.bg),
-            enterTransition = { EnterTransition.None },
-            exitTransition = { ExitTransition.None },
-            popEnterTransition = { EnterTransition.None },
-            popExitTransition = { ExitTransition.None },
+            // Real (non-None) transitions are required for predictive back: NavHost
+            // wires the system back gesture's progress into these so the previous
+            // screen slides in and is partially visible while the user drags.
+            enterTransition = {
+                slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Left, tween(NAV_TRANSITION_MS))
+            },
+            exitTransition = {
+                slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Left, tween(NAV_TRANSITION_MS))
+            },
+            popEnterTransition = {
+                slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Right, tween(NAV_TRANSITION_MS))
+            },
+            popExitTransition = {
+                slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Right, tween(NAV_TRANSITION_MS))
+            },
         ) {
             composable(Routes.ONBOARDING) {
                 OnboardingScreen(

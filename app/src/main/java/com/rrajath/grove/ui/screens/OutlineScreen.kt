@@ -102,7 +102,7 @@ data class OutlineDisplayFlags(
 /** Persist the collapsed line-index set across navigation (Set isn't saveable by default). */
 private val IntSetSaver = listSaver<Set<Int>, Int>(save = { it.toList() }, restore = { it.toSet() })
 
-/** Outline view per design spec §4 — collapsible heading tree with node ops. */
+/** Outline view per design spec §4: collapsible heading tree with node ops. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OutlineScreen(
@@ -120,7 +120,7 @@ fun OutlineScreen(
     /** Top-bar ⌕: opens Search with the notebook filter already pinned to this file. */
     onSearchInNotebook: () -> Unit = {},
     onFavorite: (fileName: String, lineIndex: Int, title: String) -> Unit = { _, _, _ -> },
-    /** Line indices of favorited headlines in this notebook — marked with a ★. */
+    /** Line indices of favorited headlines in this notebook, marked with a ★. */
     favoriteLines: Set<Int> = emptySet(),
     displayFlags: OutlineDisplayFlags = OutlineDisplayFlags(),
     onToggleDisplay: (OutlineToggle, Boolean) -> Unit = { _, _ -> },
@@ -173,7 +173,7 @@ fun OutlineScreen(
     // (the flag is saved alongside `collapsed`), so the user's later expanding
     // and collapsing is preserved across navigating into a note and back.
     var defaultCollapseApplied by rememberSaveable(notebookId) { mutableStateOf(false) }
-    // Keyed on the loaded *transition*, not the state object itself — every
+    // Keyed on the loaded *transition*, not the state object itself: every
     // document emission is a new state instance and would relaunch this effect.
     LaunchedEffect(state is DocumentUiState.Loaded, defaultCollapseApplied) {
         if (!defaultCollapseApplied) {
@@ -321,7 +321,7 @@ fun OutlineScreen(
         },
         floatingActionButton = {
             // PRD §5.3: FAB adds a new top-level note to this notebook. Hidden while
-            // narrowed — adding a top-level note doesn't belong to the focused subtree.
+            // narrowed: adding a top-level note doesn't belong to the focused subtree.
             if (narrowTarget == null) {
                 Box(
                     Modifier
@@ -349,7 +349,7 @@ fun OutlineScreen(
 
             is DocumentUiState.Loaded -> {
                 val doc = s.document
-                // Every mutation produces a new document — snap any open panel shut.
+                // Every mutation produces a new document; snap any open panel shut.
                 LaunchedEffect(doc) { openRowLine = null }
                 val visible = remember(scopedHeadlines, collapsed) { visibleHeadlines(scopedHeadlines, collapsed) }
                 Column(Modifier.fillMaxSize().padding(padding)) {
@@ -364,7 +364,7 @@ fun OutlineScreen(
                     }
                     Box(Modifier.fillMaxSize().weight(1f)) {
                     if (scopedHeadlines.isEmpty()) {
-                        // Empty state still needs the overlays below — undoing a
+                        // Empty state still needs the overlays below: undoing a
                         // delete/refile of the last note happens from here.
                         Column(
                             Modifier.align(Alignment.Center),
@@ -573,7 +573,7 @@ fun OutlineScreen(
 
 /** Swipe panel's "Note" action: free text logged into the headline's LOGBOOK drawer. */
 @Composable
-private fun NoteDialog(title: String, onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
+internal fun NoteDialog(title: String, onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
     val c = MaterialTheme.grove
     var text by remember { mutableStateOf("") }
     AlertDialog(
@@ -619,7 +619,7 @@ private fun NoteDialog(title: String, onDismiss: () -> Unit, onConfirm: (String)
 /**
  * "Move & indent" bar that replaces the top bar in focus mode (design spec
  * Gestures screen): 56dp, accentSoft bg. Every handler re-resolves the focused
- * headline at click time — headlines are stale after each mutation.
+ * headline at click time: headlines are stale after each mutation.
  */
 @Composable
 private fun StructureCommandBar(

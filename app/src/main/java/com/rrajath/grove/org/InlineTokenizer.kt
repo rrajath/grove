@@ -19,12 +19,12 @@ data class InlineToken(
 )
 
 /**
- * One-way tokenizer for org inline markup — used for syntax highlighting and
+ * One-way tokenizer for org inline markup: used for syntax highlighting and
  * read-mode rendering only; never serialized back (the raw text is retained).
  */
 object InlineTokenizer {
 
-    // [[target][label]] or [[target]] — brackets escaped for Android's stricter ICU engine
+    // [[target][label]] or [[target]]: brackets escaped for Android's stricter ICU engine
     private val LINK = Regex("""\[\[([^\[\]]+)\](?:\[([^\[\]]+)\])?\]""")
 
     // Bare URLs and other schemes org recognizes unbracketed
@@ -48,7 +48,7 @@ object InlineTokenizer {
     /** Tokenize [line] into non-overlapping spans covering the whole string. */
     fun tokenize(line: String): List<InlineToken> {
         val found = mutableListOf<InlineToken>()
-        // Chars already claimed by an earlier (higher-priority) token — O(1)
+        // Chars already claimed by an earlier (higher-priority) token: O(1)
         // overlap test instead of scanning the accumulated token list per match.
         val claimed = BooleanArray(line.length)
 

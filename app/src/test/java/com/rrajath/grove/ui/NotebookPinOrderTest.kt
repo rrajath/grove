@@ -89,7 +89,7 @@ class NotebookPinOrderTest {
 
     @Test
     fun `unpinned items sort by title when display name mode is title`() {
-        // File names would sort z, a, m — but with the title display mode
+        // File names would sort z, a, m, but with the title display mode
         // (NotebookDisplayNameMode.TITLE), displayName carries the #+TITLE:
         // instead, and that's what unpinned notebooks must sort by.
         val items = listOf(

@@ -14,7 +14,7 @@ object AppIconManager {
 
     const val DEFAULT_ALIAS = ".IconDefault"
 
-    // Alias classes resolve against the manifest package, not the applicationId —
+    // Alias classes resolve against the manifest package, not the applicationId:
     // in debug builds packageName is "com.rrajath.grove.debug" (applicationIdSuffix)
     // while the alias class stays "com.rrajath.grove.IconDefault".
     private const val MANIFEST_PACKAGE = "com.rrajath.grove"
@@ -58,7 +58,7 @@ object AppIconManager {
      * (enabled, theme) pair [targetAlias] resolves.
      *
      * Android renders a notification's small icon as an alpha mask and tints it
-     * with `NotificationCompat.Builder.setColor`, so this — not the drawable —
+     * with `NotificationCompat.Builder.setColor`, so this (not the drawable)
      * is what actually makes the notification icon follow the launcher icon.
      * Every `ic_launcher_foreground_*` variant is the identical five-spoke path
      * differing only in fill, so matching the color matches the icon.
@@ -67,7 +67,7 @@ object AppIconManager {
         if (enabled) THEME_MARK_COLORS[theme] ?: DEFAULT_MARK_COLOR else DEFAULT_MARK_COLOR
 
     /**
-     * The alias that should be enabled for a given (enabled, theme) pair — pure
+     * The alias that should be enabled for a given (enabled, theme) pair: pure
      * mapping logic, split out from [applyIcon] so it's JVM-testable without a
      * Context/PackageManager.
      */
@@ -77,8 +77,8 @@ object AppIconManager {
     /**
      * The launcher-alias [ComponentName] that is (or is about to become) the
      * enabled `LAUNCHER` component for a given (enabled, theme) pair. Dynamic
-     * shortcuts must bind to this via `ShortcutInfoCompat.Builder.setActivity`
-     * — omitting it makes a shortcut resolve against whichever alias happens
+     * shortcuts must bind to this via `ShortcutInfoCompat.Builder.setActivity`;
+     * omitting it makes a shortcut resolve against whichever alias happens
      * to be enabled at publish time, which silently drops the shortcut off
      * the launcher the next time [applyIcon] switches the enabled alias.
      */

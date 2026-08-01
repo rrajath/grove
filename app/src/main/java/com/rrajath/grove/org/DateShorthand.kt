@@ -9,8 +9,8 @@ enum class PlanningKind { SCHEDULED, DEADLINE }
 
 /**
  * One line of shorthand typed into the Dates screen's `›` box, already parsed:
- * `fri`, `+2w`, `aug 3 10-11am`, `d: mon ++1w`. Every field is optional — a bare
- * `10-11am` sets only the times, a bare `++1w` only the repeater — so applying a
+ * `fri`, `+2w`, `aug 3 10-11am`, `d: mon ++1w`. Every field is optional: a bare
+ * `10-11am` sets only the times, a bare `++1w` only the repeater, so applying a
  * [DateShorthand] patches the target timestamp rather than replacing it.
  *
  * Pure JVM (no Android types) so the grammar stays unit-testable.
@@ -71,7 +71,7 @@ object DateShorthandParser {
         "sat" to DayOfWeek.SATURDAY,
     )
 
-    /** Returns null for blank input — the echo line stays hidden until you type. */
+    /** Returns null for blank input: the echo line stays hidden until you type. */
     fun parse(raw: String, today: LocalDate): ShorthandParse? {
         var s = raw.trim().lowercase()
         if (s.isEmpty()) return null
@@ -180,7 +180,7 @@ object DateShorthandParser {
         else -> plusDays(n)
     }
 
-    /** The next [target] strictly after [today] — never [today] itself. */
+    /** The next [target] strictly after [today]; never [today] itself. */
     private fun nextDayOfWeek(today: LocalDate, target: DayOfWeek): LocalDate {
         val delta = ((target.value - today.dayOfWeek.value + 7) % 7).let { if (it == 0) 7 else it }
         return today.plusDays(delta.toLong())

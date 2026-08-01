@@ -1,5 +1,5 @@
 # Product Requirements Document
-# Grove — Android Org-Mode Note-Taking App
+# Grove: Android Org-Mode Note-Taking App
 
 **Version:** 1.0  
 **Platform:** Android (Kotlin, native)  
@@ -11,7 +11,7 @@
 
 ## 1. Overview
 
-**Grove** is a native Android app for note-taking using plain-text `.org` files. The app is designed for people already using Org mode on their laptops who want a first-class mobile companion — not a full Org mode replacement, but an excellent tool for capturing, reading, editing, and navigating notes on the go.
+**Grove** is a native Android app for note-taking using plain-text `.org` files. The app is designed for people already using Org mode on their laptops who want a first-class mobile companion, not a full Org mode replacement, but an excellent tool for capturing, reading, editing, and navigating notes on the go.
 
 The core philosophy is **file-first**: notes are always plain `.org` files on disk that any editor can open. Grove adds convenience on top of that format, not a proprietary layer above it.
 
@@ -78,7 +78,7 @@ The editor is the core of the app. It must handle Org mode syntax faithfully.
 
 **Supported note properties:**
 - Heading with level (depth), indicated by `*` stars
-- TODO keyword / state (e.g., `TODO`, `DONE`, `IN-PROGRESS` — configurable)
+- TODO keyword / state (e.g., `TODO`, `DONE`, `IN-PROGRESS`; configurable)
 - Priority (`[#A]`, `[#B]`, `[#C]`)
 - Tags (`:tag1:tag2:`)
 - SCHEDULED and DEADLINE timestamps
@@ -131,14 +131,14 @@ Each notebook opens into an outline view showing its heading tree.
 Links can appear in note titles or body content.
 
 **Supported link types:**
-- Web URLs: `https://...` and `[[https://...][label]]` — opens browser
-- Email: `mailto:...` — opens mail client
-- Telephone: `tel:...`, `sms:...` — opens dialer/messages
-- Location: `geo:lat,lon` — opens maps
-- File: `file:path/to/file.org` — opens file in app or external app
-- Internal note link by ID: `id:uuid` — jumps to the note with that ID
-- Internal note link by CUSTOM_ID: `[[#custom-id]]` — jumps to matching note
-- Notebook link: `file:notebook.org` — opens that notebook
+- Web URLs: `https://...` and `[[https://...][label]]`: opens browser
+- Email: `mailto:...`: opens mail client
+- Telephone: `tel:...`, `sms:...`: opens dialer/messages
+- Location: `geo:lat,lon`: opens maps
+- File: `file:path/to/file.org`: opens file in app or external app
+- Internal note link by ID: `id:uuid`: jumps to the note with that ID
+- Internal note link by CUSTOM_ID: `[[#custom-id]]`: jumps to matching note
+- Notebook link: `file:notebook.org`: opens that notebook
 
 **Behavior:**
 - Links in body content are tappable in both edit and read modes
@@ -246,7 +246,7 @@ Users configure auto-sync behavior per repository in Settings → Sync → [Repo
 | **On file change** | Watch the sync directory for changes; sync immediately when a file is modified externally (local directory only) |
 | **Continuous (recommended)** | Combines "on open/close" + "on file change"; uses a foreground service when the app is visible |
 
-**Recommended default:** "On open / on close" — this covers the most common pain point (stale notes after editing on laptop) with minimal battery impact.
+**Recommended default:** "On open / on close": this covers the most common pain point (stale notes after editing on laptop) with minimal battery impact.
 
 **Implementation notes (Kotlin):**
 - Use `WorkManager` for periodic background sync (respects Doze mode)
@@ -259,7 +259,7 @@ Users configure auto-sync behavior per repository in Settings → Sync → [Repo
 
 When both the local and remote version of a file have changed since the last sync:
 
-1. **Conflict picker:** Present a clear diff view showing local vs. remote changes side by side. User taps to keep local, keep remote, or "Keep both" (appends the conflicting content under a `CONFLICT` heading for manual resolution later). No automated structural merge in v1 — Syncthing's own conflict file handling (which creates a `.sync-conflict-...` copy of the diverged file) is the recommended fallback for Syncthing users.
+1. **Conflict picker:** Present a clear diff view showing local vs. remote changes side by side. User taps to keep local, keep remote, or "Keep both" (appends the conflicting content under a `CONFLICT` heading for manual resolution later). No automated structural merge in v1; Syncthing's own conflict file handling (which creates a `.sync-conflict-...` copy of the diverged file) is the recommended fallback for Syncthing users.
 2. **Force options:** "Force Load" (overwrite local with remote) and "Force Save" (overwrite remote with local) always available in the notebook context menu, regardless of conflict state.
 3. Conflicts are indicated by a ⚠ badge on the notebook in the notebook list.
 4. A conflict notification is shown so the user is alerted even if they don't open the app.
@@ -354,7 +354,7 @@ Templates are managed in Settings → Templates:
 
 ## 8. Suggested Feature 1: Quick Capture Widget & Notification Shortcut
 
-The fastest possible path to capturing a thought — without unlocking, finding the app, and navigating.
+The fastest possible path to capturing a thought, without unlocking, finding the app, and navigating.
 
 **Home screen widget:**
 - A 1×1 or 2×1 Android app widget labeled "Capture"
@@ -417,7 +417,7 @@ Accept content shared from other apps and route it directly into a capture templ
 **Example use case:**
 - Reading an article in the browser → tap Share → select the app → "Reading List" template opens with `[[url][Article Title]]` pre-filled → tap Save → article saved to `reading.org` with a timestamp
 
-**Rationale:** The phone is where people encounter things worth saving — articles, links, addresses, quotes. Without share sheet integration, saving these requires copy-pasting manually. This feature closes the loop between the rest of the phone and the note-taking system.
+**Rationale:** The phone is where people encounter things worth saving: articles, links, addresses, quotes. Without share sheet integration, saving these requires copy-pasting manually. This feature closes the loop between the rest of the phone and the note-taking system.
 
 ---
 
@@ -534,7 +534,7 @@ The following questions were raised during drafting and have been resolved:
 | # | Question | Decision |
 |---|---|---|
 | 1 | App name | **Grove** (`com.yourname.grove`, internal code name: Wren) |
-| 2 | Org parser | **Use an existing library** (evaluate `org-java` and other open-source Kotlin/Java parsers first). Write a custom parser only if the chosen library has a hard gap that cannot be worked around — e.g. a property or syntax element Grove needs that the library silently drops or corrupts. |
+| 2 | Org parser | **Use an existing library** (evaluate `org-java` and other open-source Kotlin/Java parsers first). Write a custom parser only if the chosen library has a hard gap that cannot be worked around, e.g. a property or syntax element Grove needs that the library silently drops or corrupts. |
 | 3 | Conflict auto-merge in v1 | **No auto-merge in v1.** Show a conflict picker (keep local / keep remote / keep both). Document Syncthing's own `.sync-conflict-...` file mechanism as the fallback for users on the recommended Syncthing setup. Auto-merge is a v2 consideration. |
 | 4 | Read mode tables | **Defer to v2.** In v1, org table syntax inside a note body is displayed as monospace plain text in Read mode, with a small "table rendering coming in v2" note. No partial implementation. |
 | 5 | Template "under heading" target | **Offer both.** Users can identify the target heading by exact name (easy to set up) or by `CUSTOM_ID` property (robust, recommended). The template editor explains the tradeoff and marks CUSTOM_ID as the recommended option. |

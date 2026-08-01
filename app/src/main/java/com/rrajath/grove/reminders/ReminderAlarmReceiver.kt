@@ -16,7 +16,7 @@ class ReminderAlarmReceiver : BroadcastReceiver() {
             try {
                 val reminder = app.database.reminderDao().get(key) ?: return@launch
                 // Date-only reminders (no explicit time-of-day) don't fire their own
-                // notification — they're counted into the daily digest instead.
+                // notification; they're counted into the daily digest instead.
                 if (reminder.hasExplicitTime) ReminderNotification.show(context, reminder)
                 app.database.reminderDao().markFired(key, System.currentTimeMillis())
             } finally {

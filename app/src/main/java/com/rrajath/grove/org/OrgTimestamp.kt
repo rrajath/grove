@@ -8,13 +8,13 @@ import java.time.format.TextStyle
 import java.util.Locale
 
 enum class RepeaterType(val marker: String) {
-    /** `+` — shift by exactly one interval from the old date. */
+    /** `+`: shift by exactly one interval from the old date. */
     CUMULATIVE("+"),
 
-    /** `++` — shift by intervals until the date lands in the future. */
+    /** `++`: shift by intervals until the date lands in the future. */
     CATCH_UP("++"),
 
-    /** `.+` — shift one interval from *today*. */
+    /** `.+`: shift one interval from *today*. */
     FUTURE(".+");
 
     companion object {
@@ -64,7 +64,7 @@ data class OrgTimestamp(
      * `Jul 30 12:00-13:30`, `Jul 30, 2027` for a date outside [today]'s year.
      *
      * Drops the org brackets and the day abbreviation (the month name already
-     * reads as a date) but keeps a repeater and warning cookie verbatim — those
+     * reads as a date) but keeps a repeater and warning cookie verbatim: those
      * change what the timestamp *means*, so hiding them would lose information.
      * [format] remains the canonical on-disk form; this is display only.
      */
@@ -89,7 +89,7 @@ data class OrgTimestamp(
 
         private val REPEATER = Regex("""([.+]?\+)(\d+)([hdwmy])""")
 
-        /** `Jul 30` — the reader-facing date, see [formatHuman]. */
+        /** `Jul 30`: the reader-facing date, see [formatHuman]. */
         private val HUMAN_DATE: DateTimeFormatter =
             DateTimeFormatter.ofPattern("MMM d", Locale.ENGLISH)
 

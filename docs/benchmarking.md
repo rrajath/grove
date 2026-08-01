@@ -2,7 +2,7 @@
 
 Performance is measured with the `:macrobenchmark` module (Macrobenchmark +
 UiAutomator). Run benchmarks on a **physical device (API 34+)**, not an
-emulator — emulator timings are noise.
+emulator: emulator timings are noise.
 
 ## Build types
 
@@ -17,7 +17,7 @@ Macrobenchmark can capture traces without root. The benchmark module targets it.
 ./gradlew :macrobenchmark:connectedBenchmarkAndroidTest \
   -P android.testInstrumentationRunnerArguments.class=com.rrajath.grove.macrobenchmark.StartupBenchmark
 
-# Outline scroll frame timing (needs a seeded vault — see below).
+# Outline scroll frame timing (needs a seeded vault; see below).
 ./gradlew :macrobenchmark:connectedBenchmarkAndroidTest \
   -P android.testInstrumentationRunnerArguments.class=com.rrajath.grove.macrobenchmark.ScrollBenchmark
 
@@ -33,7 +33,7 @@ Key metrics: `timeToInitialDisplayMs` (startup), `frameDurationCpuMs` /
 
 If an unlocked-clocks / emulator check blocks an experimental run, add
 `-P android.testInstrumentationRunnerArguments.androidx.benchmark.suppressErrors=EMULATOR,UNLOCKED`
-— but treat suppressed results as directional only.
+, but treat suppressed results as directional only.
 
 ## Seeding a vault (for ScrollBenchmark)
 
@@ -60,7 +60,7 @@ The SAF grant + vault config persist across benchmark runs.
 ## Baseline profile (manual, AGP 9)
 
 The `androidx.baselineprofile` Gradle plugin (which automates this) does **not**
-support AGP 9.0.1 yet — applying it fails with "not a supported android module".
+support AGP 9.0.1 yet: applying it fails with "not a supported android module".
 Until it does, generate and install the profile manually:
 
 1. Generate it on a device (API 33+):
@@ -87,8 +87,8 @@ Macrobenchmark. Typing in the search field is debounced 300 ms and the query
 runs off the main thread, so frame timing mostly measures Compose
 recomposition, not the work the migration changed. Instead,
 `SearchLatencyBenchmark` (an instrumented test in `app/src/androidTest`) seeds a
-4000-note synthetic vault and times one search both ways — materialise every row
-and scan in Kotlin, versus letting SQLite/FTS5 return only candidates — while
+4000-note synthetic vault and times one search both ways (materialise every row
+and scan in Kotlin, versus letting SQLite/FTS5 return only candidates) while
 asserting both paths return identical results.
 
 ```bash
@@ -97,7 +97,7 @@ asserting both paths return identical results.
 adb logcat -d -s SearchLatency
 ```
 
-It runs on any connected device. Emulator numbers are directional only — take
+It runs on any connected device. Emulator numbers are directional only; take
 the real figures from a physical device, as with every other benchmark here.
 
 Read `rowsRead` alongside the timings: it is the number of rows the narrowed

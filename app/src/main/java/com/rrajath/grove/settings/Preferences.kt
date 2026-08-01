@@ -93,7 +93,7 @@ enum class AgendaSwipeAction(val storageKey: String, val label: String) {
 }
 
 /**
- * Agenda levers § "Group by" — how the day's items are bucketed into sections.
+ * Agenda levers § "Group by": how the day's items are bucketed into sections.
  * Lives in settings rather than the ViewModel because a user who always works
  * by priority shouldn't re-pick it on every visit to the screen.
  */
@@ -110,7 +110,7 @@ enum class AgendaGrouping(val storageKey: String, val label: String) {
 }
 
 /**
- * Agenda levers § "Show" — which TODO states reach the list.
+ * Agenda levers § "Show": which TODO states reach the list.
  *
  * The middle chips are the vault's own active (todo-type) keywords rather than
  * a fixed `NEXT`/`WAITING` pair, so the filter follows whatever `todoKeywords`

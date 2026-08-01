@@ -16,7 +16,7 @@ import com.rrajath.grove.ui.vault.NoteRef
 
 /**
  * Resolves a reminder notification's deep link (fileName + composite heading
- * key) into that heading's *current* line index — the vault must be opened
+ * key) into that heading's *current* line index: the vault must be opened
  * and parsed to know it, so this is a brief loading step before landing on
  * `ReadNoteScreen` via `Routes.note`.
  */

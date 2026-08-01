@@ -14,7 +14,7 @@ import kotlinx.coroutines.withTimeoutOrNull
  * Handles the notification's "Complete" action headlessly (no open ViewModel):
  * loads the file's current text from the vault, re-locates the heading by its
  * stored composite key, sets its TODO keyword to the first done-type keyword,
- * saves, and triggers a sync — then cleans up the notification/alarm/row.
+ * saves, and triggers a sync, then cleans up the notification/alarm/row.
  */
 class ReminderActionReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -55,7 +55,7 @@ class ReminderActionReceiver : BroadcastReceiver() {
         // Only tear down the notification/alarm/row after a CONFIRMED mutation+save.
         // If the mutation didn't happen (vault never became ready, heading couldn't be
         // relocated, no done keyword), leave the reminder row/alarm and the shown
-        // notification intact so the user can re-tap Complete or re-open the app —
+        // notification intact so the user can re-tap Complete or re-open the app;
         // never lose the reminder without actually completing the task.
         if (completed) {
             ReminderNotification.cancel(context, reminder.notificationId)

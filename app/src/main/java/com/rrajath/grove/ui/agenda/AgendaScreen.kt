@@ -29,6 +29,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -63,6 +64,7 @@ import com.rrajath.grove.ui.components.PlanningDatesScreen
 import com.rrajath.grove.ui.components.SwipeAction
 import com.rrajath.grove.ui.components.SwipeCommitRow
 import com.rrajath.grove.ui.components.annotateOrgInline
+import com.rrajath.grove.ui.screens.NoteDialog
 import com.rrajath.grove.ui.theme.GroveColors
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
@@ -71,7 +73,7 @@ import com.rrajath.grove.ui.vault.NoteRef
 
 /**
  * A pending swipe-left/swipe-right date pick, before the user confirms. The
- * Dates screen edits both planning dates at once, so the request carries both —
+ * Dates screen edits both planning dates at once, so the request carries both:
  * [target] only decides which section it opens focused on.
  */
 private data class DatePickerRequest(
@@ -84,7 +86,7 @@ private data class DatePickerRequest(
 )
 
 /**
- * The "Agenda A · focus" screen from `design/Grove.dc.html` — today's work
+ * The "Agenda A · focus" screen from `design/Grove.dc.html`: today's work
  * first, with an overdue card above it and a levers panel (⇅) that re-buckets
  * the list by date, priority, tag, or file.
  *
@@ -105,6 +107,7 @@ fun AgendaScreen(
     val snack by viewModel.snack.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
     var datePickerRequest by remember { mutableStateOf<DatePickerRequest?>(null) }
+    var noteDialogFor by remember { mutableStateOf<AgendaRow?>(null) }
 
     val openDatePicker: (AgendaRow, PlanningKind) -> Unit = { row, target ->
         datePickerRequest = DatePickerRequest(
@@ -153,6 +156,7 @@ fun AgendaScreen(
                     onToggleOverdue = viewModel::toggleOverdue,
                     onMoveOverdue = viewModel::moveOverdueToToday,
                     onOpenDatePicker = openDatePicker,
+                    onOpenNoteDialog = { row -> noteDialogFor = row },
                 )
 
                 val nearBottom by remember {
@@ -185,6 +189,17 @@ fun AgendaScreen(
             onConfirm = { sched, dead ->
                 viewModel.setPlanningDates(req.fileName, req.lineIndex, sched, dead)
                 datePickerRequest = null
+            },
+        )
+    }
+
+    noteDialogFor?.let { row ->
+        NoteDialog(
+            title = row.title,
+            onDismiss = { noteDialogFor = null },
+            onConfirm = { note ->
+                viewModel.addNote(row.fileName, row.lineIndex, note)
+                noteDialogFor = null
             },
         )
     }
@@ -244,8 +259,8 @@ private fun AgendaHeader(
  * prototype's agenda tabs raise the active option on a `surface` card rather
  * than filling it with `accent`.
  *
- * The card alone is nearly invisible on the dark themes — an elevation shadow
- * has almost no contrast to cast against `surface2` — so the active option also
+ * The card alone is nearly invisible on the dark themes: an elevation shadow
+ * has almost no contrast to cast against `surface2`, so the active option also
  * carries a 1dp `accent` border, and inactive labels drop to `ink3` to widen the
  * gap. That keeps the "raised card, not filled pill" character while still
  * reading as selected on every theme.
@@ -411,8 +426,12 @@ private fun AgendaList(
     onToggleOverdue: () -> Unit,
     onMoveOverdue: () -> Unit,
     onOpenDatePicker: (AgendaRow, PlanningKind) -> Unit,
+    onOpenNoteDialog: (AgendaRow) -> Unit,
 ) {
     val c = MaterialTheme.grove
+    // At most one row's swipe panel stays open at a time (mirrors the Outline
+    // screen's SwipeRevealRow coordination); a row's key matches its `items` key below.
+    var openRowKey by remember { mutableStateOf<String?>(null) }
     LazyColumn(
         state = listState,
         modifier = Modifier.fillMaxSize(),
@@ -452,9 +471,19 @@ private fun AgendaList(
         state.groups.forEach { group ->
             item("head-${group.key}") { GroupHeader(group) }
             items(group.rows, key = { "${group.key}-${it.fileName}@${it.lineIndex}" }) { row ->
+                val rowKey = "${group.key}-${row.fileName}@${row.lineIndex}"
                 SwipeCommitRow(
                     leftAction = swipeActionFor(state.swipeLeftAction, row, c, onOpenDatePicker, onToggleDone),
                     rightAction = swipeActionFor(state.swipeRightAction, row, c, onOpenDatePicker, onToggleDone),
+                    // Add-note rides along beside whichever side is configured as
+                    // Mark Done: partial swipe reveals both, full swipe still marks done.
+                    leftSecondaryAction = addNoteAction(state.swipeLeftAction, row, c, onOpenNoteDialog),
+                    rightSecondaryAction = addNoteAction(state.swipeRightAction, row, c, onOpenNoteDialog),
+                    forceClose = openRowKey != rowKey,
+                    onOpenChanged = { open ->
+                        if (open) openRowKey = rowKey
+                        else if (openRowKey == rowKey) openRowKey = null
+                    },
                     onTap = { onOpenNote(NoteRef(row.fileName, row.lineIndex)) },
                     shape = RoundedCornerShape(12.dp),
                 ) {
@@ -660,7 +689,7 @@ private fun StateChip(keyword: String, isDone: Boolean, modifier: Modifier = Mod
 
 /**
  * Agenda priority scale from the prototype (`agPColor`). Deliberately not the
- * shared `GroveColors.priorityColor`, which paints C green — that reads as
+ * shared `GroveColors.priorityColor`, which paints C green; that reads as
  * "done" next to this screen's green checkboxes.
  */
 private fun GroveColors.agendaPriorityColor(priority: String): Color = when (priority.uppercase()) {
@@ -695,4 +724,23 @@ private fun swipeActionFor(
         }
     AgendaSwipeAction.MARK_DONE ->
         SwipeAction(label = "Done", fg = c.green, bg = c.greenSoft, icon = Icons.Default.Check) { onToggleDone(row) }
+}
+
+/**
+ * Rides alongside whichever side is configured as [AgendaSwipeAction.MARK_DONE]:
+ * a partial swipe reveals this "Note" cell next to Done for a tap, while a full
+ * swipe still commits Done directly. Any other configured action gets no
+ * secondary (null), so its side keeps the plain swipe-to-commit behavior.
+ */
+private fun addNoteAction(
+    kind: AgendaSwipeAction,
+    row: AgendaRow,
+    c: GroveColors,
+    onOpenNoteDialog: (AgendaRow) -> Unit,
+): SwipeAction? = when (kind) {
+    AgendaSwipeAction.MARK_DONE ->
+        SwipeAction(label = "Note", fg = c.blue, bg = c.blueSoft, icon = Icons.Outlined.EditNote) {
+            onOpenNoteDialog(row)
+        }
+    else -> null
 }

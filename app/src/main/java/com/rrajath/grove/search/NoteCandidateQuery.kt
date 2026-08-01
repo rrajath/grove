@@ -9,12 +9,12 @@ enum class DatePresence { ANY, PRESENT, ABSENT }
  * The part of the Filters panel that SQL can narrow on, decoupled from the UI's
  * `SearchFilters` so this builder stays testable without an Android runtime.
  * Date *windows* are absent by design: they compare parsed org timestamps, which
- * is Kotlin's job — only the presence of a timestamp reaches SQL.
+ * is Kotlin's job; only the presence of a timestamp reaches SQL.
  */
 data class FacetNarrowing(
     val notebook: String? = null,
     val states: Set<String> = emptySet(),
-    /** True when the "no state" chip is selected — matches rows with a null keyword. */
+    /** True when the "no state" chip is selected; matches rows with a null keyword. */
     val includeNoState: Boolean = false,
     val priorities: Set<String> = emptySet(),
     val tags: Set<String> = emptySet(),
@@ -38,8 +38,8 @@ data class CandidateSql(val sql: String, val args: List<String>) {
  * Like [FtsQuery], this only ever has to return a **superset**: `QueryMatcher`
  * and the ViewModel's own `matchesFilters` still decide every result, so a
  * predicate is pushed down only when it provably cannot exclude a row the
- * Kotlin pass would have kept. Anything ambiguous — date arithmetic over org
- * timestamps, terms whose case folding SQLite and Kotlin disagree on — is left
+ * Kotlin pass would have kept. Anything ambiguous (date arithmetic over org
+ * timestamps, terms whose case folding SQLite and Kotlin disagree on) is left
  * out and handled in Kotlin as before.
  */
 object NoteCandidateQuery {
@@ -84,7 +84,7 @@ object NoteCandidateQuery {
     /**
      * `SearchQuery.groups` is an OR of AND-groups, so this mirrors that shape.
      * A group with nothing pushable matches anything, which would make the whole
-     * OR trivially true — so the entire query-level predicate is dropped in that
+     * OR trivially true, so the entire query-level predicate is dropped in that
      * case rather than emitting a condition that narrows nothing.
      */
     private fun queryConditions(query: SearchQuery): Pair<String, List<String>>? {
@@ -127,7 +127,7 @@ object NoteCandidateQuery {
         is Condition.Tag -> {
             val column = if (condition.ownOnly) "tags" else "inheritedTags"
             // QueryMatcher matches a tag as a case-insensitive substring, so the
-            // joined column is probed the same way — matching across the ":"
+            // joined column is probed the same way: matching across the ":"
             // separator only ever widens the candidate set.
             condition.tag.ifAscii { "$column LIKE ? ESCAPE '\\'" to listOf(likeContains(it)) }
         }
@@ -170,7 +170,7 @@ object NoteCandidateQuery {
 
         if (facets.tags.isNotEmpty()) {
             // The chips match a whole tag, not a substring, so the ":"-joined
-            // column is bracketed and probed with instr() — byte-exact, which is
+            // column is bracketed and probed with instr(): byte-exact, which is
             // exactly the Kotlin comparison.
             val parts = facets.tags.map { "instr(':' || inheritedTags || ':', ?) > 0" }
             out += parts.joinToString(" OR ", prefix = "(", postfix = ")") to facets.tags.map { ":$it:" }
@@ -194,7 +194,7 @@ object NoteCandidateQuery {
 
     /**
      * SQLite's `NOCASE` collation and `LIKE` only fold ASCII, while Kotlin's
-     * `ignoreCase` folds the full Unicode range — so for a non-ASCII operand SQL
+     * `ignoreCase` folds the full Unicode range, so for a non-ASCII operand SQL
      * could exclude a row Kotlin would have matched. Those terms are simply not
      * pushed down.
      */

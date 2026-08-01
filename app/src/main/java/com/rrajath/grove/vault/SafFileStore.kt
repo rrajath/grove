@@ -9,7 +9,7 @@ import kotlinx.coroutines.withContext
 /**
  * Storage Access Framework implementation over a persisted tree URI
  * (ACTION_OPEN_DOCUMENT_TREE). Listing uses a single child-documents cursor
- * query — cheap even for large vaults. Writes use mode "wt": without truncate,
+ * query, cheap even for large vaults. Writes use mode "wt": without truncate,
  * writing shorter content than the existing file leaves trailing garbage.
  */
 class SafFileStore(
@@ -108,7 +108,7 @@ class SafFileStore(
             if (documentUri(newName) != null) return@withContext false
             val uri = documentUri(oldName) ?: return@withContext false
             // Providers may throw instead of returning null (unsupported op,
-            // stale doc id after an external rename) — treat both as failure.
+            // stale doc id after an external rename), treat both as failure.
             val renamed = runCatching {
                 DocumentsContract.renameDocument(resolver, uri, newName)
             }.getOrNull() != null

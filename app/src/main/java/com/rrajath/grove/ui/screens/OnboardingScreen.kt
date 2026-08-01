@@ -39,7 +39,7 @@ import com.rrajath.grove.ui.theme.grove
 
 /**
  * Onboarding per design spec §1. The primary CTA opens the SAF folder picker;
- * "later" skips — the Notebooks screen offers the picker again.
+ * "later" skips; the Notebooks screen offers the picker again.
  */
 @Composable
 fun OnboardingScreen(
@@ -108,7 +108,7 @@ fun OnboardingScreen(
             Spacer(Modifier.height(14.dp))
             OnboardingStep(1, "Install Syncthing on this phone and your laptop")
             OnboardingStep(2, "Share your org folder between the two devices")
-            OnboardingStep(3, "Point Grove at that folder below — sync is automatic")
+            OnboardingStep(3, "Point Grove at that folder below: sync is automatic")
         }
 
         Spacer(Modifier.height(26.dp))

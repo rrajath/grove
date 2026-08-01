@@ -14,10 +14,10 @@ enum class PlanningType(val storageKey: String) {
 }
 
 /**
- * Best-effort heading identity for reminder tracking (no file mutation — no
+ * Best-effort heading identity for reminder tracking (no file mutation, no
  * auto-injected CUSTOM_ID). A heading is identified by its file, its position
  * in the ancestor-title chain, and its level; renaming a heading or moving it
- * to a different level breaks tracking for that heading only — an accepted
+ * to a different level breaks tracking for that heading only: an accepted
  * trade-off, not a bug (see the reminders feature spec).
  */
 object ReminderKeys {

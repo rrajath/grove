@@ -3,7 +3,7 @@
 A read-through of how Grove indexes notes and answers searches, plus where the
 current design can be improved. Written 2026-07-27 against the code on `main`.
 
-> **Status:** items 1-4 were implemented the same day — see
+> **Status:** items 1-4 were implemented the same day; see
 > `docs/fts5-migration-plan.md` for what shipped and how it differs from the
 > plan. The "Where it can be improved" section below describes the state
 > *before* that work; items 5 and 6 are still open.
@@ -29,10 +29,10 @@ current design can be improved. Written 2026-07-27 against the code on `main`.
 
 Two tables back the index:
 
-- **`notebooks`** (`GroveDatabase.kt:20`) — one row per `.org` file: `revision`
+- **`notebooks`** (`GroveDatabase.kt:20`): one row per `.org` file: `revision`
   (`"mtime:size"`), `noteCount`, `lastModified`, `conflictFileName`, cached
   `#+TITLE:`, and `isIndexed` (stub vs fully parsed).
-- **`notes`** (`GroveDatabase.kt:40`) — **one row per headline**, primary key
+- **`notes`** (`GroveDatabase.kt:40`): **one row per headline**, primary key
   `(fileName, lineIndex)`. Columns:
 
 | Column | Meaning |
@@ -94,7 +94,7 @@ incremental**: edit one note and only that file is re-parsed.
 ### Loading
 
 `SearchViewModel` (`SearchViewModel.kt:111`) subscribes to
-`indexDao().allNotes()` — a Room `Flow` running `SELECT * FROM notes`. It maps
+`indexDao().allNotes()`, a Room `Flow` running `SELECT * FROM notes`. It maps
 **the entire table** into a `List<NoteMeta>` held in a `MutableStateFlow`
 (`SearchViewModel.kt:124`). This remap happens once per index change (Room
 invalidation), not per keystroke. Each `NoteMeta` lazily caches its parsed
@@ -194,9 +194,9 @@ the app stays open. Minor. A date-change trigger would fix it.
 
 ## Related documents
 
-- `docs/fts5-migration-plan.md` — implementation plan for items 1-3.
-- `docs/performance-improvements-plan.md` — the earlier decision to cache
+- `docs/fts5-migration-plan.md`: implementation plan for items 1-3.
+- `docs/performance-improvements-plan.md`: the earlier decision to cache
   `NoteMeta` and precompute dates instead of migrating to FTS (now landed). This
   report and the FTS plan revisit that decision for large vaults.
-- `docs/search-syntax.md` — user-facing query syntax.
-- `docs/architecture.md` — overall layering.
+- `docs/search-syntax.md`: user-facing query syntax.
+- `docs/architecture.md`: overall layering.

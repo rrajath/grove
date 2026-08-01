@@ -7,7 +7,7 @@ import java.time.ZoneId
 
 /**
  * Pure logic (no Android imports, JVM-testable) for the daily reminder digest
- * — "You have X tasks due today" — that replaces individual notifications for
+ * ("You have X tasks due today") that replaces individual notifications for
  * date-only reminders (see [ReminderEntity.hasExplicitTime]) fired at the
  * default reminder time.
  *

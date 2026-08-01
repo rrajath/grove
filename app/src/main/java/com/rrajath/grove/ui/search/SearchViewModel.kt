@@ -45,8 +45,8 @@ import java.time.temporal.ChronoUnit
 import java.util.Locale
 
 /** Sentinel bucket for notes with no TODO keyword, in both the states filter
- *  and the states catalog — distinct from any real keyword string. */
-const val NO_STATE = "—"
+ *  and the states catalog, distinct from any real keyword string. */
+const val NO_STATE = "-"
 
 enum class DatePreset(val label: String, val token: String) {
     ANY("Any", "any"),
@@ -64,7 +64,7 @@ data class DateRange(val start: LocalDate, val end: LocalDate) {
 
 /**
  * Each facet is tri-state: a value is included, excluded (NOT), or absent from
- * both sets — [FilterPanel]'s chips cycle a tapped value through exactly those
+ * both sets: [FilterPanel]'s chips cycle a tapped value through exactly those
  * three states. Included values OR together (e.g. tag=work OR tag=urgent);
  * excluded values each independently rule a note out.
  */
@@ -144,14 +144,14 @@ data class SearchUiState(
     val isBlank: Boolean = true,
     val catalog: SearchCatalog = SearchCatalog(),
     val quickCounts: QuickCounts = QuickCounts(),
-    /** Configured todo-type (non-done) keywords — backs the "Open tasks" quick card. */
+    /** Configured todo-type (non-done) keywords: backs the "Open tasks" quick card. */
     val activeStates: List<String> = emptyList(),
-    /** Current query's plain-text terms — result rows highlight these after org-rendering. */
+    /** Current query's plain-text terms: result rows highlight these after org-rendering. */
     val matchedTerms: List<String> = emptyList(),
 )
 
 /** Full-text + faceted search, results grouped by file (design spec §9 "Search
- *  B — panel"). Agenda's day-grouped/Overdue view now lives on its own screen. */
+ *  B: panel"). Agenda's day-grouped/Overdue view now lives on its own screen. */
 class SearchViewModel(private val app: GroveApplication) : ViewModel() {
 
     private val _state = MutableStateFlow(SearchUiState())
@@ -179,7 +179,7 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
 
     /** The filter-derived tokens last spliced into the query text, so the next
      *  filter change can find-and-replace just that substring (see [runSearch]
-     *  doc on filters staying authoritative — this splice is display-only). */
+     *  doc on filters staying authoritative; this splice is display-only). */
     private var lastFilterExpr: String = ""
 
     init {
@@ -250,7 +250,7 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
     /**
      * Swipe-to-cycle-state action: set a result's TODO state to exactly the
      * keyword picked from the state sheet (null = clear it), via
-     * [OrgMutations.changeKeyword] — same "mark done" / "reopen and drop
+     * [OrgMutations.changeKeyword], same "mark done" / "reopen and drop
      * CLOSED" semantics as the Outline's own state sheet. Results span many
      * files, so (unlike the Outline's single open document) the target file is
      * opened and saved on demand, the way Agenda's row swipes do.
@@ -325,7 +325,7 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
 
     /**
      * Scope the search to exactly one notebook, replacing any existing
-     * notebook selection — the Outline's search action arrives with a file
+     * notebook selection: the Outline's search action arrives with a file
      * already in mind, so this pins that file rather than toggling it in
      * alongside whatever else was selected.
      */
@@ -354,7 +354,7 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
     }
 
     /** The filter-panel selection expressed as query tokens, in the same
-     *  t./i./b./p. syntax the field itself parses — see [lastFilterExpr]. */
+     *  t./i./b./p. syntax the field itself parses (see [lastFilterExpr]). */
     private fun filterExpression(f: SearchFilters): String {
         val parts = mutableListOf<String>()
         f.tags.sorted().forEach { parts += "t.$it" }

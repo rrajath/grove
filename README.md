@@ -1,21 +1,21 @@
 # Grove
 
-**A native Android Org-mode note-taking app — a first-class mobile companion for Emacs org-mode users.**
+**A native Android Org-mode note-taking app: a first-class mobile companion for Emacs org-mode users.**
 
 Grove edits plain `.org` files in a folder you choose. There is no account, no proprietary database, and no export step: the files on disk *are* your notes, byte-for-byte, and they sync to your laptop with whatever tool you already trust (Syncthing is the recommended pairing). If you stop using Grove tomorrow, your notes are exactly where they always were.
 
 ## Highlights
 
-- **File-first** — `.org` files in a synced folder are the sole source of truth. Grove's internal database is only a rebuildable search index.
-- **Lossless org engine** — a custom parser models documents as a thin view over the raw text. Parse → serialize is byte-identical by construction, so Grove never reformats a file it didn't deliberately edit.
-- **Zero-friction capture** — org-capture style templates with `%U`, `%^{prompt}`, `%cursor`-style placeholders; targets include top/bottom of file, under a heading (by name or `CUSTOM_ID`), and year/month/day datetrees. Reachable from a home-screen widget, the share sheet, an optional persistent notification, and `grove://capture` deep links.
-- **Real editor** — raw org subtree editing with syntax highlighting, a formatting toolbar, list continuation on Enter, a metadata sheet (TODO state, priority, tags with autocomplete, SCHEDULED/DEADLINE), repeater advancement on DONE, and autosave with a stale-file guard.
-- **One canvas for both dates** — scheduling opens a full-screen editor that puts SCHEDULED and DEADLINE on the same calendar (with the lead time between them shaded and a warning if you'd start already late), and commits both in one edit. Each carries presets, a time range and an org repeater, and a shorthand box parses lines like `fri 10-11am ++1w` or `d: aug 5` as you type.
-- **Reminders** — a notification fires when a heading's SCHEDULED or DEADLINE time arrives, with Complete (marks the heading done) and Reschedule (reopens the dates screen) actions right on the notification. Enabled by default; notification and exact-alarm access are only requested once the first reminder actually needs scheduling.
-- **Outline operations** — collapsible heading tree with body previews, expand/collapse all, move/cut/copy/paste subtrees, cycle state by swipe, narrow to a subtree.
-- **Orgzly-compatible search** — `i.todo s.7d t.work .b.archive OR p.a`, saved searches, and an `ad.N` agenda view. Backed by a SQLite FTS5 trigram index, so substring search stays instant as the vault grows and covers full note bodies. See [docs/search-syntax.md](docs/search-syntax.md).
-- **Sync that respects your tools** — change detection by file revision, Syncthing `.sync-conflict-*` detection with a keep-local / keep-remote / keep-both picker, manual through continuous sync modes, `.orgzlyignore` support.
-- **A warm, deliberate design** — IBM Plex Sans/Serif/Mono, an earth-tone palette with full dark mode, and org syntax tokens colored the way an Emacs theme would.
+- **File-first**: `.org` files in a synced folder are the sole source of truth. Grove's internal database is only a rebuildable search index.
+- **Lossless org engine**: a custom parser models documents as a thin view over the raw text. Parse → serialize is byte-identical by construction, so Grove never reformats a file it didn't deliberately edit.
+- **Zero-friction capture**: org-capture style templates with `%U`, `%^{prompt}`, `%cursor`-style placeholders; targets include top/bottom of file, under a heading (by name or `CUSTOM_ID`), and year/month/day datetrees. Reachable from a home-screen widget, the share sheet, an optional persistent notification, and `grove://capture` deep links.
+- **Real editor**: raw org subtree editing with syntax highlighting, a formatting toolbar, list continuation on Enter, a metadata sheet (TODO state, priority, tags with autocomplete, SCHEDULED/DEADLINE), repeater advancement on DONE, and autosave with a stale-file guard.
+- **One canvas for both dates**: scheduling opens a full-screen editor that puts SCHEDULED and DEADLINE on the same calendar (with the lead time between them shaded and a warning if you'd start already late), and commits both in one edit. Each carries presets, a time range and an org repeater, and a shorthand box parses lines like `fri 10-11am ++1w` or `d: aug 5` as you type.
+- **Reminders**: a notification fires when a heading's SCHEDULED or DEADLINE time arrives, with Complete (marks the heading done) and Reschedule (reopens the dates screen) actions right on the notification. Enabled by default; notification and exact-alarm access are only requested once the first reminder actually needs scheduling.
+- **Outline operations**: collapsible heading tree with body previews, expand/collapse all, move/cut/copy/paste subtrees, cycle state by swipe, narrow to a subtree.
+- **Orgzly-compatible search**: `i.todo s.7d t.work .b.archive OR p.a`, saved searches, and an `ad.N` agenda view. Backed by a SQLite FTS5 trigram index, so substring search stays instant as the vault grows and covers full note bodies. See [docs/search-syntax.md](docs/search-syntax.md).
+- **Sync that respects your tools**: change detection by file revision, Syncthing `.sync-conflict-*` detection with a keep-local / keep-remote / keep-both picker, manual through continuous sync modes, `.orgzlyignore` support.
+- **A warm, deliberate design**: IBM Plex Sans/Serif/Mono, an earth-tone palette with full dark mode, and org syntax tokens colored the way an Emacs theme would.
 
 ## Getting started
 
@@ -33,7 +33,7 @@ Grove edits plain `.org` files in a folder you choose. There is no account, no p
 ### First run
 
 1. Launch Grove and pick your org folder (any folder reachable through Android's file picker).
-2. Point Syncthing — or any other sync tool — at the same folder to share it with your other machines.
+2. Point Syncthing (or any other sync tool) at the same folder to share it with your other machines.
 3. Capture something.
 
 ## Project layout

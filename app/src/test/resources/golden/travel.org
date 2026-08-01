@@ -3,7 +3,7 @@
 
 Some preamble text before any heading.
 
-* Japan — Spring 2025                                    :japan:
+* Japan: Spring 2025                                    :japan:
 :PROPERTIES:
 :ID: 11111111-aaaa-bbbb-cccc-000000000001
 :CREATED: [2025-01-04 Sat]
@@ -14,7 +14,7 @@ Planning notes for the spring trip.
 SCHEDULED: <2025-04-09 Wed>
 Check the one with the garden view first.
 
-** Kyoto — Day 2  :kyoto:
+** Kyoto: Day 2  :kyoto:
 :PROPERTIES:
 :CUSTOM_ID: kyoto-day-2
 :END:
@@ -40,7 +40,7 @@ See [[#kyoto-day-2]] for the plan.
 ** DONE Order JR Rail Pass
 CLOSED: [2025-03-02 Sun]
 
-* Portugal — Summer  :portugal:
+* Portugal: Summer  :portugal:
 ** Lisbon
 ** Porto
 Stay near the river.

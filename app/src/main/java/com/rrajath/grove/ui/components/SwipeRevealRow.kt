@@ -50,7 +50,7 @@ import kotlinx.coroutines.launch
 /**
  * One action cell behind a swipeable row (design spec Gestures screen). Glyph is a plain
  * text character (e.g. "◷"); pass [icon] instead when the action needs to match a Material
- * icon used elsewhere in the app (e.g. the "mark done" checkmark) — [icon] takes precedence.
+ * icon used elsewhere in the app (e.g. the "mark done" checkmark); [icon] takes precedence.
  */
 data class SwipeAction(
     val glyph: String? = null,
@@ -162,19 +162,28 @@ fun SwipeRevealRow(
 }
 
 /**
- * A row that swipes left or right to commit a single configured action
- * immediately on release past the open threshold (design spec Agenda screen)
- * — unlike [SwipeRevealRow]'s reveal-then-tap panel, there is only ever one
- * action per direction, so firing on release (Gmail/Reminders-style "swipe to
- * complete") reads better than requiring a second tap to confirm. The row
- * always springs back to its resting position after a release, whether or
- * not it fired. A null action on a side disables dragging that direction.
+ * A row that swipes left or right to commit a configured primary action.
+ * Plain (no secondary): fires immediately on release past the open threshold,
+ * unlike [SwipeRevealRow]'s reveal-then-tap panel, and always springs back to
+ * its resting position whether or not it fired (Gmail/Reminders-style "swipe
+ * to complete"). If a side is also given a [leftSecondaryAction] /
+ * [rightSecondaryAction] (e.g. Agenda's Done + Add-note), that side instead
+ * behaves like [SwipeRevealRow] at a partial drag: past the open threshold it
+ * settles open showing both cells (primary nearest the edge, so it's revealed
+ * first) for a tap, and the parent keeps at most one row open the same way,
+ * via [forceClose]/[onOpenChanged]. Dragging further, past [CommitThreshold],
+ * commits the primary action immediately without needing a second tap. A null
+ * action on a side disables dragging that direction.
  */
 @Composable
 fun SwipeCommitRow(
     leftAction: SwipeAction?,
     rightAction: SwipeAction?,
     onTap: () -> Unit,
+    leftSecondaryAction: SwipeAction? = null,
+    rightSecondaryAction: SwipeAction? = null,
+    forceClose: Boolean = false,
+    onOpenChanged: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier,
     /** Clip applied to the foreground card (e.g. a rounded ripple boundary). */
     shape: Shape = RectangleShape,
@@ -183,31 +192,93 @@ fun SwipeCommitRow(
     val c = MaterialTheme.grove
     val density = LocalDensity.current
     val thresholdPx = with(density) { OpenThreshold.toPx() }
-    val capPx = with(density) { CommitCap.toPx() }
+    val singleCapPx = with(density) { CommitCap.toPx() }
+    val dualOpenPx = with(density) { DualPanelWidth.toPx() }
+    val dualCommitPx = with(density) { CommitThreshold.toPx() }
+    val dualCapPx = with(density) { DualCommitCap.toPx() }
     val offset = remember { Animatable(0f) }
     val scope = rememberCoroutineScope()
     val dragRaw = remember { mutableFloatStateOf(0f) }
+    val isOpen = offset.value != 0f
 
-    fun rubberBand(x: Float): Float = when {
-        x > capPx -> capPx + (x - capPx) * RubberBandFactor
-        x < -capPx -> -capPx + (x + capPx) * RubberBandFactor
-        else -> x
+    fun capFor(x: Float): Float = when {
+        x > 0f && leftSecondaryAction != null -> dualCapPx
+        x < 0f && rightSecondaryAction != null -> dualCapPx
+        else -> singleCapPx
     }
 
-    fun springBack() {
-        scope.launch { offset.animateTo(0f, tween(SettleMillis, easing = SettleEasing)) }
+    fun rubberBand(x: Float): Float {
+        val cap = capFor(x)
+        return when {
+            x > cap -> cap + (x - cap) * RubberBandFactor
+            x < -cap -> -cap + (x + cap) * RubberBandFactor
+            else -> x
+        }
+    }
+
+    fun animateTo(target: Float) {
+        scope.launch {
+            if (target != 0f) onOpenChanged(true)
+            offset.animateTo(target, tween(SettleMillis, easing = SettleEasing))
+            if (target == 0f) onOpenChanged(false)
+        }
+    }
+
+    fun close() = animateTo(0f)
+
+    LaunchedEffect(forceClose) {
+        if (forceClose && offset.value != 0f) {
+            offset.animateTo(0f, tween(SettleMillis, easing = SettleEasing))
+        }
+    }
+
+    fun release() {
+        val v = offset.value
+        when {
+            v >= dualCommitPx && leftSecondaryAction != null -> {
+                close()
+                leftAction?.onClick?.invoke()
+            }
+            v <= -dualCommitPx && rightSecondaryAction != null -> {
+                close()
+                rightAction?.onClick?.invoke()
+            }
+            v >= thresholdPx && leftSecondaryAction != null -> animateTo(dualOpenPx)
+            v <= -thresholdPx && rightSecondaryAction != null -> animateTo(-dualOpenPx)
+            v >= thresholdPx -> {
+                close()
+                leftAction?.onClick?.invoke()
+            }
+            v <= -thresholdPx -> {
+                close()
+                rightAction?.onClick?.invoke()
+            }
+            else -> close()
+        }
     }
 
     Box(modifier.clipToBounds()) {
-        if (offset.value > 0f && leftAction != null) CommitUnderlay(leftAction, anchorEnd = false)
-        if (offset.value < 0f && rightAction != null) CommitUnderlay(rightAction, anchorEnd = true)
+        if (offset.value > 0f && leftAction != null) {
+            if (leftSecondaryAction != null) {
+                ActionPanel(listOf(leftAction, leftSecondaryAction), anchorEnd = false, shape = shape, onAction = ::close)
+            } else {
+                CommitUnderlay(leftAction, anchorEnd = false, shape = shape)
+            }
+        }
+        if (offset.value < 0f && rightAction != null) {
+            if (rightSecondaryAction != null) {
+                ActionPanel(listOf(rightAction, rightSecondaryAction), anchorEnd = true, shape = shape, onAction = ::close)
+            } else {
+                CommitUnderlay(rightAction, anchorEnd = true, shape = shape)
+            }
+        }
         Box(
             Modifier
                 .fillMaxWidth()
                 .graphicsLayer { translationX = offset.value }
                 .clip(shape)
                 .background(c.bg)
-                .clickable(onClick = onTap)
+                .clickable(onClick = { if (isOpen) close() else onTap() })
                 .draggable(
                     state = rememberDraggableState { delta ->
                         val next = dragRaw.floatValue + delta
@@ -221,15 +292,7 @@ fun SwipeCommitRow(
                     },
                     orientation = Orientation.Horizontal,
                     onDragStarted = { dragRaw.floatValue = offset.value },
-                    onDragStopped = {
-                        val fired = when {
-                            offset.value >= thresholdPx -> leftAction
-                            offset.value <= -thresholdPx -> rightAction
-                            else -> null
-                        }
-                        springBack()
-                        fired?.onClick?.invoke()
-                    },
+                    onDragStopped = { release() },
                 ),
         ) {
             content()
@@ -237,16 +300,24 @@ fun SwipeCommitRow(
     }
 }
 
-// Cap for [SwipeCommitRow]'s rubber-band: shorter than SwipeRevealRow's full
-// panel width since there's no persistent open state to travel toward — just
-// enough drag room past the threshold to feel deliberate.
+// Cap for [SwipeCommitRow]'s single-action rubber-band: shorter than
+// SwipeRevealRow's full panel width since there's no persistent open state to
+// travel toward, just enough drag room past the threshold to feel deliberate.
 private val CommitCap = 96.dp
+
+// Physics for a [SwipeCommitRow] side that also has a secondary action: the
+// panel settles open at two cells' width, and a drag past CommitThreshold
+// (well beyond that open width, so both cells are clearly seen first) commits
+// the primary action without a second tap.
+private val DualPanelWidth = CellWidth * 2
+private val CommitThreshold = 150.dp
+private val DualCommitCap = 170.dp
 
 /** Single full-bleed action underlay for [SwipeCommitRow], icon+label anchored near the near edge. */
 @Composable
-private fun androidx.compose.foundation.layout.BoxScope.CommitUnderlay(action: SwipeAction, anchorEnd: Boolean) {
+private fun androidx.compose.foundation.layout.BoxScope.CommitUnderlay(action: SwipeAction, anchorEnd: Boolean, shape: Shape) {
     Box(
-        Modifier.matchParentSize().background(action.bg),
+        Modifier.matchParentSize().clip(shape).background(action.bg),
         contentAlignment = if (anchorEnd) Alignment.CenterEnd else Alignment.CenterStart,
     ) {
         Column(
@@ -266,7 +337,7 @@ private fun androidx.compose.foundation.layout.BoxScope.CommitUnderlay(action: S
 /**
  * A cell's [SwipeAction.icon] or [SwipeAction.glyph], centered in a fixed-height
  * slot. The height is pinned because a Material `Icon` measures exactly
- * [iconSize] while a text glyph measures its font's line height — left to their
+ * [iconSize] while a text glyph measures its font's line height; left to their
  * intrinsic sizes, icon cells and glyph cells push their labels to different
  * baselines and the panel's labels no longer line up.
  */
@@ -290,15 +361,16 @@ private fun ActionMark(action: SwipeAction, iconSize: Dp, glyphSize: TextUnit) {
 /** Tall enough for the largest mark either panel draws (18dp icon / 17sp glyph). */
 private val MarkSlotHeight = 22.dp
 
-/** The four 46dp action cells, anchored to one edge behind the card. */
+/** The 46dp action cells (four for [SwipeRevealRow], two for a dual [SwipeCommitRow] side), anchored to one edge behind the card. */
 @Composable
 private fun androidx.compose.foundation.layout.BoxScope.ActionPanel(
     actions: List<SwipeAction>,
     anchorEnd: Boolean,
     onAction: () -> Unit,
+    shape: Shape = RectangleShape,
 ) {
     Row(
-        Modifier.matchParentSize(),
+        Modifier.matchParentSize().clip(shape),
         horizontalArrangement = if (anchorEnd) Arrangement.End else Arrangement.Start,
     ) {
         actions.forEach { action ->

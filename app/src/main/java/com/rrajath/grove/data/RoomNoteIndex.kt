@@ -75,7 +75,7 @@ class RoomNoteIndex(
             NotebookEntity(
                 fileName = fileName,
                 revision = revision,
-                // Top-level headings only — subheadings are part of their note.
+                // Top-level headings only: subheadings are part of their note.
                 noteCount = doc.headlines.count { it.level == 1 },
                 lastModified = lastModified,
                 conflictFileName = conflictFileName,

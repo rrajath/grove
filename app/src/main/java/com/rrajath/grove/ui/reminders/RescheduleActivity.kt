@@ -41,8 +41,8 @@ import java.util.Locale
  * underneath comes back, and Grove's own task is never touched.
  *
  * The write is headless in the same sense as `ReminderActionReceiver`'s
- * "Complete" — re-read the file, re-locate the heading by its stored composite
- * key, mutate, save, sync — and runs on [GroveApplication.appScope] rather than
+ * "Complete": re-read the file, re-locate the heading by its stored composite
+ * key, mutate, save, sync, and runs on [GroveApplication.appScope] rather than
  * any activity-scoped scope, so finishing the moment the user taps Apply cannot
  * cancel a write that is still in flight.
  */
@@ -98,7 +98,7 @@ private fun RescheduleFlow(reminderKey: String, onDone: () -> Unit) {
         val reminder = app.database.reminderDao().get(reminderKey)
         // Launching from the shade may have cold-started the process, so the
         // vault (Eagerly shared over an async combine) is very likely still null
-        // for the first frames — wait for it rather than failing outright. No
+        // for the first frames; wait for it rather than failing outright. No
         // timeout is needed here, unlike the receiver's goAsync() budget: the
         // user can always dismiss the window.
         val vault = app.vault.filterNotNull().first()
@@ -126,7 +126,7 @@ private fun RescheduleFlow(reminderKey: String, onDone: () -> Unit) {
         onConfirm = { sched, dead ->
             app.appScope.launch { writePlanning(app, reminderKey, sched, dead) }
             // The reminder that sent us here was for one of the two dates, so
-            // the toast reports that one — not whichever else was also edited.
+            // the toast reports that one, not whichever else was also edited.
             val reported = if (resolved.isDeadline) dead else sched
             Toast.makeText(
                 context,
@@ -170,7 +170,7 @@ private suspend fun writePlanning(
 private val RESCHEDULED_DATE = DateTimeFormatter.ofPattern("EEE, MMM d", Locale.ENGLISH)
 private val RESCHEDULED_TIME = DateTimeFormatter.ofPattern("h:mm a", Locale.ENGLISH)
 
-/** "Task rescheduled to <date[, time]>" — matches the app's "EEE, MMM d" convention. */
+/** "Task rescheduled to <date[, time]>": matches the app's "EEE, MMM d" convention. */
 private fun formatRescheduled(ts: OrgTimestamp): String {
     val date = ts.date.format(RESCHEDULED_DATE)
     return if (ts.time != null) "$date at ${ts.time.format(RESCHEDULED_TIME)}" else date

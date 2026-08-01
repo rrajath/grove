@@ -11,7 +11,7 @@ import com.rrajath.grove.data.ReminderEntity
 /**
  * Thin `AlarmManager` wrapper: permission checks plus schedule/cancel for a
  * single [ReminderEntity]. Falls back to an inexact alarm when exact-alarm
- * access isn't granted — still better than dropping the reminder entirely.
+ * access isn't granted; still better than dropping the reminder entirely.
  */
 object AlarmScheduler {
 

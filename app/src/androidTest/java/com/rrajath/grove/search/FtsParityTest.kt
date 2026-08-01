@@ -22,7 +22,7 @@ import java.time.LocalDate
  * results produced by scanning the entire vault.
  *
  * Narrowing is only ever allowed to be a superset filter, so any divergence
- * here is a user-visible search regression — a note that silently stops being
+ * here is a user-visible search regression, a note that silently stops being
  * findable. The cases below are the ones where a superset is easiest to get
  * wrong: short terms the trigram tokenizer cannot index, groups with no text at
  * all, negation, non-ASCII text, and bodies past the old 4000-char cap.
@@ -56,7 +56,7 @@ class FtsParityTest {
     @Test fun termMatchingNothing() = assertParity("nonexistentterm")
     @Test fun punctuationInTerm() = assertParity("e.g", expectHits = true)
 
-    /** Past the old MAX_BODY_CHARS truncation — unsearchable before this migration. */
+    /** Past the old MAX_BODY_CHARS truncation: unsearchable before this migration. */
     @Test fun deepInsideALongBody() = assertParity("needleatend", expectHits = true)
 
     // --- terms too short for the trigram tokenizer ---
@@ -104,7 +104,7 @@ class FtsParityTest {
     @Test fun accentedTermInDifferentCase() = assertParity("CAFÉ", expectHits = true)
     @Test fun cyrillicTerm() = assertParity("задача", expectHits = true)
     @Test fun cyrillicTermInDifferentCase() = assertParity("ЗАДАЧА", expectHits = true)
-    // Matches nothing by construction — OrgParser's tag syntax is ASCII-only —
+    // Matches nothing by construction (OrgParser's tag syntax is ASCII-only)
     // but it must still take the no-pushdown path without error.
     @Test fun nonAsciiTagToken() = assertParity("t.café")
 

@@ -15,7 +15,7 @@ import kotlinx.coroutines.withTimeoutOrNull
  * [onTap], a long press reports it via [onLongPress] (e.g. a copy/share menu)
  * instead of falling through to the ambient SelectionContainer's
  * long-press-to-select. Presses outside any link span are left completely
- * untouched — never consumed — so normal text selection, scrolling and
+ * untouched (never consumed), so normal text selection, scrolling and
  * double-tap-to-edit behave exactly as if this modifier weren't present.
  */
 fun Modifier.linkPressHandler(

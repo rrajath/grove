@@ -10,7 +10,7 @@ plugins {
     id("io.sentry.android.gradle") version "6.14.0"
 }
 
-// Version is derived from git at build time — nothing is hardcoded or written
+// Version is derived from git at build time: nothing is hardcoded or written
 // back into the repo. Bump these two for a new major/minor line; the patch and
 // versionCode track the git commit count, so every commit yields a unique,
 // monotonically increasing build.
@@ -38,13 +38,13 @@ val semanticVersion = "$versionMajor.$versionMinor.$gitCommitCount"
 // .github/workflows/build.yml, which tags "v$semanticVersion") so a Sentry
 // issue's release always resolves to a real, findable GitHub Release. The
 // Sentry Android Gradle plugin has no env-var hook for this (unlike its JS/
-// fastlane counterparts) — the only override point is this manifest
+// fastlane counterparts); the only override point is this manifest
 // placeholder, consumed by the io.sentry.release meta-data below.
 val sentryRelease = "v$semanticVersion"
 
 // Release signing comes from the environment (CI secrets). We validate the
 // keystore and alias up front so a missing or misconfigured secret degrades to
-// an unsigned release build instead of failing packaging — and a local
+// an unsigned release build instead of failing packaging, and a local
 // `assembleRelease` (no env set) likewise stays unsigned, as before.
 class ReleaseSigning(
     val storeFile: File,

@@ -455,7 +455,7 @@ private fun NotebookRow(
                 )
                 val ago = DateUtils.getRelativeTimeSpanString(notebook.lastModified)
                 // Stub rows show only the timestamp until the background parse
-                // fills in the count — avoids a "0 notes" flash before the jump.
+                // fills in the count; avoids a "0 notes" flash before the jump.
                 Text(
                     if (notebook.isIndexed) "${notebook.noteCount} notes · $ago" else "$ago",
                     fontFamily = PlexSans, fontSize = 12.5.sp, color = c.ink2,

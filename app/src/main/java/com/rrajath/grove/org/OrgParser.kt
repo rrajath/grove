@@ -38,7 +38,7 @@ data class OrgHeadline(
 }
 
 /**
- * A parsed org file. [text] is verbatim file content — serialization returns
+ * A parsed org file. [text] is verbatim file content: serialization returns
  * it unchanged, so parse → serialize is byte-identical by construction.
  */
 class OrgDocument(
@@ -54,7 +54,7 @@ class OrgDocument(
     /**
      * File-level `#+KEY: value` lines from the preamble (before the first
      * headline), in file order. Key is rendered exactly as written, e.g.
-     * "#+TITLE:" — casing/format preserved.
+     * "#+TITLE:": casing/format preserved.
      */
     val preambleKeywords: List<Pair<String, String>> by lazy {
         lines.subList(0, preambleEnd).mapNotNull { line ->
@@ -67,7 +67,7 @@ class OrgDocument(
     fun serialize(): String = text
 
     /**
-     * Whether [h] has any nested headline — i.e. anything folding would hide.
+     * Whether [h] has any nested headline, i.e. anything folding would hide.
      * O(1): the next headline in document order is deeper iff a subtree exists.
      * Use this for foldability checks instead of `directChildren(h).isNotEmpty()`,
      * which is O(subtree) and becomes O(n²) when run across every headline.
@@ -236,7 +236,7 @@ object OrgParser {
         }
 
         // Drawers (:PROPERTIES: and/or :LOGBOOK:), immediately after the planning
-        // line, in either order — org-mode allows both orderings depending on
+        // line, in either order: org-mode allows both orderings depending on
         // whether log notes are configured to insert above or below properties.
         val properties = linkedMapOf<String, String>()
         val logbook = mutableListOf<String>()

@@ -19,8 +19,8 @@ object LineEditing {
      * Org/markdown style list continuation. Call after an edit that may have
      * been the Enter key: if [newText] is [oldText] with a single newline typed
      * at [cursor] and the line before it is a list item, either continue the
-     * list (`- `, `+ `, `3. `→`4. `, `- [ ] `→`- [ ] `) or — when the item was
-     * empty — remove the dangling bullet instead. A continued checklist item
+     * list (`- `, `+ `, `3. `→`4. `, `- [ ] `→`- [ ] `) or, when the item was
+     * empty, remove the dangling bullet instead. A continued checklist item
      * always restarts unchecked, regardless of the previous item's state.
      * Returns null when the edit wasn't that.
      */

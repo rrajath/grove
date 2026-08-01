@@ -22,7 +22,7 @@ data class SharedPayload(
             val url = URL.find(raw)?.value.orEmpty()
             val remaining = raw.replace(url, "").trim()
             val text = listOfNotNull(subject?.trim()?.takeIf { it.isNotEmpty() }, remaining.takeIf { it.isNotEmpty() })
-                .joinToString(" — ")
+                .joinToString(": ")
             return SharedPayload(text = text, url = url)
         }
     }

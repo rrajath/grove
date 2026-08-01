@@ -33,7 +33,7 @@ data class SyncResult(
 /**
  * Indexed state the engine diffs against the store. [isIndexed] is false for a
  * stub row (file discovered but not yet parsed) so the engine re-parses it even
- * if the revision already matches — e.g. after a sync interrupted mid-parse.
+ * if the revision already matches, e.g. after a sync interrupted mid-parse.
  */
 data class KnownNotebook(
     val revision: String,

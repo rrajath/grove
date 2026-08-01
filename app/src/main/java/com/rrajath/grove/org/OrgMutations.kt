@@ -6,14 +6,14 @@ import kotlin.math.roundToInt
 
 /**
  * Span edits on a document's text. Every function returns the new full text;
- * only the lines belonging to the edit are touched — the rest of the file is
+ * only the lines belonging to the edit are touched: the rest of the file is
  * preserved byte-for-byte (the lossless-parser invariant).
  */
 object OrgMutations {
 
     data class NewNoteOptions(
         val keyword: String? = null,
-        /** Adds an :ID: property (caller supplies the UUID — pure function). */
+        /** Adds an :ID: property (caller supplies the UUID; pure function). */
         val id: String? = null,
         /** Adds a :CREATED: inactive timestamp. */
         val createdAt: LocalDateTime? = null,
@@ -41,7 +41,7 @@ object OrgMutations {
         writePlanning(doc, h, h.planning.copy(deadline = ts))
 
     /**
-     * Write SCHEDULED and DEADLINE in one edit — what the Dates screen's "Apply
+     * Write SCHEDULED and DEADLINE in one edit: what the Dates screen's "Apply
      * both dates" commits. Doing it as a single [writePlanning] keeps the two
      * timestamps on one planning line and makes the pair a single undo step,
      * which chaining [setScheduled] into [setDeadline] would not.
@@ -75,7 +75,7 @@ object OrgMutations {
                 ),
             )
             // The keyword itself stays unchanged for a repeater (org semantics),
-            // but the transition is still recorded — same as Emacs logging the
+            // but the transition is still recorded, same as Emacs logging the
             // DONE note before reverting the state back to TODO.
             val doc1 = OrgParser.parse(advanced, doc.keywords)
             val h1 = doc1.headlines.first { it.lineIndex == h.lineIndex }
@@ -118,7 +118,7 @@ object OrgMutations {
      * Single entry point for every "change this heading's TODO state" UI action
      * (metadata sheet chips, Outline/Search swipe state pickers): picking a
      * done-type [newKeyword] applies full "mark done" semantics, and leaving a
-     * done-type keyword — including clearing it to no keyword at all — always
+     * done-type keyword (including clearing it to no keyword at all) always
      * drops the stale CLOSED stamp via [reopen], the way `org-todo` does. A
      * plain keyword-to-keyword change with neither end done-type is a bare
      * [setKeyword].
@@ -139,7 +139,7 @@ object OrgMutations {
 
     /**
      * Read mode: tap-cycle a checklist item's box forward through [states] (in
-     * order, wrapping around). [lineIndex] is absolute into [doc.lines] — the
+     * order, wrapping around). [lineIndex] is absolute into [doc.lines]: the
      * caller resolves a [BlockParser.ListItem]'s body-relative `line` against
      * the owning headline's `bodyStart` first. A box whose current mark isn't
      * one of [states] (e.g. `[-]` on a file using the two-state config) jumps
@@ -147,7 +147,7 @@ object OrgMutations {
      * line isn't a checkbox list item. Also refreshes the immediate parent's
      * statistics cookie and, if the parent is itself a checkbox item,
      * checks/unchecks it to match whether all of its direct children are now
-     * done — see [updateParentCookie].
+     * done; see [updateParentCookie].
      */
     fun toggleCheckbox(doc: OrgDocument, lineIndex: Int, states: List<Char>): String? {
         if (lineIndex !in doc.lines.indices) return null
@@ -168,13 +168,13 @@ object OrgMutations {
 
     /**
      * Statistics cookies (org's `[/]`, `[x/y]`, `[%]`) on a parent item
-     * summarize the checkbox state of its direct children — only refreshes a
+     * summarize the checkbox state of its direct children: only refreshes a
      * cookie that's already present in the parent's text (org never invents
      * one) and only counts the shallowest indent level right under the
      * parent, so a nested sub-list with its own cookie isn't double-counted
      * into the outer one. Independently, when the parent is itself a
      * checkbox item, completing (or un-completing) all of its direct
-     * children checks/unchecks the parent's own box too — same treatment as
+     * children checks/unchecks the parent's own box too, same treatment as
      * any other checklist item finishing. This only ever touches the
      * immediate parent, not further ancestors.
      */
@@ -317,7 +317,7 @@ object OrgMutations {
     /**
      * Refile [source]'s subtree within the same document, under the headline
      * starting at [targetLine] (or to the top level when null). One text
-     * pipeline — the target's line is re-resolved after the delete so stale
+     * pipeline: the target's line is re-resolved after the delete so stale
      * indexes can't corrupt the file. Returns null when [targetLine] falls
      * inside [source]'s own subtree or no longer resolves to a headline.
      */
@@ -415,7 +415,7 @@ object OrgMutations {
                 body.trimEnd('\n').split("\n").forEach { add(it) }
             }
         }
-        // An empty document is a single empty line — replace it instead of
+        // An empty document is a single empty line: replace it instead of
         // stacking the note under a leading blank.
         if (doc.lines.all { it.isEmpty() }) {
             return entry.joinToString("\n") + "\n" to 0
@@ -485,7 +485,7 @@ object OrgMutations {
         return "- State ${pad(newState)} from ${pad(oldState)} ${at.format()}"
     }
 
-    /** First line right after any planning line — where the drawer run (if any) starts. */
+    /** First line right after any planning line: where the drawer run (if any) starts. */
     private fun drawerScanStart(doc: OrgDocument, h: OrgHeadline): Int {
         val planningLineIndex = h.lineIndex + 1
         val hasPlanning = planningLineIndex < doc.subtreeEndLine(h) &&
@@ -495,7 +495,7 @@ object OrgMutations {
 
     /**
      * Line index of [marker]'s own drawer-open line, if it appears in the
-     * contiguous `:PROPERTIES:`/`:LOGBOOK:` run starting at [start] — mirrors
+     * contiguous `:PROPERTIES:`/`:LOGBOOK:` run starting at [start]: mirrors
      * [OrgParser]'s drawer-scanning rules (drawers must immediately follow
      * the planning line, in either order, with no gap). Returns null if
      * [marker] isn't present or the run is interrupted before reaching it.
@@ -542,7 +542,7 @@ object OrgMutations {
      * Add a free-text note to [h]'s `:LOGBOOK:` drawer (org's `C-c C-z`), creating
      * the drawer if it doesn't exist yet. Placed above the most recently added
      * note but below any other drawer entries (state-change lines, clock
-     * entries, ...) — i.e. right before the first existing "Note taken on" line,
+     * entries, ...), i.e. right before the first existing "Note taken on" line,
      * or at the very end of the drawer (before `:END:`) when there isn't one, so
      * a run of notes reads newest-first while staying a single contiguous block
      * after the drawer's history.

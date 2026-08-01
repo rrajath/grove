@@ -225,8 +225,8 @@ The plan assumed "minSdk 34 (Android 14) bundles SQLite new enough for the
 trigram tokenizer". The SQLite *version* was never the problem: Android's
 platform SQLite is compiled **without the FTS5 module at all**
 (`no such module: fts5` on every API level). That is exactly why Room ships
-`@Fts3`/`@Fts4` annotations and no `@Fts5`. Decision 1's framing — "FTS5 must be
-created with raw SQL" — was true but incomplete; raw SQL cannot conjure a module
+`@Fts3`/`@Fts4` annotations and no `@Fts5`. Decision 1's framing ("FTS5 must be
+created with raw SQL") was true but incomplete; raw SQL cannot conjure a module
 that isn't compiled in.
 
 The only way to get FTS5 on Android is to ship a SQLite that has it, so the
@@ -234,7 +234,7 @@ database now runs on `BundledSQLiteDriver` (`androidx.sqlite:sqlite-bundled`).
 Cost: `libsqliteJni.so`, ~1.3 MB per ABI (~5 MB across the four ABIs in a
 universal APK). Consider ABI splits or an App Bundle if that matters.
 
-This was found by the instrumented tests, not by the compiler or the JVM suite —
+This was found by the instrumented tests, not by the compiler or the JVM suite:
 the JVM tests have no SQLite at all, and `CREATE VIRTUAL TABLE` fails only at
 runtime.
 
@@ -254,7 +254,7 @@ runtime.
 
 `NotesFts.create` is guarded and returns whether the table is usable. If it ever
 fails, `IndexDao.ftsAvailable` stays false, no FTS rows are written, no MATCH
-expression is built, and search falls back to the full scan — correct, just
+expression is built, and search falls back to the full scan: correct, just
 slower. The read path additionally catches `SQLException` and retries as a full
 scan, so a malformed candidate query can never fail a search.
 
@@ -278,7 +278,7 @@ DEADLINE. Report item 4 is addressed for both screens.
 | `meeting` (matches every note) | 694 ms | 789 ms | 4000 | 4000 |
 | `meeting quarterly` (matches every note) | 577 ms | 694 ms | 4000 | 4000 |
 
-Selective queries — what users actually type — are two to three orders of
+Selective queries (what users actually type) are two to three orders of
 magnitude cheaper and materialise a handful of rows instead of the whole vault.
 The degenerate case, a term present in every single note, is ~15% slower: FTS
 returns everything and the Kotlin matcher still has to examine it all, so the

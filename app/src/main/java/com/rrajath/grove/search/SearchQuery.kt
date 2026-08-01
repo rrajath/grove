@@ -26,7 +26,7 @@ data class Term(val condition: Condition, val negated: Boolean)
 sealed class Condition {
     data class Text(val term: String) : Condition()
 
-    /** `i.STATE` — keyword match, case-insensitive; `i.none` = no keyword. */
+    /** `i.STATE`: keyword match, case-insensitive; `i.none` = no keyword. */
     data class State(val state: String) : Condition()
     data class Notebook(val name: String) : Condition()
     data class Tag(val tag: String, val ownOnly: Boolean) : Condition()

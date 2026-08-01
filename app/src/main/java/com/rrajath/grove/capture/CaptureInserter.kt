@@ -67,7 +67,7 @@ object CaptureInserter {
     }
 
     /**
-     * Returns true if [text] has no meaningful heading title — i.e. the first
+     * Returns true if [text] has no meaningful heading title, i.e. the first
      * headline is missing or its title (after stripping any keyword/priority) is
      * blank. Used by the capture editor's save-guard to block empty headings.
      */
@@ -204,7 +204,7 @@ object CaptureInserter {
         }
         val lines = text.split("\n").toMutableList()
         var at = atLine.coerceIn(0, lines.size)
-        // A trailing empty element is the file's final newline — insert before
+        // A trailing empty element is the file's final newline: insert before
         // it so the entry stays newline-terminated instead of creating a blank
         // line plus an unterminated last line.
         if (at == lines.size && lines.last().isEmpty()) at--

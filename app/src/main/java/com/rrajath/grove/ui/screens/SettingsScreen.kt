@@ -25,8 +25,8 @@ private data class SettingsPage(val title: String, val description: String, val 
 
 /**
  * Settings hub (design spec §11, split into one page per section): a plain
- * list of pages rather than one long scroll, so each destination — Look and
- * Feel, Capture Templates, etc. — is its own back-stack entry.
+ * list of pages rather than one long scroll, so each destination (Look and
+ * Feel, Capture Templates, etc.) is its own back-stack entry.
  */
 @Composable
 fun SettingsScreen(

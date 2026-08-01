@@ -45,7 +45,7 @@ fun SettingsBackupScreen(
             Column(Modifier.padding(horizontal = 15.dp, vertical = 10.dp)) {
                 Text(
                     "Import or export your preferences as a JSON file. The sync"
-                        + " folder isn't included — it stays on this device.",
+                        + " folder isn't included; it stays on this device.",
                     fontFamily = PlexSans, fontSize = 12.sp, color = c.ink3,
                     modifier = Modifier.padding(bottom = 4.dp),
                 )

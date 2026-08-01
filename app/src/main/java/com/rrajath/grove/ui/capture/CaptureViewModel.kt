@@ -45,7 +45,7 @@ class CaptureViewModel(private val app: GroveApplication) : ViewModel() {
 
     // Draft writes are read-modify-write over the whole target file and are
     // triggered from two places (the 5s idle autosave and the Save button), so
-    // they must not interleave — the loser would re-insert against a stale
+    // they must not interleave: the loser would re-insert against a stale
     // `draftInsertion` and leave a duplicate entry behind.
     private val writeMutex = Mutex()
 
@@ -114,7 +114,7 @@ class CaptureViewModel(private val app: GroveApplication) : ViewModel() {
         val vault = app.vault.filterNotNull().first()
         // Parsing the target file and splicing the entry into it are pure CPU
         // over the whole document. The idle autosave fires while the user is
-        // still typing, so this stays off the main thread — a parse stall there
+        // still typing, so this stays off the main thread: a parse stall there
         // desynchronizes the IME from the text field and swallows keystrokes.
         val result = withContext(Dispatchers.Default) {
             if (vault.open(template.targetFile) == null) {

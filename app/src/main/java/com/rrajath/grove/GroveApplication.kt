@@ -69,7 +69,7 @@ class GroveApplication : Application() {
     /**
      * Tint for notification small icons, following "Sync App Icon with Theme".
      * Eagerly shared so notification builders running in a receiver can read
-     * `.value` without suspending — see `icon/NotificationAppearance.kt`.
+     * `.value` without suspending (see `icon/NotificationAppearance.kt`).
      *
      * [onCreate] touches this so the DataStore read starts at process start
      * rather than on the first notification: `stateIn` hands out its seed until
@@ -138,7 +138,7 @@ class GroveApplication : Application() {
             fileStore.collect { syncManager.attach(it) }
         }
         appScope.launch {
-            // Keyword config changes how files parse — rebuild the index.
+            // Keyword config changes how files parse; rebuild the index.
             keywords.drop(1).collect {
                 database.indexDao().clearAll()
                 syncManager.requestSync("keyword config changed")
@@ -163,7 +163,7 @@ class GroveApplication : Application() {
 
         // App-start safety net: fire anything overdue that was missed while the
         // process was dead, and pick up reminders that were only waiting on a
-        // permission grant. DB-only — doesn't need the vault to be ready.
+        // permission grant. DB-only: doesn't need the vault to be ready.
         appScope.launch {
             reminderReconciler.catchUpOverdue()
             reminderReconciler.reconcilePending()
@@ -193,7 +193,7 @@ class GroveApplication : Application() {
 
         appScope.launch {
             // The daily digest ("You have X tasks due today") is a single alarm
-            // independent of the per-heading ones above — no drop(1): the very
+            // independent of the per-heading ones above, no drop(1): the very
             // first emission (current settings on cold start) must (re)arm it too,
             // since AlarmManager alarms don't survive a process being killed.
             settingsRepository.settings

@@ -31,7 +31,7 @@ object Routes {
      * Tapping a reminder notification's *body*: the heading is identified by its
      * composite key, which has to be resolved against the vault to get a line
      * index, so it lands here first and is then handed off to NOTE in read mode.
-     * (The "Reschedule" action does not come through here — it opens
+     * (The "Reschedule" action does not come through here; it opens
      * `RescheduleActivity` in its own task instead of entering the app.)
      */
     const val REMINDER = "reminder/{fileName}?headingPath={headingPath}&level={level}"
@@ -42,7 +42,7 @@ object Routes {
     /**
      * Percent-encode a route segment/arg so it survives `NavDeepLink`'s decoding.
      * `URLEncoder` alone encodes a space as `+`, but androidx.navigation decodes
-     * path args via `Uri.decode` and query args via `Uri.getQueryParameters` —
+     * path args via `Uri.decode` and query args via `Uri.getQueryParameters`;
      * neither undoes `+`→space, so `"Buy milk"` would round-trip as `"Buy+milk"`
      * and break exact-string matching (e.g. reminder reschedule deep links,
      * multi-word note ids, search queries). Emitting `%20` for spaces round-trips
@@ -53,7 +53,7 @@ object Routes {
     fun encode(id: String): String = URLEncoder.encode(id, "UTF-8").replace("+", "%20")
 
     /**
-     * [narrowTo] is a heading's line index — set when navigating here from a
+     * [narrowTo] is a heading's line index, set when navigating here from a
      * Read Mode breadcrumb, so the Outline shows only that heading's subtree
      * (org-narrow-to-subtree semantics) until the user taps "widen".
      */
@@ -67,7 +67,7 @@ object Routes {
     fun conflict(notebookId: String) = "conflict/${encode(notebookId)}"
     fun templateEdit(templateId: String) = "template/${encode(templateId)}"
     /**
-     * [notebook] pins the search's notebook facet to one file — used by the
+     * [notebook] pins the search's notebook facet to one file: used by the
      * Outline's search action, which searches inside the notebook you're
      * already looking at. The user can still widen it back to all notebooks
      * from the Filters sheet.

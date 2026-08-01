@@ -104,7 +104,7 @@ object ReminderNotification {
     }
 
     /**
-     * "Reschedule" opens [RescheduleActivity] — its own task, not Grove's — so
+     * "Reschedule" opens [RescheduleActivity] (its own task, not Grove's), so
      * picking a date and confirming returns the user to whatever app they pulled
      * the shade down from, rather than leaving them parked in Grove's editor.
      */

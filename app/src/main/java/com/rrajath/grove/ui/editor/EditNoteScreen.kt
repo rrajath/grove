@@ -125,7 +125,7 @@ fun EditNoteScreen(
     fun leave() {
         when {
             // A blank heading can't be saved, so leaving always means discarding
-            // the note (heading, any body text, all of it) — always confirm
+            // the note (heading, any body text, all of it); always confirm
             // first rather than silently dropping whatever was typed.
             isNewNote && viewModel.isCurrentHeadingBlank() -> confirmDiscardBlankHeading = true
             state.dirty -> confirmLeave = true
@@ -216,7 +216,7 @@ fun EditNoteScreen(
                             contentDescription = if (state.dirty) "Unsaved changes, tap to save" else "Saved",
                             // Green means there are unsaved changes and a tap saves
                             // immediately; grey means the buffer matches what's on
-                            // disk (and blinks right after a save) — a tap then just
+                            // disk (and blinks right after a save); a tap then just
                             // reports when that save happened.
                             tint = if (state.dirty) c.green else c.ink3,
                             modifier = Modifier

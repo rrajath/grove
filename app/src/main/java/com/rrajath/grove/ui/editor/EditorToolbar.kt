@@ -64,7 +64,7 @@ fun EditorToolbar(
         // The clock glyph is drawn smaller than the letters at a given size, so
         // bump its font so it reads at the same height as the other buttons.
         // Tap inserts an inactive date-only stamp; long-press adds the time
-        // (HH:MM) — both inactive, since this button is for logging a moment
+        // (HH:MM), both inactive, since this button is for logging a moment
         // rather than scheduling an active org agenda entry.
         ToolButton(
             "◷", c.synTs, Modifier.weight(1f), fontSize = 27.sp,

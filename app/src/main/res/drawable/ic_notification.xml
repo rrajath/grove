@@ -4,8 +4,8 @@
      instead of sitting inside a 108dp adaptive-icon safe zone (where the mark
      spans only ~30/108 and renders as a speck in the status bar).
 
-     Spokes run from the center out to r=10.5 with half-width 2.94 — the
-     launcher geometry scaled by 0.7 — keeping the glyph inside the 22x22
+     Spokes run from the center out to r=10.5 with half-width 2.94 (the
+     launcher geometry scaled by 0.7), keeping the glyph inside the 22x22
      content area Android expects for a notification small icon.
 
      White because the system draws small icons as an alpha mask and applies

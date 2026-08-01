@@ -23,11 +23,11 @@ class OrgSyntaxHighlight(
     private val keywords: OrgKeywords,
 ) : OutputTransformation {
 
-    /** Span styles relative to the start of one line — cacheable across edits. */
+    /** Span styles relative to the start of one line: cacheable across edits. */
     private data class LineSpan(val style: SpanStyle, val start: Int, val end: Int)
 
     // Across keystrokes only one line changes, so tokenization results are
-    // cached per line content — a keystroke re-tokenizes the edited line, not
+    // cached per line content: a keystroke re-tokenizes the edited line, not
     // the whole buffer.
     private var lineCache = HashMap<String, List<LineSpan>>()
 
@@ -68,7 +68,7 @@ class OrgSyntaxHighlight(
         )
         // Heading text: ink, semibold. Applied first so the keyword and tag spans
         // below layer on top (previously these were applied, fully overwritten by
-        // this span, then re-applied — pure wasted work).
+        // this span, then re-applied: pure wasted work).
         add(
             LineSpan(
                 SpanStyle(color = colors.ink, fontWeight = FontWeight.SemiBold),

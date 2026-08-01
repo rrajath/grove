@@ -14,8 +14,8 @@ import com.rrajath.grove.org.TextEdit
  *
  * An [InputTransformation] runs only for genuine user input (soft/hard
  * keyboard, paste, accessibility). Programmatic [TextFieldState.edit] writes
- * bypass it, so restoring a buffer — an initial load, or a metadata-sheet
- * rewrite — can never re-trigger list continuation on text that already has it.
+ * bypass it, so restoring a buffer (an initial load, or a metadata-sheet
+ * rewrite) can never re-trigger list continuation on text that already has it.
  */
 val OrgInputTransformation = InputTransformation {
     val old = originalText.toString()

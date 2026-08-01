@@ -10,7 +10,7 @@ import java.time.ZoneId
 
 /**
  * `AlarmManager` wrapper for the daily reminder digest ("You have X tasks due
- * today") — a single recurring alarm at the configured default reminder time,
+ * today"): a single recurring alarm at the configured default reminder time,
  * independent of the per-heading exact-time alarms [AlarmScheduler] manages.
  * [ReminderDigestReceiver] reschedules the next day's fire itself on receipt,
  * the same one-shot-then-reschedule pattern the rest of the reminders feature

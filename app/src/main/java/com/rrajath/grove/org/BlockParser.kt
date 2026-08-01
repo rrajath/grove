@@ -4,7 +4,7 @@ package com.rrajath.grove.org
  * Block-level structure of a note body, for read-mode rendering.
  *
  * Each block (and each [ListItem]) carries the index of its first source line
- * *relative to the `bodyLines` list passed to [BlockParser.parse]* — read-mode
+ * *relative to the `bodyLines` list passed to [BlockParser.parse]*: read-mode
  * tap-to-edit position mapping uses this to translate a tapped rendered offset
  * back to a raw-file line + column (see ReadNoteScreen's offset mapping).
  */

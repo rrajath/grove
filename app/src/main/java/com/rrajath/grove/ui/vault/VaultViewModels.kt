@@ -41,7 +41,7 @@ data class NotebookItem(
     val color: String? = null,
     /** Position in the pinned list (0 = topmost). -1 means not pinned. */
     val pinnedIndex: Int = -1,
-    /** Label to show in the notebooks list — the file name or the cached `#+TITLE:`. */
+    /** Label to show in the notebooks list: the file name or the cached `#+TITLE:`. */
     val displayName: String = fileName,
     /** False while this is a discovery stub whose content hasn't been parsed yet. */
     val isIndexed: Boolean = true,
@@ -413,10 +413,10 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
     /**
      * Swipe-right quick action: set the TODO state to exactly the keyword the
      * user picked from the state sheet (null = clear it). Picking a done-type
-     * keyword applies full org-todo "mark done" semantics — a repeating
+     * keyword applies full org-todo "mark done" semantics: a repeating
      * SCHEDULED/DEADLINE advances instead of closing, otherwise a CLOSED stamp
      * is written; leaving a done-type keyword (including clearing it to none)
-     * drops that stamp — via [OrgMutations.changeKeyword], so marking a task
+     * drops that stamp, via [OrgMutations.changeKeyword], so marking a task
      * done/reopening it from the outline behaves the same as from the metadata
      * sheet, Search's state sheet, or the agenda swipe.
      */
@@ -466,7 +466,7 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
         setPlanning(headline, "Deadline", ts) { d, h -> OrgMutations.setDeadline(d, h, ts) }
 
     /**
-     * Both planning dates in one edit — what the Dates screen commits. The toast
+     * Both planning dates in one edit: what the Dates screen commits. The toast
      * names whichever dates survived so clearing one is still acknowledged.
      */
     fun setPlanningDates(headline: OrgHeadline, scheduled: OrgTimestamp?, deadline: OrgTimestamp?) {

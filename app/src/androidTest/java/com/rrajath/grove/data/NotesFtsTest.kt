@@ -13,7 +13,7 @@ import org.junit.runner.RunWith
 /**
  * The FTS mirror against a real SQLite: that the virtual table is actually
  * created on this platform, and that indexing keeps it in lockstep with `notes`
- * — the failure mode the JVM suite structurally cannot see.
+ * , the failure mode the JVM suite structurally cannot see.
  */
 @RunWith(AndroidJUnit4::class)
 class NotesFtsTest {

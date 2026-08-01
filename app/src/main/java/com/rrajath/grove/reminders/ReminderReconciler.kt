@@ -12,7 +12,7 @@ import java.time.LocalTime
  *
  * Two entry points, split by whether they need the vault:
  *  - [reconcileFile]/[reconcileAll] recompute desired reminders from a parsed
- *    [OrgDocument] — used right after a notebook (re)parses, or when
+ *    [OrgDocument]: used right after a notebook (re)parses, or when
  *    reminders/the default reminder time setting changes.
  *  - [catchUpOverdue]/[rearmAll]/[reconcilePending] only touch the DB + alarms
  *    (no vault access), so they're cheap to call on app start, after a sync,
@@ -27,7 +27,7 @@ class ReminderReconciler(
     // uses the defaults (which delegate to the AlarmManager/notification objects).
     private val hasPermission: () -> Boolean = { AlarmScheduler.hasNotificationPermission(context!!) },
     // Date-only reminders (no explicit time-of-day) don't fire their own
-    // notification — they're counted into the daily digest instead.
+    // notification; they're counted into the daily digest instead.
     private val notify: (ReminderEntity) -> Unit = { if (it.hasExplicitTime) ReminderNotification.show(context!!, it) },
     private val scheduleAlarm: (ReminderEntity) -> Unit = { AlarmScheduler.schedule(context!!, it) },
     private val cancelAlarm: (ReminderEntity) -> Unit = { AlarmScheduler.cancel(context!!, it) },
@@ -58,7 +58,7 @@ class ReminderReconciler(
 
     /**
      * Re-run scheduling for reminders that were waiting on a permission. Only
-     * reminders whose trigger time is still in the future get scheduled — ones
+     * reminders whose trigger time is still in the future get scheduled; ones
      * that went overdue while permission was missing are settled silently
      * instead of firing as a flood of stale notifications the moment access is
      * granted (the user only wants notifications for what's ahead, not backlog).
@@ -79,7 +79,7 @@ class ReminderReconciler(
         dao.overdueUnfired(clock()).forEach { arm(it) }
     }
 
-    /** `BOOT_COMPLETED`: AlarmManager alarms don't survive a reboot — re-arm everything stored. */
+    /** `BOOT_COMPLETED`: AlarmManager alarms don't survive a reboot; re-arm everything stored. */
     suspend fun rearmAll() {
         dao.all().forEach { arm(it) }
     }
@@ -95,7 +95,7 @@ class ReminderReconciler(
 
     /**
      * Persist [entity] and either fire it now (already overdue) or schedule its
-     * alarm — only if permitted; otherwise mark it pending so a permission
+     * alarm, only if permitted; otherwise mark it pending so a permission
      * banner can prompt the user and [reconcilePending] can pick it up later.
      */
     private suspend fun arm(entity: ReminderEntity) {

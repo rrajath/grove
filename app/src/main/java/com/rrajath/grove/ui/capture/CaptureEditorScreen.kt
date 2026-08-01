@@ -197,7 +197,7 @@ fun CaptureEditorScreen(
 
     // Idle auto-save: wait for a 5s pause in typing before persisting the
     // draft. A note with no heading yet (just the auto-inserted "* ") is
-    // skipped rather than saved — the same blank-heading state that blocks
+    // skipped rather than saved, the same blank-heading state that blocks
     // the explicit Save button in trySave() below, so autosave never writes
     // a heading-less entry the user hasn't confirmed.
     LaunchedEffect(draftText) {

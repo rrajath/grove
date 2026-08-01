@@ -4,7 +4,7 @@ package com.rrajath.grove.search
  * Builds the FTS5 `MATCH` expression that narrows a [SearchQuery] down to
  * candidate rows.
  *
- * The index never decides a match — [QueryMatcher] still runs over whatever
+ * The index never decides a match: [QueryMatcher] still runs over whatever
  * comes back, so narrowing only has to return a *superset* of the real results.
  * Everything here is therefore deliberately conservative: anything that cannot
  * be expressed as a guaranteed superset is dropped from the expression, and if

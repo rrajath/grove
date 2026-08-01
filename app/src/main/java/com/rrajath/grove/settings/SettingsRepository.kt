@@ -67,7 +67,7 @@ data class GroveSettings(
     /** Agenda row swipe-left/swipe-right gestures (Settings § Agenda). */
     val agendaSwipeLeftAction: AgendaSwipeAction = AgendaSwipeAction.MARK_DONE,
     val agendaSwipeRightAction: AgendaSwipeAction = AgendaSwipeAction.SET_SCHEDULED,
-    // Agenda levers panel — sticky across visits, unlike the Today/Upcoming tab.
+    // Agenda levers panel: sticky across visits, unlike the Today/Upcoming tab.
     val agendaGrouping: AgendaGrouping = AgendaGrouping.DATE,
     val agendaStateFilter: AgendaStateFilter = AgendaStateFilter.Open,
     val agendaShowTags: Boolean = true,
@@ -191,7 +191,7 @@ class SettingsRepository(private val context: Context) {
 
     /**
      * Bulk-write an imported settings document in one transaction. Leaves the
-     * device-specific vault URI and onboarding flag alone — those don't travel
+     * device-specific vault URI and onboarding flag alone: those don't travel
      * with an export (see [SettingsSerialization]).
      */
     suspend fun applyImported(s: GroveSettings) {

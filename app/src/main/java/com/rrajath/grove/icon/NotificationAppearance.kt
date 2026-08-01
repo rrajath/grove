@@ -11,12 +11,12 @@ import com.rrajath.grove.settings.ThemePreference
  *
  * [markColor] feeds `NotificationCompat.Builder.setColor`. Where the shade draws
  * a notification's small icon as an alpha mask tinted with that color, matching
- * the launcher mark's fill matches the icon — every `ic_launcher_foreground_*`
+ * the launcher mark's fill matches the icon: every `ic_launcher_foreground_*`
  * is the same five-spoke path differing only in fill.
  *
  * Android 16+ redesigned that: the shade renders the *app's* icon instead, and
  * resolves it from the package's `<application android:icon>`. Neither `setColor`
- * nor the `activity-alias` switching in [AppIconManager] moves it — measured on
+ * nor the `activity-alias` switching in [AppIconManager] moves it: measured on
  * an API 37 device, with the alias on one theme, `setColor` on a second, and an
  * overridden `android.appInfo` extra on a third, all three were ignored in
  * favour of the manifest icon. So on those versions the shade icon stays the
@@ -44,7 +44,7 @@ object NotificationAppearance {
      * instantly while a reminder sitting in the shade (they live up to 72h) and
      * the ongoing capture notification kept the old theme's mark. Reposting the
      * same `Notification` object with only `color` changed preserves its title,
-     * actions, and pending intents — nothing has to be rebuilt from the entity
+     * actions, and pending intents; nothing has to be rebuilt from the entity
      * that produced it, which matters for reminders whose `ReminderEntity` isn't
      * at hand here.
      */
@@ -64,7 +64,7 @@ object NotificationAppearance {
             if (notification.flags and Notification.FLAG_GROUP_SUMMARY != 0) continue
             if (notification.color == color) continue
             notification.color = color
-            // These already alerted when first posted — a re-post purely to
+            // These already alerted when first posted; a re-post purely to
             // recolor must not buzz or pop a second heads-up.
             notification.flags = notification.flags or Notification.FLAG_ONLY_ALERT_ONCE
             nm.notify(sbn.tag, sbn.id, notification)

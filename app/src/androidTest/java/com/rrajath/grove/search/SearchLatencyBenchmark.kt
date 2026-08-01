@@ -22,7 +22,7 @@ import java.time.LocalDate
  * (materialise every row, then scan in Kotlin) against the new one (let SQLite
  * and FTS5 return only candidates).
  *
- * This is a measurement harness, not a pass/fail gate — timings are logged, not
+ * This is a measurement harness, not a pass/fail gate: timings are logged, not
  * asserted, because thresholds would just be flaky. What it *does* assert is
  * that both paths return identical results at vault scale, which is the parity
  * guarantee `FtsParityTest` makes on a small fixture.

@@ -39,32 +39,32 @@ val PlexMono = FontFamily(
 fun groveTypography(scale: Float = 1f): Typography {
     fun sz(v: Double) = (v * scale).sp
     return Typography(
-        // Display — app name on onboarding (30sp / 600)
+        // Display: app name on onboarding (30sp / 600)
         displaySmall = TextStyle(
             fontFamily = PlexSans, fontWeight = FontWeight.SemiBold, fontSize = sz(30.0),
         ),
-        // Title Large — screen titles in app bars (19sp / 600)
+        // Title Large: screen titles in app bars (19sp / 600)
         titleLarge = TextStyle(
             fontFamily = PlexSans, fontWeight = FontWeight.SemiBold, fontSize = sz(19.0),
         ),
-        // Title Medium — notebook/file names (17sp / 600)
+        // Title Medium: notebook/file names (17sp / 600)
         titleMedium = TextStyle(
             fontFamily = PlexSans, fontWeight = FontWeight.SemiBold, fontSize = sz(17.0),
         ),
-        // Body Large — read mode body text (Serif 16sp, 1.65 line height)
+        // Body Large: read mode body text (Serif 16sp, 1.65 line height)
         bodyLarge = TextStyle(
             fontFamily = PlexSerif, fontWeight = FontWeight.Normal, fontSize = sz(16.0),
             lineHeight = 1.65.em,
         ),
-        // Body Medium — list items, settings rows (14.5–15sp)
+        // Body Medium: list items, settings rows (14.5–15sp)
         bodyMedium = TextStyle(
             fontFamily = PlexSans, fontWeight = FontWeight.Normal, fontSize = sz(15.0),
         ),
-        // Body Small — subtitles, descriptions (13–13.5sp)
+        // Body Small: subtitles, descriptions (13–13.5sp)
         bodySmall = TextStyle(
             fontFamily = PlexSans, fontWeight = FontWeight.Normal, fontSize = sz(13.5),
         ),
-        // Caption — badges, chips, timestamps (11–12sp / 500)
+        // Caption: badges, chips, timestamps (11–12sp / 500)
         labelSmall = TextStyle(
             fontFamily = PlexSans, fontWeight = FontWeight.Medium, fontSize = sz(11.5),
         ),

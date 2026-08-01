@@ -82,8 +82,8 @@ import kotlin.math.abs
 /**
  * SCHEDULED and DEADLINE on one canvas ("Dates C" in `design/Grove.dc.html`).
  *
- * Both dates live on a single calendar — the scheduled day in blue, the deadline
- * in red, the lead time between them shaded — and calendar taps set whichever
+ * Both dates live on a single calendar: the scheduled day in blue, the deadline
+ * in red, the lead time between them shaded; and calendar taps set whichever
  * section is expanded. Above the calendar is a shorthand box (`fri 10-11am ++1w`)
  * that patches the target timestamp; below it are the two expandable sections
  * carrying presets, time-of-day and the org repeater. Confirming commits *both*
@@ -388,7 +388,7 @@ fun PlanningDatesScreen(
 
 private val ShorthandHints = listOf("fri", "+2w", "aug 3", "10-11am", "++1w", "d: mon")
 
-/** `› [ fri 10-11am ++1w ]  (Set)` — the free-text row above the calendar. */
+/** `› [ fri 10-11am ++1w ]  (Set)`: the free-text row above the calendar. */
 @Composable
 private fun ShorthandBox(
     value: String,
@@ -581,7 +581,7 @@ private fun DayCell(
         inBand -> c.accentSoft
         else -> Color.Transparent
     }
-    // Deadline wins over scheduled when both land on the same day — the harder
+    // Deadline wins over scheduled when both land on the same day: the harder
     // constraint is the one worth showing.
     val border = when {
         isDeadline -> c.red
@@ -620,7 +620,7 @@ private fun DayCell(
 
 /**
  * SCHEDULED or DEADLINE: a summary row that expands into presets, time-of-day and
- * the repeater editor. Only one section is expanded at a time — the expanded one
+ * the repeater editor. Only one section is expanded at a time; the expanded one
  * is also the target of calendar taps, which is what the legend's "taps set …"
  * spells out.
  */
@@ -684,7 +684,7 @@ private fun PlanningSection(
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 datePresets(today).forEach { (name, date) ->
-                    // "Today · Jul 29" — the absolute date next to the relative name,
+                    // "Today · Jul 29": the absolute date next to the relative name,
                     // so a preset never needs a second glance at the calendar.
                     Chip(
                         label = "$name · ${date.format(ShortDate)}",
@@ -906,7 +906,7 @@ private fun buildRepeaterSentence(intervalText: String, kindText: String, accent
 
 /**
  * Draws a dashed rule under [range] of [layout], anchored to that range's own
- * *font baseline* (not the line box's bottom) — the 26sp line height that keeps
+ * *font baseline* (not the line box's bottom): the 26sp line height that keeps
  * the sentence readable pads extra leading below the glyphs, which would leave
  * the rule floating well below the text if it were anchored to the box bottom
  * instead. Splits across lines in case the picked word ever wraps.
@@ -948,7 +948,7 @@ private fun StepButton(glyph: String, onClick: () -> Unit) {
     }
 }
 
-/** Selectable preset/unit chip — filled in the section's accent when active. */
+/** Selectable preset/unit chip: filled in the section's accent when active. */
 @Composable
 private fun Chip(label: String, selected: Boolean, accent: Color, onClick: () -> Unit) {
     val c = MaterialTheme.grove
@@ -1091,7 +1091,7 @@ private fun summarize(ts: OrgTimestamp?): String {
     return sb.toString()
 }
 
-/** "**Time** · All day" — the label is semibold, the current value is not. */
+/** "**Time** · All day": the label is semibold, the current value is not. */
 private fun timeLabel(ts: OrgTimestamp?, ink: Color, ink2: Color): AnnotatedString {
     val value = ts?.time?.let { t ->
         t.format(ClockTime) + (ts.endTime?.let { " – ${it.format(ClockTime)}" } ?: "")
@@ -1159,7 +1159,7 @@ private fun shorthandEcho(parse: ShorthandParse, today: LocalDate, activeTab: Pl
             sh.repeater?.let { r -> "every ${intervalLabel(r)} $r" },
         )
         // The arrow segment is a destination label, not another fact to bullet
-        // alongside the date/time/repeater — no "·" separator in front of it.
+        // alongside the date/time/repeater: no "·" separator in front of it.
         if (segments.isEmpty()) arrow else segments.joinToString("  ·  ") + "  " + arrow
     }
 }

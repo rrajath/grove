@@ -37,17 +37,17 @@ class OrgParserTest {
 
         val japan = doc.headlines.first()
         assertEquals(1, japan.level)
-        assertEquals("Japan — Spring 2025", japan.title)
+        assertEquals("Japan: Spring 2025", japan.title)
         assertEquals(listOf("japan"), japan.tags)
         assertEquals("11111111-aaaa-bbbb-cccc-000000000001", japan.id)
 
         val children = doc.directChildren(japan).map { it.title }
-        assertEquals(listOf("Book Kyoto ryokan", "Kyoto — Day 2", "Order JR Rail Pass"), children)
+        assertEquals(listOf("Book Kyoto ryokan", "Kyoto: Day 2", "Order JR Rail Pass"), children)
 
         val kyotoDay2 = doc.findByCustomId("kyoto-day-2")!!
         assertEquals(3, doc.directChildren(kyotoDay2).size)
         assertEquals(3, doc.subtree(kyotoDay2).size)
-        assertEquals("Japan — Spring 2025", doc.parent(kyotoDay2)!!.title)
+        assertEquals("Japan: Spring 2025", doc.parent(kyotoDay2)!!.title)
     }
 
     @Test

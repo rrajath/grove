@@ -35,7 +35,7 @@ data class EditorUiState(
     val staleFile: Boolean = false,
     val allTags: List<String> = emptyList(),
     /**
-     * Counts buffer rewrites that did *not* come from the text field — today
+     * Counts buffer rewrites that did *not* come from the text field: today
      * only the metadata sheet's mutations. The editor screen pushes the buffer
      * into the field when this changes, and never otherwise: inferring
      * "external rewrite" from the buffer text alone made fast typing race the
@@ -55,7 +55,7 @@ class EditorViewModel(private val app: GroveApplication) : ViewModel() {
 
     fun load(ref: NoteRef) {
         // Republished as loading first so a re-load (the stale-file banner's
-        // "Reload") is a visible false→true→false transition — that edge is what
+        // "Reload") is a visible false→true→false transition: that edge is what
         // makes the editor screen re-seed its text field from the fresh buffer.
         _state.update { it.copy(loading = true, error = null) }
         viewModelScope.launch {
@@ -88,7 +88,7 @@ class EditorViewModel(private val app: GroveApplication) : ViewModel() {
         }
     }
 
-    /** The text field reporting the user's own typing — never echoed back to it. */
+    /** The text field reporting the user's own typing; never echoed back to it. */
     fun onBufferChange(text: String) {
         _state.update { it.copy(buffer = text, dirty = true) }
     }
@@ -136,7 +136,7 @@ class EditorViewModel(private val app: GroveApplication) : ViewModel() {
     fun setScheduled(ts: OrgTimestamp?) = mutateBuffer { d, h -> OrgMutations.setScheduled(d, h, ts) }
     fun setDeadline(ts: OrgTimestamp?) = mutateBuffer { d, h -> OrgMutations.setDeadline(d, h, ts) }
 
-    /** Both planning dates in one edit — what the Dates screen commits. */
+    /** Both planning dates in one edit: what the Dates screen commits. */
     fun setPlanningDates(scheduled: OrgTimestamp?, deadline: OrgTimestamp?) =
         mutateBuffer { d, h -> OrgMutations.setPlanningDates(d, h, scheduled, deadline) }
 
@@ -146,7 +146,7 @@ class EditorViewModel(private val app: GroveApplication) : ViewModel() {
      *
      * A save runs concurrently with typing (idle auto-save fires on a timer, and
      * the write itself is slow SAF I/O), so it must never publish a snapshot of
-     * the state it captured when it started — doing so would rewind the buffer
+     * the state it captured when it started: doing so would rewind the buffer
      * to the pre-save text and drop whatever was typed in between. Every write
      * back into [_state] therefore goes through `update`, touching only the
      * fields this save actually owns, and [dirty] is recomputed by comparing the
@@ -172,7 +172,7 @@ class EditorViewModel(private val app: GroveApplication) : ViewModel() {
         val s = _state.value
         if (s.error != null) return false
         // Another save (e.g. the idle auto-save that fired while the leave
-        // dialog was up) got there first — the caller's "then leave" follow-up
+        // dialog was up) got there first; the caller's "then leave" follow-up
         // is still owed.
         if (!s.dirty) return true
         val vault = app.vault.value ?: return false
@@ -193,7 +193,7 @@ class EditorViewModel(private val app: GroveApplication) : ViewModel() {
             if (headline != null) {
                 OrgMutations.replaceSubtree(doc, headline, savedBuffer)
             } else {
-                // Note vanished from the file (heavy external edit) — append the
+                // Note vanished from the file (heavy external edit); append the
                 // buffer at the end rather than lose the user's work.
                 doc.text.trimEnd('\n') + "\n" + savedBuffer.trimEnd('\n') + "\n"
             }
@@ -203,7 +203,7 @@ class EditorViewModel(private val app: GroveApplication) : ViewModel() {
         app.syncManager.requestSync("note saved")
         _state.update { current ->
             current.copy(
-                // Still dirty if the user typed while the write was in flight —
+                // Still dirty if the user typed while the write was in flight:
                 // those characters are only in memory, and the idle timer (keyed
                 // on the buffer) will have already re-armed for them.
                 dirty = current.buffer != savedBuffer,

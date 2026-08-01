@@ -9,7 +9,7 @@ data class FileEntry(
 
 /**
  * Abstraction over the sync directory. The app uses a Storage Access Framework
- * implementation; unit tests use [JvmFileStore]. Names are plain file names —
+ * implementation; unit tests use [JvmFileStore]. Names are plain file names:
  * the vault is flat in v1 (org files at the root of the chosen folder).
  */
 interface FileStore {

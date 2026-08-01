@@ -25,7 +25,7 @@ import kotlinx.coroutines.isActive
 /**
  * Positive when [y] (in the viewport's own local coordinates, i.e. *not*
  * adjusted for scroll offset) is within [edgePx] of the top or bottom edge of
- * a viewport [viewportHeightPx] tall — magnitude growing the further past the
+ * a viewport [viewportHeightPx] tall: magnitude growing the further past the
  * edge, sign indicating direction (negative = scroll up/back). Zero anywhere
  * comfortably inside the viewport.
  */
@@ -62,13 +62,13 @@ private suspend fun ScrollState.nudge(urgency: Float) {
  * it behaves during the platform long-press timeout: a press that stays put
  * that long and *then* moves is Compose's select-and-drag, while a press that
  * travels immediately is an ordinary scroll. Nudging an ordinary scroll would
- * be actively harmful — [nudge] runs at [MutatePriority.UserInput], the same
+ * be actively harmful: [nudge] runs at [MutatePriority.UserInput], the same
  * priority the scroll gesture itself holds, so it would cancel the drag the
  * user is in the middle of.
  *
  * This is *observational only* (listens at [PointerEventPass.Initial], never
- * consumes), so it never interferes with whatever gesture — text selection,
- * tapping a link — is already handling the touch.
+ * consumes), so it never interferes with whatever gesture (text selection,
+ * tapping a link) is already handling the touch.
  *
  * For the scrolled selection to actually keep growing, the `SelectionContainer`
  * must sit *outside* the scrolling content: Compose resolves a drag to a
@@ -78,8 +78,8 @@ private suspend fun ScrollState.nudge(urgency: Float) {
  *
  * Known limitation: once a selection *handle* (the round drag grip) has
  * appeared and the user grabs it for a fresh touch, Compose renders that
- * handle in its own [androidx.compose.ui.window.Popup] — a separate Android
- * window — so its drag events never reach this (or any) modifier on the
+ * handle in its own [androidx.compose.ui.window.Popup] (a separate Android
+ * window), so its drag events never reach this (or any) modifier on the
  * underlying content; this modifier can't help there. Text fields don't need
  * this modifier at all: `BasicTextField` with a `TextFieldState` implements
  * scroll-aware handle dragging itself, handles included.

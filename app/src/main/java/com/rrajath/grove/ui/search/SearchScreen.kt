@@ -98,7 +98,7 @@ import java.util.Locale
 private val OPERATOR_CHIPS = listOf("t.TAG", "i.STATE", "s.PERIOD", "b.NOTEBOOK", "p.PRIORITY")
 
 /** Full-text + faceted search, results grouped by file (design spec §9
- *  "Search B — panel"). Finding a specific note; for upcoming/overdue browsing
+ *  "Search B: panel"). Finding a specific note; for upcoming/overdue browsing
  *  see the dedicated Agenda screen. */
 @Composable
 fun SearchScreen(
@@ -127,9 +127,9 @@ fun SearchScreen(
     val listState = rememberLazyListState()
     val collapsedFiles = remember { mutableStateMapOf<String, Boolean>() }
 
-    // TextFieldValue (not the plain-String overload) so a programmatic change —
-    // an operator chip tap or a Filters-panel selection mirroring into the
-    // field — can place the cursor at the end instead of Compose's default of
+    // TextFieldValue (not the plain-String overload) so a programmatic change
+    // (an operator chip tap or a Filters-panel selection mirroring into the
+    // field) can place the cursor at the end instead of Compose's default of
     // resetting it to the start. Typed input keeps whatever selection the IME
     // reports; only changes that didn't originate from this field's own
     // onValueChange move the cursor.
@@ -353,11 +353,11 @@ private fun AdvancedToggle(active: Boolean, onClick: () -> Unit) {
     }
 }
 
-/** One line per operator, shown from the (i) button — see [AdvancedPanel]. */
+/** One line per operator, shown from the (i) button (see [AdvancedPanel]). */
 private val OPERATOR_LEGEND = listOf(
-    "space" to "AND — every term must match",
-    "OR" to "starts a new AND-group — either side can match",
-    ". prefix" to "NOT — excludes rather than requires",
+    "space" to "AND: every term must match",
+    "OR" to "starts a new AND-group: either side can match",
+    ". prefix" to "NOT: excludes rather than requires",
     "o.PROP" to "sort by PROP (priority, scheduled, deadline, created, title, notebook)",
     "t.TAG / tn.TAG" to "tag anywhere in the heading / on this heading only",
     "i.STATE" to "TODO keyword (i.none = no keyword)",
@@ -831,7 +831,7 @@ private fun FilterPanel(
 ) {
     val c = MaterialTheme.grove
     var rangeTarget by remember { mutableStateOf<PillKind?>(null) }
-    // Hundreds of tags/notebooks would otherwise flood the sheet — each section
+    // Hundreds of tags/notebooks would otherwise flood the sheet: each section
     // starts at 10 and grows by 10 per "Load more" tap; reset whenever the
     // panel is freshly opened since it's recomposed from scratch each time.
     var visibleNotebooks by remember(catalog.notebooks) { mutableStateOf(minOf(10, catalog.notebooks.size)) }
@@ -852,7 +852,7 @@ private fun FilterPanel(
                         if (filters.activeCount > 0) {
                             "${filters.activeCount} ${if (filters.activeCount == 1) "filter" else "filters"} active"
                         } else {
-                            "Nothing filtered yet — everything shows."
+                            "Nothing filtered yet. Everything shows."
                         },
                         fontFamily = PlexSans, fontSize = 11.5.sp, color = c.ink2,
                         modifier = Modifier.padding(top = 2.dp),

@@ -29,7 +29,7 @@ import com.rrajath.grove.ui.theme.priorityColor
  * date-pill/tag [metaContent] row; Agenda passes plain link-styled text plus
  * its own file/heading breadcrumb, and wraps the whole thing in a swipe
  * gesture. Neither the outer tap target/padding nor the divider between rows
- * lives here — callers own those so each screen's list keeps its own
+ * lives here: callers own those so each screen's list keeps its own
  * click/swipe handling and edge-to-edge row spacing.
  */
 @Composable

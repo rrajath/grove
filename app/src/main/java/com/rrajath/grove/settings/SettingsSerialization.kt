@@ -6,7 +6,7 @@ import kotlinx.serialization.json.Json
 /**
  * Human-readable JSON backup of the user's preferences (PRD §11 settings).
  *
- * Pure Kotlin — no android imports — so the mapping is JVM-testable. Device- and
+ * Pure Kotlin (no android imports), so the mapping is JVM-testable. Device- and
  * install-specific state (the SAF vault URI and the onboarding flag) is
  * deliberately left out: a folder grant can't travel to another device, so an
  * import keeps whatever folder the current install already points at.

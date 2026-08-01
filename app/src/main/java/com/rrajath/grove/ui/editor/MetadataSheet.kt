@@ -51,7 +51,7 @@ fun MetadataSheet(
     val c = MaterialTheme.grove
     val state by viewModel.state.collectAsStateWithLifecycle()
     // Derive the headline from the observed buffer so the sheet recomposes when
-    // a chip mutates state — reading state.buffer here (not the off-band
+    // a chip mutates state: reading state.buffer here (not the off-band
     // viewModel.currentHeadline) is what subscribes this scope to the change.
     val headline = remember(state.buffer, state.keywords) { viewModel.currentHeadline }
     var datePickerFor by remember { mutableStateOf<String?>(null) }

@@ -6,15 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 **Versioning:** this project does not use manual SemVer bumps. Every version is
 `1.0.<N>`, where `N` is the number of commits reachable from the release commit
-(`git rev-list --count HEAD`) — the same value `./gradlew -q printVersionName`
+(`git rev-list --count HEAD`), the same value `./gradlew -q printVersionName`
 prints. Every entry below corresponds 1:1 to a real GitHub Release.
 
 The three entries marked *(local build, no GitHub Release)* predate commit 54,
-which is when the release workflow was first added — those changes shipped
+which is when the release workflow was first added; those changes shipped
 locally but nothing was ever tagged or published for them.
 
 **Cutting a release is fully automatic.** Add your changes under
-`## [Unreleased]` as you go (that part still takes a human — nobody else knows
+`## [Unreleased]` as you go (that part still takes a human; nobody else knows
 what the change was for). On push to `main`, CI computes the version, and:
 - if `## [Unreleased]` has content, it tags `v1.0.<N>`, publishes a GitHub
   Release with both APKs using that content as the release notes, then pushes
@@ -23,10 +23,24 @@ what the change was for). On push to `main`, CI computes the version, and:
 - if `## [Unreleased]` is empty, the push builds and tests as normal but no
   release is cut.
 
-Nothing needs to be run or renamed by hand — just keep the Unreleased section
+Nothing needs to be run or renamed by hand: just keep the Unreleased section
 updated and push.
 
 ## [Unreleased]
+
+### Added
+- Predictive back gesture support: navigating between screens now slides the
+  previous screen in, partially visible, while dragging back
+- Agenda swipe panel: an "Add note" button rides alongside "Mark done"; a
+  partial swipe reveals both, a full swipe still marks the task done directly
+
+### Fixed
+- Agenda swipe-reveal background now has rounded corners matching the card
+  in front of it, instead of showing square corners underneath
+
+### Changed
+- Removed em dashes from UI text, code comments, and documentation throughout
+  the project, replacing each with punctuation that fit the sentence
 
 ## [1.0.144] - 2026-07-31
 
@@ -404,9 +418,9 @@ updated and push.
 ## [1.0.50] - 2026-06-13 *(local build, no GitHub Release)*
 
 ### Added
-- M3: capture templates — org-capture for Android
-- M4: sync engine + Room index — laptop edits appear on reopen
-- M5: full org editor — syntax highlighting, metadata, structural ops
+- M3: capture templates: org-capture for Android
+- M4: sync engine + Room index: laptop edits appear on reopen
+- M5: full org editor: syntax highlighting, metadata, structural ops
 - M6: full-text + structured search, saved searches, agenda
 - M7: zero-friction capture surfaces + polish
 - README and docs (architecture, design decisions, search syntax, terminology)
@@ -445,4 +459,4 @@ updated and push.
 ### Added
 - Initial Android Studio Compose scaffold
 - M1: design system, navigation shell, app identity
-- M2: lossless org engine + SAF vault — browse real notes
+- M2: lossless org engine + SAF vault: browse real notes

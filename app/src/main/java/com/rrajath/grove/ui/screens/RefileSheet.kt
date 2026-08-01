@@ -43,7 +43,7 @@ import com.rrajath.grove.ui.vault.headlineAtLine
 
 /**
  * Two-step refile destination picker (design spec Gestures screen): choose a
- * notebook, then drill down per level — tapping a heading both selects it and
+ * notebook, then drill down per level: tapping a heading both selects it and
  * shows its children. "Refile here" targets the crumb's last heading (or the
  * file's top level).
  */

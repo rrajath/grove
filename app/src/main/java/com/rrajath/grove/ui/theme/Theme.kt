@@ -70,7 +70,7 @@ fun GroveTheme(
 ) {
     val groveColors = groveColorsFor(theme)
     // enableEdgeToEdge()'s default SystemBarStyle.auto picks icon color from the
-    // *system* dark/light setting, not Grove's own per-theme isDark — so a light
+    // *system* dark/light setting, not Grove's own per-theme isDark, so a light
     // Grove theme chosen while the OS is in dark mode (or vice versa) ends up with
     // status/nav bar icons that don't contrast the app's actual background.
     // Every theme switch must re-assert the bar appearance itself.

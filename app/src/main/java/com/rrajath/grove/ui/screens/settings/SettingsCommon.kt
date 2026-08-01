@@ -240,7 +240,7 @@ internal fun TemplateSettingsRow(
 /**
  * "Checklist states" row description: just the "[ ] → [x]" / "[ ] → [-] → [x]"
  * bracket notation, set entirely in `PlexMono` (design system mono-body token).
- * Uses the single-character arrow U+2192 rather than "->" — PlexMono (IBM Plex
+ * Uses the single-character arrow U+2192 rather than "->": PlexMono (IBM Plex
  * Mono) has no calt/liga ligature for "->", so two literal characters is all
  * that font would ever render.
  */

@@ -190,7 +190,7 @@ fun TemplateEditScreen(
             }
 
             if (locationIdx == 2) {
-                FieldLabel("Heading — CUSTOM_ID (recommended) or exact name")
+                FieldLabel("Heading: CUSTOM_ID (recommended) or exact name")
                 Text(
                     "CUSTOM_ID keeps working if the heading is renamed; exact name is simpler but fragile.",
                     fontFamily = PlexSans, fontSize = 12.sp, color = c.ink3,

@@ -49,7 +49,7 @@ class ReminderDiffTest {
         assertEquals(listOf(existing), plan.unchanged)
         assertTrue(plan.toSchedule.isEmpty())
         assertTrue(plan.toCancel.isEmpty())
-        // The stored (fired) copy survives untouched — not silently replaced by the fresh copy.
+        // The stored (fired) copy survives untouched, not silently replaced by the fresh copy.
         assertEquals(500L, plan.unchanged.single().firedAt)
     }
 

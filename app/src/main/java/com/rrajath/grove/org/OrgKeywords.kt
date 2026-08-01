@@ -2,7 +2,7 @@ package com.rrajath.grove.org
 
 /**
  * TODO keyword configuration. Settings format mirrors org/Orgzly:
- * `"TODO IN-PROGRESS | DONE CANCELLED"` — keywords after `|` are done-type.
+ * `"TODO IN-PROGRESS | DONE CANCELLED"`: keywords after `|` are done-type.
  */
 data class OrgKeywords(
     val active: List<String>,

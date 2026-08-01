@@ -15,10 +15,10 @@ import kotlin.math.abs
  * Pure bucketing for the Agenda screen: which day a heading lands on, which
  * headings a "Show" filter admits, and how the visible set splits into
  * sections. Deliberately free of Android, coroutines, and `AgendaViewModel` so
- * the rules are unit-testable on the JVM — the ViewModel only wires settings
+ * the rules are unit-testable on the JVM: the ViewModel only wires settings
  * and the index flow into these functions and maps the results to rows.
  *
- * The central rule: **a heading belongs to exactly one day** — its SCHEDULED
+ * The central rule: **a heading belongs to exactly one day**, its SCHEDULED
  * date if it has one, otherwise its DEADLINE. That is what makes the
  * "Group by · Date" sections disjoint. A heading carrying both dates appears
  * once, on its scheduled day, with the deadline surfaced as a `⚑` chip.
@@ -32,8 +32,8 @@ internal object AgendaBuckets {
     fun whenDate(m: NoteMeta): LocalDate? = m.scheduledDate ?: m.deadlineDate
 
     /**
-     * The "Show" levers. [AgendaStateFilter.Open] is state-agnostic — anything
-     * not done-type, headings with no keyword included — while
+     * The "Show" levers. [AgendaStateFilter.Open] is state-agnostic (anything
+     * not done-type, headings with no keyword included) while
      * [AgendaStateFilter.Keyword] pins one of the vault's own active keywords.
      */
     fun keep(m: NoteMeta, filter: AgendaStateFilter): Boolean = when (filter) {

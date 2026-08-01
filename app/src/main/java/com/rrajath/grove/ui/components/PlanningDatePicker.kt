@@ -33,7 +33,7 @@ import java.time.ZoneOffset
 /**
  * Start + end date picker (Search › Filters "Custom range" for Scheduled/Deadline).
  * [DateRangePicker] is designed for a wider, taller surface than [DatePickerDialog]
- * gives it (that dialog is sized for the compact single-month [DatePicker]) — cramming
+ * gives it (that dialog is sized for the compact single-month [DatePicker]); cramming
  * it in there clips the following month and squeezes its header into a centered-looking
  * line. This uses a plain, unconstrained [Dialog] + [Surface] instead so the range
  * picker gets the room its default title/headline/calendar layout expects.
@@ -88,7 +88,7 @@ fun CustomDateRangePicker(
 }
 
 /**
- * Standalone time-of-day picker (no date step) — e.g. Settings › Reminders ›
+ * Standalone time-of-day picker (no date step): e.g. Settings › Reminders ›
  * "Send reminder at". Shares [TimePickerDialog]'s chrome with [PlanningDatePicker].
  */
 @OptIn(ExperimentalMaterial3Api::class)

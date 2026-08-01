@@ -7,7 +7,7 @@ import androidx.sqlite.execSQL
 /**
  * The FTS5 mirror of the searchable text in the `notes` table.
  *
- * Room's annotations only cover FTS3/FTS4, and FTS4 has no `trigram` tokenizer —
+ * Room's annotations only cover FTS3/FTS4, and FTS4 has no `trigram` tokenizer,
  * which Grove needs, because its documented text semantics are arbitrary
  * case-insensitive *substring* matching (`meet` matches `committee`), not token
  * or prefix matching. So the virtual table is created by hand here and read via
@@ -17,7 +17,7 @@ import androidx.sqlite.execSQL
  *
  * The index is a candidate *narrower* only: `QueryMatcher` still decides every
  * final match, so an FTS hit that the Kotlin matcher rejects costs nothing but a
- * row. That also means the table is entirely optional — see [create].
+ * row. That also means the table is entirely optional (see [create]).
  */
 object NotesFts {
 

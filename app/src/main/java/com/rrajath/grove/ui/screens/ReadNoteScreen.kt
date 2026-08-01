@@ -116,7 +116,7 @@ fun ReadNoteScreen(
     showPropertyDrawers: Boolean = true,
     /** Settings: how many states tapping a checklist item cycles through. */
     checklistStates: ChecklistStates = ChecklistStates.TWO,
-    /** Line indices of favorited headlines in this file — marked with a ★. */
+    /** Line indices of favorited headlines in this file, marked with a ★. */
     favoriteLines: Set<Int> = emptySet(),
     viewModel: DocumentViewModel = viewModel(factory = DocumentViewModel.Factory),
 ) {
@@ -199,7 +199,7 @@ fun ReadNoteScreen(
                                 // that land on actual text are handled per-run below
                                 // (doubleTapToEdit on each OrgText/line), which wins the
                                 // gesture race against SelectionContainer's own
-                                // double-tap-select-word — so in practice this outer
+                                // double-tap-select-word, so in practice this outer
                                 // catch-all only ever fires for empty margins.
                                 .pointerInput(Unit) {
                                     detectTapGestures(onDoubleTap = { onEdit() })
@@ -278,7 +278,7 @@ private fun NoteContent(
     val collapsibleExpanded = remember(fileName, headline.lineIndex) { mutableStateMapOf<String, Boolean>() }
     var boxCoords by remember { mutableStateOf<LayoutCoordinates?>(null) }
     var linkMenuState by remember { mutableStateOf<Pair<String, IntOffset>?>(null) }
-    // Remembered so rows keep stable callbacks and can skip recomposition —
+    // Remembered so rows keep stable callbacks and can skip recomposition:
     // e.g. opening the link menu (state change below) must not re-render rows.
     val openLink: (String) -> Unit = remember(doc, fileName, context, onOpenNote) {
         { openOrgTarget(it, doc, fileName, context, onOpenNote) }
@@ -311,7 +311,7 @@ private fun NoteContent(
         // scrolling Column. Both parts matter: a single container lets a
         // selection run from the note's own body into its subtree, and keeping
         // it outside the scroll means Compose resolves a drag against
-        // viewport-fixed coordinates — so auto-scrolling under a held finger
+        // viewport-fixed coordinates, so auto-scrolling under a held finger
         // keeps extending the selection instead of pinning it to one character.
         SelectionContainer(modifier) {
             Column(
@@ -364,13 +364,13 @@ private fun NoteContent(
                         // "★" carries right-side bearing from its own glyph
                         // metrics, so a plain end-aligned Text sits visibly
                         // left of the property drawer's flush right edge below
-                        // it — nudge right to compensate.
+                        // it, nudge right to compensate.
                         FavoriteStar(modifier = Modifier.padding(top = 8.dp).offset(x = 3.dp))
                     }
                 }
 
                 // Note's own :PROPERTIES: and :LOGBOOK: drawers (CREATED lives
-                // in :PROPERTIES: — shown there only, not as a separate line).
+                // in :PROPERTIES:, shown there only, not as a separate line).
                 if (showPropertyDrawers && (headline.properties.isNotEmpty() || headline.logbook.isNotEmpty())) {
                     Spacer(Modifier.height(10.dp))
                     if (headline.properties.isNotEmpty()) {
@@ -518,7 +518,7 @@ private fun OrgText(
     maxLines: Int = Int.MAX_VALUE,
     overflow: TextOverflow = TextOverflow.Clip,
     /** Double-tap anywhere in this run switches to edit mode. Word-selection
-     * via long-press, and link taps, are unaffected — see [doubleTapToEdit]. */
+     * via long-press, and link taps, are unaffected (see [doubleTapToEdit]). */
     onDoubleTapAt: (() -> Unit)? = null,
 ) {
     val c = MaterialTheme.grove
@@ -555,7 +555,7 @@ private fun OrgText(
     )
 }
 
-/** Copy link / Share link — the actions offered when long-pressing a link in read mode. */
+/** Copy link / Share link: the actions offered when long-pressing a link in read mode. */
 @Composable
 private fun LinkActionMenuItems(target: String, onDismiss: () -> Unit) {
     val c = MaterialTheme.grove
@@ -584,7 +584,7 @@ private fun LinkActionMenuItems(target: String, onDismiss: () -> Unit) {
 /**
  * A planning date shown as a soft-tinted chip (SCHEDULED blue calendar,
  * DEADLINE red flag). [text] is the human form (`OrgTimestamp.formatHuman`),
- * not the raw org stamp — Read mode is prose, Edit mode is where the literal
+ * not the raw org stamp: Read mode is prose, Edit mode is where the literal
  * `<2026-07-30 Thu>` belongs.
  */
 @Composable
@@ -782,7 +782,7 @@ private fun isStandaloneTimestamp(line: String): Boolean {
     return range.first == 0 && range.last == line.length - 1
 }
 
-/** A single plain (non-org-markup) line — code/table content — that maps a
+/** A single plain (non-org-markup) line (code/table content) that maps a
  * double-tap to edit mode at the tapped character. */
 @Composable
 private fun PlainTappableLine(

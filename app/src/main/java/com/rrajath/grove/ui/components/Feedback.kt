@@ -33,7 +33,7 @@ import com.rrajath.grove.ui.vault.OutlineSnack
 import com.rrajath.grove.ui.vault.OutlineToast
 
 /**
- * Bottom-center dark pill toast (design spec: ink bg, bg-color text, ~1.9s —
+ * Bottom-center dark pill toast (design spec: ink bg, bg-color text, ~1.9s;
  * the ViewModel owns the timer). Render inside a full-size Box.
  */
 @Composable
@@ -65,7 +65,7 @@ fun GroveToast(toast: OutlineToast?, modifier: Modifier = Modifier) {
 
 /**
  * Bottom undo snackbar for structural ops (design spec: ink bg, 12dp radius,
- * 14dp side margins, UNDO in bold accent, ~4.2s — ViewModel owns the timer).
+ * 14dp side margins, UNDO in bold accent, ~4.2s; ViewModel owns the timer).
  */
 @Composable
 fun GroveUndoSnackbar(
@@ -89,7 +89,7 @@ fun GroveUndoSnackbar(
                 .clip(RoundedCornerShape(12.dp))
                 .background(c.ink)
                 // The whole bar intercepts taps (and triggers undo), not just the
-                // "UNDO" glyph — otherwise a tap that misses the small text falls
+                // "UNDO" glyph; otherwise a tap that misses the small text falls
                 // through to the list item rendered underneath this overlay.
                 .clickable(onClick = onUndo)
                 .padding(horizontal = 16.dp, vertical = 12.dp),

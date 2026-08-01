@@ -61,9 +61,9 @@ data class AgendaGroup(val key: String, val count: Int, val rows: List<AgendaRow
 enum class AgendaTab { TODAY, UPCOMING }
 
 data class AgendaUiState(
-    /** "Wednesday" — the big header line. */
+    /** "Wednesday": the big header line. */
     val headerDay: String = "",
-    /** "July 29" — the mono sub-line, followed by [todayCount]. */
+    /** "July 29": the mono sub-line, followed by [todayCount]. */
     val headerDate: String = "",
     val todayCount: Int = 0,
     val tab: AgendaTab = AgendaTab.TODAY,
@@ -73,7 +73,7 @@ data class AgendaUiState(
     val groups: List<AgendaGroup> = emptyList(),
     val grouping: AgendaGrouping = AgendaGrouping.DATE,
     val stateFilter: AgendaStateFilter = AgendaStateFilter.Open,
-    /** The vault's active (todo-type) keywords — one "Show" chip each, between Open and Everything. */
+    /** The vault's active (todo-type) keywords: one "Show" chip each, between Open and Everything. */
     val activeKeywords: List<String> = emptyList(),
     val showTags: Boolean = true,
     val showFile: Boolean = false,
@@ -89,8 +89,8 @@ data class AgendaUiState(
  * an overdue card above it, and a levers panel that re-buckets the same list by
  * date, priority, tag, or file.
  *
- * An item belongs to exactly one day — its SCHEDULED date if it has one, else
- * its DEADLINE — which is what makes the "Group by · Date" buckets disjoint. A
+ * An item belongs to exactly one day (its SCHEDULED date if it has one, else
+ * its DEADLINE), which is what makes the "Group by · Date" buckets disjoint. A
  * heading that has both shows on its scheduled day with a red `⚑ <date>` chip
  * announcing the deadline, rather than appearing twice.
  *
@@ -127,7 +127,7 @@ class AgendaViewModel(private val app: GroveApplication) : ViewModel() {
 
     private var eventId = 0L
 
-    /** Pre-mutation text of every file one action touched — "Move to today" spans several. */
+    /** Pre-mutation text of every file one action touched: "Move to today" spans several. */
     private data class FileSnapshot(val fileName: String, val text: String)
 
     private var undoSnapshot: List<FileSnapshot> = emptyList()
@@ -305,7 +305,7 @@ class AgendaViewModel(private val app: GroveApplication) : ViewModel() {
     fun setDeadline(fileName: String, lineIndex: Int, ts: OrgTimestamp?) =
         mutatePlanning(fileName, lineIndex) { doc, h -> OrgMutations.setDeadline(doc, h, ts) }
 
-    /** Both planning dates in one edit — what the Dates screen commits. */
+    /** Both planning dates in one edit: what the Dates screen commits. */
     fun setPlanningDates(
         fileName: String,
         lineIndex: Int,
@@ -328,14 +328,14 @@ class AgendaViewModel(private val app: GroveApplication) : ViewModel() {
 
     /**
      * Swipe-to-done: sets the heading to the first configured done-type keyword
-     * — never hardcoded "DONE", so a custom `todoKeywords` config is respected —
+     * (never hardcoded "DONE", so a custom `todoKeywords` config is respected),
      * via org "mark done" semantics (`OrgMutations.markDone`: repeater advance
      * if the planning date repeats, else a CLOSED stamp).
      */
     fun markDone(fileName: String, lineIndex: Int) = toggleDone(fileName, lineIndex)
 
     /**
-     * The row checkbox. Marks an open heading done, and reopens a done one —
+     * The row checkbox. Marks an open heading done, and reopens a done one,
      * reachable whenever the "Everything" filter is showing completed rows.
      */
     fun toggleDone(fileName: String, lineIndex: Int) {
@@ -356,6 +356,28 @@ class AgendaViewModel(private val app: GroveApplication) : ViewModel() {
             vault.save(fileName, newText)
             app.syncManager.requestSync("agenda toggle done")
             showSnack(if (reopening) "Reopened" else "Marked done")
+        }
+    }
+
+    /** Swipe panel's "Note" action: org's C-c C-z, logged into the LOGBOOK drawer. */
+    fun addNote(fileName: String, lineIndex: Int, note: String) {
+        if (note.isBlank()) return
+        viewModelScope.launch {
+            val vault = app.vault.value ?: return@launch
+            val doc = vault.open(fileName) ?: return@launch
+            val headline = doc.headlineAtLine(lineIndex) ?: return@launch
+            val newText = withContext(Dispatchers.Default) {
+                val now = LocalDateTime.now()
+                val stamp = OrgTimestamp(
+                    now.toLocalDate(),
+                    time = now.toLocalTime().withSecond(0).withNano(0),
+                    active = false,
+                )
+                OrgMutations.appendLogbookNote(doc, headline, note.trim(), stamp)
+            }
+            vault.save(fileName, newText)
+            app.syncManager.requestSync("agenda note added")
+            showSnack("Note added")
         }
     }
 

@@ -6,9 +6,9 @@ Grove's search uses Orgzly-compatible query syntax, so saved searches and habits
 
 | Syntax | Meaning |
 |---|---|
-| `term1 term2` | AND — both must match |
-| `term1 OR term2` | OR — `OR` (uppercase) binds looser than the implicit AND, so `a b OR c d` means `(a AND b) OR (c AND d)` |
-| `.term` | NOT — prefix any term with `.` to negate it (e.g. `.i.done`, `.t.archive`) |
+| `term1 term2` | AND: both must match |
+| `term1 OR term2` | OR: `OR` (uppercase) binds looser than the implicit AND, so `a b OR c d` means `(a AND b) OR (c AND d)` |
+| `.term` | NOT: prefix any term with `.` to negate it (e.g. `.i.done`, `.t.archive`) |
 
 An empty query matches everything.
 
@@ -16,14 +16,14 @@ An empty query matches everything.
 
 | Syntax | Matches notes that… | Example |
 |---|---|---|
-| `word` | contain the text in their heading or body (case-insensitive substring, anywhere in the word — `meet` matches `committee`) | `meeting` |
+| `word` | contain the text in their heading or body (case-insensitive substring, anywhere in the word: `meet` matches `committee`) | `meeting` |
 | `i.STATE` | have that TODO keyword (case-insensitive); `i.none` = no keyword | `i.todo`, `i.in-progress`, `.i.done` |
 | `b.NAME` | live in that notebook (`.org` suffix optional) | `b.inbox`, `b.journal.org` |
-| `t.TAG` | have the tag — **including inherited** tags from ancestor headings and `#+FILETAGS:`. Substring match: `t.bee` matches `:beeblebrox:` | `t.work` |
+| `t.TAG` | have the tag, **including inherited** tags from ancestor headings and `#+FILETAGS:`. Substring match: `t.bee` matches `:beeblebrox:` | `t.work` |
 | `tn.TAG` | have the tag on the heading itself (own tags only, no inheritance) | `tn.urgent` |
 | `p.X` | have priority X | `p.a` |
-| `s.PERIOD` | are scheduled on or before the period's end — overdue items always match | `s.today`, `s.3d` |
-| `d.PERIOD` | have a deadline on or before the period's end — overdue items always match | `d.1w` |
+| `s.PERIOD` | are scheduled on or before the period's end; overdue items always match | `s.today`, `s.3d` |
+| `d.PERIOD` | have a deadline on or before the period's end; overdue items always match | `d.1w` |
 | `c.PERIOD` | were closed within the past period | `c.yesterday`, `c.1m` |
 | `cr.PERIOD` | were created within the past period (from the `CREATED` property) | `cr.2w` |
 
@@ -44,18 +44,18 @@ Used by `s.` `d.` `c.` `cr.`:
 
 | Syntax | Effect |
 |---|---|
-| `o.PROP` | Sort results by a property instead of relevance. Properties: `priority`/`p`, `scheduled`/`s`, `deadline`/`d`, `created`/`cr`, `title`, `notebook`/`b`. Repeatable — `o.p o.d` sorts by priority, then deadline. |
+| `o.PROP` | Sort results by a property instead of relevance. Properties: `priority`/`p`, `scheduled`/`s`, `deadline`/`d`, `created`/`cr`, `title`, `notebook`/`b`. Repeatable: `o.p o.d` sorts by priority, then deadline. |
 | `ad.N` | Agenda mode: group results by day over the next N days. A note appears under each day it is scheduled or due; overdue, not-done items surface on today. The drawer's **Agenda** item is `ad.7`. |
 
 ## What gets searched
 
 Plain-text terms match against a heading's title plus its **entire** body. (Before the FTS5 migration, body text past the first 4000 characters was silently unsearchable.)
 
-Searching is backed by a SQLite FTS5 index, but the matching rules above are unchanged: the index only narrows which notes get examined, and every result is still decided by the same substring logic. Terms of one or two characters are shorter than the index's smallest unit and are matched by scanning instead, so they work exactly as before — just more slowly on a large vault.
+Searching is backed by a SQLite FTS5 index, but the matching rules above are unchanged: the index only narrows which notes get examined, and every result is still decided by the same substring logic. Terms of one or two characters are shorter than the index's smallest unit and are matched by scanning instead, so they work exactly as before, just more slowly on a large vault.
 
 ## Ranking
 
-Without `o.` sorts, results are ranked by relevance to the plain-text terms: exact title match, then title contains, then body match — with most-recently-modified as the tiebreaker.
+Without `o.` sorts, results are ranked by relevance to the plain-text terms: exact title match, then title contains, then body match, with most-recently-modified as the tiebreaker.
 
 ## Examples
 

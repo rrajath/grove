@@ -21,7 +21,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 
 /**
- * Rebuildable index over the vault (PRD §13): never the source of truth —
+ * Rebuildable index over the vault (PRD §13): never the source of truth;
  * always derivable by re-parsing the .org files.
  */
 @Entity(tableName = "notebooks")
@@ -48,7 +48,7 @@ data class NotebookEntity(
  * Indices back the facet pushdown in [IndexDao.notesMatching]: the chip filters
  * and `i.`/`p.` query tokens become SQL `WHERE` predicates instead of a scan
  * over every row. `scheduled`/`deadline` are indexed for their `IS NOT NULL`
- * probes (the agenda screen, and any date facet), not for date comparison —
+ * probes (the agenda screen, and any date facet), not for date comparison:
  * they hold raw org timestamp strings.
  */
 @Entity(
@@ -106,7 +106,7 @@ data class ReminderEntity(
     /** Composite: fileName + ancestor-title-path + own title + level + planning type. */
     @PrimaryKey val key: String,
     val fileName: String,
-    /** Ancestor titles + own title, "/"-joined — how the heading is re-located on disk. */
+    /** Ancestor titles + own title, "/"-joined: how the heading is re-located on disk. */
     val headingPath: String,
     /** Own title only, used as the notification's title. */
     val headingTitle: String,
@@ -122,7 +122,7 @@ data class ReminderEntity(
      *  catch-up passes don't re-fire it. Cleared whenever [triggerAtMillis] changes. */
     val firedAt: Long? = null,
     /** False when [triggerAtMillis] came from the default reminder time rather than
-     *  the timestamp's own time-of-day — those reminders don't fire their own "due
+     *  the timestamp's own time-of-day: those reminders don't fire their own "due
      *  now" notification and are counted into the daily digest instead. */
     val hasExplicitTime: Boolean = true,
 )
@@ -135,7 +135,7 @@ data class NotebookSyncState(
     val isIndexed: Boolean,
 )
 
-/** Primary key of a `notes` row — what an FTS lookup hands back. */
+/** Primary key of a `notes` row: what an FTS lookup hands back. */
 data class NoteKey(val fileName: String, val lineIndex: Int)
 
 /**
@@ -203,7 +203,7 @@ abstract class IndexDao {
     /**
      * Rows the agenda can possibly show. `QueryMatcher.agenda` only ever buckets
      * notes by their SCHEDULED/DEADLINE date, so an undated note can never
-     * appear — excluding those in SQL is an exact narrowing, not an
+     * appear: excluding those in SQL is an exact narrowing, not an
      * approximation.
      */
     @Query("SELECT * FROM notes WHERE scheduled IS NOT NULL OR deadline IS NOT NULL")
@@ -231,7 +231,7 @@ abstract class IndexDao {
     /**
      * Bulk-insert stub rows for newly-discovered files in one transaction (a
      * single [notebooksFlow] emission). IGNORE so files that already have a
-     * row — indexed or stub — keep their real data instead of being blanked.
+     * row (indexed or stub) keep their real data instead of being blanked.
      */
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     abstract suspend fun insertNotebookStubs(notebooks: List<NotebookEntity>)
@@ -276,7 +276,7 @@ abstract class IndexDao {
     @Query("DELETE FROM notes")
     abstract suspend fun clearNotes()
 
-    /** Wipes the whole index (rebuilt on next sync — it's only a cache). */
+    /** Wipes the whole index (rebuilt on next sync; it's only a cache). */
     @Transaction
     open suspend fun clearAll() {
         clearNotebooks()
@@ -382,7 +382,7 @@ abstract class GroveDatabase : RoomDatabase() {
     /**
      * Whether the [NotesFts] virtual table exists and can be used. False only on
      * a device whose SQLite lacks FTS5, where everything falls back to the full
-     * in-memory scan — slower, but identical results.
+     * in-memory scan: slower, but identical results.
      */
     val ftsAvailable: Boolean get() = indexDao().ftsAvailable
 

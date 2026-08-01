@@ -47,7 +47,7 @@ import com.rrajath.grove.ui.theme.grove
 /**
  * Small rounded pill badge ("Modified", "1 conflict", "Recommended"…). Filled
  * by default (solid [bg]); pass [outline] = true for a transparent-fill,
- * [fg]-bordered chip instead — used to tell tag pills apart from filled
+ * [fg]-bordered chip instead: used to tell tag pills apart from filled
  * TODO-state pills at a glance.
  */
 @Composable
@@ -150,11 +150,11 @@ fun SegmentedControl(
 
 /**
  * 56dp app bar row per design spec: leading slot, title block, trailing actions.
- * Consumes the status-bar inset itself — Scaffold does not pad the topBar slot,
+ * Consumes the status-bar inset itself: Scaffold does not pad the topBar slot,
  * so without this the bar sits under the status bar in edge-to-edge mode.
  *
  * An optional [subtitle] renders as a second row beneath the main bar, full
- * width — for content (e.g. a breadcrumb trail) that would otherwise compete
+ * width: for content (e.g. a breadcrumb trail) that would otherwise compete
  * for space with wide [actions] in the fixed-height row.
  */
 @Composable
@@ -196,10 +196,10 @@ private data class ThemeSwatch(
 )
 
 /**
- * Preview colors per design/GroveThemes.dc.html `themeList()` — intentionally hardcoded rather
+ * Preview colors per design/GroveThemes.dc.html `themeList()`: intentionally hardcoded rather
  * than derived from [com.rrajath.grove.ui.theme.GroveColors], since e.g. the dark theme's chip
  * uses its surface color rather than its bg for legibility. Ordered light themes first (alphabetical
- * by label), then dark themes (alphabetical by label) — Settings § Appearance.
+ * by label), then dark themes (alphabetical by label): Settings § Appearance.
  */
 private val ThemeSwatches = listOf(
     // Light
@@ -342,7 +342,7 @@ private fun ThemeDots(dots: List<Color>) {
  * Text-options dropdown (Settings § Agenda swipe-left/swipe-right action pickers): a collapsed
  * trigger row sharing [ThemeDropdownPicker]'s chrome, expanding into a list of options with a
  * checkmark on the active one. Unlike [ThemeDropdownPicker] this is a general-purpose picker for
- * any small list of string options — no swatches.
+ * any small list of string options, no swatches.
  */
 @Composable
 fun DropdownPicker(

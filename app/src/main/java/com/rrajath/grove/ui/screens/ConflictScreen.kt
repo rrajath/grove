@@ -114,7 +114,7 @@ fun ConflictScreen(
                     Spacer(Modifier.width(10.dp))
                     Text(
                         "This file changed on two devices. Syncthing kept the newer " +
-                                "version and saved the other as a conflict copy — pick what to keep.",
+                                "version and saved the other as a conflict copy. Pick what to keep.",
                         fontFamily = PlexSans, fontSize = 13.sp, lineHeight = 1.5.em, color = c.ink,
                     )
                 }

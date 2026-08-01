@@ -31,7 +31,7 @@ import com.rrajath.grove.ui.theme.grove
  * Collapsible, faded (66% alpha), monospace key-value section for file-level
  * `#+` keyword lines or a `:PROPERTIES:` drawer (design/Grove.dc.html lines
  * 499-552, style block at 1682+). Header row is the only tap target; body is
- * hidden unless [expanded]. Display-only — never mutates the source file.
+ * hidden unless [expanded]. Display-only: never mutates the source file.
  */
 @Composable
 fun CollapsibleKvSection(
@@ -53,7 +53,7 @@ fun CollapsibleKvSection(
 }
 
 /**
- * Collapsible, faded, monospace section for a `:LOGBOOK:` drawer — same
+ * Collapsible, faded, monospace section for a `:LOGBOOK:` drawer, same
  * header/body chrome as [CollapsibleKvSection], but each line is raw log text
  * (state changes, CLOCK entries) rather than a `:key: value` pair.
  */

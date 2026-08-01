@@ -86,7 +86,7 @@ class NoteCandidateQueryTest {
 
     @Test
     fun `a group with nothing pushable drops the whole query predicate`() {
-        // The second group would match anything, so ORing it in narrows nothing —
+        // The second group would match anything, so ORing it in narrows nothing,
         // and emitting only the first group's predicate would drop valid rows.
         val sql = build("i.TODO OR hi")
         assertFalse(sql.sql.contains("keyword"))

@@ -110,7 +110,7 @@ fun SettingsAppearanceScreen(
 
 /**
  * "Sync App Icon with Theme" toggle row plus a live 60x60 launcher-icon preview
- * (design/Grove.dc.html lines 827-841 — the tile mirrors `iconSpokesLauncher`,
+ * (design/Grove.dc.html lines 827-841: the tile mirrors `iconSpokesLauncher`,
  * `spokeSet(16, 7)`). The preview shows [theme]'s colors when [checked], the
  * default light mark otherwise.
  */

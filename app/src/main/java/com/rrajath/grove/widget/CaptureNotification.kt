@@ -14,7 +14,7 @@ import com.rrajath.grove.R
 import com.rrajath.grove.icon.NotificationAppearance
 
 /**
- * Optional persistent "Capture" notification (PRD §8) — a low-priority,
+ * Optional persistent "Capture" notification (PRD §8): a low-priority,
  * silent, ongoing notification whose tap opens the capture flow.
  */
 object CaptureNotification {

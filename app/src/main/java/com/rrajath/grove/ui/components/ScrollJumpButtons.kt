@@ -35,7 +35,7 @@ import kotlinx.coroutines.launch
 /**
  * A vertically-stacked pair of small round jump buttons (scroll-to-top above
  * scroll-to-bottom) anchored to the bottom-right of the screen. Operates on
- * the caller's own [ScrollState] or [LazyListState] — no new scroll state is
+ * the caller's own [ScrollState] or [LazyListState]; no new scroll state is
  * created.
  *
  * Visibility behavior:
@@ -47,7 +47,7 @@ import kotlinx.coroutines.launch
  *   at any point while visible keeps it up and resets the idle timer. The
  *   threshold exists so that the small scroll nudges caused by the cursor
  *   auto-following typed text (e.g. in an editor) don't repeatedly flash
- *   the buttons — only a deliberate scroll of real distance does.
+ *   the buttons; only a deliberate scroll of real distance does.
  * - Each button additionally hides itself once already at that edge (the
  *   top button disappears at the top, the bottom button disappears at the
  *   bottom), even while the pair is otherwise visible.
@@ -78,7 +78,7 @@ fun ScrollJumpButtons(
     )
 }
 
-/** [LazyListState] overload — see [ScrollJumpButtons] for behavior details. */
+/** [LazyListState] overload; see [ScrollJumpButtons] for behavior details. */
 @Composable
 fun ScrollJumpButtons(
     listState: LazyListState,
@@ -110,7 +110,7 @@ fun ScrollJumpButtons(
  * Tracks whether jump buttons should be visible based on scroll activity: becomes
  * true the moment [positionKey] changes (i.e. the user scrolled), then flips back
  * to false after 3 seconds without further changes. Does not show on first
- * composition — only once actual scroll movement is observed.
+ * composition; only once actual scroll movement is observed.
  */
 @Composable
 private fun <T> rememberScrollActivityVisible(positionKey: T): Boolean {
@@ -133,7 +133,7 @@ private fun <T> rememberScrollActivityVisible(positionKey: T): Boolean {
 /**
  * Like [rememberScrollActivityVisible], but only flips to visible once
  * [offsetPx] has drifted more than [minDeltaPx] away from wherever it last
- * settled — small back-and-forth jitter (e.g. the cursor-follow scroll while
+ * settled: small back-and-forth jitter (e.g. the cursor-follow scroll while
  * typing) never crosses that threshold, so it doesn't flash the buttons.
  * Once visible, any further movement keeps it up and resets the idle timer,
  * same as the plain scroll-activity tracker; the baseline resets to the

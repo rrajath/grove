@@ -99,7 +99,7 @@ class ArchiveLocationTest {
         )
         val (result, target) = ArchiveLocation.findOrCreateHeadingPath(doc, listOf("Inbox"))
         assertEquals("Inbox", target?.title)
-        // No mutation needed — same document instance/text.
+        // No mutation needed: same document instance/text.
         assertEquals(doc.text, result.text)
     }
 

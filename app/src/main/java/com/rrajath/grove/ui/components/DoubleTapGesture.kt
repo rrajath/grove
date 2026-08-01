@@ -20,7 +20,7 @@ import androidx.compose.ui.text.TextLayoutResult
  * built-in double-tap-to-select-word gesture wired directly to the underlying
  * `Text`; a naive higher-level tap detector using `requireUnconsumed = true`
  * loses that race for taps that land on actual text (SelectionContainer wins),
- * while still winning for taps on blank space — which is exactly the
+ * while still winning for taps on blank space, which is exactly the
  * inconsistent behavior this modifier replaces. A single-press, long-press,
  * or drag is *always* left completely untouched, so word-selection via
  * long-press keeps working normally.
@@ -44,7 +44,7 @@ fun Modifier.doubleTapToEdit(
                 (down.uptimeMillis - lastUpMillis) < viewConfiguration.doubleTapTimeoutMillis
 
             if (!isSecondTap) {
-                // Just watch this gesture to completion — never consume — so
+                // Just watch this gesture to completion (never consume), so
                 // whatever is underneath (selection long-press/drag, link tap)
                 // handles it exactly as if we weren't here.
                 var moved = false
@@ -68,7 +68,7 @@ fun Modifier.doubleTapToEdit(
 
                 if (layout == null || charOffset == null || onLink) {
                     // Can't map this tap, or it's on a link (which owns its own
-                    // tap/long-press handling) — don't hijack the gesture.
+                    // tap/long-press handling); don't hijack the gesture.
                     return@awaitEachGesture
                 }
 
