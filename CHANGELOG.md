@@ -28,6 +28,8 @@ updated and push.
 
 ## [Unreleased]
 
+## [1.0.157] - 2026-08-02
+
 ### Added
 - Settings § Notes: "Auto-archive done items?" — marking a task with any done-type keyword
   (not just `DONE`) now refiles it automatically, resolved the same way org resolves
