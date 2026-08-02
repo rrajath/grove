@@ -586,7 +586,7 @@ private fun AgendaRowContent(row: AgendaRow, onToggleDone: () -> Unit) {
             .fillMaxWidth()
             // The prototype fades a completed row wholesale, checkbox and meta included.
             .alpha(if (row.isDone) 0.55f else 1f)
-            .padding(horizontal = 2.dp, vertical = 10.dp),
+            .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.Top,
     ) {
         AgendaCheckbox(isDone = row.isDone, priority = row.priority, onClick = onToggleDone)

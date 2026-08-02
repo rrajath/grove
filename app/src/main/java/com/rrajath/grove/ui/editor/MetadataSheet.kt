@@ -243,7 +243,7 @@ private fun CombinedPlanningRow(
         if (scheduled == null && deadline == null) {
             Text("set date…", fontFamily = PlexMono, fontSize = 12.5.sp, color = c.ink3)
         } else {
-            Row {
+            Column {
                 scheduled?.let {
                     Text(
                         "SCHED " + it.format(),
@@ -252,7 +252,7 @@ private fun CombinedPlanningRow(
                     )
                 }
                 if (scheduled != null && deadline != null) {
-                    Spacer(Modifier.width(12.dp))
+                    Spacer(Modifier.height(4.dp))
                 }
                 deadline?.let {
                     Text(
