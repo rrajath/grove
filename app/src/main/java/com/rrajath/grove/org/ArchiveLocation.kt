@@ -33,16 +33,17 @@ object ArchiveLocation {
     /**
      * Nearest-ancestor-wins resolution, org-property-inheritance style: a
      * heading's own `:ARCHIVE:` wins, else the closest ancestor's, else the
-     * file-level `#+ARCHIVE:` keyword.
+     * file-level `#+ARCHIVE:` keyword, else (when the doc/file chain names
+     * nothing) [settingsFallback] — the app-wide default archive location.
      */
-    fun resolve(doc: OrgDocument, headline: OrgHeadline): ArchiveTarget? {
+    fun resolve(doc: OrgDocument, headline: OrgHeadline, settingsFallback: ArchiveTarget? = null): ArchiveTarget? {
         var current: OrgHeadline? = headline
         while (current != null) {
             current.properties["ARCHIVE"]?.let { return parse(it) }
             current = doc.parent(current)
         }
         val fileLevel = doc.preambleKeywords.firstOrNull { it.first == "#+ARCHIVE:" }?.second
-        return fileLevel?.let { parse(it) }
+        return fileLevel?.let { parse(it) } ?: settingsFallback
     }
 
     /**

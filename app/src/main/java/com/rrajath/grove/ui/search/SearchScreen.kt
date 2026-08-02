@@ -78,6 +78,7 @@ import com.rrajath.grove.org.PlanningKind
 import com.rrajath.grove.search.SavedSearch
 import com.rrajath.grove.search.Snippets
 import com.rrajath.grove.ui.components.CustomDateRangePicker
+import com.rrajath.grove.ui.components.GroveUndoSnackbar
 import com.rrajath.grove.ui.components.Pill
 import com.rrajath.grove.ui.components.PlanningDatesScreen
 import com.rrajath.grove.ui.components.StatePickerSheet
@@ -118,6 +119,7 @@ fun SearchScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val savedSearches by viewModel.savedSearches.collectAsStateWithLifecycle()
     val keywords by viewModel.keywords.collectAsStateWithLifecycle()
+    val snack by viewModel.snack.collectAsStateWithLifecycle()
     var advancedOpen by remember { mutableStateOf(false) }
     var filterPanelOpen by remember { mutableStateOf(false) }
     var saveDialogOpen by remember { mutableStateOf(false) }
@@ -251,6 +253,11 @@ fun SearchScreen(
                 ScrollJumpButtons(
                     listState = listState,
                     modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
+                )
+                GroveUndoSnackbar(
+                    snack = snack,
+                    onUndo = viewModel::undo,
+                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 16.dp),
                 )
             }
 

@@ -18,10 +18,13 @@ import com.rrajath.grove.settings.GroveSettings
 import com.rrajath.grove.ui.vault.OutlineSnack
 import com.rrajath.grove.ui.vault.factory
 import com.rrajath.grove.ui.vault.headlineAtLine
+import com.rrajath.grove.vault.AutoArchive
+import com.rrajath.grove.vault.StateChangeResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -343,19 +346,39 @@ class AgendaViewModel(private val app: GroveApplication) : ViewModel() {
             val vault = app.vault.value ?: return@launch
             val doc = vault.open(fileName) ?: return@launch
             val headline = doc.headlineAtLine(lineIndex) ?: return@launch
-            val reopening = headline.keyword in doc.keywords.done
-            val newText = withContext(Dispatchers.Default) {
-                if (reopening) {
+            if (headline.keyword in doc.keywords.done) {
+                val newText = withContext(Dispatchers.Default) {
                     OrgMutations.reopen(doc, headline, doc.keywords.active.firstOrNull())
-                } else {
-                    doc.keywords.done.firstOrNull()
-                        ?.let { OrgMutations.markDone(doc, headline, it, LocalDateTime.now()) }
                 }
-            } ?: return@launch
-            undoSnapshot = listOf(FileSnapshot(fileName, doc.text))
-            vault.save(fileName, newText)
-            app.syncManager.requestSync("agenda toggle done")
-            showSnack(if (reopening) "Reopened" else "Marked done")
+                undoSnapshot = listOf(FileSnapshot(fileName, doc.text))
+                vault.save(fileName, newText)
+                app.syncManager.requestSync("agenda toggle done")
+                showSnack("Reopened")
+                return@launch
+            }
+            val doneKeyword = doc.keywords.done.firstOrNull() ?: return@launch
+            val settings = app.settingsRepository.settings.first()
+            when (
+                val result = AutoArchive.apply(vault, settings, doc, fileName, headline, doneKeyword, LocalDateTime.now())
+            ) {
+                is StateChangeResult.Plain -> {
+                    undoSnapshot = listOf(FileSnapshot(fileName, doc.text))
+                    vault.save(fileName, result.text)
+                    app.syncManager.requestSync("agenda toggle done")
+                    showSnack("Marked done")
+                }
+                is StateChangeResult.Archived -> {
+                    undoSnapshot = if (result.sourceFile == result.destFile) {
+                        listOf(FileSnapshot(result.sourceFile, doc.text))
+                    } else {
+                        listOf(FileSnapshot(fileName, doc.text), FileSnapshot(result.destFile, result.destTextBefore))
+                    }
+                    vault.save(fileName, result.sourceText)
+                    if (result.destFile != fileName) vault.save(result.destFile, result.destText)
+                    app.syncManager.requestSync("agenda toggle done")
+                    showSnack("Marked done. Refiled to ${result.label}")
+                }
+            }
         }
     }
 

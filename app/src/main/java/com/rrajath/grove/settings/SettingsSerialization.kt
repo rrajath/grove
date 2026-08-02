@@ -67,6 +67,9 @@ data class SettingsExport(
     val agendaStateFilter: String = AgendaStateFilter.Open.storageKey,
     val agendaShowTags: Boolean = true,
     val agendaShowFile: Boolean = false,
+    val autoArchiveDoneItems: Boolean = false,
+    val autoArchiveFile: String? = null,
+    val autoArchiveHeadingPath: String = "",
 ) {
     /** Map back onto [base], using the enums' tolerant `fromStorage` fallbacks. */
     fun applyTo(base: GroveSettings): GroveSettings = base.copy(
@@ -103,6 +106,9 @@ data class SettingsExport(
         agendaStateFilter = AgendaStateFilter.fromStorage(agendaStateFilter),
         agendaShowTags = agendaShowTags,
         agendaShowFile = agendaShowFile,
+        autoArchiveDoneItems = autoArchiveDoneItems,
+        autoArchiveFile = autoArchiveFile,
+        autoArchiveHeadingPath = autoArchiveHeadingPath,
     )
 
     companion object {
@@ -141,6 +147,9 @@ data class SettingsExport(
             agendaStateFilter = s.agendaStateFilter.storageKey,
             agendaShowTags = s.agendaShowTags,
             agendaShowFile = s.agendaShowFile,
+            autoArchiveDoneItems = s.autoArchiveDoneItems,
+            autoArchiveFile = s.autoArchiveFile,
+            autoArchiveHeadingPath = s.autoArchiveHeadingPath,
         )
     }
 }

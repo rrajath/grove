@@ -41,6 +41,8 @@ fun SettingsNotesScreen(
     onSetChecklistStates: (ChecklistStates) -> Unit,
     onSetAddId: (Boolean) -> Unit,
     onSetAddCreated: (Boolean) -> Unit,
+    onSetAutoArchiveDoneItems: (Boolean) -> Unit,
+    onOpenArchiveLocationPicker: () -> Unit,
 ) {
     val c = MaterialTheme.grove
     var keywordsText by remember(settings.todoKeywords) {
@@ -143,6 +145,33 @@ fun SettingsNotesScreen(
                 checked = settings.addCreatedToNewNotes,
                 onToggle = onSetAddCreated,
             )
+            RowDivider()
+            ToggleRow(
+                label = "Auto-archive done items?",
+                description = "Refiles a task the moment it's marked done, to its ARCHIVE property/keyword " +
+                        "if it has one, otherwise the location below",
+                checked = settings.autoArchiveDoneItems,
+                onToggle = onSetAutoArchiveDoneItems,
+            )
+            if (settings.autoArchiveDoneItems) {
+                RowDivider()
+                SettingsRow(
+                    label = "Archive location",
+                    description = "Fallback when a task has no ARCHIVE property/keyword of its own",
+                    onClick = onOpenArchiveLocationPicker,
+                ) {
+                    Text(
+                        archiveLocationSummary(settings.autoArchiveFile, settings.autoArchiveHeadingPath),
+                        fontFamily = PlexMono, fontSize = 12.sp, color = c.accent,
+                    )
+                }
+            }
         }
     }
+}
+
+private fun archiveLocationSummary(file: String?, headingPath: String): String {
+    if (file == null) return "Not set"
+    val segments = listOf(file.removeSuffix(".org")) + headingPath.split('/').filter { it.isNotEmpty() }
+    return segments.joinToString(" › ")
 }

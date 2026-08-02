@@ -51,8 +51,8 @@ import com.rrajath.grove.ui.vault.headlineAtLine
 @Composable
 fun RefileSheet(
     state: RefileUiState,
-    currentFileName: String,
-    currentDoc: OrgDocument,
+    currentFileName: String?,
+    currentDoc: OrgDocument?,
     onPickNotebook: (String) -> Unit,
     onDrillInto: (Int) -> Unit,
     onBack: () -> Unit,
@@ -60,13 +60,16 @@ fun RefileSheet(
     onConfirm: () -> Unit,
     onArchive: () -> Unit,
     onPickLastUsed: () -> Unit,
+    headerTitle: String = "Refile 1 note",
+    confirmLabel: String = "Refile here",
 ) {
     val c = MaterialTheme.grove
     val doc = state.pickedDoc
 
     // For a same-file refile, rows inside the source's own subtree are invalid targets.
+    // No exclusion at all when there's no active note (e.g. Settings' archive-location picker).
     val excluded: IntRange = remember(state.pickedFile, state.sourceLine, currentDoc) {
-        if (state.pickedFile == currentFileName) {
+        if (currentDoc != null && state.pickedFile == currentFileName) {
             currentDoc.headlineAtLine(state.sourceLine)
                 ?.let { it.lineIndex until currentDoc.subtreeEndLine(it) }
                 ?: IntRange.EMPTY
@@ -111,7 +114,7 @@ fun RefileSheet(
                 }
                 Column {
                     Text(
-                        "Refile 1 note",
+                        headerTitle,
                         fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
                         fontSize = 16.sp, color = c.ink,
                     )
@@ -189,7 +192,7 @@ fun RefileSheet(
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        "Refile here",
+                        confirmLabel,
                         fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
                         fontSize = 14.sp, color = if (enabled) c.accentInk else c.ink3,
                     )

@@ -14,6 +14,8 @@ import com.rrajath.grove.org.OrgParser
 import com.rrajath.grove.org.OrgTimestamp
 import com.rrajath.grove.settings.NotebookDisplayNameMode
 import com.rrajath.grove.sync.SyncState
+import com.rrajath.grove.vault.AutoArchive
+import com.rrajath.grove.vault.StateChangeResult
 import com.rrajath.grove.vault.Vault
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -425,16 +427,34 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
         val vault = app.vault.value ?: return
         if (headline.keyword == keyword) return
         viewModelScope.launch {
-            val (newText, newDoc) = withContext(Dispatchers.Default) {
-                val text = OrgMutations.changeKeyword(
-                    loaded.document, headline, keyword, loaded.document.keywords, LocalDateTime.now(),
+            val settings = app.settingsRepository.settings.first()
+            when (
+                val result = AutoArchive.apply(
+                    vault, settings, loaded.document, loaded.fileName, headline, keyword, LocalDateTime.now(),
                 )
-                text to OrgParser.parse(text, loaded.document.keywords)
+            ) {
+                is StateChangeResult.Plain -> {
+                    _state.value = DocumentUiState.Loaded(loaded.fileName, result.doc)
+                    vault.save(loaded.fileName, result.text)
+                    app.syncManager.requestSync("state set")
+                    showToast("State → ${keyword ?: "none"}")
+                }
+                is StateChangeResult.Archived -> {
+                    undoSnapshot = UndoSnapshot(
+                        if (result.sourceFile == result.destFile) {
+                            listOf(result.sourceFile to loaded.document.text)
+                        } else {
+                            listOf(loaded.fileName to loaded.document.text, result.destFile to result.destTextBefore)
+                        }
+                    )
+                    _focusedLine.value = null
+                    _state.value = DocumentUiState.Loaded(loaded.fileName, result.sourceDoc)
+                    vault.save(loaded.fileName, result.sourceText)
+                    if (result.destFile != loaded.fileName) vault.save(result.destFile, result.destText)
+                    app.syncManager.requestSync("state set")
+                    showSnack("Marked done. Refiled to ${result.label}")
+                }
             }
-            _state.value = DocumentUiState.Loaded(loaded.fileName, newDoc)
-            vault.save(loaded.fileName, newText)
-            app.syncManager.requestSync("state set")
-            showToast("State → ${keyword ?: "none"}")
         }
     }
 
@@ -538,17 +558,20 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
     // --- refile (design spec Gestures screen) ---
 
     fun startRefile(headline: OrgHeadline) {
-        val archiveTarget = (_state.value as? DocumentUiState.Loaded)
-            ?.let { ArchiveLocation.resolve(it.document, headline) }
-        _refile.value = RefileUiState(sourceLine = headline.lineIndex, archiveTarget = archiveTarget)
+        _refile.value = RefileUiState(sourceLine = headline.lineIndex)
         viewModelScope.launch {
             val notebooks = app.vault.value?.notebooks().orEmpty()
                 .map { RefileNotebook(it.fileName, it.noteCount) }
             val settings = app.settingsRepository.settings.first()
+            val archiveTarget = (_state.value as? DocumentUiState.Loaded)?.let {
+                ArchiveLocation.resolve(it.document, headline, AutoArchive.settingsFallback(settings))
+            }
             val lastUsedTarget = settings.lastRefileFile?.let { fileName ->
                 ArchiveTarget(fileName, settings.lastRefileHeadingPath.split('/').filter { it.isNotEmpty() })
             }
-            _refile.value = _refile.value?.copy(notebooks = notebooks, lastUsedTarget = lastUsedTarget)
+            _refile.value = _refile.value?.copy(
+                notebooks = notebooks, archiveTarget = archiveTarget, lastUsedTarget = lastUsedTarget,
+            )
         }
     }
 
@@ -637,57 +660,26 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
         syncReason: String,
         createFileIfMissing: Boolean,
     ) {
-        val label = (listOf(target.fileName.removeSuffix(".org")) + target.headingPath).joinToString(" › ")
-        if (target.fileName == loaded.fileName) {
-            val result = withContext(Dispatchers.Default) {
-                val subtree = OrgMutations.subtreeText(loaded.document, source)
-                val afterDelete = OrgParser.parse(
-                    OrgMutations.deleteSubtree(loaded.document, source),
-                    loaded.document.keywords,
-                )
-                val (docAfterPath, destHeadline) =
-                    ArchiveLocation.findOrCreateHeadingPath(afterDelete, target.headingPath)
-                val (finalText, _) = OrgMutations.refileInsert(docAfterPath, destHeadline, subtree)
-                finalText to OrgParser.parse(finalText, loaded.document.keywords)
-            }
-            undoSnapshot = UndoSnapshot(listOf(loaded.fileName to loaded.document.text))
-            _focusedLine.value = null
-            _state.value = DocumentUiState.Loaded(loaded.fileName, result.second)
-            vault.save(loaded.fileName, result.first)
-            app.syncManager.requestSync(syncReason)
-            showSnack("$verb to $label")
-        } else {
-            if (vault.open(target.fileName) == null) {
-                if (createFileIfMissing) {
-                    vault.createNotebook(target.fileName)
-                } else {
-                    showToast("Couldn't open ${target.fileName.removeSuffix(".org")}")
-                    return
-                }
-            }
-            val destDoc = vault.open(target.fileName)
-            if (destDoc == null) {
-                showToast("Couldn't open ${target.fileName.removeSuffix(".org")}")
-                return
-            }
-            val (newSourceText, newDestText, newSourceDoc) = withContext(Dispatchers.Default) {
-                val subtree = OrgMutations.subtreeText(loaded.document, source)
-                val srcText = OrgMutations.deleteSubtree(loaded.document, source)
-                val (docAfterPath, destHeadline) =
-                    ArchiveLocation.findOrCreateHeadingPath(destDoc, target.headingPath)
-                val (dstText, _) = OrgMutations.refileInsert(docAfterPath, destHeadline, subtree)
-                Triple(srcText, dstText, OrgParser.parse(srcText, loaded.document.keywords))
-            }
-            undoSnapshot = UndoSnapshot(
-                listOf(loaded.fileName to loaded.document.text, target.fileName to destDoc.text)
-            )
-            _focusedLine.value = null
-            _state.value = DocumentUiState.Loaded(loaded.fileName, newSourceDoc)
-            vault.save(loaded.fileName, newSourceText)
-            vault.save(target.fileName, newDestText)
-            app.syncManager.requestSync(syncReason)
-            showSnack("$verb to $label")
+        val write = AutoArchive.refileSubtree(vault, loaded.document, loaded.fileName, source, target, createFileIfMissing)
+        if (write == null) {
+            showToast("Couldn't open ${target.fileName.removeSuffix(".org")}")
+            return
         }
+        undoSnapshot = UndoSnapshot(
+            if (write.sourceFile == write.destFile) {
+                listOf(write.sourceFile to loaded.document.text)
+            } else {
+                listOf(loaded.fileName to loaded.document.text, write.destFile to write.destTextBefore)
+            }
+        )
+        _focusedLine.value = null
+        _state.value = DocumentUiState.Loaded(
+            loaded.fileName, OrgParser.parse(write.sourceText, loaded.document.keywords),
+        )
+        vault.save(loaded.fileName, write.sourceText)
+        if (write.destFile != loaded.fileName) vault.save(write.destFile, write.destText)
+        app.syncManager.requestSync(syncReason)
+        showSnack("$verb to ${write.label}")
     }
 
     private fun rememberRefileTarget(fileName: String, headingPath: List<String>) {

@@ -15,7 +15,10 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -45,6 +48,7 @@ import com.rrajath.grove.ui.screens.OnboardingScreen
 import com.rrajath.grove.ui.screens.OutlineDisplayFlags
 import com.rrajath.grove.ui.screens.OutlineScreen
 import com.rrajath.grove.ui.screens.ReadNoteScreen
+import com.rrajath.grove.ui.screens.RefileSheet
 import com.rrajath.grove.ui.search.SearchScreen
 import com.rrajath.grove.ui.screens.SettingsScreen
 import com.rrajath.grove.ui.screens.settings.SettingsAgendaScreen
@@ -252,41 +256,40 @@ private fun GroveNavigation(
                 ),
             ) { entry ->
                 val noteId = entry.arguments?.getString("noteId").orEmpty()
-                val mode = entry.arguments?.getString("mode") ?: "read"
                 val isNew = entry.arguments?.getString("isNew") == "true"
                 val ref = NoteRef.decode(noteId)
                 if (ref == null) {
                     navController.popBackStack()
-                } else if (mode == "edit") {
-                    EditNoteScreen(
-                        noteRef = ref,
-                        isNewNote = isNew,
-                        onBack = { navController.popBackStack() },
-                        onSwitchToRead = {
-                            navController.navigate(Routes.note(ref.encode(), "read")) {
-                                popUpTo(Routes.NOTE) { inclusive = true }
-                            }
-                        },
-                    )
                 } else {
-                    ReadNoteScreen(
-                        noteRef = ref,
-                        onBack = { navController.popBackStack() },
-                        onOpenNote = { target -> navController.navigate(Routes.note(target.encode())) },
-                        onEdit = {
-                            navController.navigate(Routes.note(ref.encode(), "edit")) {
-                                popUpTo(Routes.NOTE) { inclusive = true }
-                            }
-                        },
-                        // null (file breadcrumb) opens the full outline; a heading's
-                        // line index narrows the outline to that heading's subtree.
-                        onOpenBreadcrumb = { targetLine ->
-                            navController.navigate(Routes.outline(ref.fileName, targetLine))
-                        },
-                        showPropertyDrawers = settings.showPropertyDrawers,
-                        checklistStates = settings.checklistStates,
-                        favoriteLines = favoriteLinesFor(favorites, ref.fileName),
-                    )
+                    // Local, not a nav argument: switching read <-> edit for this
+                    // same note must not re-navigate, or it re-triggers the full-screen
+                    // enter/exit transition meant for moving between distinct screens.
+                    var mode by rememberSaveable(noteId) {
+                        mutableStateOf(entry.arguments?.getString("mode") ?: "read")
+                    }
+                    if (mode == "edit") {
+                        EditNoteScreen(
+                            noteRef = ref,
+                            isNewNote = isNew,
+                            onBack = { navController.popBackStack() },
+                            onSwitchToRead = { mode = "read" },
+                        )
+                    } else {
+                        ReadNoteScreen(
+                            noteRef = ref,
+                            onBack = { navController.popBackStack() },
+                            onOpenNote = { target -> navController.navigate(Routes.note(target.encode())) },
+                            onEdit = { mode = "edit" },
+                            // null (file breadcrumb) opens the full outline; a heading's
+                            // line index narrows the outline to that heading's subtree.
+                            onOpenBreadcrumb = { targetLine ->
+                                navController.navigate(Routes.outline(ref.fileName, targetLine))
+                            },
+                            showPropertyDrawers = settings.showPropertyDrawers,
+                            checklistStates = settings.checklistStates,
+                            favoriteLines = favoriteLinesFor(favorites, ref.fileName),
+                        )
+                    }
                 }
             }
             composable(
@@ -432,7 +435,26 @@ private fun GroveNavigation(
                     onSetChecklistStates = viewModel::setChecklistStates,
                     onSetAddId = viewModel::setAddIdToNewNotes,
                     onSetAddCreated = viewModel::setAddCreatedToNewNotes,
+                    onSetAutoArchiveDoneItems = viewModel::setAutoArchiveDoneItems,
+                    onOpenArchiveLocationPicker = viewModel::startArchiveLocationPick,
                 )
+                val archiveLocationPicker by viewModel.archiveLocationPicker.collectAsStateWithLifecycle()
+                archiveLocationPicker?.let { picker ->
+                    RefileSheet(
+                        state = picker,
+                        currentFileName = null,
+                        currentDoc = null,
+                        onPickNotebook = viewModel::archiveLocationPickNotebook,
+                        onDrillInto = viewModel::archiveLocationDrillInto,
+                        onBack = viewModel::archiveLocationBack,
+                        onCancel = viewModel::archiveLocationCancel,
+                        onConfirm = viewModel::archiveLocationConfirm,
+                        onArchive = {},
+                        onPickLastUsed = {},
+                        headerTitle = "Set archive location",
+                        confirmLabel = "Set as archive location",
+                    )
+                }
             }
             composable(Routes.SETTINGS_AGENDA) {
                 SettingsAgendaScreen(

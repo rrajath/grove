@@ -56,6 +56,12 @@ data class GroveSettings(
     val lastRefileFile: String? = null,
     /** '/'-separated heading path within [lastRefileFile]; empty = top level. */
     val lastRefileHeadingPath: String = "",
+    /** Auto-refile a task to [autoArchiveFile] the moment it's marked with a done-type keyword. */
+    val autoArchiveDoneItems: Boolean = false,
+    /** Fallback archive destination used when a heading has no `ARCHIVE` property/keyword of its own. */
+    val autoArchiveFile: String? = null,
+    /** '/'-separated heading path within [autoArchiveFile]; empty = top level. */
+    val autoArchiveHeadingPath: String = "",
     /** Read mode: how many states tapping a checklist item cycles through. */
     val checklistStates: ChecklistStates = ChecklistStates.TWO,
     /** SCHEDULED/DEADLINE reminder notifications (see `reminders` package). */
@@ -109,6 +115,9 @@ class SettingsRepository(private val context: Context) {
         val notebookDisplayNameMode = stringPreferencesKey("notebook_display_name_mode")
         val lastRefileFile = stringPreferencesKey("last_refile_file")
         val lastRefileHeadingPath = stringPreferencesKey("last_refile_heading_path")
+        val autoArchiveDoneItems = booleanPreferencesKey("auto_archive_done_items")
+        val autoArchiveFile = stringPreferencesKey("auto_archive_file")
+        val autoArchiveHeadingPath = stringPreferencesKey("auto_archive_heading_path")
         val checklistStates = stringPreferencesKey("checklist_states")
         val remindersEnabled = booleanPreferencesKey("reminders_enabled")
         val morningBriefEnabled = booleanPreferencesKey("morning_brief_enabled")
@@ -149,6 +158,9 @@ class SettingsRepository(private val context: Context) {
             notebookDisplayNameMode = NotebookDisplayNameMode.fromStorage(prefs[Keys.notebookDisplayNameMode]),
             lastRefileFile = prefs[Keys.lastRefileFile],
             lastRefileHeadingPath = prefs[Keys.lastRefileHeadingPath] ?: "",
+            autoArchiveDoneItems = prefs[Keys.autoArchiveDoneItems] ?: false,
+            autoArchiveFile = prefs[Keys.autoArchiveFile],
+            autoArchiveHeadingPath = prefs[Keys.autoArchiveHeadingPath] ?: "",
             checklistStates = ChecklistStates.fromStorage(prefs[Keys.checklistStates]),
             remindersEnabled = prefs[Keys.remindersEnabled] ?: true,
             morningBriefEnabled = prefs[Keys.morningBriefEnabled] ?: true,
@@ -229,6 +241,10 @@ class SettingsRepository(private val context: Context) {
             p[Keys.agendaStateFilter] = s.agendaStateFilter.storageKey
             p[Keys.agendaShowTags] = s.agendaShowTags
             p[Keys.agendaShowFile] = s.agendaShowFile
+            p[Keys.autoArchiveDoneItems] = s.autoArchiveDoneItems
+            if (s.autoArchiveFile == null) p.remove(Keys.autoArchiveFile)
+            else p[Keys.autoArchiveFile] = s.autoArchiveFile
+            p[Keys.autoArchiveHeadingPath] = s.autoArchiveHeadingPath
         }
     }
 
@@ -359,6 +375,17 @@ class SettingsRepository(private val context: Context) {
         context.settingsDataStore.edit { prefs ->
             prefs[Keys.lastRefileFile] = fileName
             prefs[Keys.lastRefileHeadingPath] = headingPath.joinToString("/")
+        }
+    }
+
+    suspend fun setAutoArchiveDoneItems(enabled: Boolean) {
+        context.settingsDataStore.edit { it[Keys.autoArchiveDoneItems] = enabled }
+    }
+
+    suspend fun setAutoArchiveLocation(fileName: String, headingPath: List<String>) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[Keys.autoArchiveFile] = fileName
+            prefs[Keys.autoArchiveHeadingPath] = headingPath.joinToString("/")
         }
     }
 

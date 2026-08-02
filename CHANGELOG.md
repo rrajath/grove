@@ -28,6 +28,22 @@ updated and push.
 
 ## [Unreleased]
 
+### Added
+- Settings § Notes: "Auto-archive done items?" — marking a task with any done-type keyword
+  (not just `DONE`) now refiles it automatically, resolved the same way org resolves
+  `ARCHIVE`: the heading's own property, its nearest ancestor's, the file's `#+ARCHIVE:`
+  keyword, then a new Settings-configured fallback location (picked via the same drill-down
+  picker as manual refile). Works identically from the Outline swipe, Agenda, Search, and
+  edit mode, with a "Marked done. Refiled to `<location>`" snackbar and Undo
+- Edit mode's metadata sheet gained an "+ Add note" action, logging free text into the
+  heading's LOGBOOK drawer the same way the Outline's "Note" swipe action does
+
+### Changed
+- Edit mode's Schedule and Deadline are now one combined row instead of two, opening the
+  same dual-date picker already used for both
+- Switching a note between read and edit mode is now instantaneous; the full-screen
+  transition now only plays when actually navigating to a different note
+
 ## [1.0.155] - 2026-08-01
 
 ### Fixed

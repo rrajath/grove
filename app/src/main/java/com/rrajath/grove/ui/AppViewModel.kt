@@ -21,7 +21,11 @@ import com.rrajath.grove.settings.SettingsRepository
 import com.rrajath.grove.settings.SettingsSerialization
 import com.rrajath.grove.settings.SyncMode
 import com.rrajath.grove.settings.ThemePreference
+import com.rrajath.grove.ui.vault.RefileNotebook
+import com.rrajath.grove.ui.vault.RefileUiState
+import com.rrajath.grove.ui.vault.headlineAtLine
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.filterNotNull
@@ -162,6 +166,59 @@ class AppViewModel(private val app: GroveApplication) : ViewModel() {
 
     fun setChecklistStates(states: ChecklistStates) =
         viewModelScope.launch { settingsRepository.setChecklistStates(states) }
+
+    fun setAutoArchiveDoneItems(enabled: Boolean) =
+        viewModelScope.launch { settingsRepository.setAutoArchiveDoneItems(enabled) }
+
+    // --- archive location picker (Settings § Notes): same drill-down flow as RefileSheet,
+    // just picking a default destination instead of moving an actual note. ---
+
+    private val _archiveLocationPicker = MutableStateFlow<RefileUiState?>(null)
+    val archiveLocationPicker: StateFlow<RefileUiState?> = _archiveLocationPicker
+
+    fun startArchiveLocationPick() {
+        _archiveLocationPicker.value = RefileUiState(sourceLine = -1)
+        viewModelScope.launch {
+            val notebooks = app.vault.value?.notebooks().orEmpty()
+                .map { RefileNotebook(it.fileName, it.noteCount) }
+            _archiveLocationPicker.value = _archiveLocationPicker.value?.copy(notebooks = notebooks)
+        }
+    }
+
+    fun archiveLocationPickNotebook(fileName: String) {
+        viewModelScope.launch {
+            val doc = app.vault.value?.open(fileName)
+            if (doc == null) {
+                toast("Couldn't open ${fileName.removeSuffix(".org")}")
+                return@launch
+            }
+            _archiveLocationPicker.value =
+                _archiveLocationPicker.value?.copy(pickedFile = fileName, pickedDoc = doc, path = emptyList())
+        }
+    }
+
+    fun archiveLocationDrillInto(line: Int) {
+        _archiveLocationPicker.value = _archiveLocationPicker.value?.let { it.copy(path = it.path + line) }
+    }
+
+    fun archiveLocationBack() {
+        _archiveLocationPicker.value = _archiveLocationPicker.value?.let {
+            if (it.path.isNotEmpty()) it.copy(path = it.path.dropLast(1))
+            else it.copy(pickedFile = null, pickedDoc = null)
+        }
+    }
+
+    fun archiveLocationCancel() {
+        _archiveLocationPicker.value = null
+    }
+
+    fun archiveLocationConfirm() {
+        val picker = _archiveLocationPicker.value ?: return
+        val fileName = picker.pickedFile ?: return
+        val headingPath = picker.path.mapNotNull { picker.pickedDoc?.headlineAtLine(it)?.title }
+        _archiveLocationPicker.value = null
+        viewModelScope.launch { settingsRepository.setAutoArchiveLocation(fileName, headingPath) }
+    }
 
     fun setRemindersEnabled(enabled: Boolean) =
         viewModelScope.launch { settingsRepository.setRemindersEnabled(enabled) }

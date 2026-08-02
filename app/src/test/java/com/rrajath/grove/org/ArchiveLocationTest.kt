@@ -84,9 +84,33 @@ class ArchiveLocationTest {
     }
 
     @Test
-    fun `resolve returns null when no ARCHIVE is set anywhere`() {
+    fun `resolve returns null when no ARCHIVE is set anywhere and no fallback is given`() {
         val doc = OrgParser.parse("* Lone heading\n")
         assertNull(ArchiveLocation.resolve(doc, doc.findByTitle("Lone heading")!!))
+    }
+
+    @Test
+    fun `resolve uses the settings fallback only when the doc chain names nothing`() {
+        val fallback = ArchiveTarget("default-archive.org", listOf("Done"))
+
+        val bare = OrgParser.parse("* Lone heading\n")
+        assertEquals(
+            fallback,
+            ArchiveLocation.resolve(bare, bare.findByTitle("Lone heading")!!, fallback),
+        )
+
+        val ownProperty = OrgParser.parse(
+            """
+            * Heading
+            :PROPERTIES:
+            :ARCHIVE: ./own.org::* Own Bucket
+            :END:
+            """.trimIndent() + "\n"
+        )
+        assertEquals(
+            ArchiveTarget("own.org", listOf("Own Bucket")),
+            ArchiveLocation.resolve(ownProperty, ownProperty.findByTitle("Heading")!!, fallback),
+        )
     }
 
     @Test

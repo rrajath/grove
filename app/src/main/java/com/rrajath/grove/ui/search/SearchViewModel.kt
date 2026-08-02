@@ -22,16 +22,21 @@ import com.rrajath.grove.search.QueryParser
 import com.rrajath.grove.search.SavedSearch
 import com.rrajath.grove.search.SearchQuery
 import com.rrajath.grove.search.Snippets
+import com.rrajath.grove.ui.vault.OutlineSnack
 import com.rrajath.grove.ui.vault.factory
 import com.rrajath.grove.ui.vault.headlineAtLine
+import com.rrajath.grove.vault.AutoArchive
+import com.rrajath.grove.vault.StateChangeResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -157,6 +162,32 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
     private val _state = MutableStateFlow(SearchUiState())
     val state: StateFlow<SearchUiState> = _state
 
+    private val _snack = MutableStateFlow<OutlineSnack?>(null)
+    val snack: StateFlow<OutlineSnack?> = _snack
+    private var eventId = 0L
+    private var undoSnapshot: List<Pair<String, String>>? = null
+
+    private fun showSnack(message: String) {
+        val s = OutlineSnack(message, ++eventId)
+        _snack.value = s
+        viewModelScope.launch {
+            delay(4200)
+            if (_snack.value?.id == s.id) _snack.value = null
+        }
+    }
+
+    /** Reverts the auto-archive move (state change + refile) from the most recent [setState]. */
+    fun undo() {
+        val snap = undoSnapshot ?: return
+        undoSnapshot = null
+        _snack.value = null
+        viewModelScope.launch {
+            val vault = app.vault.value ?: return@launch
+            snap.forEach { (name, text) -> vault.save(name, text) }
+            app.syncManager.requestSync("search undo")
+        }
+    }
+
     val savedSearches: StateFlow<List<SavedSearch>> = app.searchRepository.savedSearches
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
@@ -261,11 +292,26 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
             val doc = vault.open(fileName) ?: return@launch
             val headline = doc.headlineAtLine(lineIndex) ?: return@launch
             if (headline.keyword == keyword) return@launch
-            val newText = withContext(Dispatchers.Default) {
-                OrgMutations.changeKeyword(doc, headline, keyword, doc.keywords, LocalDateTime.now())
+            val settings = app.settingsRepository.settings.first()
+            when (
+                val result = AutoArchive.apply(vault, settings, doc, fileName, headline, keyword, LocalDateTime.now())
+            ) {
+                is StateChangeResult.Plain -> {
+                    vault.save(fileName, result.text)
+                    app.syncManager.requestSync("search state set")
+                }
+                is StateChangeResult.Archived -> {
+                    undoSnapshot = if (result.sourceFile == result.destFile) {
+                        listOf(result.sourceFile to doc.text)
+                    } else {
+                        listOf(fileName to doc.text, result.destFile to result.destTextBefore)
+                    }
+                    vault.save(fileName, result.sourceText)
+                    if (result.destFile != fileName) vault.save(result.destFile, result.destText)
+                    app.syncManager.requestSync("search state set")
+                    showSnack("Marked done. Refiled to ${result.label}")
+                }
             }
-            vault.save(fileName, newText)
-            app.syncManager.requestSync("search state set")
         }
     }
 

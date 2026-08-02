@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -25,7 +24,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
@@ -35,6 +33,7 @@ import com.rrajath.grove.org.OrgTimestamp
 import com.rrajath.grove.org.PlanningKind
 import com.rrajath.grove.ui.components.PlanningDatesScreen
 import com.rrajath.grove.ui.components.Pill
+import com.rrajath.grove.ui.screens.NoteDialog
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
@@ -54,7 +53,8 @@ fun MetadataSheet(
     // a chip mutates state: reading state.buffer here (not the off-band
     // viewModel.currentHeadline) is what subscribes this scope to the change.
     val headline = remember(state.buffer, state.keywords) { viewModel.currentHeadline }
-    var datePickerFor by remember { mutableStateOf<String?>(null) }
+    var planningOpen by remember { mutableStateOf(false) }
+    var noteDialogOpen by remember { mutableStateOf(false) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -129,35 +129,51 @@ fun MetadataSheet(
                 }
             }
 
-            SheetLabel("Planning")
-            PlanningRow(
-                label = "SCHEDULED",
-                value = headline?.planning?.scheduled,
-                color = c.blue,
-                onPick = { datePickerFor = "scheduled" },
-                onClear = { viewModel.setScheduled(null) },
+            SheetLabel("Schedule/Deadline")
+            CombinedPlanningRow(
+                scheduled = headline?.planning?.scheduled,
+                deadline = headline?.planning?.deadline,
+                onPick = { planningOpen = true },
             )
-            Spacer(Modifier.height(8.dp))
-            PlanningRow(
-                label = "DEADLINE",
-                value = headline?.planning?.deadline,
-                color = c.red,
-                onPick = { datePickerFor = "deadline" },
-                onClear = { viewModel.setDeadline(null) },
+
+            Spacer(Modifier.height(16.dp))
+            Text(
+                "+ Add note",
+                fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
+                fontSize = 13.sp, color = c.accent,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable { noteDialogOpen = true }
+                    .padding(vertical = 6.dp),
             )
         }
     }
 
-    datePickerFor?.let { target ->
+    if (planningOpen) {
+        val scheduled = headline?.planning?.scheduled
+        val deadline = headline?.planning?.deadline
         PlanningDatesScreen(
             title = headline?.title.orEmpty(),
-            scheduled = headline?.planning?.scheduled,
-            deadline = headline?.planning?.deadline,
-            focus = if (target == "scheduled") PlanningKind.SCHEDULED else PlanningKind.DEADLINE,
-            onDismiss = { datePickerFor = null },
+            scheduled = scheduled,
+            deadline = deadline,
+            // Opens on whichever field is more relevant: the unset one when only
+            // one of the two is set, otherwise SCHEDULED.
+            focus = if (scheduled == null && deadline != null) PlanningKind.DEADLINE else PlanningKind.SCHEDULED,
+            onDismiss = { planningOpen = false },
             onConfirm = { sched, dead ->
                 viewModel.setPlanningDates(sched, dead)
-                datePickerFor = null
+                planningOpen = false
+            },
+        )
+    }
+
+    if (noteDialogOpen) {
+        NoteDialog(
+            title = headline?.title.orEmpty(),
+            onDismiss = { noteDialogOpen = false },
+            onConfirm = { note ->
+                viewModel.addNote(note)
+                noteDialogOpen = false
             },
         )
     }
@@ -200,46 +216,44 @@ private fun StateChip(
     }
 }
 
+/** Combined SCHEDULED/DEADLINE summary: both values (blue/red) in one tappable pill. */
 @Composable
-private fun PlanningRow(
-    label: String,
-    value: OrgTimestamp?,
-    color: androidx.compose.ui.graphics.Color,
+private fun CombinedPlanningRow(
+    scheduled: OrgTimestamp?,
+    deadline: OrgTimestamp?,
     onPick: () -> Unit,
-    onClear: () -> Unit,
 ) {
     val c = MaterialTheme.grove
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(
-            label,
-            fontFamily = PlexMono, fontWeight = FontWeight.SemiBold,
-            fontSize = 12.sp, color = color,
-            modifier = Modifier.width(96.dp),
-        )
-        Box(
-            Modifier
-                .clip(RoundedCornerShape(8.dp))
-                .background(c.surface2)
-                .clickable(onClick = onPick)
-                .padding(horizontal = 10.dp, vertical = 7.dp)
-                .wrapContentWidth(),
-        ) {
-            Text(
-                value?.format() ?: "set date…",
-                fontFamily = PlexMono, fontSize = 12.5.sp,
-                color = if (value != null) c.ink else c.ink3,
-            )
-        }
-        if (value != null) {
-            Spacer(Modifier.width(8.dp))
-            Text(
-                "✕",
-                fontFamily = PlexMono, fontSize = 12.sp, color = c.ink3,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(6.dp))
-                    .clickable(onClick = onClear)
-                    .padding(6.dp),
-            )
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(c.surface2)
+            .clickable(onClick = onPick)
+            .padding(horizontal = 10.dp, vertical = 9.dp),
+    ) {
+        if (scheduled == null && deadline == null) {
+            Text("set date…", fontFamily = PlexMono, fontSize = 12.5.sp, color = c.ink3)
+        } else {
+            Row {
+                scheduled?.let {
+                    Text(
+                        "SCHED " + it.format(),
+                        fontFamily = PlexMono, fontWeight = FontWeight.SemiBold,
+                        fontSize = 12.5.sp, color = c.blue,
+                    )
+                }
+                if (scheduled != null && deadline != null) {
+                    Spacer(Modifier.width(12.dp))
+                }
+                deadline?.let {
+                    Text(
+                        "DUE " + it.format(),
+                        fontFamily = PlexMono, fontWeight = FontWeight.SemiBold,
+                        fontSize = 12.5.sp, color = c.red,
+                    )
+                }
+            }
         }
     }
 }

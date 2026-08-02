@@ -789,6 +789,36 @@ everything else in the sheet: 12dp radius, filled `accentSoft` (vs. the plain-li
 refiles immediately (no drill-down/confirm step) via `DocumentViewModel.refileToArchive()`,
 auto-creating the destination file and/or any missing heading in its path.
 
+**Settings reuse**: `RefileSheet` also drives Settings § Notes' "Archive location" picker (the
+Auto-archive done items fallback) — `currentFileName`/`currentDoc` are nullable (no source-
+subtree exclusion when there's no active note) and `headerTitle`/`confirmLabel` are overridable
+("Set archive location" / "Set as archive location" there vs. "Refile 1 note" / "Refile here"
+elsewhere). `ArchiveRow`/`LastUsedRow` simply don't render when the caller's `RefileUiState`
+leaves `archiveTarget`/`lastUsedTarget` null, so the Settings invocation needs no other change.
+
+---
+
+### `MetadataSheet`: `ui/editor/MetadataSheet.kt`
+
+Edit mode's `ModalBottomSheet` (design spec §5.2; 24dp top radius, `surface` bg), opened from
+the top bar's `☰` icon. Sections, each preceded by a `SheetLabel` (PlexSans SemiBold 12sp,
+1sp letter-spacing, `accent`): State (chips, `none` + every configured keyword, done-type
+keywords tint `green`/`greenSoft`, others `amber`/`amberSoft`), Priority (`none`/`#A`/`#B`/`#C`
+chips), Tags (`OutlinedTextField` + autocomplete `Pill` row), **Schedule/Deadline**, then
+**+ Add note**.
+
+**Schedule/Deadline row**: a single 8dp-radius `surface2` pill (was two separate SCHEDULED/
+DEADLINE rows) showing both values inline — `SCHED <date>` in `blue`, `DUE <date>` in `red`,
+12dp gap between when both are set, `set date…` `ink3` placeholder when neither is. Tapping
+opens `PlanningDatesScreen` (unchanged) focused on whichever of the two is unset, or SCHEDULED
+when both/neither are — the screen itself already edits both dates on one canvas, so one entry
+point is enough.
+
+**+ Add note**: PlexSans SemiBold 13sp `accent` text action below the planning row; opens the
+same `NoteDialog` (`ui/screens/OutlineScreen.kt`, org's `C-c C-z`) as the Outline's "Note" swipe
+action, logging free text into the edited heading's `:LOGBOOK:` drawer via the new
+`EditorViewModel.addNote`.
+
 ---
 
 ### `StructureCommandBar`: `ui/screens/OutlineScreen.kt` (private)
