@@ -384,11 +384,7 @@ private fun NoteContent(
                     )
                     if (headline.lineIndex in favoriteLines) {
                         Spacer(Modifier.width(8.dp))
-                        // "★" carries right-side bearing from its own glyph
-                        // metrics, so a plain end-aligned Text sits visibly
-                        // left of the property drawer's flush right edge below
-                        // it, nudge right to compensate.
-                        FavoriteStar(modifier = Modifier.padding(top = 8.dp).offset(x = 3.dp))
+                        FavoriteStar(modifier = Modifier.padding(top = 6.dp), size = 24.dp)
                     }
                 }
 

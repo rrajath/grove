@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
@@ -30,6 +31,7 @@ import androidx.compose.ui.unit.sp
 import com.rrajath.grove.data.FavoriteNote
 import com.rrajath.grove.search.SavedSearch
 import com.rrajath.grove.ui.components.BrandMark
+import com.rrajath.grove.ui.components.favoriteIcon
 import com.rrajath.grove.ui.nav.Routes
 import com.rrajath.grove.ui.theme.GroveLightColors
 import com.rrajath.grove.ui.theme.PlexMono
@@ -84,7 +86,7 @@ fun GroveDrawerContent(
         if (favorites.isNotEmpty()) {
             SectionLabel("FAVORITES")
             favorites.forEach { fav ->
-                DrawerItem("★", fav.title, active = false) {
+                DrawerItem(icon = favoriteIcon(), label = fav.title, active = false) {
                     onNavigate(Routes.note(NoteRef(fav.fileName, fav.lineIndex).encode()))
                 }
             }
@@ -136,9 +138,10 @@ private fun SectionLabel(text: String) {
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 private fun DrawerItem(
-    glyph: String,
+    glyph: String? = null,
     label: String,
     active: Boolean,
+    icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
     onLongClick: (() -> Unit)? = null,
     onClick: () -> Unit,
 ) {
@@ -154,7 +157,16 @@ private fun DrawerItem(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(Modifier.width(30.dp)) {
-            Text(glyph, fontFamily = PlexMono, fontSize = 18.sp, color = if (active) c.accent else c.ink2)
+            if (icon != null) {
+                androidx.compose.material3.Icon(
+                    icon,
+                    contentDescription = null,
+                    tint = if (active) c.accent else c.ink2,
+                    modifier = Modifier.size(24.dp),
+                )
+            } else {
+                Text(glyph.orEmpty(), fontFamily = PlexMono, fontSize = 18.sp, color = if (active) c.accent else c.ink2)
+            }
         }
         Text(
             label,

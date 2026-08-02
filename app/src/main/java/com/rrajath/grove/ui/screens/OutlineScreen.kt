@@ -83,6 +83,7 @@ import com.rrajath.grove.ui.components.StatePickerSheet
 import com.rrajath.grove.ui.components.SwipeAction
 import com.rrajath.grove.ui.components.SwipeRevealRow
 import com.rrajath.grove.ui.components.annotateOrgInline
+import com.rrajath.grove.ui.components.favoriteIcon
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
@@ -438,7 +439,13 @@ fun OutlineScreen(
                                     ) {
                                         noteDialogFor = h.lineIndex
                                     },
-                                    SwipeAction("★", "Fav", c.accent, c.accentSoft, onClick = toggleFavorite),
+                                    SwipeAction(
+                                        label = "Fav",
+                                        fg = c.accent,
+                                        bg = c.accentSoft,
+                                        icon = favoriteIcon(),
+                                        onClick = toggleFavorite,
+                                    ),
                                 ),
                                 // Left-swipe panel: insert above / below / sub-note / refile.
                                 rightActions = listOf(

@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -36,10 +37,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.rrajath.grove.R
 import com.rrajath.grove.settings.ThemePreference
 import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
@@ -77,15 +81,29 @@ fun Pill(
     }
 }
 
-/** Amber ★ marking a favorited heading (outline rows, read-mode headings). */
+/** The outline star icon (design/icons/star.svg) used for favorites, tinted per call site. */
 @Composable
-fun FavoriteStar(modifier: Modifier = Modifier) {
-    Text(
-        "★",
-        fontFamily = PlexSans,
-        fontSize = 12.sp,
-        color = MaterialTheme.grove.amber,
-        modifier = modifier,
+fun favoriteIcon(): ImageVector = ImageVector.vectorResource(id = R.drawable.ic_star)
+
+/** Solid variant of [favoriteIcon], used where the star must read as filled rather than outlined. */
+@Composable
+fun favoriteIconFilled(): ImageVector = ImageVector.vectorResource(id = R.drawable.ic_star_filled)
+
+/**
+ * Amber filled star marking a favorited heading (outline rows, read-mode headings).
+ *
+ * The star glyph sits centered in its icon box with ~28.75% empty margin on each
+ * side (it doesn't touch the box's own edges), so a plain end-aligned icon reads as
+ * short of a flush right edge (e.g. the property drawer below it); nudge right by
+ * that margin to compensate.
+ */
+@Composable
+fun FavoriteStar(modifier: Modifier = Modifier, size: Dp = 24.dp) {
+    Icon(
+        favoriteIconFilled(),
+        contentDescription = null,
+        tint = MaterialTheme.grove.amber,
+        modifier = modifier.size(size).offset(x = size * 0.2875f),
     )
 }
 

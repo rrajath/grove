@@ -49,16 +49,18 @@ fun SettingsNotesScreen(
         mutableStateOf(settings.todoKeywords)
     }
 
-    // Apply a pending TODO-keywords edit on leave so back doesn't drop it.
-    fun leave() {
-        if (keywordsText != settings.todoKeywords && keywordsText.isNotBlank()) {
-            onSetTodoKeywords(keywordsText)
+    // Apply a pending TODO-keywords edit when the screen leaves composition, however that
+    // happens, so back doesn't drop it. A BackHandler would work too but steals the whole
+    // predictive-back gesture from NavHost, breaking the previous screen's preview animation.
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        onDispose {
+            if (keywordsText != settings.todoKeywords && keywordsText.isNotBlank()) {
+                onSetTodoKeywords(keywordsText)
+            }
         }
-        onBack()
     }
-    androidx.activity.compose.BackHandler { leave() }
 
-    SettingsPageScaffold(title = "Notes", onBack = ::leave) {
+    SettingsPageScaffold(title = "Notes", onBack = onBack) {
         SettingsGroup {
             Column(Modifier.padding(horizontal = 15.dp, vertical = 10.dp)) {
                 Text(

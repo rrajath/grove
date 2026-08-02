@@ -28,6 +28,20 @@ updated and push.
 
 ## [Unreleased]
 
+### Changed
+- Favorites now use a dedicated star icon instead of the plain "★" character: filled amber
+  in read mode and the outline row indicator, outlined to match the existing color scheme
+  in the sidebar and the outline swipe row
+
+### Fixed
+- Back gesture on Settings § Notes and § Sharing now shows the previous screen fading in
+  like every other screen instead of fading to blank — a `BackHandler` there was silently
+  swallowing the predictive-back gesture before `NavHost` could animate it
+- The favorites star in read mode now aligns flush with the property drawer's right edge
+  below it
+- Read mode's metadata sheet now shows "SCHEDULED"/"DEADLINE" instead of the abbreviated
+  "SCHED"/"DUE"
+
 ## [1.0.162] - 2026-08-02
 
 ### Fixed

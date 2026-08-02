@@ -246,7 +246,7 @@ private fun CombinedPlanningRow(
             Column {
                 scheduled?.let {
                     Text(
-                        "SCHED " + it.format(),
+                        "SCHEDULED " + it.format(),
                         fontFamily = PlexMono, fontWeight = FontWeight.SemiBold,
                         fontSize = 12.5.sp, color = c.blue,
                     )
@@ -256,7 +256,7 @@ private fun CombinedPlanningRow(
                 }
                 deadline?.let {
                     Text(
-                        "DUE " + it.format(),
+                        "DEADLINE " + it.format(),
                         fontFamily = PlexMono, fontWeight = FontWeight.SemiBold,
                         fontSize = 12.5.sp, color = c.red,
                     )

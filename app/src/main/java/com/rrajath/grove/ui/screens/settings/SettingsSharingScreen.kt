@@ -33,16 +33,18 @@ fun SettingsSharingScreen(
         mutableStateOf(settings.shareTargetFile)
     }
 
-    // Apply a pending share-target edit on leave so back doesn't drop it.
-    fun leave() {
-        if (shareFileText != settings.shareTargetFile && shareFileText.isNotBlank()) {
-            onSetShareTargetFile(shareFileText)
+    // Apply a pending share-target edit when the screen leaves composition, however that
+    // happens, so back doesn't drop it. A BackHandler would work too but steals the whole
+    // predictive-back gesture from NavHost, breaking the previous screen's preview animation.
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        onDispose {
+            if (shareFileText != settings.shareTargetFile && shareFileText.isNotBlank()) {
+                onSetShareTargetFile(shareFileText)
+            }
         }
-        onBack()
     }
-    androidx.activity.compose.BackHandler { leave() }
 
-    SettingsPageScaffold(title = "Sharing", onBack = ::leave) {
+    SettingsPageScaffold(title = "Sharing", onBack = onBack) {
         SettingsGroup {
             Column(Modifier.padding(horizontal = 15.dp, vertical = 10.dp)) {
                 Text(
