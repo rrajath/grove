@@ -343,6 +343,12 @@ in a run of mono chips rather than standing alone as an affordance.
 | Resource | Usage |
 |---|---|
 | `R.drawable.ic_pin` | Pin icon on notebook rows (favorites / pinned state) |
+| `R.drawable.ic_check_box` | Checkbox glyph on the editor formatting toolbar (inserts `- [ ] `) |
+| `R.drawable.ic_format_bold` | Bold glyph on the editor formatting toolbar (wraps selection in `*`) |
+| `R.drawable.ic_format_italic` | Italic glyph on the editor formatting toolbar (wraps selection in `/`) |
+| `R.drawable.ic_format_underlined` | Underline glyph on the editor formatting toolbar (wraps selection in `_`) |
+| `R.drawable.ic_code` | Code glyph on the editor formatting toolbar (wraps selection in `~`) |
+| `R.drawable.ic_note` | "Note" swipe action, Outline's swipe-reveal row and Agenda's swipe-to-commit row |
 | `R.drawable.ic_shortcut_journal` | Launcher shortcut: Journal Entry |
 | `R.drawable.ic_shortcut_quick_note` | Launcher shortcut: Quick Note |
 | `R.drawable.ic_launcher_foreground` | Adaptive icon foreground (asterisk mark) |

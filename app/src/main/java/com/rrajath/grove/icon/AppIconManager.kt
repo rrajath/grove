@@ -75,15 +75,31 @@ object AppIconManager {
         if (enabled) THEME_ALIASES[theme] ?: DEFAULT_ALIAS else DEFAULT_ALIAS
 
     /**
-     * The launcher-alias [ComponentName] that is (or is about to become) the
-     * enabled `LAUNCHER` component for a given (enabled, theme) pair. Dynamic
-     * shortcuts must bind to this via `ShortcutInfoCompat.Builder.setActivity`;
-     * omitting it makes a shortcut resolve against whichever alias happens
-     * to be enabled at publish time, which silently drops the shortcut off
-     * the launcher the next time [applyIcon] switches the enabled alias.
+     * The launcher-alias [ComponentName] that is *actually* enabled right
+     * now. Dynamic shortcuts must bind to this via
+     * `ShortcutInfoCompat.Builder.setActivity`; binding to the alias a
+     * pending theme change will switch to (rather than the one currently
+     * enabled) makes `ShortcutManagerCompat.setDynamicShortcuts` throw
+     * `IllegalStateException: ... is not main activity`, since [applyIcon]
+     * runs later (deferred to ON_STOP — see GroveApp.kt) and hasn't enabled
+     * that alias yet.
      */
-    fun targetAliasComponent(context: Context, enabled: Boolean, theme: ThemePreference): ComponentName =
-        ComponentName(context.packageName, "$MANIFEST_PACKAGE${targetAlias(enabled, theme)}")
+    fun currentAliasComponent(context: Context): ComponentName {
+        val pm = context.packageManager
+        val enabledAlias = ALL_ALIASES.firstOrNull { alias ->
+            val state = pm.getComponentEnabledSetting(
+                ComponentName(context.packageName, "$MANIFEST_PACKAGE$alias"),
+            )
+            when (state) {
+                PackageManager.COMPONENT_ENABLED_STATE_ENABLED -> true
+                PackageManager.COMPONENT_ENABLED_STATE_DISABLED -> false
+                // COMPONENT_ENABLED_STATE_DEFAULT: fall back to the manifest's
+                // android:enabled, which is true only for DEFAULT_ALIAS.
+                else -> alias == DEFAULT_ALIAS
+            }
+        } ?: DEFAULT_ALIAS
+        return ComponentName(context.packageName, "$MANIFEST_PACKAGE$enabledAlias")
+    }
 
     /**
      * Enables the alias matching [theme] when [enabled] is true (icon follows

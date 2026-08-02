@@ -37,10 +37,13 @@ object ShortcutSyncer {
         val bg = colors.accent.toArgb()
         val fg = colors.accentInk.toArgb()
         val max = ShortcutManagerCompat.getMaxShortcutCountPerActivity(context).takeIf { it > 0 } ?: 4
-        // Bind explicitly to the alias that owns the launcher slot right now
-        // (or is about to, if this sync races AppIconManager.applyIcon at
-        // ON_STOP) so the shortcuts stay attached to it after the switch.
-        val ownerAlias = AppIconManager.targetAliasComponent(context, iconThemed, theme)
+        // Bind explicitly to whichever alias actually owns the launcher slot
+        // right now. A pending theme change hasn't switched it yet (that
+        // happens later, at ON_STOP), so binding to the *target* alias here
+        // makes ShortcutManagerCompat reject the publish. GroveApp.kt's
+        // ON_STOP handler re-syncs against the new alias right after
+        // AppIconManager.applyIcon actually enables it.
+        val ownerAlias = AppIconManager.currentAliasComponent(context)
         val shortcuts = templates.take(max).map { toShortcut(context, it, bg, fg, ownerAlias) }
         ShortcutManagerCompat.setDynamicShortcuts(context, shortcuts)
     }

@@ -34,6 +34,8 @@ updated and push.
 - Favorites now use a dedicated star icon instead of the plain "★" character: filled amber
   in read mode and the outline row indicator, outlined to match the existing color scheme
   in the sidebar and the outline swipe row
+- The "Note" swipe action on Outline's swipe-reveal row and Agenda's swipe-to-commit row now
+  uses a custom `ic_note` drawable instead of the Material `EditNote` icon
 
 ### Fixed
 - Back gesture on Settings § Notes and § Sharing now shows the previous screen fading in
@@ -43,6 +45,10 @@ updated and push.
   below it
 - Read mode's metadata sheet now shows "SCHEDULED"/"DEADLINE" instead of the abbreviated
   "SCHED"/"DUE"
+- Fixed a crash when changing the theme in Settings with "Sync app icon with theme" on:
+  launcher shortcuts were republished against the icon alias for the *new* theme before
+  `AppIconManager` had actually enabled it (that switch is deferred to when the app
+  backgrounds), so `ShortcutManagerCompat` rejected the publish with "is not main activity"
 
 ## [1.0.162] - 2026-08-02
 

@@ -29,7 +29,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.outlined.CalendarMonth
-import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -47,6 +46,8 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
@@ -54,6 +55,7 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.rrajath.grove.R
 import com.rrajath.grove.org.OrgTimestamp
 import com.rrajath.grove.org.PlanningKind
 import com.rrajath.grove.settings.AgendaGrouping
@@ -732,6 +734,7 @@ private fun swipeActionFor(
  * swipe still commits Done directly. Any other configured action gets no
  * secondary (null), so its side keeps the plain swipe-to-commit behavior.
  */
+@Composable
 private fun addNoteAction(
     kind: AgendaSwipeAction,
     row: AgendaRow,
@@ -739,7 +742,12 @@ private fun addNoteAction(
     onOpenNoteDialog: (AgendaRow) -> Unit,
 ): SwipeAction? = when (kind) {
     AgendaSwipeAction.MARK_DONE ->
-        SwipeAction(label = "Note", fg = c.blue, bg = c.blueSoft, icon = Icons.Outlined.EditNote) {
+        SwipeAction(
+            label = "Note",
+            fg = c.blue,
+            bg = c.blueSoft,
+            icon = ImageVector.vectorResource(id = R.drawable.ic_note),
+        ) {
             onOpenNoteDialog(row)
         }
     else -> null

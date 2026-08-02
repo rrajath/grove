@@ -414,7 +414,7 @@ private fun DatetreeBreadcrumb(template: CaptureTemplate, today: LocalDate) {
             .padding(horizontal = 18.dp, vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // The breadcrumb shares the row with the trailing pill; only the file
+        // The  t breadcrumb shares the row with the trailing pill; only the file
         // name may shrink (ellipsized), so nothing ever wraps vertically.
         Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
             Text(

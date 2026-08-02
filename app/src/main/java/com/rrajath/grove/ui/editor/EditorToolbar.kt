@@ -9,14 +9,17 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.TextAutoSize
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontStyle
@@ -25,6 +28,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.rrajath.grove.R
 import com.rrajath.grove.org.OrgTimestamp
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.grove
@@ -55,11 +59,11 @@ fun EditorToolbar(
             .padding(horizontal = 4.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        ToolButton("B", c.ink, Modifier.weight(1f), bold = true) { onWrap('*') }
-        ToolButton("I", c.ink, Modifier.weight(1f), italic = true) { onWrap('/') }
-        ToolButton("U", c.ink, Modifier.weight(1f), underline = true) { onWrap('_') }
-        ToolButton("</>", c.ink, Modifier.weight(1f)) { onWrap('~') }
-        ToolButton("☑", c.ink, Modifier.weight(1f)) { onInsert("\n- [ ] ") }
+        ToolButton(icon = R.drawable.ic_format_bold, color = c.ink, modifier = Modifier.weight(1f)) { onWrap('*') }
+        ToolButton(icon = R.drawable.ic_format_italic, color = c.ink, modifier = Modifier.weight(1f)) { onWrap('/') }
+        ToolButton(icon = R.drawable.ic_format_underlined, color = c.ink, modifier = Modifier.weight(1f)) { onWrap('_') }
+        ToolButton(icon = R.drawable.ic_code, color = c.ink, modifier = Modifier.weight(1f)) { onWrap('~') }
+        ToolButton(icon = R.drawable.ic_check_box, color = c.ink, modifier = Modifier.weight(1f)) { onInsert("\n- [ ] ") }
         ToolButton("[[]]", c.synLink, Modifier.weight(1f)) { onLink() }
         // The clock glyph is drawn smaller than the letters at a given size, so
         // bump its font so it reads at the same height as the other buttons.
@@ -124,6 +128,32 @@ private fun ToolButton(
             maxLines = 1,
             softWrap = false,
             autoSize = TextAutoSize.StepBased(minFontSize = 10.sp, maxFontSize = fontSize),
+        )
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun ToolButton(
+    icon: Int,
+    color: androidx.compose.ui.graphics.Color,
+    modifier: Modifier = Modifier,
+    onLongClick: (() -> Unit)? = null,
+    onClick: () -> Unit,
+) {
+    Box(
+        modifier
+            .clip(RoundedCornerShape(8.dp))
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+            .heightIn(min = 44.dp)
+            .padding(horizontal = 3.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            painter = painterResource(icon),
+            contentDescription = null,
+            tint = color,
+            modifier = Modifier.size(20.dp),
         )
     }
 }
