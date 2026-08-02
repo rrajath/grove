@@ -226,6 +226,10 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
     private val _refile = MutableStateFlow<RefileUiState?>(null)
     val refile: StateFlow<RefileUiState?> = _refile
 
+    /** Tag autocomplete pool for the read-mode metadata sheet; refreshed on each [load]. */
+    private val _allTags = MutableStateFlow<List<String>>(emptyList())
+    val allTags: StateFlow<List<String>> = _allTags
+
     private var eventId = 0L
 
     fun showToast(message: String) {
@@ -264,6 +268,13 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
             } catch (e: Exception) {
                 DocumentUiState.Error(e.message ?: "Could not open $fileName")
             }
+        }
+        viewModelScope.launch {
+            _allTags.value = app.database.indexDao().allTagStrings()
+                .flatMap { it.split(':') }
+                .filter { it.isNotEmpty() }
+                .distinct()
+                .sorted()
         }
     }
 
@@ -484,6 +495,36 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
 
     fun setDeadline(headline: OrgHeadline, ts: OrgTimestamp?) =
         setPlanning(headline, "Deadline", ts) { d, h -> OrgMutations.setDeadline(d, h, ts) }
+
+    /** Read mode's metadata sheet: priority/tag chips write straight to disk. */
+    fun setPriority(headline: OrgHeadline, priority: Char?) {
+        val loaded = _state.value as? DocumentUiState.Loaded ?: return
+        val vault = app.vault.value ?: return
+        viewModelScope.launch {
+            val (newText, newDoc) = withContext(Dispatchers.Default) {
+                val text = OrgMutations.setPriority(loaded.document, headline, priority)
+                text to OrgParser.parse(text, loaded.document.keywords)
+            }
+            _state.value = DocumentUiState.Loaded(loaded.fileName, newDoc)
+            vault.save(loaded.fileName, newText)
+            app.syncManager.requestSync("priority set")
+            showToast("Priority → ${priority?.let { "#$it" } ?: "none"}")
+        }
+    }
+
+    fun setTags(headline: OrgHeadline, tags: List<String>) {
+        val loaded = _state.value as? DocumentUiState.Loaded ?: return
+        val vault = app.vault.value ?: return
+        viewModelScope.launch {
+            val (newText, newDoc) = withContext(Dispatchers.Default) {
+                val text = OrgMutations.setTags(loaded.document, headline, tags)
+                text to OrgParser.parse(text, loaded.document.keywords)
+            }
+            _state.value = DocumentUiState.Loaded(loaded.fileName, newDoc)
+            vault.save(loaded.fileName, newText)
+            app.syncManager.requestSync("tags set")
+        }
+    }
 
     /**
      * Both planning dates in one edit: what the Dates screen commits. The toast

@@ -91,6 +91,30 @@ class SyncManager(
         }
     }
 
+    /**
+     * Wipe the index and rebuild it from scratch (todo-keyword config changed,
+     * which affects how every file parses). Clearing under the same mutex as
+     * [requestSync] keeps it from racing an in-flight sync's [SyncEngine.sync],
+     * which would otherwise see a half-cleared table mid-read.
+     */
+    fun clearAndResync(reason: String) {
+        val engine = engine ?: return
+        scope.launch {
+            mutex.withLock {
+                database.indexDao().clearAll()
+                log("sync started ($reason)")
+                val result = engine.sync(log = { msg -> log(msg) })
+                if (result != null) {
+                    _lastResult.value = result
+                    log("sync done: ${result.pulled.size} pulled, ${result.conflicts.size} conflicts")
+                    if (result.conflicts.isNotEmpty()) notifyConflicts(result.conflicts.keys)
+                }
+                database.syncLogDao().trim()
+                onSyncCompleted()
+            }
+        }
+    }
+
     // --- conflict resolution ---
 
     suspend fun conflictTexts(baseName: String): Pair<String, String>? {

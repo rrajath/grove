@@ -77,6 +77,7 @@ import com.rrajath.grove.ui.components.CollapsibleKvSection
 import com.rrajath.grove.ui.components.CollapsibleLogSection
 import com.rrajath.grove.ui.components.FavoriteStar
 import com.rrajath.grove.ui.components.GroveTopBar
+import com.rrajath.grove.ui.editor.MetadataSheet
 import com.rrajath.grove.ui.components.Pill
 import com.rrajath.grove.ui.components.SegmentedControl
 import com.rrajath.grove.ui.components.annotateOrgInline
@@ -122,6 +123,9 @@ fun ReadNoteScreen(
 ) {
     val c = MaterialTheme.grove
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val allTags by viewModel.allTags.collectAsStateWithLifecycle()
+    var metadataOpen by remember { mutableStateOf(false) }
+    val currentHeadline = (state as? DocumentUiState.Loaded)?.document?.headlineAtLine(noteRef.lineIndex)
     // Reload whenever the screen comes back to the foreground (e.g. returning
     // from the editor) so saved edits show immediately.
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
@@ -142,6 +146,7 @@ fun ReadNoteScreen(
             GroveTopBar(
                 leading = { IconGlyph("←", onClick = onBack) },
                 actions = {
+                    IconGlyph("☰", onClick = { metadataOpen = true })
                     SegmentedControl(
                         options = listOf("Read", "Edit"),
                         selectedIndex = 0,
@@ -220,6 +225,24 @@ fun ReadNoteScreen(
                     }
                 }
             }
+        }
+    }
+
+    if (metadataOpen) {
+        val headline = currentHeadline
+        val doc = (state as? DocumentUiState.Loaded)?.document
+        if (headline != null && doc != null) {
+            MetadataSheet(
+                headline = headline,
+                keywords = doc.keywords,
+                allTags = allTags,
+                onChangeKeyword = { kw -> viewModel.setState(headline, kw) },
+                onSetPriority = { p -> viewModel.setPriority(headline, p) },
+                onSetTags = { tags -> viewModel.setTags(headline, tags) },
+                onSetPlanningDates = { sched, dead -> viewModel.setPlanningDates(headline, sched, dead) },
+                onAddNote = { note -> viewModel.addNote(headline, note) },
+                onDismiss = { metadataOpen = false },
+            )
         }
     }
 }

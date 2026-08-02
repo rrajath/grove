@@ -800,8 +800,12 @@ leaves `archiveTarget`/`lastUsedTarget` null, so the Settings invocation needs n
 
 ### `MetadataSheet`: `ui/editor/MetadataSheet.kt`
 
-Edit mode's `ModalBottomSheet` (design spec §5.2; 24dp top radius, `surface` bg), opened from
-the top bar's `☰` icon. Sections, each preceded by a `SheetLabel` (PlexSans SemiBold 12sp,
+`ModalBottomSheet` (design spec §5.2; 24dp top radius, `surface` bg), opened from the top
+bar's `☰` icon in both edit mode and read mode. The composable itself is stateless (headline,
+keywords, tag pool, and mutation callbacks are all passed in) so each mode wires it to its own
+view model: edit mode rewrites the in-memory buffer (`EditorViewModel`, flushed on save), read
+mode writes each change straight to disk (`DocumentViewModel`, immediate save + sync) — the
+sheet's own UI and behavior are identical either way. Sections, each preceded by a `SheetLabel` (PlexSans SemiBold 12sp,
 1sp letter-spacing, `accent`): State (chips, `none` + every configured keyword, done-type
 keywords tint `green`/`greenSoft`, others `amber`/`amberSoft`), Priority (`none`/`#A`/`#B`/`#C`
 chips), Tags (`OutlinedTextField` + autocomplete `Pill` row), **Schedule/Deadline**, then
@@ -1019,7 +1023,7 @@ Section headers scroll with the list; the prototype has no pinned headers, so th
 | Notebooks | `notebooks` | `GroveTopBar`, `Pill` (sync badges), icon glyph tiles, FAB, `ReminderPermissionBanner` |
 | Nav Drawer | (overlay) | `BrandMark`, plain `Text` rows, `★` favorites glyph |
 | Outline | `outline/{notebookId}` | `GroveTopBar`, `annotateOrgInline`, keyword chips, `starColor()`, `FavoriteStar` |
-| Read Note | `note/{noteId}?mode=read` | `GroveTopBar`, `SegmentedControl`, `annotateOrgInline`, tag chips, `FavoriteStar` |
+| Read Note | `note/{noteId}?mode=read` | `GroveTopBar`, `SegmentedControl`, `MetadataSheet`, `annotateOrgInline`, tag chips, `FavoriteStar` |
 | Edit Note | `note/{noteId}?mode=edit` | `GroveTopBar`, `SegmentedControl`, `OrgVisualTransformation`, formatting toolbar, `MetadataSheet` |
 | Capture Picker | (bottom sheet) | `ModalBottomSheet`, icon glyph tiles, `PlexMono` |
 | Capture Editor | `capture/{templateId}` | `GroveTopBar`, `monoBody()`, formatting toolbar |

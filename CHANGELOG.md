@@ -39,12 +39,23 @@ updated and push.
   edit mode, with a "Marked done. Refiled to `<location>`" snackbar and Undo
 - Edit mode's metadata sheet gained an "+ Add note" action, logging free text into the
   heading's LOGBOOK drawer the same way the Outline's "Note" swipe action does
+- Read mode gained the same ☰ metadata sheet as edit mode: state, priority, tags,
+  Schedule/Deadline, and Add note are all editable without switching to edit mode first,
+  saving straight to disk
 
 ### Changed
 - Edit mode's Schedule and Deadline are now one combined row instead of two, opening the
   same dual-date picker already used for both
 - Switching a note between read and edit mode is now instantaneous; the full-screen
   transition now only plays when actually navigating to a different note
+
+### Fixed
+- Settings export/import now carries the last-used refile destination, matching the other
+  refile-shaped settings that were already portable
+- Cold start no longer wipes and rebuilds the entire note index when your TODO keyword
+  setting differs from the default: a startup-vs-change detection bug treated every launch
+  as a keyword config change, forcing a full reparse of every notebook instead of trusting
+  the existing cache
 
 ## [1.0.155] - 2026-08-01
 

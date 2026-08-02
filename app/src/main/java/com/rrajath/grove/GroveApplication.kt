@@ -127,9 +127,17 @@ class GroveApplication : Application() {
             // Notifications bake in their color at post time, so a theme switch
             // would otherwise leave everything already in the shade wearing the
             // previous theme's mark while the launcher icon had moved on.
-            // drop(1): the first emission is the value everything was posted
-            // with, not a change.
-            notificationMarkColor
+            // Read off the settings flow directly (not [notificationMarkColor]):
+            // that flow is eagerly seeded with a hardcoded light/disabled color
+            // before settings ever load, so for anyone whose actual settings
+            // differ from that seed, its first *real* emission is a second
+            // distinct value that drop(1) wouldn't catch, re-tinting every
+            // notification-eligible asset on every cold start. The settings
+            // flow's first emission is genuinely the persisted startup value,
+            // which drop(1) here correctly skips.
+            settingsRepository.settings
+                .map { AppIconManager.markColor(it.syncAppIconWithTheme, it.theme) }
+                .distinctUntilChanged()
                 .drop(1)
                 .collect { NotificationAppearance.retintActive(this@GroveApplication) }
         }
@@ -139,10 +147,19 @@ class GroveApplication : Application() {
         }
         appScope.launch {
             // Keyword config changes how files parse; rebuild the index.
-            keywords.drop(1).collect {
-                database.indexDao().clearAll()
-                syncManager.requestSync("keyword config changed")
-            }
+            // Read off the settings flow directly (not [keywords]): that flow
+            // is eagerly seeded with OrgKeywords.DEFAULT before settings ever
+            // load, so for anyone whose todoKeywords differs from the compiled
+            // default, its first *real* emission is a second distinct value
+            // that drop(1) wouldn't catch, wiping and rebuilding the whole
+            // index on every cold start. The settings flow itself has no seed
+            // to trip over: its first emission is genuinely the persisted
+            // startup value, which drop(1) here correctly skips.
+            settingsRepository.settings
+                .map { it.todoKeywords }
+                .distinctUntilChanged()
+                .drop(1)
+                .collect { syncManager.clearAndResync("keyword config changed") }
         }
         appScope.launch {
             settingsRepository.settings

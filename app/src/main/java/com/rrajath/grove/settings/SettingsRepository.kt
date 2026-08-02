@@ -245,6 +245,9 @@ class SettingsRepository(private val context: Context) {
             if (s.autoArchiveFile == null) p.remove(Keys.autoArchiveFile)
             else p[Keys.autoArchiveFile] = s.autoArchiveFile
             p[Keys.autoArchiveHeadingPath] = s.autoArchiveHeadingPath
+            if (s.lastRefileFile == null) p.remove(Keys.lastRefileFile)
+            else p[Keys.lastRefileFile] = s.lastRefileFile
+            p[Keys.lastRefileHeadingPath] = s.lastRefileHeadingPath
         }
     }
 

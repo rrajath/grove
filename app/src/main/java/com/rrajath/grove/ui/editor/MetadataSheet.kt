@@ -19,7 +19,6 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -29,6 +28,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.rrajath.grove.org.OrgHeadline
+import com.rrajath.grove.org.OrgKeywords
 import com.rrajath.grove.org.OrgTimestamp
 import com.rrajath.grove.org.PlanningKind
 import com.rrajath.grove.ui.components.PlanningDatesScreen
@@ -40,19 +41,26 @@ import com.rrajath.grove.ui.theme.grove
 import com.rrajath.grove.ui.theme.priorityColor
 import com.rrajath.grove.ui.theme.prioritySoftColor
 
-/** Note metadata sheet (PRD §5.2): state, priority, tags, SCHEDULED, DEADLINE. */
+/**
+ * Note metadata sheet (PRD §5.2): state, priority, tags, SCHEDULED, DEADLINE.
+ * Stateless: shared by the editor (mutates the in-memory buffer) and read mode
+ * (writes each change straight to disk), which each wire the callbacks to
+ * their own view model.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MetadataSheet(
-    viewModel: EditorViewModel,
+    headline: OrgHeadline?,
+    keywords: OrgKeywords,
+    allTags: List<String>,
+    onChangeKeyword: (String?) -> Unit,
+    onSetPriority: (Char?) -> Unit,
+    onSetTags: (List<String>) -> Unit,
+    onSetPlanningDates: (OrgTimestamp?, OrgTimestamp?) -> Unit,
+    onAddNote: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val c = MaterialTheme.grove
-    val state by viewModel.state.collectAsStateWithLifecycle()
-    // Derive the headline from the observed buffer so the sheet recomposes when
-    // a chip mutates state: reading state.buffer here (not the off-band
-    // viewModel.currentHeadline) is what subscribes this scope to the change.
-    val headline = remember(state.buffer, state.keywords) { viewModel.currentHeadline }
     var planningOpen by remember { mutableStateOf(false) }
     var noteDialogOpen by remember { mutableStateOf(false) }
 
@@ -69,17 +77,17 @@ fun MetadataSheet(
                     label = "none",
                     active = current == null,
                     fg = c.ink2, bg = c.surface2,
-                ) { viewModel.changeKeyword(null) }
-                state.keywords.all.forEach { kw ->
+                ) { onChangeKeyword(null) }
+                keywords.all.forEach { kw ->
                     Spacer(Modifier.width(6.dp))
-                    val done = state.keywords.isDone(kw)
+                    val done = keywords.isDone(kw)
                     StateChip(
                         label = kw,
                         active = current == kw,
                         fg = if (done) c.green else c.amber,
                         bg = if (done) c.greenSoft else c.amberSoft,
                     ) {
-                        viewModel.changeKeyword(kw)
+                        onChangeKeyword(kw)
                     }
                 }
             }
@@ -92,7 +100,7 @@ fun MetadataSheet(
                         active = headline?.priority == p,
                         fg = p?.let { c.priorityColor(it) } ?: c.ink2,
                         bg = p?.let { c.prioritySoftColor(it) } ?: c.surface2,
-                    ) { viewModel.setPriority(p) }
+                    ) { onSetPriority(p) }
                     Spacer(Modifier.width(6.dp))
                 }
             }
@@ -105,13 +113,13 @@ fun MetadataSheet(
                 value = tagsText,
                 onValueChange = {
                     tagsText = it
-                    viewModel.setTags(it.split(Regex("[\\s:]+")).filter { t -> t.isNotEmpty() })
+                    onSetTags(it.split(Regex("[\\s:]+")).filter { t -> t.isNotEmpty() })
                 },
                 singleLine = true,
                 placeholder = { Text("tag1 tag2", fontFamily = PlexMono, color = c.ink3) },
                 modifier = Modifier.fillMaxWidth(),
             )
-            val suggestions = state.allTags.filter { tag ->
+            val suggestions = allTags.filter { tag ->
                 val last = tagsText.substringAfterLast(' ').trim()
                 last.isNotEmpty() && tag.startsWith(last, ignoreCase = true) &&
                         !tagsText.split(Regex("[\\s:]+")).contains(tag)
@@ -122,7 +130,7 @@ fun MetadataSheet(
                         Pill(tag, fg = c.accent, bg = c.accentSoft, outline = true, onClick = {
                             val parts = tagsText.trim().split(Regex("\\s+")).dropLast(1) + tag
                             tagsText = parts.joinToString(" ")
-                            viewModel.setTags(parts.filter { it.isNotEmpty() })
+                            onSetTags(parts.filter { it.isNotEmpty() })
                         })
                         Spacer(Modifier.width(6.dp))
                     }
@@ -161,7 +169,7 @@ fun MetadataSheet(
             focus = if (scheduled == null && deadline != null) PlanningKind.DEADLINE else PlanningKind.SCHEDULED,
             onDismiss = { planningOpen = false },
             onConfirm = { sched, dead ->
-                viewModel.setPlanningDates(sched, dead)
+                onSetPlanningDates(sched, dead)
                 planningOpen = false
             },
         )
@@ -172,7 +180,7 @@ fun MetadataSheet(
             title = headline?.title.orEmpty(),
             onDismiss = { noteDialogOpen = false },
             onConfirm = { note ->
-                viewModel.addNote(note)
+                onAddNote(note)
                 noteDialogOpen = false
             },
         )

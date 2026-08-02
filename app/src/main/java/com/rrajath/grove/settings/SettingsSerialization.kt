@@ -70,6 +70,8 @@ data class SettingsExport(
     val autoArchiveDoneItems: Boolean = false,
     val autoArchiveFile: String? = null,
     val autoArchiveHeadingPath: String = "",
+    val lastRefileFile: String? = null,
+    val lastRefileHeadingPath: String = "",
 ) {
     /** Map back onto [base], using the enums' tolerant `fromStorage` fallbacks. */
     fun applyTo(base: GroveSettings): GroveSettings = base.copy(
@@ -109,6 +111,8 @@ data class SettingsExport(
         autoArchiveDoneItems = autoArchiveDoneItems,
         autoArchiveFile = autoArchiveFile,
         autoArchiveHeadingPath = autoArchiveHeadingPath,
+        lastRefileFile = lastRefileFile,
+        lastRefileHeadingPath = lastRefileHeadingPath,
     )
 
     companion object {
@@ -150,6 +154,8 @@ data class SettingsExport(
             autoArchiveDoneItems = s.autoArchiveDoneItems,
             autoArchiveFile = s.autoArchiveFile,
             autoArchiveHeadingPath = s.autoArchiveHeadingPath,
+            lastRefileFile = s.lastRefileFile,
+            lastRefileHeadingPath = s.lastRefileHeadingPath,
         )
     }
 }

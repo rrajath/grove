@@ -36,6 +36,11 @@ class SettingsSerializationTest {
         defaultReminderTime = java.time.LocalTime.of(7, 45),
         agendaSwipeLeftAction = AgendaSwipeAction.MARK_DONE,
         agendaSwipeRightAction = AgendaSwipeAction.SET_DEADLINE,
+        autoArchiveDoneItems = true,
+        autoArchiveFile = "archive.org",
+        autoArchiveHeadingPath = "Done/2026",
+        lastRefileFile = "projects.org",
+        lastRefileHeadingPath = "Active/Grove",
         // Device-specific fields that must NOT travel with an export.
         vaultTreeUri = "content://com.android.externalstorage/tree/primary%3Aorg",
         onboardingDone = true,
@@ -74,6 +79,11 @@ class SettingsSerializationTest {
         assertEquals(sample.defaultReminderTime, restored.defaultReminderTime)
         assertEquals(sample.agendaSwipeLeftAction, restored.agendaSwipeLeftAction)
         assertEquals(sample.agendaSwipeRightAction, restored.agendaSwipeRightAction)
+        assertEquals(sample.autoArchiveDoneItems, restored.autoArchiveDoneItems)
+        assertEquals(sample.autoArchiveFile, restored.autoArchiveFile)
+        assertEquals(sample.autoArchiveHeadingPath, restored.autoArchiveHeadingPath)
+        assertEquals(sample.lastRefileFile, restored.lastRefileFile)
+        assertEquals(sample.lastRefileHeadingPath, restored.lastRefileHeadingPath)
     }
 
     @Test

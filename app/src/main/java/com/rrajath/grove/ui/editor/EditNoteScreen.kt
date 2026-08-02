@@ -327,8 +327,16 @@ fun EditNoteScreen(
     }
 
     if (metadataOpen) {
+        val headline = remember(state.buffer, state.keywords) { viewModel.currentHeadline }
         MetadataSheet(
-            viewModel = viewModel,
+            headline = headline,
+            keywords = state.keywords,
+            allTags = state.allTags,
+            onChangeKeyword = viewModel::changeKeyword,
+            onSetPriority = viewModel::setPriority,
+            onSetTags = viewModel::setTags,
+            onSetPlanningDates = viewModel::setPlanningDates,
+            onAddNote = viewModel::addNote,
             onDismiss = { metadataOpen = false },
         )
     }
