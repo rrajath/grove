@@ -28,6 +28,8 @@ updated and push.
 
 ## [Unreleased]
 
+## [1.0.164] - 2026-08-02
+
 ### Changed
 - Favorites now use a dedicated star icon instead of the plain "★" character: filled amber
   in read mode and the outline row indicator, outlined to match the existing color scheme
