@@ -28,6 +28,8 @@ updated and push.
 
 ## [Unreleased]
 
+## [1.0.162] - 2026-08-02
+
 ### Fixed
 - Agenda swipe-row checkbox and priority badge now sit 12dp from the row edges instead of 2dp
 - Edit mode's metadata sheet: SCHED and DUE now stack on separate lines instead of sharing one row
