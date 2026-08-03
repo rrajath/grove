@@ -77,6 +77,17 @@ class QueryMatcherTest {
     }
 
     @Test
+    fun `s none and d none match notes with no such timestamp`() {
+        val scheduledOnly = note("Scheduled", scheduled = "<2025-06-11 Wed>")
+        val deadlineOnly = note("Deadline", deadline = "<2025-06-11 Wed>")
+        val neither = note("Neither")
+        assertEquals(listOf("Deadline", "Neither"), run("s.none", scheduledOnly, deadlineOnly, neither))
+        assertEquals(listOf("Scheduled", "Neither"), run("d.none", scheduledOnly, deadlineOnly, neither))
+        // Negated: the opposite set, same as any other s./d. condition.
+        assertEquals(listOf("Scheduled"), run(".s.none", scheduledOnly, deadlineOnly, neither))
+    }
+
+    @Test
     fun `closed within past window`() {
         val recent = note("Recent", closed = "[2025-06-10 Tue]")
         val old = note("Old", closed = "[2025-05-01 Thu]")

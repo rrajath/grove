@@ -22,5 +22,8 @@
       "Bash(sort -t. -k3 -n)",
       "Read(//tmp/**)"
     ]
-  }
+  },
+  "enabledMcpjsonServers": [
+    "graft"
+  ]
 }

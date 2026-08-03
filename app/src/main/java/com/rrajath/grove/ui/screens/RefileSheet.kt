@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.sp
 import com.rrajath.grove.org.ArchiveTarget
 import com.rrajath.grove.org.OrgDocument
 import com.rrajath.grove.org.OrgHeadline
+import com.rrajath.grove.ui.components.notebookIcon
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
@@ -131,7 +132,7 @@ fun RefileSheet(
                 if (doc == null) {
                     items(state.notebooks.orEmpty(), key = { it.fileName }) { nb ->
                         RefileRow(
-                            glyph = "▤",
+                            icon = notebookIcon(),
                             label = nb.fileName.removeSuffix(".org"),
                             sub = "${nb.noteCount} headings",
                             onClick = { onPickNotebook(nb.fileName) },
@@ -268,7 +269,13 @@ private fun LastUsedRow(sub: String, onClick: () -> Unit) {
 }
 
 @Composable
-private fun RefileRow(glyph: String, label: String, sub: String?, onClick: () -> Unit) {
+private fun RefileRow(
+    glyph: String? = null,
+    icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
+    label: String,
+    sub: String?,
+    onClick: () -> Unit,
+) {
     val c = MaterialTheme.grove
     Row(
         Modifier
@@ -279,7 +286,16 @@ private fun RefileRow(glyph: String, label: String, sub: String?, onClick: () ->
             .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(glyph, fontFamily = PlexMono, fontSize = 15.sp, color = c.accent)
+        if (icon != null) {
+            androidx.compose.material3.Icon(
+                icon,
+                contentDescription = null,
+                tint = c.accent,
+                modifier = Modifier.size(15.dp),
+            )
+        } else {
+            Text(glyph.orEmpty(), fontFamily = PlexMono, fontSize = 15.sp, color = c.accent)
+        }
         Spacer(Modifier.width(10.dp))
         Text(
             label,

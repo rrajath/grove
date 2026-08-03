@@ -121,7 +121,7 @@ fun NotebooksScreen(
                         IconGlyph("＋", onClick = { showCreateDialog = true })
                         SyncStatusIcon(loadedState, context)
                     }
-                    IconGlyph(searchIcon(), onClick = onOpenSearch)
+                    IconGlyph(searchIcon(), contentDescription = "Search", onClick = onOpenSearch)
                 },
             )
         },
@@ -631,7 +631,7 @@ internal fun IconGlyph(glyph: String, onClick: () -> Unit) {
 }
 
 @Composable
-internal fun IconGlyph(icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
+internal fun IconGlyph(icon: androidx.compose.ui.graphics.vector.ImageVector, contentDescription: String? = null, onClick: () -> Unit) {
     Box(
         Modifier
             .size(44.dp)
@@ -641,7 +641,7 @@ internal fun IconGlyph(icon: androidx.compose.ui.graphics.vector.ImageVector, on
     ) {
         Icon(
             icon,
-            contentDescription = null,
+            contentDescription = contentDescription,
             tint = MaterialTheme.grove.ink,
             modifier = Modifier.size(22.dp),
         )

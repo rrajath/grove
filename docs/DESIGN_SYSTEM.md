@@ -314,12 +314,13 @@ less-prominent actions.
 | Scheduled date | `Icons.Outlined.CalendarMonth` | `blue` |
 | Deadline | `Icons.Filled.Flag` | `red` |
 | Drag handle (templates) | `Icons.Default.DragHandle` | `ink3` |
+| Settings | `Icons.Default.Settings` | `ink2` |
 | Search: Filters button | `Icons.Default.FilterList` | `accentInk` |
 | "None" (Default priority) | `Icons.Filled.Block` | tint follows active/inactive segment color |
 
-Search, Settings, Agenda, and the saved-search sidebar icon are custom drawables
-(`ic_search`, `ic_settings`, `ic_calendar_view_day`, `ic_filter_center_focus`), not Material
-Icons — see Custom Drawables below.
+Search, Settings, Agenda, Saved search, and Notebook are custom drawables
+(`ic_search`, `ic_settings`, `ic_calendar_view_day`, `ic_filter_center_focus`, `ic_book`), not
+Material Icons — see Custom Drawables below.
 
 Read mode's `PlanningChip` renders the *human* form of the timestamp,
 `OrgTimestamp.formatHuman()`: `Jul 30`, `Jul 30 12:00`, `Jul 30 12:00-13:30`,
@@ -344,10 +345,11 @@ in a run of mono chips rather than standing alone as an affordance.
 
 | Resource | Usage |
 |---|---|
-| `R.drawable.ic_search` | Search: sidebar, Notebooks/Outline top bars, search field |
-| `R.drawable.ic_settings` | Settings: sidebar |
-| `R.drawable.ic_calendar_view_day` | Agenda: sidebar |
-| `R.drawable.ic_filter_center_focus` | Saved searches: sidebar |
+| `R.drawable.ic_search` | Search (design/icons/search_48px.xml): Notebooks and Outline top-bar search actions, the drawer's "Search" item, and the search box's own leading glyph on the Search screen |
+| `R.drawable.ic_settings` | Settings: drawer's "Settings" item |
+| `R.drawable.ic_calendar_view_day` | Agenda (design/icons/calendar_view_day_48px.xml): drawer's "Agenda" item |
+| `R.drawable.ic_filter_center_focus` | Saved search (design/icons/filter_center_focus_48px.xml): drawer's saved-search list items |
+| `R.drawable.ic_book` | Notebook (design/icons/book_48px.xml): notebook rows in the Refile sheet |
 | `R.drawable.ic_pin` | Pin icon on notebook rows (favorites / pinned state) |
 | `R.drawable.ic_check_box` | Checkbox glyph on the editor formatting toolbar (inserts `- [ ] `) |
 | `R.drawable.ic_format_bold` | Bold glyph on the editor formatting toolbar (wraps selection in `*`) |
@@ -357,8 +359,8 @@ in a run of mono chips rather than standing alone as an affordance.
 | `R.drawable.ic_note` | "Note" swipe action, Outline's swipe-reveal row and Agenda's swipe-to-commit row |
 | `R.drawable.ic_shortcut_journal` | Launcher shortcut: Journal Entry |
 | `R.drawable.ic_shortcut_quick_note` | Launcher shortcut: Quick Note |
-| `R.drawable.ic_launcher_foreground` | Adaptive icon foreground (asterisk mark) |
-| `R.drawable.ic_launcher_background` | Adaptive icon background (`#efe4cf`) |
+| `R.drawable.ic_launcher_foreground` | Default adaptive icon foreground (asterisk mark) — same as the Light theme (`#8A5A2B` spokes) |
+| `R.drawable.ic_launcher_background` | Default adaptive icon background — same as the Light theme (`#EDE5D9`), no longer auto-switching to a dark variant in system dark mode |
 | `R.drawable.ic_notification` | Notification small icon: the same mark on a 24dp canvas |
 
 **Never use `ic_launcher_foreground` as a notification small icon.** It is a 108dp

@@ -28,6 +28,18 @@ updated and push.
 
 ## [Unreleased]
 
+### Changed
+- The sidebar's Agenda/saved-search icons and the search icon (sidebar, Notebooks/Outline
+  top bars, search field) now use the exact path data from the design prototype instead of
+  approximated Material Icon paths
+- Refile sheet's notebook rows now use a dedicated notebook icon instead of the "▤" text
+  glyph
+- Search date filters (`s.none`/`d.none`/`c.none`/`cr.none`) now match notes whose
+  corresponding timestamp is absent, instead of being treated like every other "within
+  period" filter
+- The launcher icon no longer auto-switches to a dark-mode variant; light-theme colors are
+  now used by default in both themes
+
 ## [1.0.172] - 2026-08-03
 
 ### Changed

@@ -89,7 +89,7 @@ fun favoriteIcon(): ImageVector = ImageVector.vectorResource(id = R.drawable.ic_
 @Composable
 fun favoriteIconFilled(): ImageVector = ImageVector.vectorResource(id = R.drawable.ic_star_filled)
 
-/** Search glyph (design/icons/search.svg), used in the drawer, top bars, and the search field. */
+/** The magnifier icon (design/icons/search_48px.xml), tinted per call site. */
 @Composable
 fun searchIcon(): ImageVector = ImageVector.vectorResource(id = R.drawable.ic_search)
 
@@ -97,13 +97,17 @@ fun searchIcon(): ImageVector = ImageVector.vectorResource(id = R.drawable.ic_se
 @Composable
 fun settingsIcon(): ImageVector = ImageVector.vectorResource(id = R.drawable.ic_settings)
 
-/** Agenda glyph (design/icons/calendar_view_day.svg), used in the drawer. */
+/** The Agenda icon (design/icons/calendar_view_day_48px.xml), tinted per call site. */
 @Composable
 fun agendaIcon(): ImageVector = ImageVector.vectorResource(id = R.drawable.ic_calendar_view_day)
 
-/** Saved-search glyph (design/icons/filter_center_focus.svg), used in the drawer. */
+/** The saved-search icon (design/icons/filter_center_focus_48px.xml), tinted per call site. */
 @Composable
 fun savedSearchIcon(): ImageVector = ImageVector.vectorResource(id = R.drawable.ic_filter_center_focus)
+
+/** The notebook icon (design/icons/book_48px.xml), tinted per call site. */
+@Composable
+fun notebookIcon(): ImageVector = ImageVector.vectorResource(id = R.drawable.ic_book)
 
 /**
  * Amber filled star marking a favorited heading (outline rows, read-mode headings).

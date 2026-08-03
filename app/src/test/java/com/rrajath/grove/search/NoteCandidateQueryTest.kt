@@ -78,6 +78,14 @@ class NoteCandidateQueryTest {
     }
 
     @Test
+    fun `s none and d none require the timestamp to be absent instead`() {
+        assertTrue(build("s.none").sql.contains("scheduled IS NULL"))
+        assertFalse(build("s.none").sql.contains("scheduled IS NOT NULL"))
+        assertTrue(build("d.none").sql.contains("deadline IS NULL"))
+        assertFalse(build("d.none").sql.contains("deadline IS NOT NULL"))
+    }
+
+    @Test
     fun `OR groups become an ORed predicate`() {
         val sql = build("i.TODO OR p.A")
         assertTrue(sql.sql.contains("((keyword = ? COLLATE NOCASE) OR (priority = ? COLLATE NOCASE))"))

@@ -81,6 +81,7 @@ object QueryMatcher {
 
     /** s./d.: has a timestamp on or before the period pivot (includes overdue). */
     private fun withinFuture(date: LocalDate?, period: Period, today: LocalDate): Boolean {
+        if (period.isNone) return date == null
         if (date == null) return false
         val pivot = period.pivot(today) ?: return false
         return !date.isAfter(pivot)
@@ -88,6 +89,7 @@ object QueryMatcher {
 
     /** c./cr.: timestamp within [pastPivot, today]. */
     private fun withinPast(date: LocalDate?, period: Period, today: LocalDate): Boolean {
+        if (period.isNone) return date == null
         if (date == null) return false
         val pivot = period.pastPivot(today) ?: return false
         return !date.isBefore(pivot) && !date.isAfter(today)

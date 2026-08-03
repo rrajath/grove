@@ -139,12 +139,17 @@ object NoteCandidateQuery {
             "(fileName = ? COLLATE NOCASE OR fileName = ? COLLATE NOCASE)" to listOf(base, "$base.org")
         }
 
-        // A note with no such timestamp can never satisfy a date window.
-        is Condition.Scheduled -> "scheduled IS NOT NULL" to emptyList()
-        is Condition.Deadline -> "deadline IS NOT NULL" to emptyList()
-        is Condition.Closed -> "closed IS NOT NULL" to emptyList()
-        is Condition.Created -> "createdAt IS NOT NULL" to emptyList()
+        // A note with no such timestamp can never satisfy a date window, except
+        // a "none" period which is exactly the opposite: it requires absence.
+        is Condition.Scheduled -> dateCondition("scheduled", condition.period)
+        is Condition.Deadline -> dateCondition("deadline", condition.period)
+        is Condition.Closed -> dateCondition("closed", condition.period)
+        is Condition.Created -> dateCondition("createdAt", condition.period)
     }
+
+    private fun dateCondition(column: String, period: Period): Pair<String, List<String>> =
+        if (period.isNone) "$column IS NULL" to emptyList()
+        else "$column IS NOT NULL" to emptyList()
 
     // --- filter chips ---
 

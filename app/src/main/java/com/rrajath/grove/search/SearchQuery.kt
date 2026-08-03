@@ -39,6 +39,10 @@ sealed class Condition {
 
 /** A relative time window token: today, tomorrow, yesterday, now, Nd/Nw/Nm. */
 data class Period(val raw: String) {
+    /** `s.none`/`d.none`/etc.: matches when the timestamp itself is absent,
+     *  the opposite of every other period (which requires one to be present). */
+    val isNone: Boolean get() = raw.equals("none", ignoreCase = true)
+
     /**
      * Future pivot date for s./d. ("within period" = on or before pivot,
      * e.g. `s.3d` = scheduled in the next three days or overdue).
