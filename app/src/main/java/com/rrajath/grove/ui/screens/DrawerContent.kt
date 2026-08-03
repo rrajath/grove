@@ -31,7 +31,11 @@ import androidx.compose.ui.unit.sp
 import com.rrajath.grove.data.FavoriteNote
 import com.rrajath.grove.search.SavedSearch
 import com.rrajath.grove.ui.components.BrandMark
+import com.rrajath.grove.ui.components.agendaIcon
 import com.rrajath.grove.ui.components.favoriteIcon
+import com.rrajath.grove.ui.components.savedSearchIcon
+import com.rrajath.grove.ui.components.searchIcon
+import com.rrajath.grove.ui.components.settingsIcon
 import com.rrajath.grove.ui.nav.Routes
 import com.rrajath.grove.ui.theme.GroveLightColors
 import com.rrajath.grove.ui.theme.PlexMono
@@ -72,13 +76,13 @@ fun GroveDrawerContent(
         HorizontalDivider(color = c.line)
         Spacer(Modifier.height(8.dp))
 
-        DrawerItem("⌕", "Search", active = false) { onNavigate(Routes.search()) }
+        DrawerItem(icon = searchIcon(), label = "Search", active = false) { onNavigate(Routes.search()) }
         DrawerItem("✦", "Notebooks", active = currentRoute == Routes.NOTEBOOKS) { onNavigate(Routes.NOTEBOOKS) }
 
         SectionLabel("SEARCHES")
         savedSearches.forEach { search ->
             DrawerItem(
-                "⌖", search.name, active = false,
+                icon = savedSearchIcon(), label = search.name, active = false,
                 onLongClick = { deleteTarget = search },
             ) { onNavigate(Routes.search(search.query)) }
         }
@@ -93,8 +97,8 @@ fun GroveDrawerContent(
         }
 
         HorizontalDivider(color = c.line, modifier = Modifier.padding(vertical = 8.dp))
-        DrawerItem("▤", "Agenda", active = false) { onNavigate(Routes.AGENDA) }
-        DrawerItem("⚙", "Settings", active = false) { onNavigate(Routes.SETTINGS) }
+        DrawerItem(icon = agendaIcon(), label = "Agenda", active = false) { onNavigate(Routes.AGENDA) }
+        DrawerItem(icon = settingsIcon(), label = "Settings", active = false) { onNavigate(Routes.SETTINGS) }
     }
 
     deleteTarget?.let { target ->
