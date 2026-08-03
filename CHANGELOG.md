@@ -28,6 +28,8 @@ updated and push.
 
 ## [Unreleased]
 
+## [1.0.172] - 2026-08-03
+
 ### Changed
 - Notebooks list now supports pull-to-refresh instead of a dedicated refresh button in the
   top bar
