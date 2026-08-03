@@ -32,6 +32,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
@@ -462,7 +463,7 @@ private fun FiltersBar(activeCount: Int, onClick: () -> Unit) {
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("⚙", fontSize = 13.sp, color = c.accentInk)
+                Icon(Icons.Default.FilterList, contentDescription = null, tint = c.accentInk, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(9.dp))
                 Text("Filters", fontFamily = PlexSans, fontWeight = FontWeight.SemiBold, fontSize = 14.5.sp, color = c.accentInk)
                 if (activeCount > 0) {

@@ -35,6 +35,7 @@ updated and push.
   `ic_search` drawable instead of the "⌕" text glyph / `Icons.Default.Search`
 - The sidebar's Settings, Agenda, and saved-search icons now use dedicated `ic_settings`,
   `ic_calendar_view_day`, and `ic_filter_center_focus` drawables instead of text glyphs
+- Search's Filters button now uses `Icons.Default.FilterList` instead of the "⚙" text glyph
 
 ### Fixed
 - Tapping "Manage" from the Capture picker now opens Settings § Capture Templates directly

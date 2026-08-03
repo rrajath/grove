@@ -314,6 +314,7 @@ less-prominent actions.
 | Scheduled date | `Icons.Outlined.CalendarMonth` | `blue` |
 | Deadline | `Icons.Filled.Flag` | `red` |
 | Drag handle (templates) | `Icons.Default.DragHandle` | `ink3` |
+| Search: Filters button | `Icons.Default.FilterList` | `accentInk` |
 | "None" (Default priority) | `Icons.Filled.Block` | tint follows active/inactive segment color |
 
 Search, Settings, Agenda, and the saved-search sidebar icon are custom drawables
