@@ -328,7 +328,7 @@ private fun GroveNavigation(
                         }
                     },
                     onManage = {
-                        navController.navigate(Routes.SETTINGS) {
+                        navController.navigate(Routes.SETTINGS_CAPTURE_TEMPLATES) {
                             popUpTo(Routes.CAPTURE) { inclusive = true }
                         }
                     },

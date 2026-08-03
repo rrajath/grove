@@ -304,7 +304,6 @@ less-prominent actions.
 |---|---|---|
 | Hamburger / open drawer | `Icons.Default.Menu` | - |
 | Back navigation | `Icons.Default.ArrowBack` | - |
-| Search | `Icons.Default.Search` | - |
 | Overflow menu | `Icons.Default.MoreVert` | - |
 | Dismiss / close | `Icons.Default.Close` | - |
 | Sync status: ok | `Icons.Default.Check` | `green` |
@@ -315,9 +314,12 @@ less-prominent actions.
 | Scheduled date | `Icons.Outlined.CalendarMonth` | `blue` |
 | Deadline | `Icons.Filled.Flag` | `red` |
 | Drag handle (templates) | `Icons.Default.DragHandle` | `ink3` |
-| Settings | `Icons.Default.Settings` | `ink2` |
-| Agenda | `Icons.Default.ViewList` | `ink2` |
+| Search: Filters button | `Icons.Default.FilterList` | `accentInk` |
 | "None" (Default priority) | `Icons.Filled.Block` | tint follows active/inactive segment color |
+
+Search, Settings, Agenda, and the saved-search sidebar icon are custom drawables
+(`ic_search`, `ic_settings`, `ic_calendar_view_day`, `ic_filter_center_focus`), not Material
+Icons — see Custom Drawables below.
 
 Read mode's `PlanningChip` renders the *human* form of the timestamp,
 `OrgTimestamp.formatHuman()`: `Jul 30`, `Jul 30 12:00`, `Jul 30 12:00-13:30`,
@@ -342,6 +344,10 @@ in a run of mono chips rather than standing alone as an affordance.
 
 | Resource | Usage |
 |---|---|
+| `R.drawable.ic_search` | Search: sidebar, Notebooks/Outline top bars, search field |
+| `R.drawable.ic_settings` | Settings: sidebar |
+| `R.drawable.ic_calendar_view_day` | Agenda: sidebar |
+| `R.drawable.ic_filter_center_focus` | Saved searches: sidebar |
 | `R.drawable.ic_pin` | Pin icon on notebook rows (favorites / pinned state) |
 | `R.drawable.ic_check_box` | Checkbox glyph on the editor formatting toolbar (inserts `- [ ] `) |
 | `R.drawable.ic_format_bold` | Bold glyph on the editor formatting toolbar (wraps selection in `*`) |
@@ -596,7 +602,7 @@ GroveTopBar(
     leading = { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, null) } },
     title = { Text("travel.org", style = MaterialTheme.typography.titleMedium) },
     actions = {
-        IconButton(onClick = onSearch) { Icon(Icons.Default.Search, null) }
+        IconButton(onClick = onSearch) { Icon(searchIcon(), null) }
         IconButton(onClick = onMenu) { Icon(Icons.Default.MoreVert, null) }
     },
 )

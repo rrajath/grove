@@ -32,6 +32,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
@@ -87,6 +88,7 @@ import com.rrajath.grove.ui.components.SwipeCommitRow
 import com.rrajath.grove.ui.components.annotateOrgInline
 import com.rrajath.grove.ui.components.ResultRowContent
 import com.rrajath.grove.ui.components.ScrollJumpButtons
+import com.rrajath.grove.ui.components.searchIcon
 import com.rrajath.grove.ui.screens.IconGlyph
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
@@ -174,7 +176,7 @@ fun SearchScreen(
                         .padding(horizontal = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text("⌕", fontFamily = PlexMono, fontSize = 14.sp, color = c.ink3)
+                    Icon(searchIcon(), contentDescription = null, tint = c.ink3, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(8.dp))
                     BasicTextField(
                         value = fieldValue,
@@ -461,7 +463,7 @@ private fun FiltersBar(activeCount: Int, onClick: () -> Unit) {
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("⚙", fontSize = 13.sp, color = c.accentInk)
+                Icon(Icons.Default.FilterList, contentDescription = null, tint = c.accentInk, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(9.dp))
                 Text("Filters", fontFamily = PlexSans, fontWeight = FontWeight.SemiBold, fontSize = 14.5.sp, color = c.accentInk)
                 if (activeCount > 0) {

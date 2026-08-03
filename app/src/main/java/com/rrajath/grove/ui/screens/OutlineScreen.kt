@@ -85,6 +85,7 @@ import com.rrajath.grove.ui.components.SwipeAction
 import com.rrajath.grove.ui.components.SwipeRevealRow
 import com.rrajath.grove.ui.components.annotateOrgInline
 import com.rrajath.grove.ui.components.favoriteIcon
+import com.rrajath.grove.ui.components.searchIcon
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
@@ -287,7 +288,7 @@ fun OutlineScreen(
                             contentAlignment = Alignment.Center,
                         ) {
                             Icon(
-                                Icons.Default.Search,
+                                searchIcon(),
                                 contentDescription = "Search in this notebook",
                                 tint = c.ink,
                             )

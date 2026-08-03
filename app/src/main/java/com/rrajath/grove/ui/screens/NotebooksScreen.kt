@@ -32,6 +32,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -39,6 +40,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.ui.res.painterResource
 import com.rrajath.grove.R
 import androidx.compose.runtime.Composable
@@ -61,6 +63,7 @@ import com.rrajath.grove.ui.components.GroveTopBar
 import com.rrajath.grove.ui.components.Pill
 import com.rrajath.grove.ui.components.ReminderPermissionBanner
 import com.rrajath.grove.ui.components.ScrollJumpButtons
+import com.rrajath.grove.ui.components.searchIcon
 import com.rrajath.grove.ui.theme.GroveColors
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
@@ -70,6 +73,7 @@ import com.rrajath.grove.ui.vault.NotebooksUiState
 import com.rrajath.grove.ui.vault.NotebooksViewModel
 
 /** Notebook list home screen (design spec §2), driven by the sync index. */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NotebooksScreen(
     onOpenDrawer: () -> Unit,
@@ -115,10 +119,9 @@ fun NotebooksScreen(
                     val loadedState = state as? NotebooksUiState.Loaded
                     if (loadedState != null) {
                         IconGlyph("＋", onClick = { showCreateDialog = true })
-                        IconGlyph("↻", onClick = { viewModel.requestSync() })
                         SyncStatusIcon(loadedState, context)
                     }
-                    IconGlyph("⌕", onClick = onOpenSearch)
+                    IconGlyph(searchIcon(), onClick = onOpenSearch)
                 },
             )
         },
@@ -154,38 +157,45 @@ fun NotebooksScreen(
 
                 is NotebooksUiState.Loaded -> {
                     ReminderPermissionBanner(pendingCount = s.remindersPendingPermission)
-                    if (s.notebooks.isEmpty()) {
-                        CenterMessage("✦", "No .org files here yet", "Capture a note or create a notebook with ＋")
-                    } else {
-                        val listState = rememberLazyListState()
-                        Box(Modifier.fillMaxSize()) {
-                            LazyColumn(
-                                state = listState,
-                                modifier = Modifier.fillMaxSize().testTag("notebooks_list"),
-                                // Bottom inset so the last row scrolls clear of
-                                // the FAB instead of sitting underneath it.
-                                contentPadding = PaddingValues(bottom = 86.dp),
-                            ) {
-                                items(s.notebooks, key = { it.fileName }) { nb ->
-                                    NotebookRow(
-                                        notebook = nb,
-                                        onClick = { onOpenNotebook(nb.fileName) },
-                                        onOpenConflict = { onOpenConflict(nb.fileName) },
-                                        onRename = { renameTarget = nb.fileName },
-                                        onChangeIcon = { styleTarget = nb.fileName },
-                                        onDelete = { viewModel.trashNotebook(nb.fileName) },
-                                        onForceReload = { viewModel.forceReload(nb.fileName) },
-                                        onPin = { viewModel.pinNotebook(nb.fileName) },
-                                        onUnpin = { viewModel.unpinNotebook(nb.fileName) },
-                                    )
+                    val isRefreshing = s.syncState is SyncState.Checking || s.syncState is SyncState.Pulling
+                    PullToRefreshBox(
+                        isRefreshing = isRefreshing,
+                        onRefresh = { viewModel.requestSync() },
+                        modifier = Modifier.fillMaxSize(),
+                    ) {
+                        if (s.notebooks.isEmpty()) {
+                            CenterMessage("✦", "No .org files here yet", "Capture a note or create a notebook with ＋")
+                        } else {
+                            val listState = rememberLazyListState()
+                            Box(Modifier.fillMaxSize()) {
+                                LazyColumn(
+                                    state = listState,
+                                    modifier = Modifier.fillMaxSize().testTag("notebooks_list"),
+                                    // Bottom inset so the last row scrolls clear of
+                                    // the FAB instead of sitting underneath it.
+                                    contentPadding = PaddingValues(bottom = 86.dp),
+                                ) {
+                                    items(s.notebooks, key = { it.fileName }) { nb ->
+                                        NotebookRow(
+                                            notebook = nb,
+                                            onClick = { onOpenNotebook(nb.fileName) },
+                                            onOpenConflict = { onOpenConflict(nb.fileName) },
+                                            onRename = { renameTarget = nb.fileName },
+                                            onChangeIcon = { styleTarget = nb.fileName },
+                                            onDelete = { viewModel.trashNotebook(nb.fileName) },
+                                            onForceReload = { viewModel.forceReload(nb.fileName) },
+                                            onPin = { viewModel.pinNotebook(nb.fileName) },
+                                            onUnpin = { viewModel.unpinNotebook(nb.fileName) },
+                                        )
+                                    }
                                 }
+                                ScrollJumpButtons(
+                                    listState = listState,
+                                    modifier = Modifier
+                                        .align(Alignment.BottomEnd)
+                                        .padding(bottom = 86.dp, end = 16.dp),
+                                )
                             }
-                            ScrollJumpButtons(
-                                listState = listState,
-                                modifier = Modifier
-                                    .align(Alignment.BottomEnd)
-                                    .padding(bottom = 86.dp, end = 16.dp),
-                            )
                         }
                     }
                 }
@@ -616,6 +626,24 @@ internal fun IconGlyph(glyph: String, onClick: () -> Unit) {
             fontFamily = PlexMono,
             fontSize = 22.sp,
             color = MaterialTheme.grove.ink,
+        )
+    }
+}
+
+@Composable
+internal fun IconGlyph(icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
+    Box(
+        Modifier
+            .size(44.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            icon,
+            contentDescription = null,
+            tint = MaterialTheme.grove.ink,
+            modifier = Modifier.size(22.dp),
         )
     }
 }

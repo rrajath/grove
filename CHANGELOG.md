@@ -28,6 +28,19 @@ updated and push.
 
 ## [Unreleased]
 
+### Changed
+- Notebooks list now supports pull-to-refresh instead of a dedicated refresh button in the
+  top bar
+- The search icon (sidebar, Notebooks/Outline top bars, search field) now uses a dedicated
+  `ic_search` drawable instead of the "⌕" text glyph / `Icons.Default.Search`
+- The sidebar's Settings, Agenda, and saved-search icons now use dedicated `ic_settings`,
+  `ic_calendar_view_day`, and `ic_filter_center_focus` drawables instead of text glyphs
+- Search's Filters button now uses `Icons.Default.FilterList` instead of the "⚙" text glyph
+
+### Fixed
+- Tapping "Manage" from the Capture picker now opens Settings § Capture Templates directly
+  instead of the Settings home page
+
 ## [1.0.168] - 2026-08-03
 
 ### Changed
