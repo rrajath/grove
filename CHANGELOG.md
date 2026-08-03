@@ -28,6 +28,8 @@ updated and push.
 
 ## [Unreleased]
 
+## [1.0.168] - 2026-08-03
+
 ### Changed
 - Edit mode's formatting toolbar now draws Bold/Italic/Underline/Code/Checklist as custom
   vector icons instead of text glyphs (`B`, `I`, `U`, `</>`, `☑`), matching the icon style
