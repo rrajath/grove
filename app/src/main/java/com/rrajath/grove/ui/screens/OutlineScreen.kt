@@ -8,6 +8,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -754,6 +756,7 @@ private fun visibleHeadlines(headlines: List<OrgHeadline>, collapsed: Set<Int>):
     return result
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun OutlineNode(
     doc: OrgDocument,
@@ -923,39 +926,48 @@ private fun OutlineNode(
                     modifier = Modifier.padding(top = 2.dp),
                 )
             }
-            // Scheduled / deadline chips
-            headline.planning.scheduled?.takeIf { flags.timestamps }?.let { ts ->
-                Row(
-                    Modifier
-                        .padding(top = 3.dp)
-                        .clip(RoundedCornerShape(5.dp))
-                        .background(c.blueSoft)
-                        .padding(horizontal = 5.dp, vertical = 1.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(3.dp),
+            // Scheduled / deadline chips, side by side, wrapping to a second
+            // line only if they don't both fit on one.
+            val hasScheduled = headline.planning.scheduled != null && flags.timestamps
+            val hasDeadline = headline.planning.deadline != null && flags.timestamps
+            if (hasScheduled || hasDeadline) {
+                FlowRow(
+                    modifier = Modifier.padding(top = 3.dp),
+                    horizontalArrangement = Arrangement.spacedBy(5.dp),
+                    verticalArrangement = Arrangement.spacedBy(3.dp),
                 ) {
-                    Icon(Icons.Outlined.CalendarMonth, contentDescription = null, tint = c.blue, modifier = Modifier.size(11.dp))
-                    Text(
-                        ts.formatHuman(),
-                        fontFamily = PlexMono, fontSize = 11.sp, color = c.blue,
-                    )
-                }
-            }
-            headline.planning.deadline?.takeIf { flags.timestamps }?.let { ts ->
-                Row(
-                    Modifier
-                        .padding(top = 3.dp)
-                        .clip(RoundedCornerShape(5.dp))
-                        .background(c.redSoft)
-                        .padding(horizontal = 5.dp, vertical = 1.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(3.dp),
-                ) {
-                    Icon(Icons.Filled.Flag, contentDescription = null, tint = c.red, modifier = Modifier.size(11.dp))
-                    Text(
-                        ts.formatHuman(),
-                        fontFamily = PlexMono, fontSize = 11.sp, color = c.red,
-                    )
+                    headline.planning.scheduled?.takeIf { flags.timestamps }?.let { ts ->
+                        Row(
+                            Modifier
+                                .clip(RoundedCornerShape(5.dp))
+                                .background(c.blueSoft)
+                                .padding(horizontal = 5.dp, vertical = 1.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(3.dp),
+                        ) {
+                            Icon(Icons.Outlined.CalendarMonth, contentDescription = null, tint = c.blue, modifier = Modifier.size(11.dp))
+                            Text(
+                                ts.formatHuman(),
+                                fontFamily = PlexMono, fontSize = 11.sp, color = c.blue,
+                            )
+                        }
+                    }
+                    headline.planning.deadline?.takeIf { flags.timestamps }?.let { ts ->
+                        Row(
+                            Modifier
+                                .clip(RoundedCornerShape(5.dp))
+                                .background(c.redSoft)
+                                .padding(horizontal = 5.dp, vertical = 1.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(3.dp),
+                        ) {
+                            Icon(Icons.Filled.Flag, contentDescription = null, tint = c.red, modifier = Modifier.size(11.dp))
+                            Text(
+                                ts.formatHuman(),
+                                fontFamily = PlexMono, fontSize = 11.sp, color = c.red,
+                            )
+                        }
+                    }
                 }
             }
         }

@@ -6,6 +6,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -281,6 +283,7 @@ private fun ReadModeBreadcrumb(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun NoteContent(
     doc: OrgDocument,
@@ -391,13 +394,21 @@ private fun NoteContent(
                 // Planning line (SCHEDULED/DEADLINE) is immediately after the
                 // heading in the raw org file, before any drawers, so it
                 // renders first here too, matching edit mode's line order.
-                headline.planning.scheduled?.let {
+                // Both chips share a row and wrap to a second line only if
+                // they don't fit side by side.
+                if (headline.planning.scheduled != null || headline.planning.deadline != null) {
                     Spacer(Modifier.height(6.dp))
-                    PlanningChip(it.formatHuman(), icon = Icons.Outlined.CalendarMonth, fg = c.blue, bg = c.blueSoft)
-                }
-                headline.planning.deadline?.let {
-                    Spacer(Modifier.height(6.dp))
-                    PlanningChip(it.formatHuman(), icon = Icons.Filled.Flag, fg = c.red, bg = c.redSoft)
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        headline.planning.scheduled?.let {
+                            PlanningChip(it.formatHuman(), icon = Icons.Outlined.CalendarMonth, fg = c.blue, bg = c.blueSoft)
+                        }
+                        headline.planning.deadline?.let {
+                            PlanningChip(it.formatHuman(), icon = Icons.Filled.Flag, fg = c.red, bg = c.redSoft)
+                        }
+                    }
                 }
 
                 // Note's own :PROPERTIES: and :LOGBOOK: drawers (CREATED lives
