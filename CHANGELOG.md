@@ -34,6 +34,9 @@ updated and push.
   date-only DEADLINE on the same heading as a substitute anchor date, which could count it
   as due in the digest even though the Agenda screen would never show it under today or
   overdue
+- Agenda rows now show a heading's inherited tags (its own tags plus every ancestor
+  heading's tags), matching org-mode tag inheritance, instead of only the heading's
+  own tags
 
 ## [1.0.179] - 2026-08-04
 

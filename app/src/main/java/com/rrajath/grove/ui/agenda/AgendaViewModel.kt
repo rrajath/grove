@@ -250,56 +250,6 @@ class AgendaViewModel(private val app: GroveApplication) : ViewModel() {
         )
     }
 
-    private fun row(m: NoteMeta, today: LocalDate, showDate: Boolean, p: GroveSettings): AgendaRow {
-        val scheduledTs = m.scheduled?.let { OrgTimestamp.parse(it) }
-        val deadlineTs = m.deadline?.let { OrgTimestamp.parse(it) }
-        // The timestamp that decides which day the row lands on.
-        val anchor = scheduledTs ?: deadlineTs
-        val anchorDate = anchor?.date
-        val overdue = anchorDate != null && anchorDate.isBefore(today)
-        // Deadline-only: the row's own date *is* the deadline, so it reads red.
-        val deadlineOnly = deadlineTs != null && scheduledTs == null
-
-        val meta = buildList {
-            if (showDate && anchorDate != null) {
-                val late = ChronoUnit.DAYS.between(anchorDate, today)
-                val text = (if (deadlineOnly) "⚑ " else "") +
-                    if (overdue) "${anchorDate.format(AgendaBuckets.SHORT_DATE)} · ${late}d late"
-                    else AgendaBuckets.dayLabel(anchorDate, today)
-                add(AgendaMeta(text, if (overdue || deadlineOnly) AgendaMetaTone.DANGER else AgendaMetaTone.NORMAL))
-            } else if (deadlineOnly) {
-                add(AgendaMeta("⚑ due", AgendaMetaTone.DANGER))
-            }
-            anchor?.time?.let { start ->
-                val range = start.format(CLOCK) + (anchor.endTime?.let { "–${it.format(CLOCK)}" } ?: "")
-                add(AgendaMeta(range, AgendaMetaTone.NORMAL))
-            }
-            if (deadlineTs != null && scheduledTs != null) {
-                add(AgendaMeta("⚑ ${deadlineTs.date.format(AgendaBuckets.SHORT_DATE)}", AgendaMetaTone.DANGER))
-            }
-            (scheduledTs?.repeater ?: deadlineTs?.repeater)?.let {
-                add(AgendaMeta("↻ $it", AgendaMetaTone.MUTED))
-            }
-            if (p.agendaShowTags) {
-                m.tags.takeIf { it.isNotEmpty() }
-                    ?.let { add(AgendaMeta(it.joinToString(":", ":", ":"), AgendaMetaTone.TAG)) }
-            }
-            if (p.agendaShowFile) add(AgendaMeta(m.fileName, AgendaMetaTone.MUTED))
-        }
-
-        return AgendaRow(
-            fileName = m.fileName,
-            lineIndex = m.lineIndex,
-            title = m.title,
-            keyword = m.keyword,
-            isDone = m.isDoneKeyword,
-            priority = m.priority,
-            meta = meta,
-            scheduledTs = scheduledTs,
-            deadlineTs = deadlineTs,
-        )
-    }
-
     // --- swipe-to-act mutations ---
 
     fun setScheduled(fileName: String, lineIndex: Int, ts: OrgTimestamp?) =
@@ -490,5 +440,62 @@ class AgendaViewModel(private val app: GroveApplication) : ViewModel() {
 
         private val HEADER_DATE: DateTimeFormatter = DateTimeFormatter.ofPattern("MMMM d", Locale.ENGLISH)
         private val CLOCK: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm", Locale.ENGLISH)
+
+        /**
+         * Builds one agenda row from a matched [NoteMeta]. Pure (no instance
+         * state), so it lives here for direct unit testing.
+         */
+        internal fun row(m: NoteMeta, today: LocalDate, showDate: Boolean, p: GroveSettings): AgendaRow {
+            val scheduledTs = m.scheduled?.let { OrgTimestamp.parse(it) }
+            val deadlineTs = m.deadline?.let { OrgTimestamp.parse(it) }
+            // The timestamp that decides which day the row lands on.
+            val anchor = scheduledTs ?: deadlineTs
+            val anchorDate = anchor?.date
+            val overdue = anchorDate != null && anchorDate.isBefore(today)
+            // Deadline-only: the row's own date *is* the deadline, so it reads red.
+            val deadlineOnly = deadlineTs != null && scheduledTs == null
+
+            val meta = buildList {
+                if (showDate && anchorDate != null) {
+                    val late = ChronoUnit.DAYS.between(anchorDate, today)
+                    val text = (if (deadlineOnly) "⚑ " else "") +
+                        if (overdue) "${anchorDate.format(AgendaBuckets.SHORT_DATE)} · ${late}d late"
+                        else AgendaBuckets.dayLabel(anchorDate, today)
+                    add(AgendaMeta(text, if (overdue || deadlineOnly) AgendaMetaTone.DANGER else AgendaMetaTone.NORMAL))
+                } else if (deadlineOnly) {
+                    add(AgendaMeta("⚑ due", AgendaMetaTone.DANGER))
+                }
+                anchor?.time?.let { start ->
+                    val range = start.format(CLOCK) + (anchor.endTime?.let { "–${it.format(CLOCK)}" } ?: "")
+                    add(AgendaMeta(range, AgendaMetaTone.NORMAL))
+                }
+                if (deadlineTs != null && scheduledTs != null) {
+                    add(AgendaMeta("⚑ ${deadlineTs.date.format(AgendaBuckets.SHORT_DATE)}", AgendaMetaTone.DANGER))
+                }
+                (scheduledTs?.repeater ?: deadlineTs?.repeater)?.let {
+                    add(AgendaMeta("↻ $it", AgendaMetaTone.MUTED))
+                }
+                if (p.agendaShowTags) {
+                    // Own tags + ancestor tags, per org-mode tag inheritance (see
+                    // OrgDocument.inheritedTags): a sub-heading's row must show its
+                    // parents' tags too, not just its own.
+                    m.inheritedTags.takeIf { it.isNotEmpty() }
+                        ?.let { add(AgendaMeta(it.joinToString(":", ":", ":"), AgendaMetaTone.TAG)) }
+                }
+                if (p.agendaShowFile) add(AgendaMeta(m.fileName, AgendaMetaTone.MUTED))
+            }
+
+            return AgendaRow(
+                fileName = m.fileName,
+                lineIndex = m.lineIndex,
+                title = m.title,
+                keyword = m.keyword,
+                isDone = m.isDoneKeyword,
+                priority = m.priority,
+                meta = meta,
+                scheduledTs = scheduledTs,
+                deadlineTs = deadlineTs,
+            )
+        }
     }
 }
