@@ -37,6 +37,13 @@ updated and push.
 - Agenda rows now show a heading's inherited tags (its own tags plus every ancestor
   heading's tags), matching org-mode tag inheritance, instead of only the heading's
   own tags
+- Sync conflict screen's "Keep both" button now actually merges both versions (appending the
+  conflicting copy under a `* CONFLICT` heading) instead of silently leaving the file
+  unchanged when the conflict marker had already cleared from the index, which previously
+  looked identical to "Keep current"
+- Read mode now renders a heading's SCHEDULED/DEADLINE planning line before its
+  `:PROPERTIES:`/`:LOGBOOK:` drawers, matching the order edit mode (and the underlying org
+  file) already uses, instead of showing drawers first
 
 ## [1.0.179] - 2026-08-04
 
