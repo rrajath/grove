@@ -123,7 +123,7 @@ class AppViewModel(private val app: GroveApplication) : ViewModel() {
             // On a cold start the vault may still be initializing; await it.
             val vault = app.vault.filterNotNull().first()
             val resolvedTitle =
-                if (payload.url.isNotEmpty()) PageTitleFetcher.fetch(payload.url) else null
+                if (payload.url.isNotEmpty()) PageTitleFetcher.fetch(payload.url, app) else null
             val note = ShareIntake.composeNote(payload, resolvedTitle)
             val target = settings.shareTargetFile.trim().ifBlank { GroveSettings.DEFAULT_SHARE_TARGET }
             val fileName = if (target.endsWith(".org")) target else "$target.org"
