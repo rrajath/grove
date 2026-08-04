@@ -28,6 +28,8 @@ updated and push.
 
 ## [Unreleased]
 
+## [1.0.179] - 2026-08-04
+
 ### Fixed
 - Shared-link capture now falls back to a hidden WebView to read the real page title when the
   plain HTTP fetch returns a bot-check interstitial (e.g. Reddit's "Please wait for
