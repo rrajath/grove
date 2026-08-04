@@ -28,6 +28,8 @@ updated and push.
 
 ## [Unreleased]
 
+## [1.0.187] - 2026-08-04
+
 ### Added
 - Double-tapping Outline's PREFACE section now opens an editor scoped to just the file's
   preamble (everything before the first heading), mirroring double-tap-to-edit elsewhere
