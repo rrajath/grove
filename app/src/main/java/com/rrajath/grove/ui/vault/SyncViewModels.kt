@@ -51,8 +51,18 @@ class ConflictViewModel(private val app: GroveApplication) : ViewModel() {
 
     fun resolve(fileName: String, resolution: ConflictResolution) {
         viewModelScope.launch {
-            app.syncManager.resolveConflict(fileName, resolution)
-            _state.value = ConflictUiState.Resolved
+            val applied = app.syncManager.resolveConflict(fileName, resolution)
+            if (applied) {
+                _state.value = ConflictUiState.Resolved
+            } else {
+                // The conflict copy vanished from under us (e.g. a background sync
+                // or Syncthing itself cleared it while the picker was open):
+                // nothing was written. Reload instead of reporting success, so the
+                // user sees the real state (no conflict, or a fresh copy to
+                // resolve) rather than a silent no-op that looks like "kept
+                // current".
+                load(fileName)
+            }
         }
     }
 

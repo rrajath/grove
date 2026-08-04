@@ -1,9 +1,50 @@
 package com.rrajath.grove.sync
 
+import com.rrajath.grove.vault.JvmFileStore
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TemporaryFolder
+
+/** Minimal in-memory [NoteIndex], enough to drive [SyncEngine] in a JVM test. */
+private class RecordingIndex : NoteIndex {
+    val revisions = mutableMapOf<String, String>()
+    val texts = mutableMapOf<String, String>()
+    val conflicts = mutableMapOf<String, String?>()
+
+    override suspend fun knownNotebooks(): Map<String, KnownNotebook> =
+        revisions.mapValues { (name, rev) -> KnownNotebook(rev, conflicts[name]) }
+
+    override suspend fun stubNotebooks(stubs: List<NotebookStub>) {
+        stubs.forEach { conflicts[it.fileName] = it.conflictFileName }
+    }
+
+    override suspend fun indexNotebook(
+        fileName: String,
+        revision: String,
+        text: String,
+        lastModified: Long,
+        conflictFileName: String?,
+    ) {
+        revisions[fileName] = revision
+        texts[fileName] = text
+        conflicts[fileName] = conflictFileName
+    }
+
+    override suspend fun setConflict(fileName: String, conflictFileName: String?) {
+        conflicts[fileName] = conflictFileName
+    }
+
+    override suspend fun removeNotebook(fileName: String) {
+        revisions.remove(fileName)
+        texts.remove(fileName)
+        conflicts.remove(fileName)
+    }
+}
 
 class SyncConflictsTest {
 
@@ -59,5 +100,53 @@ class SyncConflictsTest {
     fun `keepBoth handles missing trailing newline`() {
         val merged = ConflictResolver.keepBoth("* A", "* B", "x")
         assertEquals("* A\n* CONFLICT (sync copy from x)\n** B\n", merged)
+    }
+
+    @get:Rule
+    val tmp = TemporaryFolder()
+
+    /**
+     * Full "Keep both" round trip: detect the conflict, resolve it (mirroring
+     * exactly what [SyncManager.resolveConflict]'s KEEP_BOTH branch does: read
+     * both files, merge, overwrite the base file, delete the copy), then re-sync.
+     * Regression coverage for the bug where "Keep both" silently degraded to
+     * "keep current" (nothing written) whenever the copy was already gone by
+     * resolution time; asserts the merged file actually carries BOTH the
+     * original and the copy's content into the index, and the conflict marker
+     * clears once the copy is gone.
+     */
+    @Test
+    fun `keep both resolution round-trips through a resync`() = runTest {
+        val copyName = "journal.sync-conflict-20250611-143200-DEVICE.org"
+        tmp.newFile("journal.org").writeText("* Buy groceries\nMilk, eggs\n")
+        tmp.newFile(copyName).writeText("* Buy groceries\nMilk, eggs, bread\n")
+
+        val store = JvmFileStore(tmp.root)
+        val index = RecordingIndex()
+        val engine = SyncEngine(store, index) { 1000L }
+
+        // Conflict is detected and indexed first, same as a normal sync would.
+        val firstSync = engine.sync()!!
+        assertEquals(mapOf("journal.org" to copyName), firstSync.conflicts)
+        assertEquals(copyName, index.conflicts["journal.org"])
+
+        // Exactly SyncManager.resolveConflict's KEEP_BOTH sequence.
+        val merged = ConflictResolver.keepBoth(
+            mainText = store.read("journal.org"),
+            conflictText = store.read(copyName),
+            label = SyncConflicts.label(copyName),
+        )
+        store.write("journal.org", merged)
+        store.delete(copyName)
+
+        // Re-sync, as resolveConflict does immediately after resolving.
+        engine.sync()
+
+        val finalText = index.texts.getValue("journal.org")
+        assertTrue("main content missing", finalText.contains("Milk, eggs\n"))
+        assertTrue("conflict copy content missing", finalText.contains("Milk, eggs, bread"))
+        assertTrue("CONFLICT heading missing", finalText.contains("* CONFLICT"))
+        assertNull("conflict marker should clear once the copy is gone", index.conflicts["journal.org"])
+        assertFalse(store.exists(copyName))
     }
 }

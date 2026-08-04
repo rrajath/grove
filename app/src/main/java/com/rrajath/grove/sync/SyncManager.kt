@@ -123,9 +123,18 @@ class SyncManager(
         return store.read(baseName) to store.read(copy)
     }
 
-    suspend fun resolveConflict(baseName: String, resolution: ConflictResolution) {
-        val store = store ?: return
-        val copyName = database.indexDao().conflictFileNameFor(baseName) ?: return
+    /**
+     * Applies [resolution] to [baseName]'s pending conflict copy. Returns false
+     * (and touches nothing) if there is no store attached or the conflict copy
+     * has already disappeared from the index by the time this runs (e.g. a
+     * background sync or Syncthing itself cleared it while the picker was open).
+     * Callers MUST check this rather than assume the resolution was applied,
+     * otherwise a no-op reads to the user as "Keep both" silently doing nothing
+     * (indistinguishable from "kept current").
+     */
+    suspend fun resolveConflict(baseName: String, resolution: ConflictResolution): Boolean {
+        val store = store ?: return false
+        val copyName = database.indexDao().conflictFileNameFor(baseName) ?: return false
         when (resolution) {
             ConflictResolution.KEEP_CURRENT -> Unit
             ConflictResolution.KEEP_CONFLICT_COPY ->
@@ -144,6 +153,7 @@ class SyncManager(
         store.delete(copyName)
         log("conflict on $baseName resolved: ${resolution.name.lowercase()}")
         requestSync("conflict resolved")
+        return true
     }
 
     /** Force Load: drop the cached index for this notebook and re-pull from disk. */
