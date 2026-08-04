@@ -388,6 +388,18 @@ private fun NoteContent(
                     }
                 }
 
+                // Planning line (SCHEDULED/DEADLINE) is immediately after the
+                // heading in the raw org file, before any drawers, so it
+                // renders first here too, matching edit mode's line order.
+                headline.planning.scheduled?.let {
+                    Spacer(Modifier.height(6.dp))
+                    PlanningChip(it.formatHuman(), icon = Icons.Outlined.CalendarMonth, fg = c.blue, bg = c.blueSoft)
+                }
+                headline.planning.deadline?.let {
+                    Spacer(Modifier.height(6.dp))
+                    PlanningChip(it.formatHuman(), icon = Icons.Filled.Flag, fg = c.red, bg = c.redSoft)
+                }
+
                 // Note's own :PROPERTIES: and :LOGBOOK: drawers (CREATED lives
                 // in :PROPERTIES:, shown there only, not as a separate line).
                 if (showPropertyDrawers && (headline.properties.isNotEmpty() || headline.logbook.isNotEmpty())) {
@@ -414,15 +426,6 @@ private fun NoteContent(
                         )
                     }
                     Spacer(Modifier.height(20.dp))
-                }
-
-                headline.planning.scheduled?.let {
-                    Spacer(Modifier.height(6.dp))
-                    PlanningChip(it.formatHuman(), icon = Icons.Outlined.CalendarMonth, fg = c.blue, bg = c.blueSoft)
-                }
-                headline.planning.deadline?.let {
-                    Spacer(Modifier.height(6.dp))
-                    PlanningChip(it.formatHuman(), icon = Icons.Filled.Flag, fg = c.red, bg = c.redSoft)
                 }
                 Spacer(Modifier.height(16.dp))
 
