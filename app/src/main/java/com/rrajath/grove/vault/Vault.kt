@@ -14,6 +14,19 @@ data class Notebook(
 }
 
 /**
+ * Matches an externally-opened .org file (tapped in a file manager, or
+ * launched via a VIEW/EDIT intent per the manifest's file-open intent-filter)
+ * against a notebook already indexed in this vault. The incoming URI usually
+ * comes from a different `content://` authority than our own SAF tree grant,
+ * so there's nothing to match on except the file's name; compared
+ * case-insensitively since providers don't agree on casing. Pure Kotlin so
+ * this is JVM-unit-testable independent of the Uri/ContentResolver plumbing
+ * that resolves [requestedFileName] on the Android side.
+ */
+fun matchOpenedFileToNotebook(requestedFileName: String, notebooks: List<Notebook>): Notebook? =
+    notebooks.firstOrNull { it.fileName.equals(requestedFileName, ignoreCase = true) }
+
+/**
  * Vault facade over a [FileStore]: lists notebooks (applying ignore rules),
  * parses documents, creates new notebooks. Pure Kotlin; android code supplies
  * the FileStore. Parses are cached by (name, mtime, size).

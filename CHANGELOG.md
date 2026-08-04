@@ -44,6 +44,10 @@ updated and push.
 - Read mode now renders a heading's SCHEDULED/DEADLINE planning line before its
   `:PROPERTIES:`/`:LOGBOOK:` drawers, matching the order edit mode (and the underlying org
   file) already uses, instead of showing drawers first
+- Tapping a `.org` file in a file manager (or setting Grove as its default handler) now actually
+  opens the matching notebook instead of silently doing nothing — the manifest's file-open
+  intent-filter was correctly registered, but nothing on the receiving end matched the
+  incoming `content://`/`file://` URI against the vault and navigated to it
 
 ## [1.0.179] - 2026-08-04
 

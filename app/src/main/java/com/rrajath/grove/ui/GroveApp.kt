@@ -63,8 +63,11 @@ import com.rrajath.grove.ui.screens.SyncLogScreen
 import com.rrajath.grove.ui.vault.NoteRef
 import com.rrajath.grove.ui.theme.GroveTheme
 import com.rrajath.grove.ui.theme.grove
+import com.rrajath.grove.vault.matchOpenedFileToNotebook
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 @Composable
 fun GroveApp(
@@ -109,6 +112,23 @@ private fun favoriteLinesFor(
 ): Set<Int> = favorites.filter { it.fileName == fileName }.map { it.lineIndex }.toSet()
 
 /**
+ * The file name of an externally-opened .org file, e.g. from tapping one in a
+ * file manager. `content://` URIs from other providers carry a display name
+ * via [android.provider.OpenableColumns.DISPLAY_NAME] rather than a usable
+ * path segment (the last segment is often an opaque document id); `file://`
+ * URIs have no content resolver row, so the path segment is all there is.
+ */
+private fun externalOrgFileName(context: android.content.Context, uri: android.net.Uri): String? {
+    if (uri.scheme == "file") return uri.lastPathSegment
+    return runCatching {
+        context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+            val nameIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+            if (nameIndex >= 0 && cursor.moveToFirst()) cursor.getString(nameIndex) else null
+        }
+    }.getOrNull() ?: uri.lastPathSegment
+}
+
+/**
  * Human-readable form of the persisted SAF tree URI for the drawer header,
  * e.g. "primary:Documents/org" → "~/Documents/org".
  */
@@ -148,8 +168,40 @@ private fun GroveNavigation(
     // the hosting Activity's intent on its own, so route it through here on
     // both cold start and a warm-start onNewIntent (see MainActivity).
     LaunchedEffect(deepLinkIntent) {
-        if (deepLinkIntent?.action == android.content.Intent.ACTION_VIEW && deepLinkIntent.data != null) {
+        val uri = deepLinkIntent?.data ?: return@LaunchedEffect
+        val action = deepLinkIntent.action
+        if (action == android.content.Intent.ACTION_VIEW && uri.scheme == "grove") {
             navController.handleDeepLink(deepLinkIntent)
+            return@LaunchedEffect
+        }
+        // A .org file opened from outside Grove (file manager, "Open with",
+        // or Grove set as its default handler; see the file-open intent-filter
+        // on MainActivity in the manifest). This isn't one of the grove://
+        // NavDeepLinks above -- there's no route pattern an arbitrary
+        // content:// / file:// URI could match -- so it's resolved by hand:
+        // match the tapped file's name against a notebook already indexed in
+        // the vault and open its outline.
+        if ((action == android.content.Intent.ACTION_VIEW || action == android.content.Intent.ACTION_EDIT) &&
+            (uri.scheme == "content" || uri.scheme == "file")
+        ) {
+            val requestedName = externalOrgFileName(app, uri)
+            val vault = withTimeoutOrNull(5_000) { app.vault.filterNotNull().first() }
+            val match = requestedName?.let { name ->
+                vault?.let { matchOpenedFileToNotebook(name, it.notebooks()) }
+            }
+            if (match != null) {
+                navController.navigate(Routes.outline(match.fileName)) { launchSingleTop = true }
+            } else {
+                android.widget.Toast.makeText(
+                    app,
+                    if (requestedName != null) {
+                        "\"$requestedName\" isn't in your Grove vault folder."
+                    } else {
+                        "Couldn't open that file in Grove."
+                    },
+                    android.widget.Toast.LENGTH_LONG,
+                ).show()
+            }
         }
     }
 
