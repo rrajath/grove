@@ -90,4 +90,44 @@ class ReminderDigestTest {
         )
         assertEquals(1, ReminderDigest.count(reminders, today, zone))
     }
+
+    @Test
+    fun `a heading with a future timed SCHEDULED and a date-only DEADLINE due today is not counted`() {
+        // Regression test: the digest must anchor on the heading's SCHEDULED
+        // date (per AgendaBuckets.whenDate) even though that row is excluded
+        // from the digest for having an explicit time, rather than falling
+        // back to the date-only DEADLINE as a substitute anchor. Agenda would
+        // bucket this heading under its future SCHEDULED date, never under
+        // "today" or "overdue", so the digest must agree and count it zero.
+        val reminders = listOf(
+            entity(
+                "task-sched", today.plusDays(3), PlanningType.SCHEDULED,
+                hasExplicitTime = true, headingPath = "task",
+            ),
+            entity(
+                "task-deadline", today, PlanningType.DEADLINE,
+                headingPath = "task",
+            ),
+        )
+        assertEquals(0, ReminderDigest.count(reminders, today, zone))
+    }
+
+    @Test
+    fun `a heading with an overdue timed SCHEDULED and a date-only DEADLINE due today is not counted`() {
+        // Same anchor-selection bug, but with the SCHEDULED date itself already
+        // in the past: it still wins as the anchor (matching Agenda), and since
+        // it carries a time-of-day it already fired its own notification, so
+        // the digest must not also count this heading via its DEADLINE.
+        val reminders = listOf(
+            entity(
+                "task-sched", today.minusDays(1), PlanningType.SCHEDULED,
+                hasExplicitTime = true, headingPath = "task",
+            ),
+            entity(
+                "task-deadline", today, PlanningType.DEADLINE,
+                headingPath = "task",
+            ),
+        )
+        assertEquals(0, ReminderDigest.count(reminders, today, zone))
+    }
 }

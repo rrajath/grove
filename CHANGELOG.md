@@ -28,6 +28,13 @@ updated and push.
 
 ## [Unreleased]
 
+### Fixed
+- Daily reminder digest no longer overcounts tasks: a heading whose SCHEDULED carries a
+  time-of-day (and so fires its own "due now" notification) no longer falls back to a
+  date-only DEADLINE on the same heading as a substitute anchor date, which could count it
+  as due in the digest even though the Agenda screen would never show it under today or
+  overdue
+
 ## [1.0.179] - 2026-08-04
 
 ### Fixed

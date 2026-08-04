@@ -24,21 +24,26 @@ object ReminderDigest {
         fun dateOf(r: ReminderEntity): LocalDate =
             Instant.ofEpochMilli(r.triggerAtMillis).atZone(zone).toLocalDate()
 
-        // Reminders with an explicit time-of-day fire their own "due now" notification
-        // (see ReminderReconciler/ReminderAlarmReceiver); only date-only reminders belong
-        // in the digest, otherwise a timed task gets counted twice.
-        val dateOnly = reminders.filterNot { it.hasExplicitTime }
-
         // One SCHEDULED and one DEADLINE row can both belong to the same heading;
-        // collapse them to that heading's single anchor date before counting.
-        val anchorDates = dateOnly
+        // collapse them to that heading's single anchor *before* deciding whether
+        // it belongs in the digest, from the full reminder set (not just the
+        // date-only ones) so this picks the same anchor AgendaBuckets.whenDate
+        // would: a heading whose SCHEDULED carries a time-of-day still anchors
+        // there even though that row fires its own "due now" notification
+        // instead of going in the digest - a date-only DEADLINE on the same
+        // heading must not stand in for it, or the heading gets counted here on
+        // a date it would never appear under in the Agenda.
+        val anchors = reminders
             .groupBy { Triple(it.fileName, it.headingPath, it.headingLevel) }
             .mapNotNull { (_, entries) ->
                 val scheduled = entries.firstOrNull { it.planningType == PlanningType.SCHEDULED.storageKey }
                 val deadline = entries.firstOrNull { it.planningType == PlanningType.DEADLINE.storageKey }
-                (scheduled ?: deadline)?.let(::dateOf)
+                scheduled ?: deadline
             }
 
-        return anchorDates.count { !it.isAfter(today) }
+        // Reminders with an explicit time-of-day fire their own "due now" notification
+        // (see ReminderReconciler/ReminderAlarmReceiver); only a date-only anchor belongs
+        // in the digest, otherwise a timed task gets counted twice.
+        return anchors.count { !it.hasExplicitTime && !dateOf(it).isAfter(today) }
     }
 }
