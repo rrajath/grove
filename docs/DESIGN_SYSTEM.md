@@ -521,6 +521,9 @@ CollapsibleKvSection(
     entries = listOf("#+TITLE:" to "Kyoto: Day 2"),
     expanded = expanded,
     onToggle = { expanded = !expanded },
+    // Optional: double-tapping a row opens an editor scoped to this section
+    // (Outline's PREFACE only; PROPERTIES stays display-only, onDoubleTap = null).
+    onDoubleTap = { onOpenPreface(notebookId) },
 )
 ```
 
@@ -529,10 +532,16 @@ Header row (only tap target) is 8dp/12dp padding, 8dp gap, with a 10sp `ink3` ca
 that rotates 90° on expand (animated), a 12sp `ink3` label, and a right-aligned 11sp
 `ink3` count. Body (when expanded): 30dp/12dp/10dp padding, 3dp row gap, 12sp rows:
 key in `synKw`, value in `ink2`. Expansion state is per-section, in-memory (Outline's
-preface box persists its expanded state per-notebook via `rememberSaveable`).
+preface box persists its expanded state per-notebook via `rememberSaveable`). Each row's
+key/value `Text` also carries `Modifier.doubleTapToEdit` (same gesture/timing as double-tap-to-edit
+elsewhere in the app; see `DoubleTapGesture.kt`), no-op unless `onDoubleTap` is non-null.
 
 **When to use**: display-only metadata that shouldn't compete visually with note
-content; never mutates the underlying `.org` file.
+content; never mutates the underlying `.org` file by itself. The one exception is
+Outline's PREFACE section, whose `onDoubleTap` opens `EditPrefaceScreen` — a raw-text
+editor scoped to just the file's preamble (everything before the first heading), the
+same "double-tap any rendered text to edit it" convention used throughout Read mode.
+`:PROPERTIES:` drawers pass no `onDoubleTap` and remain purely display-only.
 
 ---
 
@@ -1039,6 +1048,7 @@ Section headers scroll with the list; the prototype has no pinned headers, so th
 | Outline | `outline/{notebookId}` | `GroveTopBar`, `annotateOrgInline`, keyword chips, `starColor()`, `FavoriteStar` |
 | Read Note | `note/{noteId}?mode=read` | `GroveTopBar`, `SegmentedControl`, `MetadataSheet`, `annotateOrgInline`, tag chips, `FavoriteStar` |
 | Edit Note | `note/{noteId}?mode=edit` | `GroveTopBar`, `SegmentedControl`, `OrgVisualTransformation`, formatting toolbar, `MetadataSheet` |
+| Edit Preface | `preface/{fileName}` | `GroveTopBar` (no `SegmentedControl`/`MetadataSheet`: no heading), `OrgVisualTransformation`, formatting toolbar. Opened by double-tapping Outline's PREFACE `CollapsibleKvSection` |
 | Capture Picker | (bottom sheet) | `ModalBottomSheet`, icon glyph tiles, `PlexMono` |
 | Capture Editor | `capture/{templateId}` | `GroveTopBar`, `monoBody()`, formatting toolbar |
 | Search | `search` | `ResultRowContent`-based, file-grouped results (collapsible sticky headers, `line`-divided rows, `annotateOrgInline` title/snippet rendering with match highlighting layered on top, inline `priorityColor`-coded `[#P]` next to the title matching Agenda, 2-line-max snippet) wrapped in `SwipeCommitRow` (Agenda-style swipe-to-commit, not a reveal panel: swipe left-to-right fires "Cycle state" immediately on release, opening the shared `StatePickerSheet`; swipe right-to-left fires "Schedule" immediately on release, opening `PlanningDatesScreen` focused on SCHEDULED, applied across files via `SearchViewModel.setState`/`setPlanningDates`, since each row has exactly one action per direction), `Pill` (TODO pill), quick-start cards + Saved Searches (blank state, long-press → Rename/Delete `DropdownMenu`), Advanced expression preview + operator chips, `FilterPanel` (`ModalBottomSheet`) with faceted chip sections (Notebook/Tags/TODO state/Scheduled/Deadline/Priority + `CustomDateRangePicker` "Custom range" chip) |

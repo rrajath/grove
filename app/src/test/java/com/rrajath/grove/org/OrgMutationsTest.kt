@@ -476,6 +476,31 @@ class OrgMutationsTest {
     }
 
     @Test
+    fun `prefaceText returns only the lines before the first headline`() {
+        assertEquals("#+TITLE: Test\n", OrgMutations.prefaceText(doc))
+    }
+
+    @Test
+    fun `replacePreface swaps the preamble and leaves the rest of the file untouched`() {
+        val replaced = OrgMutations.replacePreface(doc, "#+TITLE: Renamed\n#+FILETAGS: :journal:")
+        assertTrue(replaced.startsWith("#+TITLE: Renamed\n#+FILETAGS: :journal:\n* First :tag:"))
+        assertTrue(replaced.contains("** TODO [#A] Child task"))
+        assertTrue(!replaced.contains("#+TITLE: Test"))
+    }
+
+    @Test
+    fun `preface round-trips non-keyword lines it does not render`() {
+        // The PREFACE UI (CollapsibleKvSection) only lists #+KEY lines, but the raw
+        // preamble region can also hold blank lines/comments; the editor must not
+        // silently drop them on save.
+        val withComment = OrgParser.parse("#+TITLE: Test\n# a stray comment\n\n* First\nbody\n")
+        assertEquals("#+TITLE: Test\n# a stray comment\n", OrgMutations.prefaceText(withComment))
+        val saved = OrgMutations.replacePreface(withComment, "#+TITLE: Test\n# an edited comment")
+        assertTrue(saved.contains("# an edited comment"))
+        assertTrue(saved.contains("* First"))
+    }
+
+    @Test
     fun `cut and paste releveles the subtree`() {
         val cut = OrgMutations.subtreeText(doc, h("Child task"))
         val without = OrgParser.parse(OrgMutations.deleteSubtree(doc, h("Child task")))

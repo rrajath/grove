@@ -28,6 +28,10 @@ updated and push.
 
 ## [Unreleased]
 
+### Added
+- Double-tapping Outline's PREFACE section now opens an editor scoped to just the file's
+  preamble (everything before the first heading), mirroring double-tap-to-edit elsewhere
+
 ### Fixed
 - Daily reminder digest no longer overcounts tasks: a heading whose SCHEDULED carries a
   time-of-day (and so fires its own "due now" notification) no longer falls back to a

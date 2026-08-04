@@ -91,6 +91,16 @@ class RoutesTest {
     }
 
     @Test
+    fun `preface route encodes the file name`() {
+        assertEquals("preface/travel.org", Routes.preface("travel.org"))
+        assertEquals("preface/my%20notes.org", Routes.preface("my notes.org"))
+        assertEquals(
+            Routes.PREFACE.substringBefore("{"),
+            Routes.preface("x").substringBefore("x"),
+        )
+    }
+
+    @Test
     fun `outline route omits narrowTo by default and appends it when set`() {
         assertEquals("outline/travel.org", Routes.outline("travel.org"))
         assertEquals("outline/travel.org?narrowTo=42", Routes.outline("travel.org", narrowTo = 42))

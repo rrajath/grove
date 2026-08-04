@@ -128,6 +128,9 @@ fun OutlineScreen(
     onToggleDisplay: (OutlineToggle, Boolean) -> Unit = { _, _ -> },
     /** Settings toggle: show a collapsible section for file-level `#+` keywords, pinned at the top. */
     showPreface: Boolean = true,
+    /** Double-tapping the PREFACE section: opens an editor scoped to just the preamble
+     *  (everything before the first heading), mirroring double-tap-to-edit elsewhere. */
+    onOpenPreface: (fileName: String) -> Unit = {},
     viewModel: DocumentViewModel = viewModel(factory = DocumentViewModel.Factory),
 ) {
     val c = MaterialTheme.grove
@@ -362,6 +365,7 @@ fun OutlineScreen(
                             expanded = prefaceExpanded,
                             onToggle = { prefaceExpanded = !prefaceExpanded },
                             modifier = Modifier.padding(start = 10.dp, top = 8.dp, end = 10.dp),
+                            onDoubleTap = { onOpenPreface(notebookId) },
                         )
                     }
                     Box(Modifier.fillMaxSize().weight(1f)) {
@@ -405,6 +409,7 @@ fun OutlineScreen(
                                     expanded = prefaceExpanded,
                                     onToggle = { prefaceExpanded = !prefaceExpanded },
                                     modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
+                                    onDoubleTap = { onOpenPreface(notebookId) },
                                 )
                             }
                         }

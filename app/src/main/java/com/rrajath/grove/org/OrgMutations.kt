@@ -233,6 +233,19 @@ object OrgMutations {
     fun subtreeText(doc: OrgDocument, h: OrgHeadline): String =
         doc.lines.subList(h.lineIndex, doc.subtreeEndLine(h)).joinToString("\n")
 
+    /** The file's preamble (every line before the first headline, `#+KEY:` lines and any
+     *  other free text alike), the raw text a preface editor scopes itself to. */
+    fun prefaceText(doc: OrgDocument): String =
+        doc.lines.subList(0, doc.preambleEnd).joinToString("\n")
+
+    /** Replace the file's whole preamble with [newText] (the preface editor's save path). */
+    fun replacePreface(doc: OrgDocument, newText: String): String {
+        val lines = doc.lines.toMutableList()
+        repeat(doc.preambleEnd) { lines.removeAt(0) }
+        lines.addAll(0, newText.trimEnd('\n').split("\n"))
+        return lines.joinToString("\n")
+    }
+
     fun deleteSubtree(doc: OrgDocument, h: OrgHeadline): String {
         val lines = doc.lines.toMutableList()
         repeat(doc.subtreeEndLine(h) - h.lineIndex) { lines.removeAt(h.lineIndex) }

@@ -33,6 +33,7 @@ import com.rrajath.grove.settings.GroveSettings
 import com.rrajath.grove.ui.agenda.AgendaScreen
 import com.rrajath.grove.ui.capture.CaptureEditorScreen
 import com.rrajath.grove.ui.editor.EditNoteScreen
+import com.rrajath.grove.ui.editor.EditPrefaceScreen
 import com.rrajath.grove.ui.capture.CapturePickerSheet
 import com.rrajath.grove.ui.capture.TemplateEditScreen
 import com.rrajath.grove.ui.nav.Routes
@@ -299,6 +300,14 @@ private fun GroveNavigation(
                     ),
                     onToggleDisplay = viewModel::setOutlineToggle,
                     showPreface = settings.showPreface,
+                    onOpenPreface = { fileName -> navController.navigate(Routes.preface(fileName)) },
+                )
+            }
+            composable(Routes.PREFACE) { entry ->
+                val fileName = entry.arguments?.getString("fileName").orEmpty()
+                EditPrefaceScreen(
+                    fileName = fileName,
+                    onBack = { navController.popBackStack() },
                 )
             }
             composable(

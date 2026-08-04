@@ -16,11 +16,16 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
@@ -31,7 +36,9 @@ import com.rrajath.grove.ui.theme.grove
  * Collapsible, faded (66% alpha), monospace key-value section for file-level
  * `#+` keyword lines or a `:PROPERTIES:` drawer (design/Grove.dc.html lines
  * 499-552, style block at 1682+). Header row is the only tap target; body is
- * hidden unless [expanded]. Display-only: never mutates the source file.
+ * hidden unless [expanded]. Display-only by default: never mutates the source
+ * file, unless the caller opts in via [onDoubleTap] (e.g. Outline's PREFACE
+ * section, which double-tap-opens the preface editor; see [doubleTapToEdit]).
  */
 @Composable
 fun CollapsibleKvSection(
@@ -40,16 +47,36 @@ fun CollapsibleKvSection(
     expanded: Boolean,
     onToggle: () -> Unit,
     modifier: Modifier = Modifier,
+    /** Double-tapping a key/value row opens an editor scoped to this section. Null (default)
+     *  leaves the section purely display-only, as at the `:PROPERTIES:` call site. */
+    onDoubleTap: (() -> Unit)? = null,
 ) {
     val c = MaterialTheme.grove
     CollapsibleDrawer(label, entries.size, expanded, onToggle, modifier) {
         entries.forEach { (key, value) ->
             Row {
-                Text("$key ", fontFamily = PlexMono, fontSize = 12.sp, lineHeight = 1.5.em, color = c.synKw)
-                Text(value, fontFamily = PlexMono, fontSize = 12.sp, lineHeight = 1.5.em, color = c.ink2)
+                KvText("$key ", color = c.synKw, onDoubleTap = onDoubleTap)
+                KvText(value, color = c.ink2, onDoubleTap = onDoubleTap)
             }
         }
     }
+}
+
+/** A single key or value run within [CollapsibleKvSection], double-tap-editable like any other
+ *  rendered org text (see [doubleTapToEdit] and its use on plain lines in ReadNoteScreen). */
+@Composable
+private fun KvText(text: String, color: Color, onDoubleTap: (() -> Unit)?) {
+    var layout by remember { mutableStateOf<TextLayoutResult?>(null) }
+    Text(
+        text,
+        fontFamily = PlexMono, fontSize = 12.sp, lineHeight = 1.5.em, color = color,
+        onTextLayout = { layout = it },
+        modifier = Modifier.doubleTapToEdit(
+            layoutResult = { layout },
+            enabled = onDoubleTap != null,
+            onDoubleTap = { onDoubleTap?.invoke() },
+        ),
+    )
 }
 
 /**

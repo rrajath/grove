@@ -11,6 +11,9 @@ object Routes {
     const val NOTEBOOKS = "notebooks"
     const val OUTLINE = "outline/{notebookId}?narrowTo={narrowTo}"
     const val NOTE = "note/{noteId}?mode={mode}&isNew={isNew}"
+    /** A file's preamble (everything before its first heading), opened by double-tapping
+     *  Outline's PREFACE section; scoped to just that region, unlike NOTE. */
+    const val PREFACE = "preface/{fileName}"
     const val CAPTURE = "capture"
     const val CAPTURE_TEMPLATE = "capture/{templateId}"
     const val SEARCH = "search?q={q}&notebook={notebook}"
@@ -62,6 +65,7 @@ object Routes {
 
     fun note(noteId: String, mode: String = "read", isNew: Boolean = false) =
         "note/${encode(noteId)}?mode=$mode&isNew=$isNew"
+    fun preface(fileName: String) = "preface/${encode(fileName)}"
     fun capture(templateId: String? = null) =
         if (templateId == null) CAPTURE else "capture/${encode(templateId)}"
     fun conflict(notebookId: String) = "conflict/${encode(notebookId)}"

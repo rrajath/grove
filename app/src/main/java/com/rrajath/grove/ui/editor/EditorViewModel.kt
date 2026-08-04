@@ -30,7 +30,10 @@ data class EditorUiState(
     val loading: Boolean = true,
     val fileName: String = "",
     val lineIndex: Int = 0,
-    /** The note's subtree text being edited. */
+    /** True when this session is editing the file's preamble (see [EditorViewModel.loadPreface])
+     *  rather than a headline's subtree; [lineIndex] is meaningless in that case. */
+    val isPreface: Boolean = false,
+    /** The note's subtree text being edited (or the file's preamble, when [isPreface]). */
     val buffer: String = "",
     val loadedRevision: String? = null,
     val keywords: OrgKeywords = OrgKeywords.DEFAULT,
@@ -135,6 +138,34 @@ class EditorViewModel(private val app: GroveApplication) : ViewModel() {
                 loadedRevision = vault.revision(ref.fileName),
                 keywords = app.keywords.value,
                 allTags = tags,
+            )
+        }
+    }
+
+    /**
+     * Loads [fileName]'s preamble (every line before the first headline) for the preface
+     * editor, opened via a double-tap on Outline's PREFACE section. Unlike [load], this has
+     * no headline to anchor to: [writeBuffer] detects [EditorUiState.isPreface] and splices
+     * the buffer back in via [OrgMutations.replacePreface] instead.
+     */
+    fun loadPreface(fileName: String) {
+        _state.update { it.copy(loading = true, error = null) }
+        viewModelScope.launch {
+            val vault = app.vault.value ?: run {
+                _state.value = EditorUiState(loading = false, error = "No sync folder configured")
+                return@launch
+            }
+            val doc = vault.open(fileName) ?: run {
+                _state.value = EditorUiState(loading = false, error = "$fileName not found")
+                return@launch
+            }
+            _state.value = EditorUiState(
+                loading = false,
+                fileName = fileName,
+                isPreface = true,
+                buffer = OrgMutations.prefaceText(doc),
+                loadedRevision = vault.revision(fileName),
+                keywords = app.keywords.value,
             )
         }
     }
@@ -325,13 +356,17 @@ class EditorViewModel(private val app: GroveApplication) : ViewModel() {
         // mid-keystroke while an auto-save runs.
         val newText = withContext(Dispatchers.Default) {
             val doc = vault.open(s.fileName) ?: return@withContext null
-            val headline = doc.headlines.firstOrNull { it.lineIndex == s.lineIndex }
-            if (headline != null) {
-                OrgMutations.replaceSubtree(doc, headline, savedBuffer)
+            if (s.isPreface) {
+                OrgMutations.replacePreface(doc, savedBuffer)
             } else {
-                // Note vanished from the file (heavy external edit); append the
-                // buffer at the end rather than lose the user's work.
-                doc.text.trimEnd('\n') + "\n" + savedBuffer.trimEnd('\n') + "\n"
+                val headline = doc.headlines.firstOrNull { it.lineIndex == s.lineIndex }
+                if (headline != null) {
+                    OrgMutations.replaceSubtree(doc, headline, savedBuffer)
+                } else {
+                    // Note vanished from the file (heavy external edit); append the
+                    // buffer at the end rather than lose the user's work.
+                    doc.text.trimEnd('\n') + "\n" + savedBuffer.trimEnd('\n') + "\n"
+                }
             }
         } ?: return false
         vault.save(s.fileName, newText)
