@@ -28,6 +28,8 @@ updated and push.
 
 ## [Unreleased]
 
+## [1.0.174] - 2026-08-04
+
 ### Changed
 - The sidebar's Agenda/saved-search icons and the search icon (sidebar, Notebooks/Outline
   top bars, search field) now use the exact path data from the design prototype instead of
