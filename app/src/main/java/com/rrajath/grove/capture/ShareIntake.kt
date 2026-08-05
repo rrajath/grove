@@ -1,5 +1,15 @@
 package com.rrajath.grove.capture
 
+import com.rrajath.grove.GroveApplication
+import com.rrajath.grove.org.OrgMutations
+import com.rrajath.grove.settings.GroveSettings
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
+import java.time.LocalDateTime
+import java.util.UUID
+
 /**
  * Decides how content shared into Grove becomes an org note (PRD §10):
  * - a URL → a heading linking the page title to the URL,
@@ -29,5 +39,49 @@ object ShareIntake {
         }
         payload.text.length > TEXT_HEADING_LIMIT -> Note(heading = "", body = payload.text)
         else -> Note(heading = payload.text, body = null)
+    }
+
+    /**
+     * Routes [payload] straight to the configured file (PRD §10): fetches a
+     * URL's page title, composes the note, appends it, syncs, and toasts the
+     * result. Not tied to any particular scope — [com.rrajath.grove.ui.AppViewModel.consumeSharedContent]
+     * runs this on `viewModelScope` for shares that arrive while the app is on
+     * screen; [ShareReceiverActivity] runs it on [GroveApplication.appScope] so
+     * the share never has to bring the app's UI to the foreground at all.
+     */
+    suspend fun consumeShare(app: GroveApplication, payload: SharedPayload) {
+        val settings = app.settingsRepository.settings.first()
+        if (settings.vaultTreeUri == null) {
+            toast(app, "Set a sync folder before sharing to Grove")
+            return
+        }
+        // On a cold start the vault may still be initializing; await it.
+        val vault = app.vault.filterNotNull().first()
+        val resolvedTitle = if (payload.url.isNotEmpty()) PageTitleFetcher.fetch(payload.url, app) else null
+        val note = composeNote(payload, resolvedTitle)
+        val target = settings.shareTargetFile.trim().ifBlank { GroveSettings.DEFAULT_SHARE_TARGET }
+        val fileName = if (target.endsWith(".org")) target else "$target.org"
+        if (vault.open(fileName) == null) vault.createNotebook(fileName)
+        val doc = vault.open(fileName)
+        if (doc == null) {
+            toast(app, "Couldn't open $fileName")
+            return
+        }
+        val (newText, _) = OrgMutations.newTopLevel(
+            doc,
+            note.heading,
+            OrgMutations.NewNoteOptions(
+                id = if (settings.addIdToNewNotes) UUID.randomUUID().toString() else null,
+                createdAt = if (settings.addCreatedToNewNotes) LocalDateTime.now() else null,
+                body = note.body,
+            ),
+        )
+        vault.save(fileName, newText)
+        app.syncManager.requestSync("shared note")
+        toast(app, "Saved to $fileName")
+    }
+
+    private suspend fun toast(app: GroveApplication, message: String) = withContext(Dispatchers.Main) {
+        android.widget.Toast.makeText(app, message, android.widget.Toast.LENGTH_SHORT).show()
     }
 }

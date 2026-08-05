@@ -9,7 +9,7 @@ class LineEditingTest {
     /** Simulate typing Enter at [cursor] in [text] and running the helper. */
     private fun pressEnter(text: String, cursor: Int): TextEdit? {
         val typed = text.substring(0, cursor) + "\n" + text.substring(cursor)
-        return LineEditing.continueListOnEnter(text, typed, cursor + 1)
+        return LineEditing.continueListOnEnter(typed, cursor + 1)
     }
 
     @Test
@@ -130,13 +130,11 @@ class LineEditingTest {
         assertNull(pressEnter("* heading", 9))
     }
 
-    @Test
-    fun `edits that are not a single newline are ignored`() {
-        // paste of two chars
-        assertNull(LineEditing.continueListOnEnter("- a", "- ab\n", 5))
-        // deletion
-        assertNull(LineEditing.continueListOnEnter("- ab", "- a", 3))
-    }
+    // Distinguishing a genuine Enter press from a paste/drop that merely ends in a
+    // newline is `OrgInputTransformation`'s job now (it reads the field's change
+    // list), not this pure function's — see its `insertedSoloNewlineAt`. Given a
+    // cursor sitting right after a "\n", this helper always looks at whatever line
+    // precedes it.
 
     @Test
     fun `heading button starts a new heading from normal text`() {

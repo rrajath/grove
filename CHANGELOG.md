@@ -28,6 +28,20 @@ updated and push.
 
 ## [Unreleased]
 
+### Fixed
+- Sync conflicts' "Keep both" now line-diffs the current file against the conflict copy and keeps
+  both versions right where they diverge, instead of appending the whole conflict copy under a new
+  heading at the end
+- Pressing Enter in a bulleted, numbered, or checklist item now always continues the list, even
+  right after editing a word in the middle of the line and moving the cursor to the end before
+  hitting Enter
+- The Agenda widget's section-header divider line now spans the full remaining width of the row
+  instead of just its right half
+- Favoriting a note now adds a `:CUSTOM_ID:` property to it (only if it doesn't already have an
+  `:ID:` or `:CUSTOM_ID:`), so the favorite is stably referenceable from the sidebar
+- Sharing text or a link into Grove from another app no longer opens Grove's UI; the note is saved
+  to the configured file and a toast confirms it, exactly as before, but silently
+
 ## [1.0.198] - 2026-08-05
 
 ### Added

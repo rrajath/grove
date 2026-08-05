@@ -1,5 +1,7 @@
 package com.rrajath.grove.sync
 
+import com.github.difflib.DiffUtils
+
 /**
  * Syncthing conflict-copy handling. When both sides change a file, Syncthing
  * keeps the newer content in place and writes the loser as
@@ -39,18 +41,29 @@ object SyncConflicts {
 
 object ConflictResolver {
 
-    private val HEADLINE = Regex("""^\*+\s""")
-
     /**
-     * "Keep both": append the conflicting copy under a top-level CONFLICT
-     * heading, demoting its headlines one level so they nest beneath it
-     * (PRD §6.4). The main text is preserved byte-for-byte.
+     * "Keep both": line-diffs [mainText] against [conflictText] and, at every
+     * spot they diverge, keeps both versions back-to-back in place instead of
+     * picking one (PRD §6.4) — e.g. a 2-line heading in the current file and a
+     * different 3-line heading in the conflict copy both end up in the result,
+     * right where they diverge, rather than the whole conflict copy being
+     * appended at the end. Lines the two files agree on (the common case for
+     * most of a file) are kept once.
      */
-    fun keepBoth(mainText: String, conflictText: String, label: String): String {
-        val demoted = conflictText.trimEnd('\n').lines().joinToString("\n") { line ->
-            if (HEADLINE.containsMatchIn(line)) "*$line" else line
+    fun keepBoth(mainText: String, conflictText: String): String {
+        val mainLines = mainText.split("\n")
+        val conflictLines = conflictText.split("\n")
+        val deltas = DiffUtils.diff(mainLines, conflictLines).deltas.sortedBy { it.source.position }
+
+        val result = mutableListOf<String>()
+        var pos = 0
+        for (delta in deltas) {
+            result.addAll(mainLines.subList(pos, delta.source.position))
+            result.addAll(delta.source.lines)
+            result.addAll(delta.target.lines)
+            pos = delta.source.position + delta.source.lines.size
         }
-        val base = if (mainText.isEmpty() || mainText.endsWith("\n")) mainText else mainText + "\n"
-        return base + "* CONFLICT (sync copy from $label)\n" + demoted + "\n"
+        result.addAll(mainLines.subList(pos, mainLines.size))
+        return result.joinToString("\n")
     }
 }

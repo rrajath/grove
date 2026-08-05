@@ -198,7 +198,7 @@ private fun SectionHeader(colors: GroveColors, section: LedgerBuckets.Section) {
             section.count.toString(),
             style = TextStyle(color = ColorProvider(colors.ink3), fontSize = 10.sp, fontFamily = FontFamily.Monospace),
         )
-        Spacer(modifier = GlanceModifier.defaultWeight())
+        Spacer(modifier = GlanceModifier.width(7.dp))
         Box(
             modifier = GlanceModifier
                 .defaultWeight()

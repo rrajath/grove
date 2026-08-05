@@ -80,26 +80,32 @@ class SyncConflictsTest {
     }
 
     @Test
-    fun `keepBoth appends demoted copy under CONFLICT heading`() {
+    fun `keepBoth interleaves both versions of a diverging heading in place`() {
         val main = "* Heading\nbody\n"
         val conflict = "* Heading\nolder body\n** Child\n"
-        val merged = ConflictResolver.keepBoth(main, conflict, "2025-06-11 14:32")
+        val merged = ConflictResolver.keepBoth(main, conflict)
+        // "* Heading" matches on both sides and is kept once; "body" (main) and
+        // "older body\n** Child" (conflict) diverge at the same spot, so both stay,
+        // main's version first.
         val expected = """
             * Heading
             body
-            * CONFLICT (sync copy from 2025-06-11 14:32)
-            ** Heading
             older body
-            *** Child
+            ** Child
         """.trimIndent() + "\n"
         assertEquals(expected, merged)
-        assertTrue(merged.startsWith(main))
     }
 
     @Test
     fun `keepBoth handles missing trailing newline`() {
-        val merged = ConflictResolver.keepBoth("* A", "* B", "x")
-        assertEquals("* A\n* CONFLICT (sync copy from x)\n** B\n", merged)
+        val merged = ConflictResolver.keepBoth("* A", "* B")
+        assertEquals("* A\n* B", merged)
+    }
+
+    @Test
+    fun `keepBoth reproduces main text byte-for-byte when the copy is identical`() {
+        val text = "* Heading\nbody\n"
+        assertEquals(text, ConflictResolver.keepBoth(text, text))
     }
 
     @get:Rule
@@ -134,7 +140,6 @@ class SyncConflictsTest {
         val merged = ConflictResolver.keepBoth(
             mainText = store.read("journal.org"),
             conflictText = store.read(copyName),
-            label = SyncConflicts.label(copyName),
         )
         store.write("journal.org", merged)
         store.delete(copyName)
@@ -145,7 +150,6 @@ class SyncConflictsTest {
         val finalText = index.texts.getValue("journal.org")
         assertTrue("main content missing", finalText.contains("Milk, eggs\n"))
         assertTrue("conflict copy content missing", finalText.contains("Milk, eggs, bread"))
-        assertTrue("CONFLICT heading missing", finalText.contains("* CONFLICT"))
         assertNull("conflict marker should clear once the copy is gone", index.conflicts["journal.org"])
         assertFalse(store.exists(copyName))
     }

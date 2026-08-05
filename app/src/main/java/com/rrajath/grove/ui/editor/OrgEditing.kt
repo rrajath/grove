@@ -1,6 +1,8 @@
 package com.rrajath.grove.ui.editor
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.text.input.InputTransformation
+import androidx.compose.foundation.text.input.TextFieldBuffer
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
@@ -17,19 +19,42 @@ import com.rrajath.grove.org.TextEdit
  * bypass it, so restoring a buffer (an initial load, or a metadata-sheet
  * rewrite) can never re-trigger list continuation on text that already has it.
  */
+@OptIn(ExperimentalFoundationApi::class)
 val OrgInputTransformation = InputTransformation {
     val old = originalText.toString()
     val typed = toString()
     val cursor = selection.start
 
-    val afterList = LineEditing.continueListOnEnter(old, typed, cursor) ?: TextEdit(typed, cursor)
-    val result = LineEditing.capitalizeHeadingOnType(old, afterList.text, afterList.cursor)
-        ?: afterList
+    val afterList = if (insertedSoloNewlineAt(cursor)) LineEditing.continueListOnEnter(typed, cursor) else null
+    val base = afterList ?: TextEdit(typed, cursor)
+    val result = LineEditing.capitalizeHeadingOnType(old, base.text, base.cursor) ?: base
 
     if (result.text != typed || result.cursor != cursor) {
         replace(0, length, result.text)
         selection = TextRange(result.cursor)
     }
+}
+
+/**
+ * Whether this edit's change list carries a solitary `"\n"` insertion landing
+ * right before [cursor] — a real Enter press, as opposed to a paste/drop/
+ * accessibility edit that merely happens to end in a newline. Reading the
+ * change list rather than diffing [TextFieldBuffer.originalText] against the
+ * whole new text means an IME finalizing/autocorrecting a composing word
+ * earlier on the same line, in the same batch as the Enter that follows it,
+ * doesn't hide the newline insertion inside a larger "more than one character
+ * changed" diff and get mistaken for something other than Enter.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+private fun TextFieldBuffer.insertedSoloNewlineAt(cursor: Int): Boolean {
+    if (cursor < 1) return false
+    for (i in 0 until changes.changeCount) {
+        val range = changes.getRange(i)
+        if (range.start == cursor - 1 && range.end == cursor) {
+            return changes.getOriginalRange(i).collapsed && charAt(range.start) == '\n'
+        }
+    }
+    return false
 }
 
 /**

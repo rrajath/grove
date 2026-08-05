@@ -5,7 +5,6 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
 import com.rrajath.grove.GroveApplication
-import com.rrajath.grove.capture.PageTitleFetcher
 import com.rrajath.grove.capture.ShareIntake
 import com.rrajath.grove.data.FavoriteNote
 import com.rrajath.grove.org.OrgMutations
@@ -31,13 +30,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.time.LocalDateTime
 import java.util.UUID
 
 class AppViewModel(private val app: GroveApplication) : ViewModel() {
@@ -65,7 +62,26 @@ class AppViewModel(private val app: GroveApplication) : ViewModel() {
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     fun addFavorite(fileName: String, lineIndex: Int, title: String) =
-        viewModelScope.launch { app.favoritesRepository.addFavorite(FavoriteNote(fileName, lineIndex, title)) }
+        viewModelScope.launch {
+            ensureCustomId(fileName, lineIndex)
+            app.favoritesRepository.addFavorite(FavoriteNote(fileName, lineIndex, title))
+        }
+
+    /**
+     * Favoriting is how a note becomes referenceable from the sidebar (and
+     * potentially elsewhere), which needs a stable `:ID:`/`:CUSTOM_ID:` — add a
+     * `:CUSTOM_ID:` only when the heading has neither already, so an
+     * intentionally-set one is never overwritten.
+     */
+    private suspend fun ensureCustomId(fileName: String, lineIndex: Int) {
+        val vault = app.vault.value ?: return
+        val doc = vault.open(fileName) ?: return
+        val headline = doc.headlineAtLine(lineIndex) ?: return
+        if (headline.id != null || headline.customId != null) return
+        val newText = OrgMutations.upsertProperty(doc, headline, "CUSTOM_ID", UUID.randomUUID().toString())
+        vault.save(fileName, newText)
+        app.syncManager.requestSync("favorite added custom id")
+    }
 
     fun removeFavorite(fileName: String, lineIndex: Int) =
         viewModelScope.launch { app.favoritesRepository.removeFavorite(fileName, lineIndex) }
@@ -165,38 +181,7 @@ class AppViewModel(private val app: GroveApplication) : ViewModel() {
     fun consumeSharedContent() {
         val payload = app.pendingShare.value ?: return
         app.pendingShare.value = null
-        viewModelScope.launch {
-            val settings = settingsRepository.settings.first()
-            if (settings.vaultTreeUri == null) {
-                toast("Set a sync folder before sharing to Grove")
-                return@launch
-            }
-            // On a cold start the vault may still be initializing; await it.
-            val vault = app.vault.filterNotNull().first()
-            val resolvedTitle =
-                if (payload.url.isNotEmpty()) PageTitleFetcher.fetch(payload.url, app) else null
-            val note = ShareIntake.composeNote(payload, resolvedTitle)
-            val target = settings.shareTargetFile.trim().ifBlank { GroveSettings.DEFAULT_SHARE_TARGET }
-            val fileName = if (target.endsWith(".org")) target else "$target.org"
-            if (vault.open(fileName) == null) vault.createNotebook(fileName)
-            val doc = vault.open(fileName)
-            if (doc == null) {
-                toast("Couldn't open $fileName")
-                return@launch
-            }
-            val (newText, _) = OrgMutations.newTopLevel(
-                doc,
-                note.heading,
-                OrgMutations.NewNoteOptions(
-                    id = if (settings.addIdToNewNotes) UUID.randomUUID().toString() else null,
-                    createdAt = if (settings.addCreatedToNewNotes) LocalDateTime.now() else null,
-                    body = note.body,
-                ),
-            )
-            vault.save(fileName, newText)
-            app.syncManager.requestSync("shared note")
-            toast("Saved to $fileName")
-        }
+        viewModelScope.launch { ShareIntake.consumeShare(app, payload) }
     }
 
     private suspend fun toast(message: String) = withContext(Dispatchers.Main) {

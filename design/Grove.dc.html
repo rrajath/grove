@@ -178,6 +178,9 @@
     <div onClick="{{ goAgA }}" style="{{ chipAgA }}">Agenda A · focus</div>
     <div onClick="{{ goAgB }}" style="{{ chipAgB }}">Agenda B · stream</div>
     <div onClick="{{ goAgC }}" style="{{ chipAgC }}">Agenda C · day plan</div>
+    <div onClick="{{ goWA }}" style="{{ chipWA }}">Widget A · ledger</div>
+    <div onClick="{{ goWB }}" style="{{ chipWB }}">Widget B · bands</div>
+    <div onClick="{{ goWC }}" style="{{ chipWC }}">Widget C · rail</div>
     <div onClick="{{ goConflict }}" style="{{ chipConflict }}">Conflict</div>
     <div onClick="{{ goSettings }}" style="{{ chipSettings }}">Settings</div>
   </div>
@@ -927,6 +930,178 @@
         </div>
       </sc-if>
 
+      <!-- ========== AGENDA WIDGET (home screen) ========== -->
+      <sc-if value="{{ isWidget }}" hint-placeholder-val="{{ false }}">
+        <div data-screen-label="Agenda widget" style="position:absolute; inset:0; overflow:hidden; background:linear-gradient(168deg, var(--surface-3) 0%, var(--canvas) 54%, var(--canvas-2) 100%);">
+          <div style="position:absolute; inset:0; opacity:.07; background:repeating-linear-gradient(90deg, var(--ink) 0 1px, transparent 1px 9px);"></div>
+
+          <div style="position:absolute; left:0; right:0; bottom:18px; display:flex; justify-content:center; gap:20px;">
+            <sc-for list="{{ wDock }}" as="d" hint-placeholder-count="4"><div style="{{ d }}"></div></sc-for>
+          </div>
+
+          <!-- variant A — ledger -->
+          <sc-if value="{{ wIsA }}" hint-placeholder-val="{{ false }}">
+            <div style="position:absolute; left:13px; right:13px; top:12px; height:474px; display:flex; flex-direction:column; border-radius:22px; overflow:hidden; border:1px solid var(--line); box-shadow:var(--shadow); backdrop-filter:blur(18px); background:{{ wBg }};">
+              <div style="flex:0 0 auto; display:flex; align-items:center; gap:10px; padding:12px 13px 10px;">
+                <div style="width:22px; height:22px; flex:0 0 22px; border-radius:7px; background:var(--accent-soft); display:grid; place-items:center;">
+                  <div style="position:relative; width:11px; height:11px;">
+                    <sc-for list="{{ iconSpokes28 }}" as="sp" hint-placeholder-count="5"><div style="{{ sp }}"></div></sc-for>
+                  </div>
+                </div>
+                <div style="flex:1; min-width:0;">
+                  <div style="font-size:13.5px; font-weight:600; line-height:1.2;">Agenda</div>
+                  <div style="font-size:10.5px; font-family:'IBM Plex Mono',monospace; color:var(--ink-2); margin-top:2px;">{{ wSummary }}</div>
+                </div>
+                <div onClick="{{ wOpenCap }}" style="width:30px; height:30px; flex:0 0 30px; border-radius:10px; background:var(--accent); color:var(--accent-ink); display:grid; place-items:center; font-size:19px; cursor:pointer;" style-active="opacity:.85;">+</div>
+              </div>
+              <div style="flex:1; overflow-y:auto; padding-bottom:10px;">
+                <sc-for list="{{ wGroupsA }}" as="g" hint-placeholder-count="3">
+                  <div>
+                    <div style="display:flex; align-items:center; gap:7px; padding:9px 13px 4px;">
+                      <span style="{{ g.keyStyle }}">{{ g.key }}</span>
+                      <span style="font-size:10px; font-family:'IBM Plex Mono',monospace; color:var(--ink-3);">{{ g.count }}</span>
+                      <div style="{{ g.ruleStyle }}"></div>
+                    </div>
+                    <sc-for list="{{ g.rows }}" as="r" hint-placeholder-count="3">
+                      <div style="{{ r.rowStyle }}">
+                        <div onClick="{{ r.onDone }}" style="{{ r.boxStyle }}">{{ r.boxMark }}</div>
+                        <div onClick="{{ r.onOpen }}" style="flex:1; min-width:0; cursor:pointer;">
+                          <div style="display:flex; align-items:baseline; gap:6px;">
+                            <sc-if value="{{ r.hasSt }}" hint-placeholder-val="{{ true }}"><span style="{{ r.stStyle }}">{{ r.st }}</span></sc-if>
+                            <span style="{{ r.titleStyle }}">{{ r.title }}</span>
+                          </div>
+                          <div style="display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:3px;">
+                            <sc-for list="{{ r.meta }}" as="m" hint-placeholder-count="2"><span style="{{ m.style }}">{{ m.text }}</span></sc-for>
+                          </div>
+                        </div>
+                        <span style="{{ r.pStyle }}">{{ r.pLabel }}</span>
+                      </div>
+                    </sc-for>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+
+          <!-- variant B — priority bands -->
+          <sc-if value="{{ wIsB }}" hint-placeholder-val="{{ false }}">
+            <div style="position:absolute; left:13px; right:13px; top:12px; height:474px; display:flex; flex-direction:column; border-radius:26px; overflow:hidden; border:1px solid var(--line); box-shadow:var(--shadow); backdrop-filter:blur(18px); background:{{ wBg }};">
+              <div style="flex:0 0 auto; display:flex; align-items:flex-start; gap:10px; padding:14px 14px 12px;">
+                <div style="flex:1; min-width:0;">
+                  <div style="font-size:19px; font-weight:600; letter-spacing:-0.01em; line-height:1.1;">{{ wBigDate }}</div>
+                  <div style="display:flex; align-items:center; gap:7px; margin-top:6px;">
+                    <sc-if value="{{ wHasOver }}" hint-placeholder-val="{{ true }}"><span style="font-size:10px; font-weight:700; letter-spacing:0.05em; padding:3px 7px; border-radius:6px; background:var(--red-soft); color:var(--red);">{{ wOverLabel }}</span></sc-if>
+                    <span style="font-size:10.5px; font-family:'IBM Plex Mono',monospace; color:var(--ink-2);">{{ wSummary }}</span>
+                  </div>
+                </div>
+                <div onClick="{{ wOpenCap }}" style="width:34px; height:34px; flex:0 0 34px; border-radius:50%; background:var(--accent); color:var(--accent-ink); display:grid; place-items:center; font-size:20px; cursor:pointer;" style-active="opacity:.85;">+</div>
+              </div>
+              <div style="flex:1; overflow-y:auto; padding:0 0 12px;">
+                <sc-for list="{{ wGroupsB }}" as="g" hint-placeholder-count="3">
+                  <div style="{{ g.cardStyle }}">
+                    <div style="display:flex; align-items:center; gap:7px; padding:1px 2px 5px;">
+                      <span style="{{ g.keyStyle }}">{{ g.key }}</span>
+                      <div style="flex:1;"></div>
+                      <span style="font-size:10px; font-family:'IBM Plex Mono',monospace; color:var(--ink-3);">{{ g.count }}</span>
+                    </div>
+                    <sc-for list="{{ g.rows }}" as="r" hint-placeholder-count="2">
+                      <div style="{{ r.rowStyle }}">
+                        <div onClick="{{ r.onDone }}" style="{{ r.boxStyle }}">{{ r.boxMark }}</div>
+                        <div onClick="{{ r.onOpen }}" style="flex:1; min-width:0; cursor:pointer;">
+                          <div style="display:flex; align-items:baseline; gap:6px;">
+                            <sc-if value="{{ r.hasSt }}" hint-placeholder-val="{{ true }}"><span style="{{ r.stStyle }}">{{ r.st }}</span></sc-if>
+                            <span style="{{ r.titleStyle }}">{{ r.title }}</span>
+                          </div>
+                          <div style="display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:3px;">
+                            <sc-for list="{{ r.meta }}" as="m" hint-placeholder-count="2"><span style="{{ m.style }}">{{ m.text }}</span></sc-for>
+                          </div>
+                        </div>
+                        <span style="{{ r.pStyle }}">{{ r.pLabel }}</span>
+                      </div>
+                    </sc-for>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+
+          <!-- variant C — colour rail -->
+          <sc-if value="{{ wIsC }}" hint-placeholder-val="{{ false }}">
+            <div style="position:absolute; left:13px; right:13px; top:12px; height:474px; display:flex; flex-direction:column; border-radius:18px; overflow:hidden; border:1px solid var(--line); box-shadow:var(--shadow); backdrop-filter:blur(18px); background:{{ wBg }};">
+              <div style="flex:0 0 auto; display:flex; align-items:center; gap:8px; padding:11px 11px 10px; border-bottom:1px solid var(--line);">
+                <span style="font-size:10.5px; font-weight:700; letter-spacing:0.09em; text-transform:uppercase; color:var(--ink-2);">{{ wRangeLabel }}</span>
+                <span style="font-size:10.5px; font-family:'IBM Plex Mono',monospace; color:var(--ink-3);">{{ wSummary }}</span>
+                <div style="flex:1;"></div>
+                <div onClick="{{ wOpenCap }}" style="width:28px; height:28px; flex:0 0 28px; border-radius:9px; border:1px solid var(--line-2); color:var(--ink); display:grid; place-items:center; font-size:17px; cursor:pointer;" style-hover="background:var(--surface-2);">+</div>
+              </div>
+              <div style="flex:1; overflow-y:auto; padding:7px 0 12px;">
+                <sc-for list="{{ wGroupsC }}" as="g" hint-placeholder-count="3">
+                  <div>
+                    <div style="display:flex; align-items:center; gap:8px; padding:5px 12px 6px;">
+                      <span style="{{ g.keyStyle }}">{{ g.keyShort }}</span>
+                      <span style="font-size:10.5px; color:var(--ink-2);">{{ g.key }}</span>
+                      <div style="{{ g.ruleStyle }}"></div>
+                    </div>
+                    <sc-for list="{{ g.rows }}" as="r" hint-placeholder-count="3">
+                      <div style="{{ r.rowStyle }}">
+                        <div onClick="{{ r.onDone }}" style="{{ r.boxStyle }}">{{ r.boxMark }}</div>
+                        <div onClick="{{ r.onOpen }}" style="flex:1; min-width:0; cursor:pointer;">
+                          <div style="display:flex; align-items:baseline; gap:6px;">
+                            <sc-if value="{{ r.hasSt }}" hint-placeholder-val="{{ true }}"><span style="{{ r.stStyle }}">{{ r.st }}</span></sc-if>
+                            <span style="{{ r.titleStyle }}">{{ r.title }}</span>
+                          </div>
+                          <div style="display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:3px;">
+                            <sc-for list="{{ r.meta }}" as="m" hint-placeholder-count="2"><span style="{{ m.style }}">{{ m.text }}</span></sc-for>
+                          </div>
+                        </div>
+                        <span style="{{ r.lateStyle }}">{{ r.lateLabel }}</span>
+                      </div>
+                    </sc-for>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+
+          <!-- quick capture -->
+          <sc-if value="{{ wCapOpen }}" hint-placeholder-val="{{ false }}">
+            <div onClick="{{ wCloseCap }}" style="position:absolute; inset:0; z-index:40; background:var(--scrim); animation:groveScrim .16s ease;"></div>
+            <div style="position:absolute; left:10px; right:10px; bottom:14px; z-index:41; border-radius:20px; background:var(--surface); border:1px solid var(--line); box-shadow:var(--shadow); padding:13px 13px 12px; animation:groveSheet .2s cubic-bezier(.2,.8,.2,1);">
+              <sc-if value="{{ wMenuOpen }}" hint-placeholder-val="{{ false }}">
+                <div style="{{ wMenuStyle }}">
+                  <div style="font-size:10px; font-weight:700; letter-spacing:0.07em; text-transform:uppercase; color:var(--ink-3); padding:2px 4px 6px;">{{ wMenuTitle }}</div>
+                  <sc-for list="{{ wMenuRows }}" as="o" hint-placeholder-count="4">
+                    <div onClick="{{ o.onClick }}" style="{{ o.style }}">
+                      <span style="flex:1; min-width:0;">{{ o.label }}</span>
+                      <span style="{{ o.hintStyle }}">{{ o.hint }}</span>
+                    </div>
+                  </sc-for>
+                </div>
+              </sc-if>
+              <div style="display:flex; align-items:center; gap:9px;">
+                <div onClick="{{ wCycleKw }}" style="{{ wKwStyle }}">{{ wKw }}</div>
+                <input value="{{ wCapText }}" onChange="{{ wCapType }}" placeholder="What needs doing?" style="flex:1; min-width:0; background:transparent; border:none; outline:none; color:var(--ink); font-size:15px; font-family:'IBM Plex Sans',sans-serif; padding:7px 0;">
+              </div>
+              <div style="display:flex; align-items:center; gap:7px; margin-top:11px; padding-top:11px; border-top:1px solid var(--line);">
+                <div onClick="{{ wOpenDateMenu }}" style="{{ wChipDate }}">{{ wDateLabel }}</div>
+                <div onClick="{{ wOpenPrioMenu }}" style="{{ wChipPrio }}">{{ wPrioLabel }}</div>
+                <div onClick="{{ wOpenNbMenu }}" style="{{ wChipNb }}">{{ wNbLabel }}</div>
+                <div style="flex:1;"></div>
+                <div onClick="{{ wSend }}" style="{{ wSendStyle }}">↑</div>
+              </div>
+            </div>
+          </sc-if>
+
+          <!-- widget snackbar -->
+          <sc-if value="{{ wSnackOpen }}" hint-placeholder-val="{{ false }}">
+            <div style="position:absolute; left:13px; right:13px; bottom:14px; z-index:45; display:flex; align-items:center; gap:12px; background:var(--ink); color:var(--bg); padding:11px 14px; border-radius:13px; box-shadow:var(--shadow); animation:groveFade .18s ease;">
+              <span style="flex:1; font-size:12.5px; line-height:1.35;">{{ wSnack }}</span>
+              <span onClick="{{ wUndo }}" style="font-size:12.5px; font-weight:700; letter-spacing:0.03em; color:var(--accent); cursor:pointer;">UNDO</span>
+            </div>
+          </sc-if>
+        </div>
+      </sc-if>
+
       <!-- ========== DATES — one canvas, both dates on the same grid ========== -->
       <sc-if value="{{ isDates }}" hint-placeholder-val="{{ false }}">
         <div data-screen-label="Dates" style="position:absolute; inset:0; display:flex; flex-direction:column;">
@@ -1653,7 +1828,7 @@
 
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script>
+<script type="text/x-dc" data-dc-script data-props="{&quot;widgetOpacity&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:0.82,&quot;min&quot;:0.25,&quot;max&quot;:1,&quot;step&quot;:0.02,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Agenda widget&quot;},&quot;autoArchive&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Agenda widget&quot;},&quot;widgetDays&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:14,&quot;min&quot;:3,&quot;max&quot;:30,&quot;unit&quot;:&quot;days&quot;,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Agenda widget&quot;}}">
 class Component extends DCLogic {
   state = {
     theme: 'light',
@@ -1686,6 +1861,8 @@ class Component extends DCLogic {
     focusId:null, popoverId:null, popoverTop:120, selectMode:false, selected:{}, sheetId:null,
     refileOpen:false, refileIds:null, refileNb:null, refileHeading:null, archiveDest:null,
     toast:null, snack:null, undoSnap:null,
+    w: { variant:'a', done:{}, gone:[], when:{}, added:[], snack:null, snap:null,
+         cap:false, capText:'', capKw:'TODO', capDate:'today', capPrio:null, capNb:'inbox.org', menu:null },
     syncIcon:true, themeDropdownOpen:false,
     showHeaderTags:true, colHdr:false, colFileProp:false, colSubProp:false,
   };
@@ -2976,6 +3153,202 @@ class Component extends DCLogic {
     };
   }
 
+  // ===== HOME-SCREEN AGENDA WIDGET =====
+  get W_OPACITY(){ const v = this.props.widgetOpacity; return typeof v === 'number' ? v : 0.82; }
+  get W_AUTOARCH(){ return this.props.autoArchive !== false; }
+  get W_DAYS(){ const v = this.props.widgetDays; return typeof v === 'number' ? v : 14; }
+  wSet(p){ this.setState(st => ({ w: { ...st.w, ...p } })); }
+  wSnack(msg, snap){ clearTimeout(this._wt); this.wSet({ snack: msg, snap });
+    this._wt = setTimeout(() => this.wSet({ snack: null }), 4600); }
+  wUndo = () => { const s = this.state.w.snap; if (!s) return;
+    this.wSet({ done:s.done, gone:s.gone, when:s.when, added:s.added, snack:null, snap:null }); };
+  wSnap(){ const w = this.state.w; return { done:{...w.done}, gone:[...w.gone], when:{...w.when}, added:[...w.added] }; }
+
+  wDayLabel(iso){ const n = this.dtDiff(this.AG_T, iso);
+    if (n === 0) return 'Today'; if (n === 1) return 'Tomorrow';
+    if (n > 1 && n < 7) return this.dtDow(iso);
+    return this.agShort(iso); }
+
+  wItems(){
+    const w = this.state.w, T = this.AG_T;
+    return this.AG.concat(w.added || [])
+      .filter(t => !(w.gone || []).includes(t.id))
+      .map(t => { const when = (w.when || {})[t.id] || t.sched || t.dead;
+        return { ...t, _when: when, _isDead: !t.sched && !!t.dead, _done: !!(w.done || {})[t.id] }; })
+      .filter(t => t._when && this.dtDiff(T, t._when) <= this.W_DAYS);
+  }
+
+  wNext(iso, rep){
+    const m = /^(\+{1,2})(\d+)([dwmy])$/.exec(rep) || [];
+    const n = +(m[2] || 1), u = m[3] || 'w';
+    let d = this.dtAdd(iso, n, u);
+    if (m[1] === '++') while (this.dtDiff(this.AG_T, d) < 0) d = this.dtAdd(d, n, u);
+    return d;
+  }
+
+  wDone(t){
+    const w = this.state.w, snap = this.wSnap();
+    if (t.rep) {
+      const nx = this.wNext(t._when, t.rep);
+      this.wSet({ when: { ...(w.when || {}), [t.id]: nx } });
+      this.wSnack('Rescheduled to ' + this.agShort(nx) + ' · LOGBOOK + LAST_REPEAT updated', snap);
+    } else if (this.W_AUTOARCH) {
+      this.wSet({ gone: [ ...(w.gone || []), t.id ] });
+      this.wSnack('DONE · archived to archive.org', snap);
+    } else {
+      this.wSet({ done: { ...(w.done || {}), [t.id]: true } });
+      this.wSnack('Marked DONE in ' + t.file, snap);
+    }
+  }
+
+  wRow(t, v, isOver){
+    const M = "font-family:'IBM Plex Mono',monospace;", T = this.AG_T;
+    const done = t._done, pc = this.agPColor(t.p), late = Math.abs(this.dtDiff(T, t._when));
+    const rail = isOver ? 'var(--red)' : (t.p ? pc : 'var(--line-2)');
+    const meta = [];
+    if (isOver) meta.push({ text: this.agShort(t._when) + ' · ' + late + 'd late', style: 'font-size:10.5px; font-weight:600; ' + M + ' color:var(--red);' });
+    else meta.push({ text: (t._isDead ? '⚑ ' : '') + this.wDayLabel(t._when), style: 'font-size:10.5px; ' + M + ' color:' + (t._isDead ? 'var(--red)' : t._when === T ? 'var(--accent)' : 'var(--ink-2)') + ';' });
+    if (t.t1) meta.push({ text: t.t1, style: 'font-size:10.5px; ' + M + ' color:var(--ink-2);' });
+    if (t.dead && t.sched && !t._isDead) meta.push({ text: '⚑ ' + this.agShort(t.dead), style: 'font-size:10.5px; ' + M + ' color:var(--red);' });
+    if (t.rep) meta.push({ text: '↻ ' + t.rep, style: 'font-size:10.5px; ' + M + ' color:var(--ink-3);' });
+    if (t.tag) meta.push({ text: ':' + t.tag + ':', style: 'font-size:10.5px; ' + M + ' color:var(--syn-tag);' });
+
+    const rowBase = 'display:flex; gap:9px; align-items:flex-start; opacity:' + (done ? '.5' : '1') + '; transition:opacity .15s ease;';
+    const rowStyle = v === 'a'
+      ? rowBase + ' padding:8px 13px; border-bottom:1px solid var(--line);'
+      : v === 'b'
+        ? rowBase + ' padding:7px 1px;'
+        : rowBase + ' padding:8px 11px 8px 10px; margin:0 11px 5px; border-radius:11px; border-left:3px solid ' + rail + '; background:color-mix(in srgb, var(--surface-2) 60%, transparent);';
+
+    return {
+      id: t.id, title: t.title, st: t.st, hasSt: !!t.st,
+      meta, onDone: () => this.wDone(t), onOpen: () => this.go('read'),
+      rowStyle,
+      boxStyle: 'flex:0 0 19px; width:19px; height:19px; margin-top:1px; border-radius:50%; cursor:pointer; display:grid; place-items:center; font-size:10px; border:1.5px solid ' + (done ? 'var(--green)' : 'var(--line-2)') + '; background:' + (done ? 'var(--green)' : 'transparent') + '; color:var(--surface);',
+      boxMark: done ? '✓' : '',
+      titleStyle: 'font-size:13px; font-weight:500; line-height:1.35; text-wrap:pretty; color:' + (done ? 'var(--ink-3)' : 'var(--ink)') + '; text-decoration:' + (done ? 'line-through' : 'none') + ';',
+      stStyle: 'flex:0 0 auto; font-size:9px; font-weight:700; letter-spacing:0.05em; ' + M + ' padding:2px 4px; border-radius:4px; color:' + this.agStColor(t.st) + '; background:' + this.agStBg(t.st) + ';',
+      pStyle: (v === 'a' && t.p) ? 'flex:0 0 auto; font-size:9.5px; font-weight:700; ' + M + ' width:16px; height:16px; margin-top:2px; border-radius:5px; display:grid; place-items:center; color:' + pc + '; background:var(--surface-2);' : 'display:none;',
+      pLabel: t.p || '',
+      lateStyle: isOver ? 'flex:0 0 auto; font-size:9px; font-weight:700; letter-spacing:0.06em; ' + M + ' padding:2px 5px; margin-top:2px; border-radius:4px; color:var(--red); background:var(--red-soft);' : 'display:none;',
+      lateLabel: isOver ? late + 'D' : '',
+    };
+  }
+
+  wGroups(v){
+    const T = this.AG_T, items = this.wItems();
+    const byTime = (x, y) => ((x.t1 || '99') < (y.t1 || '99') ? -1 : 1);
+    const byDate = (x, y) => x._when < y._when ? -1 : x._when > y._when ? 1 : byTime(x, y);
+    const over = items.filter(t => this.dtDiff(T, t._when) < 0).sort(byDate);
+    const rest = items.filter(t => this.dtDiff(T, t._when) >= 0);
+    const tone = k => k === 'over' ? 'var(--red)' : k === 'A' ? 'var(--red)' : k === 'B' ? 'var(--amber)' : k === 'C' ? 'var(--blue)' : 'var(--ink-3)';
+    const soft = k => k === 'over' ? 'var(--red-soft)' : k === 'A' ? 'var(--red-soft)' : k === 'B' ? 'var(--amber-soft)' : k === 'C' ? 'var(--blue-soft)' : 'var(--surface-2)';
+    const mk = (k, key, keyShort, rows, isOver) => ({
+      key, keyShort, count: String(rows.length),
+      rows: rows.map(t => this.wRow(t, v, isOver)),
+      keyStyle: v === 'c'
+        ? "font-size:9.5px; font-weight:700; letter-spacing:0.06em; font-family:'IBM Plex Mono',monospace; padding:2px 6px; border-radius:5px; color:" + tone(k) + '; background:' + soft(k) + ';'
+        : v === 'b'
+          ? 'font-size:11px; font-weight:700; letter-spacing:0.07em; text-transform:uppercase; color:' + tone(k) + ';'
+          : 'font-size:10px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:' + (isOver ? 'var(--red)' : 'var(--ink-2)') + ';',
+      ruleStyle: 'flex:1; height:1px; background:' + (isOver ? 'var(--red)' : 'var(--line)') + '; opacity:' + (isOver ? '.45' : '1') + ';',
+      cardStyle: 'margin:6px 12px 0; padding:9px 11px 6px; border-radius:15px; background:' + (isOver ? 'var(--red-soft)' : 'color-mix(in srgb, var(--surface-2) 65%, transparent)') + '; border:1px solid ' + (isOver ? 'var(--red)' : 'transparent') + ';',
+    });
+    const G = [];
+    if (over.length) G.push(mk('over', over.length + ' overdue', '!', over, true));
+    [['A', 'Priority A'], ['B', 'Priority B'], ['C', 'Priority C'], [null, 'No priority']].forEach(g => {
+      const rows = rest.filter(t => (t.p || null) === g[0]).sort(byDate);
+      if (rows.length) G.push(mk(g[0] || 'none', g[1], g[0] || '–', rows, false));
+    });
+    return G;
+  }
+
+  wCapDates(){ const T = this.AG_T; return [
+    { k: 'today', label: 'Today', iso: T },
+    { k: 'tomorrow', label: 'Tomorrow', iso: this.dtAdd(T, 1, 'd') },
+    { k: 'weekend', label: 'This weekend', iso: this.dtAdd(T, 3, 'd') },
+    { k: 'nextweek', label: 'Next week', iso: this.dtAdd(T, 5, 'd') },
+    { k: 'none', label: 'No date', iso: null },
+  ]; }
+
+  wSend = () => {
+    const w = this.state.w, snap = this.wSnap();
+    const d = this.wCapDates().find(x => x.k === w.capDate) || {};
+    const title = (w.capText || '').trim() || 'Untitled task';
+    const item = { id: 'wx' + Date.now(), st: w.capKw, p: w.capPrio, title, file: w.capNb, tag: null, sched: d.iso || this.AG_T };
+    this.wSet({ added: [ ...(w.added || []), item ], cap: false, menu: null, capText: '' });
+    this.wSnack('Captured to ' + w.capNb + (d.iso ? ' · ' + this.wDayLabel(d.iso).toLowerCase() : ''), snap);
+  };
+
+  wVals(){
+    const s = this.state, w = s.w, T = this.AG_T, M = "font-family:'IBM Plex Mono',monospace;";
+    const items = this.wItems();
+    const over = items.filter(t => this.dtDiff(T, t._when) < 0).length;
+    const today = items.filter(t => t._when === T).length;
+    const op = Math.round(this.W_OPACITY * 100);
+    const dateOpt = this.wCapDates().find(x => x.k === w.capDate) || {};
+    const chip = (on, c) => 'display:flex; align-items:center; gap:5px; font-size:11.5px; font-weight:600; padding:7px 10px; border-radius:9px; cursor:pointer; white-space:nowrap; border:1px solid ' + (on ? 'transparent' : 'var(--line-2)') + '; background:' + (on ? (c || 'var(--accent-soft)') : 'transparent') + '; color:' + (on ? (c ? 'var(--ink)' : 'var(--accent)') : 'var(--ink-2)') + ';';
+    const menuRow = (label, hint, onClick, on) => ({ label, hint: hint || '', onClick,
+      style: 'display:flex; align-items:center; gap:9px; padding:9px 10px; border-radius:10px; cursor:pointer; font-size:13px; color:' + (on ? 'var(--accent)' : 'var(--ink)') + '; font-weight:' + (on ? '600' : '500') + '; background:' + (on ? 'var(--accent-soft)' : 'transparent') + ';',
+      hintStyle: 'font-size:11px; ' + M + ' color:var(--ink-3);' });
+
+    let menuTitle = '', menuRows = [];
+    if (w.menu === 'date') { menuTitle = 'Scheduled';
+      menuRows = this.wCapDates().map(o => menuRow(o.label, o.iso ? this.agShort(o.iso) : '', () => this.wSet({ capDate: o.k, menu: null }), w.capDate === o.k)); }
+    else if (w.menu === 'prio') { menuTitle = 'Priority';
+      menuRows = [['A', 'urgent'], ['B', 'normal'], ['C', 'low'], [null, 'none']].map(p =>
+        menuRow(p[0] ? '#' + p[0] : 'No priority', p[1], () => this.wSet({ capPrio: p[0], menu: null }), (w.capPrio || null) === p[0])); }
+    else if (w.menu === 'nb') { menuTitle = 'Notebook';
+      menuRows = ['inbox.org', 'work.org', 'home.org', 'projects.org', 'travel.org'].map(f =>
+        menuRow(f, '', () => this.wSet({ capNb: f, menu: null }), w.capNb === f)); }
+
+    return {
+      isWidget: s.screen === 'widget',
+      wIsA: s.screen === 'widget' && w.variant === 'a',
+      wIsB: s.screen === 'widget' && w.variant === 'b',
+      wIsC: s.screen === 'widget' && w.variant === 'c',
+      goWA: () => { this.wSet({ variant: 'a' }); this.go('widget'); },
+      goWB: () => { this.wSet({ variant: 'b' }); this.go('widget'); },
+      goWC: () => { this.wSet({ variant: 'c' }); this.go('widget'); },
+      chipWA: this.chip(s.screen === 'widget' && w.variant === 'a'),
+      chipWB: this.chip(s.screen === 'widget' && w.variant === 'b'),
+      chipWC: this.chip(s.screen === 'widget' && w.variant === 'c'),
+
+      wBg: 'color-mix(in srgb, var(--surface) ' + op + '%, transparent)',
+      wDock: [0, 1, 2, 3].map(i => 'width:46px; height:46px; border-radius:14px; background:color-mix(in srgb, var(--surface) ' + (i === 1 ? 70 : 45) + '%, transparent); border:1px solid var(--line); opacity:.85;'),
+      wSummary: today + ' today · ' + items.length + ' in ' + this.W_DAYS + ' days',
+      wBigDate: 'Wed 29 Jul',
+      wRangeLabel: 'Next ' + (this.W_DAYS % 7 === 0 ? (this.W_DAYS / 7) + (this.W_DAYS === 7 ? ' week' : ' weeks') : this.W_DAYS + ' days'),
+      wHasOver: over > 0,
+      wOverLabel: over + ' overdue',
+      wGroupsA: this.wGroups('a'), wGroupsB: this.wGroups('b'), wGroupsC: this.wGroups('c'),
+
+      wSnackOpen: !!w.snack, wSnack: w.snack || '', wUndo: this.wUndo,
+
+      wCapOpen: !!w.cap,
+      wOpenCap: () => this.wSet({ cap: true, menu: null }),
+      wCloseCap: () => this.wSet({ cap: false, menu: null }),
+      wCapText: w.capText,
+      wCapType: (e) => this.wSet({ capText: e.target.value }),
+      wKw: w.capKw,
+      wKwStyle: 'flex:0 0 auto; font-size:10px; font-weight:700; letter-spacing:0.06em; ' + M + ' padding:4px 7px; border-radius:6px; cursor:pointer; color:' + this.agStColor(w.capKw) + '; background:' + this.agStBg(w.capKw) + ';',
+      wCycleKw: () => this.wSet({ capKw: w.capKw === 'TODO' ? 'NEXT' : w.capKw === 'NEXT' ? 'WAITING' : 'TODO' }),
+      wDateLabel: dateOpt.label || 'No date',
+      wPrioLabel: w.capPrio ? '#' + w.capPrio : 'Priority',
+      wNbLabel: w.capNb,
+      wChipDate: chip(w.capDate !== 'none'),
+      wChipPrio: chip(!!w.capPrio, w.capPrio ? this.agPColor(w.capPrio).replace('var(--', 'var(--').replace(')', '-soft)') : null),
+      wChipNb: chip(w.capNb !== 'inbox.org'),
+      wSend: this.wSend,
+      wSendStyle: 'width:38px; height:38px; flex:0 0 38px; border-radius:12px; display:grid; place-items:center; cursor:pointer; font-size:17px; background:var(--accent); color:var(--accent-ink);',
+      wOpenDateMenu: () => this.wSet({ menu: w.menu === 'date' ? null : 'date' }),
+      wOpenPrioMenu: () => this.wSet({ menu: w.menu === 'prio' ? null : 'prio' }),
+      wOpenNbMenu: () => this.wSet({ menu: w.menu === 'nb' ? null : 'nb' }),
+      wMenuOpen: !!w.menu, wMenuTitle: menuTitle, wMenuRows: menuRows,
+      wMenuStyle: 'position:absolute; left:0; right:0; bottom:100%; margin-bottom:8px; padding:8px; border-radius:15px; background:var(--surface); border:1px solid var(--line-2); box-shadow:var(--shadow); animation:grovePop .15s ease;',
+    };
+  }
+
   renderVals() {
     const s = this.state;
     const sc = (n) => s.screen === n;
@@ -3081,6 +3454,7 @@ class Component extends DCLogic {
       iconSpokesLauncher: this.spokeSet(16, 7),
       ...this.dtVals(),
       ...this.agVals(),
+      ...this.wVals(),
     };
   }
 }

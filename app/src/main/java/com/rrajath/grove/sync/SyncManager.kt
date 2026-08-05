@@ -146,7 +146,6 @@ class SyncManager(
                     ConflictResolver.keepBoth(
                         mainText = store.read(baseName),
                         conflictText = store.read(copyName),
-                        label = SyncConflicts.label(copyName),
                     ),
                 )
         }
