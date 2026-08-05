@@ -28,6 +28,8 @@ updated and push.
 
 ## [Unreleased]
 
+## [1.0.190] - 2026-08-05
+
 ### Added
 - Long-pressing a Saved Search or Favorite in the nav drawer now opens a Move up/Move
   down/Rename/Delete menu instead of just a delete confirmation, so both lists can be
