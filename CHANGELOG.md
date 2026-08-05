@@ -28,6 +28,8 @@ updated and push.
 
 ## [Unreleased]
 
+## [1.0.196] - 2026-08-05
+
 ### Added
 - New home-screen widget: an Agenda ledger showing overdue tasks first, then upcoming tasks
   grouped by day (Today, Tomorrow, then by date), sorted by priority and time within each day.
