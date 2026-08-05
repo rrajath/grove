@@ -28,6 +28,8 @@ updated and push.
 
 ## [Unreleased]
 
+## [1.0.198] - 2026-08-05
+
 ### Added
 - Settings › Reminders now has a "Notify me" dropdown (at the time of event, 5/10/15/30 minutes
   before, 1 hour before, 1 day before) that shifts the "due" notification earlier and reworks its
