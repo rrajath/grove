@@ -70,10 +70,16 @@ object AutoArchive {
         val plainDoc = OrgParser.parse(plainText, doc.keywords)
         fun plain() = StateChangeResult.Plain(fileName, plainText, plainDoc)
 
-        val shouldArchive = settings.autoArchiveDoneItems && newKeyword != null && doc.keywords.isDone(newKeyword)
+        val movedHeadline = plainDoc.headlines.firstOrNull { it.lineIndex == headline.lineIndex } ?: return plain()
+
+        // Check the headline's keyword as it actually ended up after the mutation, not the
+        // keyword the caller requested: a repeating SCHEDULED/DEADLINE keeps markDone() from
+        // ever setting a done keyword (org semantics — it just advances the date), so archiving
+        // here based on the requested newKeyword would refile a still-active recurring task.
+        val shouldArchive = settings.autoArchiveDoneItems &&
+            movedHeadline.keyword != null && doc.keywords.isDone(movedHeadline.keyword)
         if (!shouldArchive) return plain()
 
-        val movedHeadline = plainDoc.headlines.firstOrNull { it.lineIndex == headline.lineIndex } ?: return plain()
         val target = ArchiveLocation.resolve(plainDoc, movedHeadline, settingsFallback(settings)) ?: return plain()
         val write = refileSubtree(vault, plainDoc, fileName, movedHeadline, target) ?: return plain()
 

@@ -21,6 +21,11 @@ data class GroveSettings(
     val fontSize: FontSizePreference = FontSizePreference.MEDIUM,
     val defaultNoteOpenMode: NoteOpenMode = NoteOpenMode.READ,
     val onboardingDone: Boolean = false,
+    /**
+     * `BuildConfig.VERSION_NAME` last shown by the What's New modal; device-specific like
+     * [onboardingDone], so deliberately left out of [com.rrajath.grove.settings.SettingsSerialization].
+     */
+    val lastSeenChangelogVersion: String? = null,
     /** Persisted SAF tree URI of the sync folder; null until the user picks one. */
     val vaultTreeUri: String? = null,
     val syncMode: SyncMode = SyncMode.ON_OPEN_CLOSE,
@@ -94,6 +99,7 @@ class SettingsRepository(private val context: Context) {
         val fontSize = stringPreferencesKey("font_size")
         val noteOpenMode = stringPreferencesKey("note_open_mode")
         val onboardingDone = booleanPreferencesKey("onboarding_done")
+        val lastSeenChangelogVersion = stringPreferencesKey("last_seen_changelog_version")
         val vaultTreeUri = stringPreferencesKey("vault_tree_uri")
         val syncMode = stringPreferencesKey("sync_mode")
         val periodicSyncMinutes = intPreferencesKey("periodic_sync_minutes")
@@ -137,6 +143,7 @@ class SettingsRepository(private val context: Context) {
             fontSize = FontSizePreference.fromStorage(prefs[Keys.fontSize]),
             defaultNoteOpenMode = NoteOpenMode.fromStorage(prefs[Keys.noteOpenMode]),
             onboardingDone = prefs[Keys.onboardingDone] ?: false,
+            lastSeenChangelogVersion = prefs[Keys.lastSeenChangelogVersion],
             vaultTreeUri = prefs[Keys.vaultTreeUri],
             syncMode = SyncMode.fromStorage(prefs[Keys.syncMode]),
             periodicSyncMinutes = prefs[Keys.periodicSyncMinutes] ?: 30,
@@ -269,6 +276,10 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setOnboardingDone(done: Boolean) {
         context.settingsDataStore.edit { it[Keys.onboardingDone] = done }
+    }
+
+    suspend fun setLastSeenChangelogVersion(version: String) {
+        context.settingsDataStore.edit { it[Keys.lastSeenChangelogVersion] = version }
     }
 
     suspend fun setVaultTreeUri(uri: String) {

@@ -2,6 +2,7 @@ package com.rrajath.grove.reminders
 
 import com.rrajath.grove.data.ReminderDao
 import com.rrajath.grove.data.ReminderEntity
+import com.rrajath.grove.org.OrgParser
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
@@ -9,6 +10,9 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.LocalDateTime
+import java.time.LocalTime
+import java.time.ZoneId
 
 /**
  * JVM regression tests for the scheduling logic in [ReminderReconciler.arm], with
@@ -140,5 +144,35 @@ class ReminderReconcilerTest {
         assertEquals("overdue reminder must be settled (no longer pending)", false, dao.rows["overdue"]!!.pendingPermission)
         assertEquals("overdue reminder must be marked handled so catch-up doesn't pick it up later", now, dao.rows["overdue"]!!.firedAt)
         assertEquals(false, dao.rows["future"]!!.pendingPermission)
+    }
+
+    @Test
+    fun `setting a SCHEDULED time already in the past does not fire an immediate notification`() = runTest {
+        val dao = FakeReminderDao()
+        val rec = Recorder()
+        // "now" is well after the SCHEDULED date below, so the freshly-computed reminder
+        // reaches applyPlan()'s toSchedule list already overdue.
+        val laterNow = LocalDateTime.of(2026, 1, 1, 0, 0)
+            .atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val reconciler = ReminderReconciler(
+            context = null,
+            dao = dao,
+            clock = { laterNow },
+            hasPermission = { true },
+            notify = { rec.notified += it.key },
+            scheduleAlarm = { rec.scheduled += it.key },
+            cancelAlarm = { rec.cancelled += it.key },
+        )
+        val doc = OrgParser.parse("* TODO A\nSCHEDULED: <2020-01-01 Wed 09:00>\n")
+
+        reconciler.reconcileFile("a.org", doc, LocalTime.of(9, 0), remindersEnabled = true)
+
+        assertTrue("must not fire a notification for a task freshly scheduled into the past", rec.notified.isEmpty())
+        assertTrue("must not leave a dangling alarm scheduled", rec.scheduled.isEmpty())
+        assertEquals(1, dao.rows.size)
+        assertTrue(
+            "must still be marked settled so catch-up doesn't pick it up later",
+            dao.rows.values.first().firedAt != null,
+        )
     }
 }

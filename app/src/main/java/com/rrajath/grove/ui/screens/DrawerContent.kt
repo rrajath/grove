@@ -13,9 +13,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -54,9 +59,18 @@ fun GroveDrawerContent(
     logoFollowsTheme: Boolean = true,
     onNavigate: (String) -> Unit,
     onDeleteSavedSearch: (SavedSearch) -> Unit,
+    onRenameSavedSearch: (String, String) -> Unit = { _, _ -> },
+    onMoveSavedSearch: (String, Int) -> Unit = { _, _ -> },
+    onDeleteFavorite: (FavoriteNote) -> Unit = {},
+    onRenameFavorite: (FavoriteNote, String) -> Unit = { _, _ -> },
+    onMoveFavorite: (FavoriteNote, Int) -> Unit = { _, _ -> },
 ) {
     val c = MaterialTheme.grove
-    var deleteTarget by remember { mutableStateOf<SavedSearch?>(null) }
+    var searchMenuTarget by remember { mutableStateOf<SavedSearch?>(null) }
+    var renameSearchTarget by remember { mutableStateOf<SavedSearch?>(null) }
+    var favMenuTarget by remember { mutableStateOf<FavoriteNote?>(null) }
+    var renameFavoriteTarget by remember { mutableStateOf<FavoriteNote?>(null) }
+
     Column(Modifier.fillMaxWidth()) {
         // Header
         Column(Modifier.padding(22.dp)) {
@@ -80,18 +94,43 @@ fun GroveDrawerContent(
         DrawerItem("✦", "Notebooks", active = currentRoute == Routes.NOTEBOOKS) { onNavigate(Routes.NOTEBOOKS) }
 
         SectionLabel("SEARCHES")
-        savedSearches.forEach { search ->
-            DrawerItem(
-                icon = savedSearchIcon(), label = search.name, active = false,
-                onLongClick = { deleteTarget = search },
-            ) { onNavigate(Routes.search(search.query)) }
+        savedSearches.forEachIndexed { index, search ->
+            Box {
+                DrawerItem(
+                    icon = savedSearchIcon(), label = search.name, active = false,
+                    onLongClick = { searchMenuTarget = search },
+                ) { onNavigate(Routes.search(search.query)) }
+                DrawerActionMenu(
+                    expanded = searchMenuTarget?.id == search.id,
+                    onDismissRequest = { searchMenuTarget = null },
+                    canMoveUp = index > 0,
+                    canMoveDown = index < savedSearches.lastIndex,
+                    onMoveUp = { onMoveSavedSearch(search.id, -1) },
+                    onMoveDown = { onMoveSavedSearch(search.id, 1) },
+                    onRename = { renameSearchTarget = search },
+                    onDelete = { onDeleteSavedSearch(search) },
+                )
+            }
         }
 
         if (favorites.isNotEmpty()) {
             SectionLabel("FAVORITES")
-            favorites.forEach { fav ->
-                DrawerItem(icon = favoriteIcon(), label = fav.title, active = false) {
-                    onNavigate(Routes.note(NoteRef(fav.fileName, fav.lineIndex).encode()))
+            favorites.forEachIndexed { index, fav ->
+                Box {
+                    DrawerItem(
+                        icon = favoriteIcon(), label = fav.title, active = false,
+                        onLongClick = { favMenuTarget = fav },
+                    ) { onNavigate(Routes.note(NoteRef(fav.fileName, fav.lineIndex).encode())) }
+                    DrawerActionMenu(
+                        expanded = favMenuTarget?.let { it.fileName == fav.fileName && it.lineIndex == fav.lineIndex } == true,
+                        onDismissRequest = { favMenuTarget = null },
+                        canMoveUp = index > 0,
+                        canMoveDown = index < favorites.lastIndex,
+                        onMoveUp = { onMoveFavorite(fav, -1) },
+                        onMoveDown = { onMoveFavorite(fav, 1) },
+                        onRename = { renameFavoriteTarget = fav },
+                        onDelete = { onDeleteFavorite(fav) },
+                    )
                 }
             }
         }
@@ -101,29 +140,84 @@ fun GroveDrawerContent(
         DrawerItem(icon = settingsIcon(), label = "Settings", active = false) { onNavigate(Routes.SETTINGS) }
     }
 
-    deleteTarget?.let { target ->
-        androidx.compose.material3.AlertDialog(
-            onDismissRequest = { deleteTarget = null },
-            containerColor = c.surface,
-            title = {
-                Text(
-                    "Delete \"${target.name}\"?",
-                    fontFamily = PlexSans, fontWeight = FontWeight.SemiBold, fontSize = 16.sp, color = c.ink,
-                )
-            },
-            confirmButton = {
-                androidx.compose.material3.TextButton(onClick = {
-                    onDeleteSavedSearch(target)
-                    deleteTarget = null
-                }) { Text("Delete", color = c.red, fontWeight = FontWeight.SemiBold) }
-            },
-            dismissButton = {
-                androidx.compose.material3.TextButton(onClick = { deleteTarget = null }) {
-                    Text("Cancel", color = c.ink2)
-                }
-            },
+    renameSearchTarget?.let { target ->
+        RenameDialog(
+            title = "Rename search",
+            initialName = target.name,
+            onConfirm = { onRenameSavedSearch(target.id, it); renameSearchTarget = null },
+            onDismiss = { renameSearchTarget = null },
         )
     }
+
+    renameFavoriteTarget?.let { target ->
+        RenameDialog(
+            title = "Rename favorite",
+            initialName = target.title,
+            onConfirm = { onRenameFavorite(target, it); renameFavoriteTarget = null },
+            onDismiss = { renameFavoriteTarget = null },
+        )
+    }
+}
+
+/** Long-press action menu shared by the drawer's Saved Searches and Favorites rows. */
+@Composable
+private fun DrawerActionMenu(
+    expanded: Boolean,
+    onDismissRequest: () -> Unit,
+    canMoveUp: Boolean,
+    canMoveDown: Boolean,
+    onMoveUp: () -> Unit,
+    onMoveDown: () -> Unit,
+    onRename: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    val c = MaterialTheme.grove
+    DropdownMenu(expanded = expanded, onDismissRequest = onDismissRequest, containerColor = c.surface) {
+        DropdownMenuItem(
+            text = { Text("Move up", fontFamily = PlexSans, color = if (canMoveUp) c.ink else c.ink3) },
+            enabled = canMoveUp,
+            onClick = { onDismissRequest(); onMoveUp() },
+        )
+        DropdownMenuItem(
+            text = { Text("Move down", fontFamily = PlexSans, color = if (canMoveDown) c.ink else c.ink3) },
+            enabled = canMoveDown,
+            onClick = { onDismissRequest(); onMoveDown() },
+        )
+        DropdownMenuItem(
+            text = { Text("Rename", fontFamily = PlexSans, color = c.ink) },
+            onClick = { onDismissRequest(); onRename() },
+        )
+        DropdownMenuItem(
+            text = { Text("Delete", fontFamily = PlexSans, color = c.red) },
+            onClick = { onDismissRequest(); onDelete() },
+        )
+    }
+}
+
+@Composable
+private fun RenameDialog(title: String, initialName: String, onConfirm: (String) -> Unit, onDismiss: () -> Unit) {
+    val c = MaterialTheme.grove
+    var name by remember(initialName) { mutableStateOf(initialName) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = c.surface,
+        title = { Text(title, fontFamily = PlexSans, fontWeight = FontWeight.SemiBold, color = c.ink) },
+        text = {
+            OutlinedTextField(
+                value = name, onValueChange = { name = it },
+                singleLine = true,
+                placeholder = { Text("Name", color = c.ink3) },
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(name) }, enabled = name.isNotBlank()) {
+                Text("Rename", color = c.accent, fontWeight = FontWeight.SemiBold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel", color = c.ink2) }
+        },
+    )
 }
 
 @Composable

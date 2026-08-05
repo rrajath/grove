@@ -24,6 +24,8 @@ import com.rrajath.grove.settings.ThemePreference
 import com.rrajath.grove.ui.vault.RefileNotebook
 import com.rrajath.grove.ui.vault.RefileUiState
 import com.rrajath.grove.ui.vault.headlineAtLine
+import com.rrajath.grove.whatsnew.ChangelogParser
+import com.rrajath.grove.whatsnew.ChangelogVersion
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -52,6 +54,12 @@ class AppViewModel(private val app: GroveApplication) : ViewModel() {
     fun deleteSavedSearch(id: String) =
         viewModelScope.launch { app.searchRepository.deleteSearch(id) }
 
+    fun renameSavedSearch(id: String, name: String) =
+        viewModelScope.launch { app.searchRepository.renameSearch(id, name) }
+
+    fun moveSavedSearch(id: String, delta: Int) =
+        viewModelScope.launch { app.searchRepository.moveSearch(id, delta) }
+
     val favorites: StateFlow<List<FavoriteNote>> = app.favoritesRepository.favorites
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
@@ -60,6 +68,12 @@ class AppViewModel(private val app: GroveApplication) : ViewModel() {
 
     fun removeFavorite(fileName: String, lineIndex: Int) =
         viewModelScope.launch { app.favoritesRepository.removeFavorite(fileName, lineIndex) }
+
+    fun renameFavorite(fileName: String, lineIndex: Int, title: String) =
+        viewModelScope.launch { app.favoritesRepository.renameFavorite(fileName, lineIndex, title) }
+
+    fun moveFavorite(fileName: String, lineIndex: Int, delta: Int) =
+        viewModelScope.launch { app.favoritesRepository.moveFavorite(fileName, lineIndex, delta) }
 
     fun setTheme(theme: ThemePreference) =
         viewModelScope.launch { settingsRepository.setTheme(theme) }
@@ -75,8 +89,44 @@ class AppViewModel(private val app: GroveApplication) : ViewModel() {
     fun setDefaultNoteOpenMode(mode: NoteOpenMode) =
         viewModelScope.launch { settingsRepository.setDefaultNoteOpenMode(mode) }
 
-    fun completeOnboarding() =
-        viewModelScope.launch { settingsRepository.setOnboardingDone(true) }
+    fun completeOnboarding() = viewModelScope.launch {
+        settingsRepository.setOnboardingDone(true)
+        // A brand-new install has nothing "new" to report: stamp the current version as
+        // already seen so the What's New modal never fires for someone who just onboarded.
+        settingsRepository.setLastSeenChangelogVersion(com.rrajath.grove.BuildConfig.VERSION_NAME)
+    }
+
+    private val _whatsNew = MutableStateFlow<List<ChangelogVersion>>(emptyList())
+    val whatsNew: StateFlow<List<ChangelogVersion>> = _whatsNew
+
+    /**
+     * Loads CHANGELOG.md's bundled asset and shows whatever's new since the version last
+     * recorded as seen. Call once onboarding is confirmed done (see [completeOnboarding]).
+     */
+    fun checkWhatsNew() = viewModelScope.launch(Dispatchers.IO) {
+        val current = com.rrajath.grove.BuildConfig.VERSION_NAME
+        val lastSeen = settings.value?.lastSeenChangelogVersion
+        if (lastSeen == current) return@launch
+        val text = runCatching {
+            app.assets.open("CHANGELOG.md").bufferedReader().use { it.readText() }
+        }.getOrNull() ?: return@launch
+        val entries = if (lastSeen == null) {
+            // Existing install seeing this feature for the first time: no recorded baseline to
+            // diff against, so show just the newest shipped version instead of the full history.
+            ChangelogParser.parse(text)
+                .filter { it.subsections.any { s -> s.items.isNotEmpty() } }
+                .firstOrNull { it.versionNumber != null }
+                ?.let { listOf(it) } ?: emptyList()
+        } else {
+            ChangelogParser.entriesSince(text, lastSeen, current)
+        }
+        if (entries.isNotEmpty()) _whatsNew.value = entries
+    }
+
+    fun dismissWhatsNew() {
+        _whatsNew.value = emptyList()
+        viewModelScope.launch { settingsRepository.setLastSeenChangelogVersion(com.rrajath.grove.BuildConfig.VERSION_NAME) }
+    }
 
     fun setVaultTreeUri(uri: String) =
         viewModelScope.launch { settingsRepository.setVaultTreeUri(uri) }

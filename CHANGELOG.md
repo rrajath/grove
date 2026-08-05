@@ -28,6 +28,23 @@ updated and push.
 
 ## [Unreleased]
 
+### Added
+- Long-pressing a Saved Search or Favorite in the nav drawer now opens a Move up/Move
+  down/Rename/Delete menu instead of just a delete confirmation, so both lists can be
+  reordered and renamed in place, not only pruned
+- A What's New modal now appears once after an app update, listing everything from
+  CHANGELOG.md since the version you last saw, formatted the same way as the changelog
+  itself (Added/Fixed/etc. sections with bullet items)
+
+### Fixed
+- Killing (marking done) a recurring task with auto-archive enabled no longer archives it: a
+  repeating SCHEDULED/DEADLINE keeps the task's keyword active (per org semantics, only the date
+  advances), but auto-archive was checking the requested keyword instead of the task's actual
+  post-mutation state, so it refiled still-active recurring tasks to the archive location anyway
+- Setting a SCHEDULED or DEADLINE to a date/time already in the past no longer fires an
+  immediate "task is due" notification; only a genuine catch-up (the device was off or the
+  app was closed when an already-armed future reminder came due) still fires one
+
 ## [1.0.187] - 2026-08-04
 
 ### Added

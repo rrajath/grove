@@ -1043,8 +1043,9 @@ Section headers scroll with the list; the prototype has no pinned headers, so th
 | Screen | Route | Key components used |
 |---|---|---|
 | Onboarding | `onboarding` | `BrandMark`, `Pill` ("Recommended"), primary button |
+| What's New | (overlay) | `WhatsNewDialog`: `AlertDialog` shown once per app update (gated on `onboardingDone` and a version bump), content sourced from the bundled `CHANGELOG.md` asset via `ChangelogParser`, grouped by version with `### Added`/`Fixed`/etc. subsection labels and `•`-bulleted items in a scrollable column, single "OK" dismiss |
 | Notebooks | `notebooks` | `GroveTopBar`, `Pill` (sync badges), icon glyph tiles, FAB, `ReminderPermissionBanner` |
-| Nav Drawer | (overlay) | `BrandMark`, plain `Text` rows, `★` favorites glyph |
+| Nav Drawer | (overlay) | `BrandMark`, plain `Text` rows, `★` favorites glyph, `DrawerActionMenu` (long-press a Saved Search or Favorites row → `DropdownMenu`: Move up/Move down/Rename/Delete, shared between both sections; Rename opens `RenameDialog`) |
 | Outline | `outline/{notebookId}` | `GroveTopBar`, `annotateOrgInline`, keyword chips, `starColor()`, `FavoriteStar` |
 | Read Note | `note/{noteId}?mode=read` | `GroveTopBar`, `SegmentedControl`, `MetadataSheet`, `annotateOrgInline`, tag chips, `FavoriteStar` |
 | Edit Note | `note/{noteId}?mode=edit` | `GroveTopBar`, `SegmentedControl`, `OrgVisualTransformation`, formatting toolbar, `MetadataSheet` |

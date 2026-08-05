@@ -33,6 +33,27 @@ fun gitOutput(args: List<String>): String? {
 val gitCommitCount = gitOutput(listOf("rev-list", "--count", "HEAD"))?.toIntOrNull() ?: 1
 val semanticVersion = "$versionMajor.$versionMinor.$gitCommitCount"
 
+// Bundles the repo's CHANGELOG.md into the APK as a raw asset (read at runtime by the
+// What's New modal) instead of hand-duplicating its content into a resource: this keeps
+// the single source of truth in the root CHANGELOG.md, so it can't drift from what CI
+// actually cuts into GitHub Releases. A plain Copy task's output is a File, but the
+// Variant API's addGeneratedSourceDirectory needs a DirectoryProperty, hence this
+// dedicated task instead of a stock Copy/Sync.
+abstract class CopyChangelogTask : org.gradle.api.DefaultTask() {
+    @get:org.gradle.api.tasks.InputFile
+    abstract val inputFile: org.gradle.api.file.RegularFileProperty
+
+    @get:org.gradle.api.tasks.OutputDirectory
+    abstract val outputDir: org.gradle.api.file.DirectoryProperty
+
+    @org.gradle.api.tasks.TaskAction
+    fun run() {
+        val dest = outputDir.get().asFile
+        dest.mkdirs()
+        inputFile.get().asFile.copyTo(File(dest, "CHANGELOG.md"), overwrite = true)
+    }
+}
+
 // The release string the Sentry SDK reports at runtime (crash/event "release"
 // tag). Kept identical to the GitHub Release tag (see
 // .github/workflows/build.yml, which tags "v$semanticVersion") so a Sentry
@@ -146,6 +167,17 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+    }
+}
+
+androidComponents {
+    onVariants { variant ->
+        val variantName = variant.name.replaceFirstChar { it.uppercase() }
+        val copyTask = tasks.register<CopyChangelogTask>("copy${variantName}ChangelogAsset") {
+            inputFile.set(rootProject.file("CHANGELOG.md"))
+            outputDir.set(layout.buildDirectory.dir("generated/assets/changelog/${variant.name}"))
+        }
+        variant.sources.assets?.addGeneratedSourceDirectory(copyTask) { it.outputDir }
     }
 }
 

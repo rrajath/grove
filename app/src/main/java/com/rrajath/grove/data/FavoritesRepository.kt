@@ -29,4 +29,21 @@ class FavoritesRepository(private val context: Context) {
         val updated = favorites.first().filterNot { it.fileName == fileName && it.lineIndex == lineIndex }
         context.favoritesDataStore.edit { it[FAVORITES_KEY] = FavoriteNoteSerializer.encode(updated) }
     }
+
+    suspend fun renameFavorite(fileName: String, lineIndex: Int, title: String) {
+        val updated = favorites.first().map {
+            if (it.fileName == fileName && it.lineIndex == lineIndex) it.copy(title = title) else it
+        }
+        context.favoritesDataStore.edit { it[FAVORITES_KEY] = FavoriteNoteSerializer.encode(updated) }
+    }
+
+    /** Swaps the favorite at (fileName, lineIndex) with its neighbor [delta] slots away (-1 up, +1 down); no-op past either end. */
+    suspend fun moveFavorite(fileName: String, lineIndex: Int, delta: Int) {
+        val current = favorites.first().toMutableList()
+        val from = current.indexOfFirst { it.fileName == fileName && it.lineIndex == lineIndex }
+        val to = from + delta
+        if (from < 0 || to < 0 || to >= current.size) return
+        current.add(to, current.removeAt(from))
+        context.favoritesDataStore.edit { it[FAVORITES_KEY] = FavoriteNoteSerializer.encode(current) }
+    }
 }

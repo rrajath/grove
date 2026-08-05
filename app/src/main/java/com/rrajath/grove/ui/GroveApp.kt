@@ -227,6 +227,11 @@ private fun GroveNavigation(
                     logoFollowsTheme = settings.syncAppIconWithTheme,
                     onNavigate = { route -> closeDrawerAnd { navController.navigate(route) } },
                     onDeleteSavedSearch = { viewModel.deleteSavedSearch(it.id) },
+                    onRenameSavedSearch = { id, name -> viewModel.renameSavedSearch(id, name) },
+                    onMoveSavedSearch = { id, delta -> viewModel.moveSavedSearch(id, delta) },
+                    onDeleteFavorite = { viewModel.removeFavorite(it.fileName, it.lineIndex) },
+                    onRenameFavorite = { fav, title -> viewModel.renameFavorite(fav.fileName, fav.lineIndex, title) },
+                    onMoveFavorite = { fav, delta -> viewModel.moveFavorite(fav.fileName, fav.lineIndex, delta) },
                 )
             }
         },
@@ -550,5 +555,13 @@ private fun GroveNavigation(
                 )
             }
         }
+    }
+
+    LaunchedEffect(settings.onboardingDone) {
+        if (settings.onboardingDone) viewModel.checkWhatsNew()
+    }
+    val whatsNew by viewModel.whatsNew.collectAsStateWithLifecycle()
+    if (whatsNew.isNotEmpty()) {
+        com.rrajath.grove.ui.screens.WhatsNewDialog(versions = whatsNew, onDismiss = viewModel::dismissWhatsNew)
     }
 }

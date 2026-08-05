@@ -89,7 +89,12 @@ class ReminderReconciler(
             cancelAlarm(entity)
             dao.delete(entity.key)
         }
-        plan.toSchedule.forEach { arm(it) }
+        // notifyIfOverdue = false: a toSchedule entry is either brand new or just had its
+        // trigger time changed by this reconcile (e.g. the user set a SCHEDULED/DEADLINE
+        // to a past date/time). There's no prior period during which this exact trigger
+        // was armed and missed, so unlike catchUpOverdue()/rearmAll() (genuine "the device
+        // was off and this should have fired" catch-up), it must not fire a notification.
+        plan.toSchedule.forEach { arm(it, notifyIfOverdue = false) }
         // plan.unchanged: leave the row and its alarm exactly as they are.
     }
 
@@ -98,7 +103,7 @@ class ReminderReconciler(
      * alarm, only if permitted; otherwise mark it pending so a permission
      * banner can prompt the user and [reconcilePending] can pick it up later.
      */
-    private suspend fun arm(entity: ReminderEntity) {
+    private suspend fun arm(entity: ReminderEntity, notifyIfOverdue: Boolean = true) {
         val permitted = hasPermission()
         if (!permitted) {
             dao.upsert(entity.copy(pendingPermission = true, firedAt = null))
@@ -118,7 +123,7 @@ class ReminderReconciler(
                 return
             }
             dao.upsert(entity.copy(pendingPermission = false))
-            notify(entity)
+            if (notifyIfOverdue) notify(entity)
             dao.markFired(entity.key, clock())
         } else {
             dao.upsert(entity.copy(pendingPermission = false, firedAt = null))
