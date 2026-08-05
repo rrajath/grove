@@ -20,6 +20,8 @@ data class FacetNarrowing(
     val tags: Set<String> = emptySet(),
     val scheduled: DatePresence = DatePresence.ANY,
     val deadline: DatePresence = DatePresence.ANY,
+    val closed: DatePresence = DatePresence.ANY,
+    val created: DatePresence = DatePresence.ANY,
 ) {
     companion object {
         val NONE = FacetNarrowing()
@@ -148,7 +150,7 @@ object NoteCandidateQuery {
     }
 
     private fun dateCondition(column: String, period: Period): Pair<String, List<String>> =
-        if (period.isNone) "$column IS NULL" to emptyList()
+        if (period.isNoDate) "$column IS NULL" to emptyList()
         else "$column IS NOT NULL" to emptyList()
 
     // --- filter chips ---
@@ -185,6 +187,8 @@ object NoteCandidateQuery {
         // reparses: "column IS NULL" and "has no date" are the same set.
         presenceCondition("scheduled", facets.scheduled)?.let { out += it to emptyList() }
         presenceCondition("deadline", facets.deadline)?.let { out += it to emptyList() }
+        presenceCondition("closed", facets.closed)?.let { out += it to emptyList() }
+        presenceCondition("createdAt", facets.created)?.let { out += it to emptyList() }
 
         return out
     }

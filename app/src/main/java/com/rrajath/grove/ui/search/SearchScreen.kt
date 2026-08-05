@@ -98,7 +98,13 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-private val OPERATOR_CHIPS = listOf("t.TAG", "i.STATE", "s.PERIOD", "b.NOTEBOOK", "p.PRIORITY")
+private val OPERATOR_CHIPS = listOf(
+    "t.TAG", "i.STATE", "s.PERIOD", "d.PERIOD", "c.PERIOD", "cr.PERIOD", "b.NOTEBOOK", "p.PRIORITY",
+)
+
+/** Quick-start card labels (see [BlankState]), included in the star button's
+ *  searchable dropdown alongside actual saved searches. */
+private val QUICK_START_NAMES = listOf("Overdue", "Today", "Open tasks", "Browse tags")
 
 /** Full-text + faceted search, results grouped by file (design spec §9
  *  "Search B: panel"). Finding a specific note; for upcoming/overdue browsing
@@ -200,7 +206,16 @@ fun SearchScreen(
                     }
                 }
                 if (state.query.isNotBlank()) {
-                    IconGlyph("☆", onClick = { saveDialogOpen = true })
+                    Box {
+                        IconGlyph("☆", onClick = { saveDialogOpen = true })
+                        if (saveDialogOpen) {
+                            SaveSearchDropdown(
+                                savedSearches = savedSearches,
+                                onDismiss = { saveDialogOpen = false },
+                                onSaveOrOverwrite = viewModel::saveOrOverwriteSearch,
+                            )
+                        }
+                    }
                 }
             }
 
@@ -236,6 +251,7 @@ fun SearchScreen(
                         activeStates = state.activeStates,
                         savedSearches = savedSearches,
                         onQuick = viewModel::applyQuickFilter,
+                        onQuickQuery = viewModel::applyQuickQuery,
                         onOpenTags = { filterPanelOpen = true },
                         onSavedTap = viewModel::submit,
                         onRenameSaved = viewModel::renameSavedSearch,
@@ -279,40 +295,14 @@ fun SearchScreen(
             onSetScheduledRange = viewModel::setScheduledRange,
             onSetDeadline = viewModel::setDeadlinePreset,
             onSetDeadlineRange = viewModel::setDeadlineRange,
+            onSetClosed = viewModel::setClosedPreset,
+            onSetClosedRange = viewModel::setClosedRange,
+            onSetCreated = viewModel::setCreatedPreset,
+            onSetCreatedRange = viewModel::setCreatedRange,
             onToggleNotebook = viewModel::toggleNotebook,
             onClearNotebooks = viewModel::clearNotebooks,
             onClear = viewModel::clearFilters,
             onDismiss = { filterPanelOpen = false },
-        )
-    }
-
-    if (saveDialogOpen) {
-        var name by remember { mutableStateOf("") }
-        AlertDialog(
-            onDismissRequest = { saveDialogOpen = false },
-            containerColor = c.surface,
-            title = {
-                Text("Save search", fontFamily = PlexSans, fontWeight = FontWeight.SemiBold, color = c.ink)
-            },
-            text = {
-                OutlinedTextField(
-                    value = name, onValueChange = { name = it },
-                    singleLine = true,
-                    placeholder = { Text("Name", color = c.ink3) },
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        viewModel.saveCurrentSearch(name)
-                        saveDialogOpen = false
-                    },
-                    enabled = name.isNotBlank(),
-                ) { Text("Save", color = c.accent, fontWeight = FontWeight.SemiBold) }
-            },
-            dismissButton = {
-                TextButton(onClick = { saveDialogOpen = false }) { Text("Cancel", color = c.ink2) }
-            },
         )
     }
 
@@ -339,6 +329,89 @@ fun SearchScreen(
             onConfirm = { sched, dead ->
                 viewModel.setPlanningDates(result.fileName, result.lineIndex, sched, dead)
                 schedulePickerFor = null
+            },
+        )
+    }
+}
+
+/**
+ * Star button's searchable dropdown: types continuously filter the combined
+ * list of saved searches and quick-start card labels; picking one asks to
+ * overwrite it, typing a name not in the list saves it as new.
+ */
+@Composable
+private fun SaveSearchDropdown(
+    savedSearches: List<SavedSearch>,
+    onDismiss: () -> Unit,
+    onSaveOrOverwrite: (String) -> Unit,
+) {
+    val c = MaterialTheme.grove
+    var typed by remember { mutableStateOf("") }
+    var confirmTarget by remember { mutableStateOf<String?>(null) }
+    val allNames = remember(savedSearches) { (QUICK_START_NAMES + savedSearches.map { it.name }).distinct() }
+    val filtered = remember(typed, allNames) {
+        if (typed.isBlank()) allNames else allNames.filter { it.contains(typed, ignoreCase = true) }
+    }
+    val exactMatch = allNames.any { it.equals(typed, ignoreCase = true) }
+
+    DropdownMenu(expanded = true, onDismissRequest = onDismiss) {
+        Column(Modifier.width(230.dp).padding(horizontal = 12.dp, vertical = 6.dp)) {
+            OutlinedTextField(
+                value = typed,
+                onValueChange = { typed = it },
+                singleLine = true,
+                placeholder = { Text("Name this search", color = c.ink3, fontSize = 13.sp) },
+                textStyle = TextStyle(fontFamily = PlexSans, fontSize = 13.sp, color = c.ink),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            if (typed.isNotBlank() && !exactMatch) {
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "Save as “$typed”",
+                    fontFamily = PlexSans, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = c.accent,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable { onSaveOrOverwrite(typed); onDismiss() }
+                        .padding(horizontal = 8.dp, vertical = 9.dp),
+                )
+            }
+            if (filtered.isNotEmpty()) {
+                Spacer(Modifier.height(4.dp))
+                HorizontalDivider(color = c.line)
+                filtered.forEach { name ->
+                    Text(
+                        name,
+                        fontFamily = PlexSans, fontSize = 13.sp, color = c.ink,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { confirmTarget = name }
+                            .padding(horizontal = 8.dp, vertical = 9.dp),
+                    )
+                }
+            }
+        }
+    }
+
+    confirmTarget?.let { name ->
+        AlertDialog(
+            onDismissRequest = { confirmTarget = null },
+            containerColor = c.surface,
+            title = { Text("Overwrite “$name”?", fontFamily = PlexSans, fontWeight = FontWeight.SemiBold, color = c.ink) },
+            text = {
+                Text(
+                    "This replaces its saved query with the current search.",
+                    fontFamily = PlexSans, fontSize = 13.sp, color = c.ink2,
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { onSaveOrOverwrite(name); confirmTarget = null; onDismiss() }) {
+                    Text("Overwrite", color = c.accent, fontWeight = FontWeight.SemiBold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmTarget = null }) { Text("Cancel", color = c.ink2) }
             },
         )
     }
@@ -372,8 +445,8 @@ private val OPERATOR_LEGEND = listOf(
     "i.STATE" to "TODO keyword (i.none = no keyword)",
     "b.NOTEBOOK" to "restrict to one notebook",
     "p.PRIORITY" to "priority letter (A/B/C)",
-    "s./d." to "scheduled/deadline within a period (3d, 1w, today…)",
-    "c./cr." to "closed/created within a period",
+    "s./d." to "scheduled/deadline within a period (today, tomorrow, 3d, 1w, overdue, nodate…)",
+    "c./cr." to "closed/created within a period (same period tokens as s./d.)",
 )
 
 @Composable
@@ -423,12 +496,11 @@ private fun AdvancedPanel(onChipTap: (String) -> Unit) {
             }
         }
         Spacer(Modifier.height(8.dp))
-        Row {
-            OPERATOR_CHIPS.take(3).forEach { OpChip(it, onChipTap); Spacer(Modifier.width(8.dp)) }
-        }
-        Spacer(Modifier.height(6.dp))
-        Row {
-            OPERATOR_CHIPS.drop(3).forEach { OpChip(it, onChipTap); Spacer(Modifier.width(8.dp)) }
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            OPERATOR_CHIPS.forEach { OpChip(it, onChipTap) }
         }
     }
 }
@@ -525,6 +597,7 @@ private fun BlankState(
     activeStates: List<String>,
     savedSearches: List<SavedSearch>,
     onQuick: (SearchFilters) -> Unit,
+    onQuickQuery: (String) -> Unit,
     onOpenTags: () -> Unit,
     onSavedTap: (String) -> Unit,
     onRenameSaved: (id: String, name: String) -> Unit,
@@ -532,8 +605,19 @@ private fun BlankState(
 ) {
     val c = MaterialTheme.grove
     val cards = listOf(
+        // "Overdue" is open tasks whose scheduled OR deadline date has
+        // passed: an OR across two different fields (and across every active
+        // keyword) that SearchFilters can't express as one facet, so this
+        // drives the query text directly. Equivalent to
+        // "(i.KW1 OR i.KW2 OR …) AND (s.overdue OR d.overdue)", expanded into
+        // the grammar's flat OR-of-AND-groups since it has no parens.
         QuickCard("!", "Overdue", "${quickCounts.overdue} past their date", c.red, c.redSoft) {
-            onQuick(SearchFilters(deadline = DatePreset.OVERDUE))
+            val expr = if (activeStates.isEmpty()) {
+                "s.overdue OR d.overdue"
+            } else {
+                activeStates.flatMap { kw -> listOf("i.$kw s.overdue", "i.$kw d.overdue") }.joinToString(" OR ")
+            }
+            onQuickQuery(expr)
         },
         QuickCard("◷", "Today", "${quickCounts.today} scheduled or due", c.amber, c.amberSoft) {
             onQuick(SearchFilters(scheduled = DatePreset.TODAY))
@@ -739,7 +823,7 @@ private fun FileGroupHeader(fileName: String, count: Int, collapsed: Boolean, on
     }
 }
 
-private enum class PillKind { SCHEDULED, DEADLINE }
+private enum class PillKind { SCHEDULED, DEADLINE, CLOSED, CREATED }
 
 @Composable
 private fun DatePillText(label: String, overdue: Boolean, kind: PillKind) {
@@ -791,7 +875,11 @@ private fun SearchResultRow(result: SearchResult, matchedTerms: List<String>) {
     val snippetText = if (result.snippet.text.isNotEmpty()) {
         remember(result.snippet.text, matchedTerms, c) { highlightedOrgText(result.snippet.text, matchedTerms, c) }
     } else null
-    val hasMeta = result.scheduledLabel != null || result.deadlineLabel != null || result.tagLine.isNotEmpty()
+    // A done-type item's dates are no longer actionable, so they're not worth
+    // surfacing in results (unlike the still-open items these pills exist for).
+    val showDates = !result.isDone
+    val hasMeta = (showDates && (result.scheduledLabel != null || result.deadlineLabel != null)) ||
+        result.tagLine.isNotEmpty()
     ResultRowContent(
         keyword = result.keyword,
         isDone = result.isDone,
@@ -809,8 +897,10 @@ private fun SearchResultRow(result: SearchResult, matchedTerms: List<String>) {
                     horizontalArrangement = Arrangement.spacedBy(7.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
-                    result.deadlineLabel?.let { DatePillText(it, overdue = result.deadlineOverdue, kind = PillKind.DEADLINE) }
-                    result.scheduledLabel?.let { DatePillText(it, overdue = result.scheduledOverdue, kind = PillKind.SCHEDULED) }
+                    if (showDates) {
+                        result.deadlineLabel?.let { DatePillText(it, overdue = result.deadlineOverdue, kind = PillKind.DEADLINE) }
+                        result.scheduledLabel?.let { DatePillText(it, overdue = result.scheduledOverdue, kind = PillKind.SCHEDULED) }
+                    }
                     if (result.tagLine.isNotEmpty()) {
                         Text(result.tagLine, fontFamily = PlexMono, fontSize = 11.sp, color = c.synTag)
                     }
@@ -833,6 +923,10 @@ private fun FilterPanel(
     onSetScheduledRange: (LocalDate, LocalDate) -> Unit,
     onSetDeadline: (DatePreset) -> Unit,
     onSetDeadlineRange: (LocalDate, LocalDate) -> Unit,
+    onSetClosed: (DatePreset) -> Unit,
+    onSetClosedRange: (LocalDate, LocalDate) -> Unit,
+    onSetCreated: (DatePreset) -> Unit,
+    onSetCreatedRange: (LocalDate, LocalDate) -> Unit,
     onToggleNotebook: (String) -> Unit,
     onClearNotebooks: () -> Unit,
     onClear: () -> Unit,
@@ -887,7 +981,7 @@ private fun FilterPanel(
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 16.dp),
             ) {
-                FilterSection("Notebook") {
+                FilterSection("Notebook", negatable = true) {
                     PanelChip("All notebooks", filters.notebooks.isEmpty() && filters.excludedNotebooks.isEmpty()) {
                         onClearNotebooks()
                     }
@@ -904,7 +998,7 @@ private fun FilterPanel(
                     }
                 }
                 if (catalog.tags.isNotEmpty()) {
-                    FilterSection("Tags") {
+                    FilterSection("Tags", negatable = true) {
                         catalog.tags.take(visibleTags).forEach { tag ->
                             val st = facetState(tag, filters.tags, filters.excludedTags)
                             PanelChip(":$tag:", included = st == FacetState.INCLUDED, excluded = st == FacetState.EXCLUDED) {
@@ -919,7 +1013,7 @@ private fun FilterPanel(
                     }
                 }
                 if (catalog.states.isNotEmpty()) {
-                    FilterSection("TODO state") {
+                    FilterSection("TODO state", negatable = true) {
                         catalog.states.forEach { st ->
                             val label = if (st == NO_STATE) "no state" else st
                             val chipState = facetState(st, filters.states, filters.excludedStates)
@@ -947,7 +1041,25 @@ private fun FilterPanel(
                         else rangeTarget = PillKind.DEADLINE
                     }
                 }
-                FilterSection("Priority") {
+                FilterSection("Closed") {
+                    DatePreset.entries.filter { it != DatePreset.ANY && it != DatePreset.CUSTOM }.forEach { preset ->
+                        PanelChip(preset.label, filters.closed == preset) { onSetClosed(preset) }
+                    }
+                    PanelChip(customRangeLabel(filters.closedRange), filters.closed == DatePreset.CUSTOM) {
+                        if (filters.closed == DatePreset.CUSTOM) onSetClosed(DatePreset.CUSTOM)
+                        else rangeTarget = PillKind.CLOSED
+                    }
+                }
+                FilterSection("Created") {
+                    DatePreset.entries.filter { it != DatePreset.ANY && it != DatePreset.CUSTOM }.forEach { preset ->
+                        PanelChip(preset.label, filters.created == preset) { onSetCreated(preset) }
+                    }
+                    PanelChip(customRangeLabel(filters.createdRange), filters.created == DatePreset.CUSTOM) {
+                        if (filters.created == DatePreset.CUSTOM) onSetCreated(DatePreset.CUSTOM)
+                        else rangeTarget = PillKind.CREATED
+                    }
+                }
+                FilterSection("Priority", negatable = true) {
                     listOf("A", "B", "C").forEach { p ->
                         val st = facetState(p, filters.priorities, filters.excludedPriorities)
                         PanelChip("[#$p]", included = st == FacetState.INCLUDED, excluded = st == FacetState.EXCLUDED) {
@@ -978,13 +1090,23 @@ private fun FilterPanel(
     }
 
     rangeTarget?.let { target ->
-        val current = if (target == PillKind.SCHEDULED) filters.scheduledRange else filters.deadlineRange
+        val current = when (target) {
+            PillKind.SCHEDULED -> filters.scheduledRange
+            PillKind.DEADLINE -> filters.deadlineRange
+            PillKind.CLOSED -> filters.closedRange
+            PillKind.CREATED -> filters.createdRange
+        }
         CustomDateRangePicker(
             initialStart = current?.start,
             initialEnd = current?.end,
             onDismiss = { rangeTarget = null },
             onConfirm = { start, end ->
-                if (target == PillKind.SCHEDULED) onSetScheduledRange(start, end) else onSetDeadlineRange(start, end)
+                when (target) {
+                    PillKind.SCHEDULED -> onSetScheduledRange(start, end)
+                    PillKind.DEADLINE -> onSetDeadlineRange(start, end)
+                    PillKind.CLOSED -> onSetClosedRange(start, end)
+                    PillKind.CREATED -> onSetCreatedRange(start, end)
+                }
                 rangeTarget = null
             },
         )
@@ -997,15 +1119,27 @@ private fun customRangeLabel(range: DateRange?): String {
     return "${range.start.format(fmt)} – ${range.end.format(fmt)}"
 }
 
+/** [negatable] sections show a hint next to the label that tapping a chip a
+ *  second time excludes it, since those are the only facets whose chips cycle
+ *  through [FacetState.EXCLUDED] (see [cycleFacet]) rather than just toggling. */
 @Composable
-private fun FilterSection(label: String, content: @Composable FlowRowScope.() -> Unit) {
+private fun FilterSection(label: String, negatable: Boolean = false, content: @Composable FlowRowScope.() -> Unit) {
     val c = MaterialTheme.grove
     Column(Modifier.padding(top = 14.dp)) {
-        Text(
-            label.uppercase(),
-            fontFamily = PlexSans, fontSize = 11.sp, letterSpacing = 0.07.em, color = c.ink3,
-            modifier = Modifier.padding(bottom = 10.dp),
-        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                label.uppercase(),
+                fontFamily = PlexSans, fontSize = 11.sp, letterSpacing = 0.07.em, color = c.ink3,
+            )
+            if (negatable) {
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    "tap again to exclude",
+                    fontFamily = PlexSans, fontSize = 10.5.sp, color = c.ink3,
+                )
+            }
+        }
+        Spacer(Modifier.height(10.dp))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(7.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
             content()
         }

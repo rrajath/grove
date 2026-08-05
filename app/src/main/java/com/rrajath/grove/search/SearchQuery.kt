@@ -37,32 +37,40 @@ sealed class Condition {
     data class Created(val period: Period) : Condition()
 }
 
-/** A relative time window token: today, tomorrow, yesterday, now, Nd/Nw/Nm. */
+/** A relative time window token: today, tomorrow, yesterday, now, overdue, nodate, Nd/Nw/Nm. */
 data class Period(val raw: String) {
-    /** `s.none`/`d.none`/etc.: matches when the timestamp itself is absent,
-     *  the opposite of every other period (which requires one to be present). */
-    val isNone: Boolean get() = raw.equals("none", ignoreCase = true)
+    /** `s.nodate`/`d.nodate` (alias `none`): matches when the timestamp itself
+     *  is absent, the opposite of every other period (which requires one to
+     *  be present). */
+    val isNoDate: Boolean get() = raw.equals("nodate", ignoreCase = true) || raw.equals("none", ignoreCase = true)
+
+    /** `s.overdue`/`d.overdue`/etc.: the timestamp is strictly before today,
+     *  regardless of any window a relative period would otherwise apply. */
+    val isOverdue: Boolean get() = raw.equals("overdue", ignoreCase = true)
+
+    /** Single-day tokens ("today"/"now", "tomorrow", "yesterday") match that
+     *  exact day only, unlike the Nd/Nw/Nm windows below which are inclusive
+     *  of everything up to and including the pivot. */
+    fun exactDate(today: LocalDate): LocalDate? = when (raw.lowercase()) {
+        "today", "now" -> today
+        "tomorrow" -> today.plusDays(1)
+        "yesterday" -> today.minusDays(1)
+        else -> null
+    }
 
     /**
      * Future pivot date for s./d. ("within period" = on or before pivot,
      * e.g. `s.3d` = scheduled in the next three days or overdue).
      */
     fun pivot(today: LocalDate): LocalDate? {
-        val t = raw.lowercase()
-        return when (t) {
-            "today", "now" -> today
-            "tomorrow" -> today.plusDays(1)
-            "yesterday" -> today.minusDays(1)
-            else -> {
-                val m = RELATIVE.matchEntire(t) ?: return null
-                val n = m.groupValues[1].toLong()
-                when (m.groupValues[2]) {
-                    "d" -> today.plusDays(n)
-                    "w" -> today.plusWeeks(n)
-                    "m" -> today.plusMonths(n)
-                    else -> null
-                }
-            }
+        exactDate(today)?.let { return it }
+        val m = RELATIVE.matchEntire(raw.lowercase()) ?: return null
+        val n = m.groupValues[1].toLong()
+        return when (m.groupValues[2]) {
+            "d" -> today.plusDays(n)
+            "w" -> today.plusWeeks(n)
+            "m" -> today.plusMonths(n)
+            else -> null
         }
     }
 

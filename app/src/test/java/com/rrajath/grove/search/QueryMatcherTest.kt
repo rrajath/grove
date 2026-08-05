@@ -67,25 +67,40 @@ class QueryMatcherTest {
     }
 
     @Test
-    fun `scheduled within period includes overdue`() {
+    fun `relative windows include overdue but today is an exact match`() {
         val past = note("Past", scheduled = "<2025-06-01 Sun>")
         val todayNote = note("Today", scheduled = "<2025-06-11 Wed>")
         val future = note("Future", scheduled = "<2025-06-20 Fri>")
         val none = note("None")
-        assertEquals(listOf("Past", "Today"), run("s.today", past, todayNote, future, none))
+        // "today" is an exact-day match, not "on or before".
+        assertEquals(listOf("Today"), run("s.today", past, todayNote, future, none))
+        // Relative windows (Nd/Nw/Nm) still include everything overdue.
         assertEquals(listOf("Past", "Today", "Future"), run("s.2w", past, todayNote, future, none))
     }
 
     @Test
-    fun `s none and d none match notes with no such timestamp`() {
+    fun `s overdue and d overdue match only past-dated notes`() {
+        val past = note("Past", scheduled = "<2025-06-01 Sun>", deadline = "<2025-06-01 Sun>")
+        val todayNote = note("Today", scheduled = "<2025-06-11 Wed>")
+        val future = note("Future", scheduled = "<2025-06-20 Fri>")
+        val none = note("None")
+        assertEquals(listOf("Past"), run("s.overdue", past, todayNote, future, none))
+        assertEquals(listOf("Past"), run("d.overdue", past, todayNote, future, none))
+    }
+
+    @Test
+    fun `s nodate and d nodate match notes with no such timestamp`() {
         val scheduledOnly = note("Scheduled", scheduled = "<2025-06-11 Wed>")
         val deadlineOnly = note("Deadline", deadline = "<2025-06-11 Wed>")
         val neither = note("Neither")
+        assertEquals(listOf("Deadline", "Neither"), run("s.nodate", scheduledOnly, deadlineOnly, neither))
+        assertEquals(listOf("Scheduled", "Neither"), run("d.nodate", scheduledOnly, deadlineOnly, neither))
+        // "none" is still accepted as an alias.
         assertEquals(listOf("Deadline", "Neither"), run("s.none", scheduledOnly, deadlineOnly, neither))
-        assertEquals(listOf("Scheduled", "Neither"), run("d.none", scheduledOnly, deadlineOnly, neither))
         // Negated: the opposite set, same as any other s./d. condition.
-        assertEquals(listOf("Scheduled"), run(".s.none", scheduledOnly, deadlineOnly, neither))
+        assertEquals(listOf("Scheduled"), run(".s.nodate", scheduledOnly, deadlineOnly, neither))
     }
+
 
     @Test
     fun `closed within past window`() {

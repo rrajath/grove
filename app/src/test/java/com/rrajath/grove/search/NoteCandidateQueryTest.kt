@@ -86,6 +86,18 @@ class NoteCandidateQueryTest {
     }
 
     @Test
+    fun `nodate is accepted as an alias for none`() {
+        assertTrue(build("s.nodate").sql.contains("scheduled IS NULL"))
+        assertTrue(build("d.nodate").sql.contains("deadline IS NULL"))
+    }
+
+    @Test
+    fun `overdue only requires the timestamp to exist`() {
+        assertTrue(build("s.overdue").sql.contains("scheduled IS NOT NULL"))
+        assertTrue(build("d.overdue").sql.contains("deadline IS NOT NULL"))
+    }
+
+    @Test
     fun `OR groups become an ORed predicate`() {
         val sql = build("i.TODO OR p.A")
         assertTrue(sql.sql.contains("((keyword = ? COLLATE NOCASE) OR (priority = ? COLLATE NOCASE))"))
@@ -178,6 +190,8 @@ class NoteCandidateQueryTest {
         assertTrue(build(facets = FacetNarrowing(scheduled = DatePresence.ABSENT)).sql.contains("scheduled IS NULL"))
         assertTrue(build(facets = FacetNarrowing(deadline = DatePresence.PRESENT)).sql.contains("deadline IS NOT NULL"))
         assertTrue(build(facets = FacetNarrowing(deadline = DatePresence.ANY)).isFullScan)
+        assertTrue(build(facets = FacetNarrowing(closed = DatePresence.PRESENT)).sql.contains("closed IS NOT NULL"))
+        assertTrue(build(facets = FacetNarrowing(created = DatePresence.ABSENT)).sql.contains("createdAt IS NULL"))
     }
 
     @Test

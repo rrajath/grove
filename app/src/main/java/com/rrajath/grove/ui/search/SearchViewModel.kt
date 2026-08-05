@@ -84,6 +84,10 @@ data class SearchFilters(
     val scheduledRange: DateRange? = null,
     val deadline: DatePreset = DatePreset.ANY,
     val deadlineRange: DateRange? = null,
+    val closed: DatePreset = DatePreset.ANY,
+    val closedRange: DateRange? = null,
+    val created: DatePreset = DatePreset.ANY,
+    val createdRange: DateRange? = null,
     val notebooks: Set<String> = emptySet(),
     val excludedNotebooks: Set<String> = emptySet(),
 ) {
@@ -93,6 +97,8 @@ data class SearchFilters(
             (if (priorities.isNotEmpty() || excludedPriorities.isNotEmpty()) 1 else 0) +
             (if (scheduled != DatePreset.ANY) 1 else 0) +
             (if (deadline != DatePreset.ANY) 1 else 0) +
+            (if (closed != DatePreset.ANY) 1 else 0) +
+            (if (created != DatePreset.ANY) 1 else 0) +
             (if (notebooks.isNotEmpty() || excludedNotebooks.isNotEmpty()) 1 else 0)
 }
 
@@ -263,10 +269,20 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
         queryFlow.value = query
     }
 
-    fun saveCurrentSearch(name: String) {
+    /** Star-button dropdown: saves the current query under [name], updating an
+     *  existing saved search in place (by exact case-insensitive name match,
+     *  which may be a quick-start card's label) rather than creating a
+     *  duplicate, so "overwrite" behaves like the confirmation dialog implies. */
+    fun saveOrOverwriteSearch(name: String) {
         val query = _state.value.query
-        if (query.isBlank() || name.isBlank()) return
-        viewModelScope.launch { app.searchRepository.saveSearch(name.trim(), query.trim()) }
+        val trimmedName = name.trim()
+        if (query.isBlank() || trimmedName.isBlank()) return
+        viewModelScope.launch {
+            val existing = app.searchRepository.savedSearches.first()
+                .firstOrNull { it.name.equals(trimmedName, ignoreCase = true) }
+            if (existing != null) app.searchRepository.updateSearchQuery(existing.id, query.trim())
+            else app.searchRepository.saveSearch(trimmedName, query.trim())
+        }
     }
 
     fun deleteSavedSearch(id: String) {
@@ -369,6 +385,24 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
     fun setDeadlineRange(start: LocalDate, end: LocalDate) =
         filtersFlow.update { it.copy(deadline = DatePreset.CUSTOM, deadlineRange = DateRange(start, end)) }
 
+    fun setClosedPreset(preset: DatePreset) =
+        filtersFlow.update {
+            if (it.closed == preset) it.copy(closed = DatePreset.ANY, closedRange = null)
+            else it.copy(closed = preset, closedRange = null)
+        }
+
+    fun setCreatedPreset(preset: DatePreset) =
+        filtersFlow.update {
+            if (it.created == preset) it.copy(created = DatePreset.ANY, createdRange = null)
+            else it.copy(created = preset, createdRange = null)
+        }
+
+    fun setClosedRange(start: LocalDate, end: LocalDate) =
+        filtersFlow.update { it.copy(closed = DatePreset.CUSTOM, closedRange = DateRange(start, end)) }
+
+    fun setCreatedRange(start: LocalDate, end: LocalDate) =
+        filtersFlow.update { it.copy(created = DatePreset.CUSTOM, createdRange = DateRange(start, end)) }
+
     /**
      * Scope the search to exactly one notebook, replacing any existing
      * notebook selection: the Outline's search action arrives with a file
@@ -391,6 +425,16 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
         filtersFlow.value = filters
     }
 
+    /** Quick-start shortcuts whose condition can't be expressed as one
+     *  [SearchFilters] facet (e.g. "overdue on either date", which needs an OR
+     *  across two different fields): drive the query text directly instead,
+     *  replacing filters wholesale the same way [applyQuickFilter] does. */
+    fun applyQuickQuery(query: String) {
+        filtersFlow.value = SearchFilters()
+        _state.value = _state.value.copy(query = query)
+        queryFlow.value = query
+    }
+
     /** Back button: clear back to the blank quick-start view instead of leaving
      *  the screen, when a query or filter is active (see SearchScreen's onBack). */
     fun resetToBlank() {
@@ -399,29 +443,50 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
         filtersFlow.value = SearchFilters()
     }
 
-    /** The filter-panel selection expressed as query tokens, in the same
-     *  t./i./b./p. syntax the field itself parses (see [lastFilterExpr]). */
+    /**
+     * The filter-panel selection expressed as query tokens, in the same
+     * t./i./b./p. syntax the field itself parses (see [lastFilterExpr]).
+     *
+     * Included values within one facet OR together (per [SearchFilters]'s own
+     * doc comment), but the query grammar has no parens, so a facet with 2+
+     * selected values is cross-multiplied against every other such facet into
+     * separate OR-groups (e.g. tags={work,home} states={TODO,NEXT} becomes
+     * "t.work i.TODO OR t.work i.NEXT OR t.home i.TODO OR t.home i.NEXT")
+     * rather than space-joining everything, which would wrongly AND them and
+     * make a multi-value facet unsatisfiable once mirrored back through
+     * QueryMatcher.
+     */
     private fun filterExpression(f: SearchFilters): String {
-        val parts = mutableListOf<String>()
-        f.tags.sorted().forEach { parts += "t.$it" }
-        f.excludedTags.sorted().forEach { parts += ".t.$it" }
-        f.states.sorted().forEach { parts += "i.${stateToken(it)}" }
-        f.excludedStates.sorted().forEach { parts += ".i.${stateToken(it)}" }
-        f.priorities.sorted().forEach { parts += "p.$it" }
-        f.excludedPriorities.sorted().forEach { parts += ".p.$it" }
-        if (f.scheduled == DatePreset.CUSTOM && f.scheduledRange != null) {
-            parts += "s.${f.scheduledRange.start}..${f.scheduledRange.end}"
-        } else if (f.scheduled != DatePreset.ANY) {
-            parts += "s.${f.scheduled.token}"
+        // AND-only tokens: negations are independent NOT conditions, and each
+        // date facet holds at most one preset, so neither needs an OR group.
+        val fixed = mutableListOf<String>()
+        f.excludedTags.sorted().forEach { fixed += ".t.$it" }
+        f.excludedStates.sorted().forEach { fixed += ".i.${stateToken(it)}" }
+        f.excludedPriorities.sorted().forEach { fixed += ".p.$it" }
+        f.excludedNotebooks.sorted().forEach { fixed += ".b.${it.removeSuffix(".org")}" }
+        datePresetToken("s", f.scheduled, f.scheduledRange)?.let { fixed += it }
+        datePresetToken("d", f.deadline, f.deadlineRange)?.let { fixed += it }
+        datePresetToken("c", f.closed, f.closedRange)?.let { fixed += it }
+        datePresetToken("cr", f.created, f.createdRange)?.let { fixed += it }
+
+        val orGroups = listOfNotNull(
+            f.tags.sorted().map { "t.$it" }.takeIf { it.isNotEmpty() },
+            f.states.sorted().map { "i.${stateToken(it)}" }.takeIf { it.isNotEmpty() },
+            f.priorities.sorted().map { "p.$it" }.takeIf { it.isNotEmpty() },
+            f.notebooks.sorted().map { "b.${it.removeSuffix(".org")}" }.takeIf { it.isNotEmpty() },
+        )
+        if (orGroups.isEmpty()) return fixed.joinToString(" ")
+
+        val combinations = orGroups.fold(listOf(emptyList<String>())) { acc, group ->
+            acc.flatMap { combo -> group.map { combo + it } }
         }
-        if (f.deadline == DatePreset.CUSTOM && f.deadlineRange != null) {
-            parts += "d.${f.deadlineRange.start}..${f.deadlineRange.end}"
-        } else if (f.deadline != DatePreset.ANY) {
-            parts += "d.${f.deadline.token}"
-        }
-        f.notebooks.sorted().forEach { parts += "b.${it.removeSuffix(".org")}" }
-        f.excludedNotebooks.sorted().forEach { parts += ".b.${it.removeSuffix(".org")}" }
-        return parts.joinToString(" ")
+        return combinations.joinToString(" OR ") { combo -> (fixed + combo).joinToString(" ") }
+    }
+
+    private fun datePresetToken(prefix: String, preset: DatePreset, range: DateRange?): String? = when {
+        preset == DatePreset.CUSTOM && range != null -> "$prefix.${range.start}..${range.end}"
+        preset != DatePreset.ANY -> "$prefix.${preset.token}"
+        else -> null
     }
 
     private fun stateToken(state: String) = if (state == NO_STATE) "none" else state.lowercase()
@@ -527,6 +592,8 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
         tags = tags,
         scheduled = scheduled.presence(),
         deadline = deadline.presence(),
+        closed = closed.presence(),
+        created = created.presence(),
     )
 
     /** Every date preset except "any" and "no date" needs a timestamp to exist. */
@@ -549,6 +616,12 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
         ) return false
         if (f.deadline != DatePreset.ANY &&
             !datePresetMatches(note.deadlineDate, f.deadline, today, f.deadlineRange, note.isDoneKeyword)
+        ) return false
+        if (f.closed != DatePreset.ANY &&
+            !datePresetMatches(note.closedDate, f.closed, today, f.closedRange, note.isDoneKeyword)
+        ) return false
+        if (f.created != DatePreset.ANY &&
+            !datePresetMatches(note.createdDate, f.created, today, f.createdRange, note.isDoneKeyword)
         ) return false
         if (f.notebooks.isNotEmpty() && note.fileName !in f.notebooks) return false
         if (f.excludedNotebooks.isNotEmpty() && note.fileName in f.excludedNotebooks) return false

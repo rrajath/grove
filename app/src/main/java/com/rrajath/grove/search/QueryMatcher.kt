@@ -79,18 +79,26 @@ object QueryMatcher {
         return result != term.negated
     }
 
-    /** s./d.: has a timestamp on or before the period pivot (includes overdue). */
+    /** s./d.: on or before the period pivot for a relative window (e.g. `s.3d`
+     *  = scheduled in the next three days or overdue); "today"/"tomorrow"/
+     *  "yesterday" match that exact day instead of a window, and "overdue"
+     *  matches anything strictly before today. */
     private fun withinFuture(date: LocalDate?, period: Period, today: LocalDate): Boolean {
-        if (period.isNone) return date == null
+        if (period.isNoDate) return date == null
         if (date == null) return false
+        if (period.isOverdue) return date.isBefore(today)
+        period.exactDate(today)?.let { return date == it }
         val pivot = period.pivot(today) ?: return false
         return !date.isAfter(pivot)
     }
 
-    /** c./cr.: timestamp within [pastPivot, today]. */
+    /** c./cr.: timestamp within [pastPivot, today] for a relative window;
+     *  single-day tokens and "overdue" behave the same as for s./d. above. */
     private fun withinPast(date: LocalDate?, period: Period, today: LocalDate): Boolean {
-        if (period.isNone) return date == null
+        if (period.isNoDate) return date == null
         if (date == null) return false
+        if (period.isOverdue) return date.isBefore(today)
+        period.exactDate(today)?.let { return date == it }
         val pivot = period.pastPivot(today) ?: return false
         return !date.isBefore(pivot) && !date.isAfter(today)
     }

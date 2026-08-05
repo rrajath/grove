@@ -94,4 +94,18 @@ class QueryParserTest {
         assertEquals(today.minusDays(1), Period("yesterday").pastPivot(today))
         assertEquals(today.minusDays(7), Period("1w").pastPivot(today))
     }
+
+    @Test
+    fun `nodate, overdue and exact-day tokens`() {
+        val today = LocalDate.of(2025, 6, 11)
+        assertTrue(Period("nodate").isNoDate)
+        assertTrue(Period("none").isNoDate)
+        assertFalse(Period("today").isNoDate)
+        assertTrue(Period("overdue").isOverdue)
+        assertFalse(Period("today").isOverdue)
+        assertEquals(today, Period("today").exactDate(today))
+        assertEquals(today.plusDays(1), Period("tomorrow").exactDate(today))
+        assertEquals(today.minusDays(1), Period("yesterday").exactDate(today))
+        assertNull(Period("3d").exactDate(today))
+    }
 }

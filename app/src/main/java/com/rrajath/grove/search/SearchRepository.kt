@@ -37,6 +37,11 @@ class SearchRepository(private val context: Context) {
         context.searchDataStore.edit { it[SAVED_KEY] = SavedSearchSerializer.encode(updated) }
     }
 
+    suspend fun updateSearchQuery(id: String, query: String) {
+        val updated = savedSearches.first().map { if (it.id == id) it.copy(query = query) else it }
+        context.searchDataStore.edit { it[SAVED_KEY] = SavedSearchSerializer.encode(updated) }
+    }
+
     /** Swaps the search [id] with its neighbor [delta] slots away (-1 up, +1 down); no-op past either end. */
     suspend fun moveSearch(id: String, delta: Int) {
         val current = savedSearches.first().toMutableList()
