@@ -34,8 +34,11 @@ class SettingsSerializationTest {
         remindersEnabled = false,
         morningBriefEnabled = false,
         defaultReminderTime = java.time.LocalTime.of(7, 45),
+        reminderLeadTime = ReminderLeadTime.MIN_15,
         agendaSwipeLeftAction = AgendaSwipeAction.MARK_DONE,
         agendaSwipeRightAction = AgendaSwipeAction.SET_DEADLINE,
+        agendaWidgetTransparency = 0.35f,
+        agendaWidgetDaysAhead = 21,
         autoArchiveDoneItems = true,
         autoArchiveFile = "archive.org",
         autoArchiveHeadingPath = "Done/2026",
@@ -77,8 +80,11 @@ class SettingsSerializationTest {
         assertEquals(sample.remindersEnabled, restored.remindersEnabled)
         assertEquals(sample.morningBriefEnabled, restored.morningBriefEnabled)
         assertEquals(sample.defaultReminderTime, restored.defaultReminderTime)
+        assertEquals(sample.reminderLeadTime, restored.reminderLeadTime)
         assertEquals(sample.agendaSwipeLeftAction, restored.agendaSwipeLeftAction)
         assertEquals(sample.agendaSwipeRightAction, restored.agendaSwipeRightAction)
+        assertEquals(sample.agendaWidgetTransparency, restored.agendaWidgetTransparency)
+        assertEquals(sample.agendaWidgetDaysAhead, restored.agendaWidgetDaysAhead)
         assertEquals(sample.autoArchiveDoneItems, restored.autoArchiveDoneItems)
         assertEquals(sample.autoArchiveFile, restored.autoArchiveFile)
         assertEquals(sample.autoArchiveHeadingPath, restored.autoArchiveHeadingPath)
@@ -110,7 +116,7 @@ class SettingsSerializationTest {
     @Test
     fun `unknown enum values fall back to defaults on import`() {
         val json = """{ "theme": "sepia", "fontSize": "huge", "syncMode": "warp", "checklistStates": "four",
-            "agendaSwipeLeftAction": "cartwheel", "agendaSwipeRightAction": "backflip" }"""
+            "agendaSwipeLeftAction": "cartwheel", "agendaSwipeRightAction": "backflip", "reminderLeadTime": "next week" }"""
         val restored = SettingsSerialization.import(json, GroveSettings())
 
         assertEquals(ThemePreference.LIGHT, restored.theme)
@@ -119,6 +125,15 @@ class SettingsSerializationTest {
         assertEquals(ChecklistStates.TWO, restored.checklistStates)
         assertEquals(AgendaSwipeAction.MARK_DONE, restored.agendaSwipeLeftAction)
         assertEquals(AgendaSwipeAction.SET_SCHEDULED, restored.agendaSwipeRightAction)
+        assertEquals(ReminderLeadTime.AT_TIME, restored.reminderLeadTime)
+    }
+
+    @Test
+    fun `agenda widget transparency and days-ahead are clamped on import`() {
+        val json = """{ "agendaWidgetTransparency": 1.5, "agendaWidgetDaysAhead": 1 }"""
+        val restored = SettingsSerialization.import(json, GroveSettings())
+        assertEquals(1f, restored.agendaWidgetTransparency)
+        assertEquals(2, restored.agendaWidgetDaysAhead)
     }
 
     @Test

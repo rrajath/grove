@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -75,6 +76,8 @@ data class GroveSettings(
     val morningBriefEnabled: Boolean = true,
     /** Time of day used for date-only SCHEDULED/DEADLINE stamps (no time-of-day). */
     val defaultReminderTime: LocalTime = LocalTime.of(9, 0),
+    /** How far ahead of a timestamp's own time-of-day the "due" notification fires. */
+    val reminderLeadTime: ReminderLeadTime = ReminderLeadTime.AT_TIME,
     /** Agenda row swipe-left/swipe-right gestures (Settings § Agenda). */
     val agendaSwipeLeftAction: AgendaSwipeAction = AgendaSwipeAction.MARK_DONE,
     val agendaSwipeRightAction: AgendaSwipeAction = AgendaSwipeAction.SET_SCHEDULED,
@@ -83,11 +86,16 @@ data class GroveSettings(
     val agendaStateFilter: AgendaStateFilter = AgendaStateFilter.Open,
     val agendaShowTags: Boolean = true,
     val agendaShowFile: Boolean = false,
+    /** Agenda ledger home-screen widget background transparency: 0 = opaque, 1 = fully transparent. */
+    val agendaWidgetTransparency: Float = 0f,
+    /** How many days ahead the Agenda ledger widget shows, beyond Overdue/Today. */
+    val agendaWidgetDaysAhead: Int = 14,
 ) {
     companion object {
         const val DEFAULT_TODO_KEYWORDS = "TODO IN-PROGRESS | DONE CANCELLED"
         const val DEFAULT_SHARE_TARGET = "inbox.org"
         val DEFAULT_REMINDER_TIME: LocalTime = LocalTime.of(9, 0)
+        const val DEFAULT_AGENDA_WIDGET_DAYS_AHEAD = 14
     }
 }
 
@@ -128,12 +136,15 @@ class SettingsRepository(private val context: Context) {
         val remindersEnabled = booleanPreferencesKey("reminders_enabled")
         val morningBriefEnabled = booleanPreferencesKey("morning_brief_enabled")
         val defaultReminderTime = stringPreferencesKey("default_reminder_time")
+        val reminderLeadTime = stringPreferencesKey("reminder_lead_time")
         val agendaSwipeLeftAction = stringPreferencesKey("agenda_swipe_left_action")
         val agendaSwipeRightAction = stringPreferencesKey("agenda_swipe_right_action")
         val agendaGrouping = stringPreferencesKey("agenda_grouping")
         val agendaStateFilter = stringPreferencesKey("agenda_state_filter")
         val agendaShowTags = booleanPreferencesKey("agenda_show_tags")
         val agendaShowFile = booleanPreferencesKey("agenda_show_file")
+        val agendaWidgetTransparency = floatPreferencesKey("agenda_widget_transparency")
+        val agendaWidgetDaysAhead = intPreferencesKey("agenda_widget_days_ahead")
     }
 
     val settings: Flow<GroveSettings> = context.settingsDataStore.data.map { prefs ->
@@ -172,6 +183,7 @@ class SettingsRepository(private val context: Context) {
             remindersEnabled = prefs[Keys.remindersEnabled] ?: true,
             morningBriefEnabled = prefs[Keys.morningBriefEnabled] ?: true,
             defaultReminderTime = decodeTime(prefs[Keys.defaultReminderTime]),
+            reminderLeadTime = ReminderLeadTime.fromStorage(prefs[Keys.reminderLeadTime]),
             agendaSwipeLeftAction = AgendaSwipeAction.fromStorage(
                 prefs[Keys.agendaSwipeLeftAction], AgendaSwipeAction.MARK_DONE
             ),
@@ -182,6 +194,8 @@ class SettingsRepository(private val context: Context) {
             agendaStateFilter = AgendaStateFilter.fromStorage(prefs[Keys.agendaStateFilter]),
             agendaShowTags = prefs[Keys.agendaShowTags] ?: true,
             agendaShowFile = prefs[Keys.agendaShowFile] ?: false,
+            agendaWidgetTransparency = prefs[Keys.agendaWidgetTransparency] ?: 0f,
+            agendaWidgetDaysAhead = prefs[Keys.agendaWidgetDaysAhead] ?: GroveSettings.DEFAULT_AGENDA_WIDGET_DAYS_AHEAD,
         )
     }
 
@@ -242,12 +256,15 @@ class SettingsRepository(private val context: Context) {
             p[Keys.remindersEnabled] = s.remindersEnabled
             p[Keys.morningBriefEnabled] = s.morningBriefEnabled
             p[Keys.defaultReminderTime] = encodeTime(s.defaultReminderTime)
+            p[Keys.reminderLeadTime] = s.reminderLeadTime.storageKey
             p[Keys.agendaSwipeLeftAction] = s.agendaSwipeLeftAction.storageKey
             p[Keys.agendaSwipeRightAction] = s.agendaSwipeRightAction.storageKey
             p[Keys.agendaGrouping] = s.agendaGrouping.storageKey
             p[Keys.agendaStateFilter] = s.agendaStateFilter.storageKey
             p[Keys.agendaShowTags] = s.agendaShowTags
             p[Keys.agendaShowFile] = s.agendaShowFile
+            p[Keys.agendaWidgetTransparency] = s.agendaWidgetTransparency
+            p[Keys.agendaWidgetDaysAhead] = s.agendaWidgetDaysAhead
             p[Keys.autoArchiveDoneItems] = s.autoArchiveDoneItems
             if (s.autoArchiveFile == null) p.remove(Keys.autoArchiveFile)
             else p[Keys.autoArchiveFile] = s.autoArchiveFile
@@ -361,6 +378,10 @@ class SettingsRepository(private val context: Context) {
         context.settingsDataStore.edit { it[Keys.defaultReminderTime] = encodeTime(time) }
     }
 
+    suspend fun setReminderLeadTime(leadTime: ReminderLeadTime) {
+        context.settingsDataStore.edit { it[Keys.reminderLeadTime] = leadTime.storageKey }
+    }
+
     suspend fun setAgendaSwipeLeftAction(action: AgendaSwipeAction) {
         context.settingsDataStore.edit { it[Keys.agendaSwipeLeftAction] = action.storageKey }
     }
@@ -383,6 +404,14 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setAgendaShowFile(show: Boolean) {
         context.settingsDataStore.edit { it[Keys.agendaShowFile] = show }
+    }
+
+    suspend fun setAgendaWidgetTransparency(transparency: Float) {
+        context.settingsDataStore.edit { it[Keys.agendaWidgetTransparency] = transparency.coerceIn(0f, 1f) }
+    }
+
+    suspend fun setAgendaWidgetDaysAhead(days: Int) {
+        context.settingsDataStore.edit { it[Keys.agendaWidgetDaysAhead] = days.coerceAtLeast(2) }
     }
 
     suspend fun setLastRefileTarget(fileName: String, headingPath: List<String>) {

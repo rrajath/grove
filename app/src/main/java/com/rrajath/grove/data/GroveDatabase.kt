@@ -125,6 +125,10 @@ data class ReminderEntity(
      *  the timestamp's own time-of-day: those reminders don't fire their own "due
      *  now" notification and are counted into the daily digest instead. */
     val hasExplicitTime: Boolean = true,
+    /** [com.rrajath.grove.settings.ReminderLeadTime.storageKey] this row's [triggerAtMillis]
+     *  was computed with, baked in at scheduling time so the "due in N minutes" notification
+     *  text can't drift out of sync with a lead-time setting change made after this was armed. */
+    val leadTime: String = "at_time",
 )
 
 /** Projection of the notebook columns the sync engine diffs against disk. */
@@ -363,6 +367,8 @@ interface ReminderDao {
 
 @Database(
     entities = [NotebookEntity::class, NoteEntity::class, SyncLogEntity::class, ReminderEntity::class],
+    // v9: added ReminderEntity.leadTime (Settings › Reminders › "Notify me" lead
+    // time, baked into each row at scheduling time);
     // v8: added ReminderEntity.hasExplicitTime (date-only reminders now bundle into
     // the daily digest notification instead of firing individually);
     // v7: added the notes_fts FTS5 mirror, secondary indices on notes, and full
@@ -371,7 +377,7 @@ interface ReminderDao {
     // v5: added NotebookEntity.isIndexed (stub vs fully-parsed notebook rows);
     // v4: added NotebookEntity.title (cached #+TITLE: preamble value). Destructive
     // migration drops the index so the next sync rebuilds it from the .org files.
-    version = 8,
+    version = 9,
     exportSchema = false,
 )
 abstract class GroveDatabase : RoomDatabase() {

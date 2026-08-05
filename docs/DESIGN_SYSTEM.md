@@ -1041,8 +1041,9 @@ Section headers scroll with the list; the prototype has no pinned headers, so th
 Home-screen widget (Glance/RemoteViews), the "Widget A · ledger" variant from
 `design/Grove.dc.html` (`wGroups`/`wRow` at `:3204`), re-grouped by day instead
 of priority per product decision: `LedgerBuckets.build` returns an always-first
-unbounded Overdue section, then one section per day (today .. today+13) that
-actually has a task — empty days are omitted entirely, not rendered blank.
+unbounded Overdue section, then one section per day (today .. today+(days
+ahead − 1), Settings › Agenda › "Days ahead", 14 by default) that actually has
+a task — empty days are omitted entirely, not rendered blank.
 Within a day, rows sort by priority (A/B/C/none) then time (`AgendaBuckets.
 BY_PRIORITY`); Overdue sorts oldest-first (`AgendaBuckets.overdue`). Row
 construction (`AgendaViewModel.row`) is shared with the Agenda screen, so meta
@@ -1050,17 +1051,18 @@ chips/tags/priority read identically in both places.
 
 | Component | Shape |
 |---|---|
-| Header | 22dp r7 icon tile showing the actual **theme-synced app icon** (`AppIconManager.mipmapRes(settings.syncAppIconWithTheme, settings.theme)` — the same per-theme adaptive-icon mipmap "Sync App Icon with Theme" swaps the launcher to, falling back to the default `ic_launcher` when that setting is off); tapping it opens the app (plain `MainActivity` launch, no deep link). "Agenda" title, monospace "`N today · M in 14 days`" subtitle, 30dp `accent` r10 "+" button |
+| Header | 22dp r7 icon tile showing the actual **theme-synced app icon** (`AppIconManager.mipmapRes(settings.syncAppIconWithTheme, settings.theme)` — the same per-theme adaptive-icon mipmap "Sync App Icon with Theme" swaps the launcher to, falling back to the default `ic_launcher` when that setting is off); tapping it opens the app (plain `MainActivity` launch, no deep link). "Agenda" title, monospace "`N today · M in {days ahead} days`" subtitle, 30dp `accent` r10 "+" button |
 | Section header | Uppercased key + monospace count + a 1dp rule. "Overdue" (never "N overdue" — the count already renders once, after the label, same as every other section) is `red`; every other day header is `ink2` |
 | Row | 14dp hollow ring, `line2` (light grey), empty inside — **only when the heading has a TODO-type keyword**; a heading with just a SCHEDULED/DEADLINE and no keyword gets a same-width blank spacer instead, never a circle. Both the ring and the keyword pill sit inside an 18dp-tall centering box (`LEDGER_LINE_HEIGHT`) anchored to the top of the row/title line — Glance can't query real text-layout metrics, so this fixed-height box is the stand-in for "the first line's height", keeping the ring and the pill vertically centered *on that line specifically* (not the title's full, possibly-2-line block) even when the title wraps. Tapping the circle runs the same "mark done" semantics as `AgendaViewModel.toggleDone` (recurring → repeater advance + LOGBOOK, non-recurring → optional auto-archive) with no undo; tapping the row body opens Read mode |
 | Colors | Resolved once per render from the user's actual selected theme (`groveColorsFor(settings.theme)`) — all 11 palettes, not just light/dark |
 
 One thing every Glance widget here inherits, since it's a RemoteViews/Glance
 1.1.1 platform limit, not a choice made for this widget specifically: no
-backdrop blur (the card is a flat `surface` fill, not the prototype's
-translucent blurred panel). The checkbox's hollow-ring look is not a
-simplification either — Glance has no `border()` modifier, so the ring is a
-smaller `surface`-colored circle centered over a larger `line2` one.
+backdrop blur (the card is a flat `surface` fill — alpha-adjusted per Settings
+› Agenda › "Transparency", not the prototype's translucent blurred panel).
+The checkbox's hollow-ring look is not a simplification either — Glance has no
+`border()` modifier, so the ring is a smaller `surface`-colored circle
+centered over a larger `line2` one.
 
 `provideGlance` is a one-shot read of the vault/settings on each render — like
 `RescheduleActivity`, not a long-lived reactive collector, since nothing
@@ -1122,8 +1124,8 @@ other capture surface writes through, just without the template system
 | Settings › Capture Templates | `settings/templates` | Reorderable template list, "＋ New template" row, capture-from-notification toggle |
 | Settings › Sync | `settings/sync` | Folder picker, auto-sync mode list, periodic interval `SegmentedControl`, "View sync log" row |
 | Settings › Notes | `settings/notes` | TODO keywords text field + "Apply" action, `SegmentedControl` (default priority, notebook display name, checklist states), Add ID/Add CREATED toggles |
-| Settings › Agenda | `settings/agenda` | `DropdownPicker` (agenda swipe-left/swipe-right actions) |
-| Settings › Reminders | `settings/reminders` | `ReminderPermissionBanner`, enable-reminders toggle, `SimpleTimePicker` (default reminder time) |
+| Settings › Agenda | `settings/agenda` | `DropdownPicker` (agenda swipe-left/swipe-right actions); "Widget" group: `Slider` (home-screen ledger widget transparency, 0-100%) + numeric text field (days ahead, keystroke-filtered to digits, invalid values revert to the last committed value on blur) |
+| Settings › Reminders | `settings/reminders` | `ReminderPermissionBanner`, enable-reminders toggle, `DropdownPicker` ("Notify me" lead time: at the time of event / 5, 10, 15, 30 min before / 1 hour before / 1 day before — only shown while reminders are enabled), morning-brief toggle, `SimpleTimePicker` (default reminder time) |
 | Settings › Sharing | `settings/sharing` | Shared-content-target text field |
 | Settings › Backup | `settings/backup` | Explanatory copy, side-by-side button pair (Export/Import settings) |
 

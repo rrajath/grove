@@ -3,6 +3,7 @@ package com.rrajath.grove.reminders
 import com.rrajath.grove.org.OrgKeywords
 import com.rrajath.grove.org.OrgParser
 import com.rrajath.grove.org.OrgTimestamp
+import com.rrajath.grove.settings.ReminderLeadTime
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -28,6 +29,33 @@ class ReminderPlanningTest {
         val ts = OrgTimestamp(LocalDate.of(2026, 7, 24))
         val expected = LocalDateTime.of(2026, 7, 24, 9, 0).atZone(zone).toInstant().toEpochMilli()
         assertEquals(expected, ReminderPlanning.triggerAtMillis(ts, nineAm, zone))
+    }
+
+    @Test
+    fun `lead time pulls an explicit-time timestamp's trigger earlier`() {
+        val ts = OrgTimestamp(LocalDate.of(2026, 7, 24), time = LocalTime.of(14, 30))
+        val expected = LocalDateTime.of(2026, 7, 24, 14, 15).atZone(zone).toInstant().toEpochMilli()
+        assertEquals(expected, ReminderPlanning.triggerAtMillis(ts, nineAm, zone, ReminderLeadTime.MIN_15))
+    }
+
+    @Test
+    fun `lead time is ignored for date-only timestamps`() {
+        val ts = OrgTimestamp(LocalDate.of(2026, 7, 24))
+        val expected = LocalDateTime.of(2026, 7, 24, 9, 0).atZone(zone).toInstant().toEpochMilli()
+        assertEquals(expected, ReminderPlanning.triggerAtMillis(ts, nineAm, zone, ReminderLeadTime.DAY_1))
+    }
+
+    @Test
+    fun `desiredReminders bakes the current lead time into explicit-time entries only`() {
+        val doc = OrgParser.parse(
+            "* TODO A\nSCHEDULED: <2026-07-24 Fri 14:30>\n" +
+                "* TODO B\nSCHEDULED: <2026-07-24 Fri>\n"
+        )
+        val result = ReminderPlanning.desiredReminders(
+            "a.org", doc, nineAm, remindersEnabled = true, leadTime = ReminderLeadTime.HOUR_1, zone = zone,
+        )
+        assertEquals(ReminderLeadTime.HOUR_1.storageKey, result.single { it.headingTitle == "A" }.leadTime)
+        assertEquals(ReminderLeadTime.AT_TIME.storageKey, result.single { it.headingTitle == "B" }.leadTime)
     }
 
     @Test

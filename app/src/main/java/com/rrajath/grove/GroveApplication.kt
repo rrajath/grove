@@ -99,7 +99,9 @@ class GroveApplication : Application() {
             keywords = { keywords.value },
             onNotebookIndexed = { fileName, doc ->
                 val settings = settingsRepository.settings.first()
-                reminderReconciler.reconcileFile(fileName, doc, settings.defaultReminderTime, settings.remindersEnabled)
+                reminderReconciler.reconcileFile(
+                    fileName, doc, settings.defaultReminderTime, settings.remindersEnabled, settings.reminderLeadTime,
+                )
             },
             onSyncCompleted = {
                 reminderReconciler.catchUpOverdue()
@@ -194,13 +196,13 @@ class GroveApplication : Application() {
         appScope.launch {
             // "Enable reminders" toggled off cancels everything immediately rather
             // than waiting for the next per-file reconcile; toggled back on (or the
-            // default reminder time changing, which affects date-only stamps)
-            // re-scans every already-indexed notebook.
+            // default reminder time / lead time changing, both of which affect
+            // trigger times) re-scans every already-indexed notebook.
             settingsRepository.settings
-                .map { it.remindersEnabled to it.defaultReminderTime }
+                .map { Triple(it.remindersEnabled, it.defaultReminderTime, it.reminderLeadTime) }
                 .distinctUntilChanged()
                 .drop(1)
-                .collect { (enabled, defaultTime) ->
+                .collect { (enabled, defaultTime, leadTime) ->
                     if (!enabled) {
                         reminderReconciler.disableAll()
                     } else {
@@ -208,9 +210,20 @@ class GroveApplication : Application() {
                         val documents = database.indexDao().notebooks()
                             .mapNotNull { nb -> vault.open(nb.fileName)?.let { nb.fileName to it } }
                             .toMap()
-                        reminderReconciler.reconcileAll(documents, defaultTime, enabled)
+                        reminderReconciler.reconcileAll(documents, defaultTime, enabled, leadTime)
                     }
                 }
+        }
+
+        appScope.launch {
+            // The Agenda ledger widget only redraws when explicitly told to (see
+            // LedgerWidget's provideGlance doc); transparency/days-ahead are purely
+            // cosmetic to it, so nudge it here instead of waiting for the next sync.
+            settingsRepository.settings
+                .map { it.agendaWidgetTransparency to it.agendaWidgetDaysAhead }
+                .distinctUntilChanged()
+                .drop(1)
+                .collect { LedgerWidget().updateAll(this@GroveApplication) }
         }
 
         appScope.launch {

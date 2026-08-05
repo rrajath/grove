@@ -11,6 +11,7 @@ import com.rrajath.grove.MainActivity
 import com.rrajath.grove.R
 import com.rrajath.grove.data.ReminderEntity
 import com.rrajath.grove.icon.NotificationAppearance
+import com.rrajath.grove.settings.ReminderLeadTime
 import com.rrajath.grove.ui.components.orgInlinePlainText
 import com.rrajath.grove.ui.nav.Routes
 import com.rrajath.grove.ui.reminders.RescheduleActivity
@@ -46,7 +47,7 @@ object ReminderNotification {
             .setSmallIcon(R.drawable.ic_notification)
             .setColor(NotificationAppearance.markColor(context))
             .setContentTitle(orgInlinePlainText(reminder.headingTitle))
-            .setContentText("Your task is due now")
+            .setContentText(ReminderLeadTime.fromStorage(reminder.leadTime).dueMessage)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setContentIntent(contentIntent)

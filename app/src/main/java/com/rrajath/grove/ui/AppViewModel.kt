@@ -17,6 +17,7 @@ import com.rrajath.grove.settings.GroveSettings
 import com.rrajath.grove.settings.NoteOpenMode
 import com.rrajath.grove.settings.NotebookDisplayNameMode
 import com.rrajath.grove.settings.OutlineToggle
+import com.rrajath.grove.settings.ReminderLeadTime
 import com.rrajath.grove.settings.SettingsRepository
 import com.rrajath.grove.settings.SettingsSerialization
 import com.rrajath.grove.settings.SyncMode
@@ -279,11 +280,20 @@ class AppViewModel(private val app: GroveApplication) : ViewModel() {
     fun setDefaultReminderTime(time: java.time.LocalTime) =
         viewModelScope.launch { settingsRepository.setDefaultReminderTime(time) }
 
+    fun setReminderLeadTime(leadTime: ReminderLeadTime) =
+        viewModelScope.launch { settingsRepository.setReminderLeadTime(leadTime) }
+
     fun setAgendaSwipeLeftAction(action: AgendaSwipeAction) =
         viewModelScope.launch { settingsRepository.setAgendaSwipeLeftAction(action) }
 
     fun setAgendaSwipeRightAction(action: AgendaSwipeAction) =
         viewModelScope.launch { settingsRepository.setAgendaSwipeRightAction(action) }
+
+    fun setAgendaWidgetTransparency(transparency: Float) =
+        viewModelScope.launch { settingsRepository.setAgendaWidgetTransparency(transparency) }
+
+    fun setAgendaWidgetDaysAhead(days: Int) =
+        viewModelScope.launch { settingsRepository.setAgendaWidgetDaysAhead(days) }
 
     /** Count of reminders waiting on POST_NOTIFICATIONS/exact-alarm access (Settings › Reminders banner). */
     val reminderPendingCount: StateFlow<Int> = app.database.reminderDao().pendingCountFlow(System.currentTimeMillis())

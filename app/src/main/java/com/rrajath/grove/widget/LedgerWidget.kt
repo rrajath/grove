@@ -3,6 +3,7 @@ package com.rrajath.grove.widget
 import android.content.Context
 import android.content.Intent
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
@@ -75,21 +76,19 @@ class LedgerWidget : GlanceAppWidget() {
         val settings = app.settingsRepository.settings.first()
         val colors = groveColorsFor(settings.theme)
         val today = LocalDate.now()
+        val windowDays = settings.agendaWidgetDaysAhead
         val openNotes = app.database.indexDao().plannedNotes().first()
             .map { it.toNoteMeta() }
             .filter { !it.isDoneKeyword }
-        val sections = LedgerBuckets.build(openNotes, today, WINDOW_DAYS, settings)
+        val sections = LedgerBuckets.build(openNotes, today, windowDays, settings)
         val todayCount = sections.firstOrNull { it.key.startsWith("Today") }?.count ?: 0
         val totalCount = sections.sumOf { it.count }
         val iconRes = AppIconManager.mipmapRes(settings.syncAppIconWithTheme, settings.theme)
+        val backgroundColor = colors.surface.copy(alpha = 1f - settings.agendaWidgetTransparency)
 
         provideContent {
-            LedgerContent(context, colors, sections, todayCount, totalCount, iconRes)
+            LedgerContent(context, colors, backgroundColor, sections, todayCount, totalCount, windowDays, iconRes)
         }
-    }
-
-    companion object {
-        internal const val WINDOW_DAYS = 14
     }
 }
 
@@ -101,18 +100,20 @@ class LedgerWidgetReceiver : GlanceAppWidgetReceiver() {
 private fun LedgerContent(
     context: Context,
     colors: GroveColors,
+    backgroundColor: Color,
     sections: List<LedgerBuckets.Section>,
     todayCount: Int,
     totalCount: Int,
+    windowDays: Int,
     iconRes: Int,
 ) {
     Column(
         modifier = GlanceModifier
             .fillMaxSize()
             .cornerRadius(22.dp)
-            .background(ColorProvider(colors.surface)),
+            .background(ColorProvider(backgroundColor)),
     ) {
-        HeaderRow(context, colors, todayCount, totalCount, iconRes)
+        HeaderRow(context, colors, todayCount, totalCount, windowDays, iconRes)
         if (sections.isEmpty()) {
             Box(
                 modifier = GlanceModifier.fillMaxSize().padding(24.dp),
@@ -139,7 +140,7 @@ private fun LedgerContent(
 }
 
 @Composable
-private fun HeaderRow(context: Context, colors: GroveColors, todayCount: Int, totalCount: Int, iconRes: Int) {
+private fun HeaderRow(context: Context, colors: GroveColors, todayCount: Int, totalCount: Int, windowDays: Int, iconRes: Int) {
     Row(
         modifier = GlanceModifier.fillMaxWidth().padding(horizontal = 13.dp, vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -159,7 +160,7 @@ private fun HeaderRow(context: Context, colors: GroveColors, todayCount: Int, to
                 style = TextStyle(color = ColorProvider(colors.ink), fontSize = 13.5.sp, fontWeight = FontWeight.Medium),
             )
             Text(
-                "$todayCount today · $totalCount in ${LedgerWidget.WINDOW_DAYS} days",
+                "$todayCount today · $totalCount in $windowDays days",
                 style = TextStyle(
                     color = ColorProvider(colors.ink2),
                     fontSize = 10.5.sp,

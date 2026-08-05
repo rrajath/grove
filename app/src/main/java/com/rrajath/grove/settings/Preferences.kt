@@ -80,6 +80,28 @@ enum class ChecklistStates(val storageKey: String, val marks: List<Char>) {
     }
 }
 
+/**
+ * Settings § Reminders: how far ahead of a SCHEDULED/DEADLINE's own time-of-day
+ * the "due" notification actually fires. Only applies to timestamps that carry
+ * an explicit time-of-day; date-only stamps still bundle into the daily digest
+ * instead of firing their own notification (see `ReminderEntity.hasExplicitTime`),
+ * so a lead time has nothing to shift for those.
+ */
+enum class ReminderLeadTime(val storageKey: String, val label: String, val offsetMinutes: Long, val dueMessage: String) {
+    AT_TIME("at_time", "At the time of event", 0L, "Your task is due now"),
+    MIN_5("min_5", "5 minutes before the event", 5L, "Your task is due in 5 minutes"),
+    MIN_10("min_10", "10 minutes before the event", 10L, "Your task is due in 10 minutes"),
+    MIN_15("min_15", "15 minutes before the event", 15L, "Your task is due in 15 minutes"),
+    MIN_30("min_30", "30 minutes before the event", 30L, "Your task is due in 30 minutes"),
+    HOUR_1("hour_1", "1 hour before the event", 60L, "Your task is due in 1 hour"),
+    DAY_1("day_1", "1 day before the event", 1440L, "Your task is due in a day");
+
+    companion object {
+        fun fromStorage(value: String?): ReminderLeadTime =
+            entries.firstOrNull { it.storageKey == value } ?: AT_TIME
+    }
+}
+
 /** Agenda row swipe gesture (either direction), Settings § Agenda. */
 enum class AgendaSwipeAction(val storageKey: String, val label: String) {
     SET_SCHEDULED("set_scheduled", "Schedule Task"),

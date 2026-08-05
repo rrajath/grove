@@ -528,6 +528,8 @@ private fun GroveNavigation(
                     onBack = { navController.popBackStack() },
                     onSetAgendaSwipeLeftAction = viewModel::setAgendaSwipeLeftAction,
                     onSetAgendaSwipeRightAction = viewModel::setAgendaSwipeRightAction,
+                    onSetAgendaWidgetTransparency = viewModel::setAgendaWidgetTransparency,
+                    onSetAgendaWidgetDaysAhead = viewModel::setAgendaWidgetDaysAhead,
                 )
             }
             composable(Routes.SETTINGS_REMINDERS) {
@@ -537,6 +539,7 @@ private fun GroveNavigation(
                     onSetRemindersEnabled = viewModel::setRemindersEnabled,
                     onSetMorningBriefEnabled = viewModel::setMorningBriefEnabled,
                     onSetDefaultReminderTime = viewModel::setDefaultReminderTime,
+                    onSetReminderLeadTime = viewModel::setReminderLeadTime,
                     reminderPendingCount = viewModel.reminderPendingCount.collectAsStateWithLifecycle().value,
                 )
             }

@@ -4,6 +4,7 @@ import android.content.Context
 import com.rrajath.grove.data.ReminderDao
 import com.rrajath.grove.data.ReminderEntity
 import com.rrajath.grove.org.OrgDocument
+import com.rrajath.grove.settings.ReminderLeadTime
 import java.time.LocalTime
 
 /**
@@ -39,15 +40,21 @@ class ReminderReconciler(
         doc: OrgDocument,
         defaultReminderTime: LocalTime,
         remindersEnabled: Boolean,
+        leadTime: ReminderLeadTime = ReminderLeadTime.AT_TIME,
     ) {
         val existing = dao.forFile(fileName)
-        val desired = ReminderPlanning.desiredReminders(fileName, doc, defaultReminderTime, remindersEnabled)
+        val desired = ReminderPlanning.desiredReminders(fileName, doc, defaultReminderTime, remindersEnabled, leadTime)
         applyPlan(ReminderDiff.diff(existing, desired))
     }
 
     /** [reconcileFile] for every file in [documents] (fileName → parsed doc). */
-    suspend fun reconcileAll(documents: Map<String, OrgDocument>, defaultReminderTime: LocalTime, remindersEnabled: Boolean) {
-        documents.forEach { (fileName, doc) -> reconcileFile(fileName, doc, defaultReminderTime, remindersEnabled) }
+    suspend fun reconcileAll(
+        documents: Map<String, OrgDocument>,
+        defaultReminderTime: LocalTime,
+        remindersEnabled: Boolean,
+        leadTime: ReminderLeadTime = ReminderLeadTime.AT_TIME,
+    ) {
+        documents.forEach { (fileName, doc) -> reconcileFile(fileName, doc, defaultReminderTime, remindersEnabled, leadTime) }
     }
 
     /** Settings › Reminders toggled off: cancel every alarm and drop the table. */

@@ -28,6 +28,14 @@ updated and push.
 
 ## [Unreleased]
 
+### Added
+- Settings › Reminders now has a "Notify me" dropdown (at the time of event, 5/10/15/30 minutes
+  before, 1 hour before, 1 day before) that shifts the "due" notification earlier and reworks its
+  message to match ("Your task is due in 15 minutes", etc.); only affects SCHEDULED/DEADLINE
+  stamps that carry their own time of day
+- Settings › Agenda has a new "Widget" section: a transparency slider for the home-screen Agenda
+  ledger widget's background, and a "Days ahead" field controlling how far into the future it shows
+
 ## [1.0.196] - 2026-08-05
 
 ### Added
