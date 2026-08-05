@@ -1036,6 +1036,64 @@ Section headers scroll with the list; the prototype has no pinned headers, so th
 **When to use**: Agenda-only. These are tuned to one prototype screen; reach for
 `SegmentedControl`, `Pill`, and `ResultRowContent` elsewhere.
 
+### Ledger widget: `widget/LedgerWidget.kt`, `widget/LedgerBuckets.kt`
+
+Home-screen widget (Glance/RemoteViews), the "Widget A · ledger" variant from
+`design/Grove.dc.html` (`wGroups`/`wRow` at `:3204`), re-grouped by day instead
+of priority per product decision: `LedgerBuckets.build` returns an always-first
+unbounded Overdue section, then one section per day (today .. today+13) that
+actually has a task — empty days are omitted entirely, not rendered blank.
+Within a day, rows sort by priority (A/B/C/none) then time (`AgendaBuckets.
+BY_PRIORITY`); Overdue sorts oldest-first (`AgendaBuckets.overdue`). Row
+construction (`AgendaViewModel.row`) is shared with the Agenda screen, so meta
+chips/tags/priority read identically in both places.
+
+| Component | Shape |
+|---|---|
+| Header | 22dp r7 icon tile showing the actual **theme-synced app icon** (`AppIconManager.mipmapRes(settings.syncAppIconWithTheme, settings.theme)` — the same per-theme adaptive-icon mipmap "Sync App Icon with Theme" swaps the launcher to, falling back to the default `ic_launcher` when that setting is off); tapping it opens the app (plain `MainActivity` launch, no deep link). "Agenda" title, monospace "`N today · M in 14 days`" subtitle, 30dp `accent` r10 "+" button |
+| Section header | Uppercased key + monospace count + a 1dp rule. "Overdue" (never "N overdue" — the count already renders once, after the label, same as every other section) is `red`; every other day header is `ink2` |
+| Row | 14dp hollow ring, `line2` (light grey), empty inside — **only when the heading has a TODO-type keyword**; a heading with just a SCHEDULED/DEADLINE and no keyword gets a same-width blank spacer instead, never a circle. Both the ring and the keyword pill sit inside an 18dp-tall centering box (`LEDGER_LINE_HEIGHT`) anchored to the top of the row/title line — Glance can't query real text-layout metrics, so this fixed-height box is the stand-in for "the first line's height", keeping the ring and the pill vertically centered *on that line specifically* (not the title's full, possibly-2-line block) even when the title wraps. Tapping the circle runs the same "mark done" semantics as `AgendaViewModel.toggleDone` (recurring → repeater advance + LOGBOOK, non-recurring → optional auto-archive) with no undo; tapping the row body opens Read mode |
+| Colors | Resolved once per render from the user's actual selected theme (`groveColorsFor(settings.theme)`) — all 11 palettes, not just light/dark |
+
+One thing every Glance widget here inherits, since it's a RemoteViews/Glance
+1.1.1 platform limit, not a choice made for this widget specifically: no
+backdrop blur (the card is a flat `surface` fill, not the prototype's
+translucent blurred panel). The checkbox's hollow-ring look is not a
+simplification either — Glance has no `border()` modifier, so the ring is a
+smaller `surface`-colored circle centered over a larger `line2` one.
+
+`provideGlance` is a one-shot read of the vault/settings on each render — like
+`RescheduleActivity`, not a long-lived reactive collector, since nothing
+guarantees a Glance composition keeps running across the widget host's own
+process lifecycle. Whoever changes what the widget should show is responsible
+for calling `LedgerWidget().updateAll(context)`: `MarkDoneAction`, the quick-add
+composer's send action, and `SyncManager`'s `onSyncCompleted` hook all do.
+
+### Widget quick-add composer: `widget/WidgetQuickAddActivity.kt`
+
+The ledger widget's "+" button opens this, not the full Capture Picker: a small
+overlay (same one-shot-errand pattern as `RescheduleActivity` — empty
+`taskAffinity`, transparent window, excluded from recents) reproducing the
+prototype's `wCapOpen` sheet instead. Keyword-cycle chip (the vault's active
+keywords), a free-text field (auto-focused, keyboard shown immediately;
+the sheet manages the IME inset itself via `Modifier.imePadding()` — a
+translucent activity's `windowSoftInputMode="adjustResize"` isn't reliable —
+so it rides up above the keyboard rather than sitting behind it), then date
+(Today/Tomorrow/This weekend/Next week/No date, via `DateShorthandParser`),
+priority, and notebook chips, and a 34dp `accent` send button (disabled until
+the text is non-blank). All text uses the app's own `PlexSans`/`PlexMono`
+(explicit `fontFamily`, since this Activity's default Material typography
+doesn't automatically carry into every `Text` call the way `GroveTheme`'s
+Compose screens do). The notebook chip defaults to Settings § Sharing's
+"Shared content target" (`GroveSettings.shareTargetFile`, resolved exactly
+like `AppViewModel.consumeSharedContent` resolves it for a shared link) —
+not any capture template's target file, since this composer bypasses the
+template system entirely. Sending appends a plain top-level heading to the
+bottom of the chosen notebook via `CaptureInserter` +
+`OrgMutations.setPriority`/`setScheduled` — the same formatting path every
+other capture surface writes through, just without the template system
+(placeholders, datetree targets, etc. aren't available here).
+
 ---
 
 ## Screen Inventory
@@ -1056,6 +1114,8 @@ Section headers scroll with the list; the prototype has no pinned headers, so th
 | Agenda | `agenda` | "Agenda A · focus" prototype variant: `AgendaHeader` (day headline + ⇅), `AgendaTabs` (Today/Upcoming), collapsible `LeversPanel` (Group by: Date/Priority/Tag/File · Show: Open, one chip per configured todo-type keyword, Everything · tags and source-file toggles, all persisted in settings), `OverdueCard` (collapsible, bulk "Move to today"), scrolling `GroupHeader`s, `AgendaRowContent` rows (checkbox → toggle done, tap → open note) wrapped in `SwipeCommitRow` (swipe-left/right per Settings § Agenda: set scheduled, set deadline, or mark done). Every mutation is undoable via `GroveUndoSnackbar`; "Move to today" restores all files it touched. Infinite scroll on the Upcoming tab |
 | Dates (SCHEDULED + DEADLINE) | (full-window dialog) | `PlanningDatesScreen`: shorthand box (`DateShorthandParser`), two-date calendar with lead-time band, per-section presets / time range / org repeater, raw org preview footer |
 | Reschedule (from a reminder notification) | (own activity, `RescheduleActivity`) | The same `PlanningDatesScreen` over a transparent window in its own task. Confirming writes the dates, toasts "Task rescheduled to …", and finishes back to whatever app the user came from; it never enters Grove's own navigation |
+| Home-screen widget — Agenda ledger | (Glance `LedgerWidget`, receiver `LedgerWidgetReceiver`) | Overdue + day-grouped sections (see Ledger widget component doc above); tapping a row opens Read mode via the `grove://note/{id}?mode=read` deep link, tapping the "+" opens the quick-add composer |
+| Widget quick-add composer | (own activity, `WidgetQuickAddActivity`) | Small `wCapOpen`-style overlay over a transparent window in its own task (same pattern as Reschedule): keyword/date/priority/notebook chips + text field + send. Appends a heading to the chosen notebook and finishes back to whatever app the user came from |
 | Conflict | `conflict/{notebookId}` | `GroveTopBar`, warning banner, unified diff view, action buttons |
 | Settings (hub) | `settings` | `GroveTopBar`, a single `SettingsGroup` list of eight section pages (Look and Feel, Capture Templates, Sync, Notes, Agenda, Reminders, Sharing, Backup), each row a `SettingsRow` with a one-line description and `›` chevron; app version footer |
 | Settings › Look and Feel | `settings/appearance` | `ThemeDropdownPicker` (theme, ordered light-then-dark alphabetically within each), sync-app-icon-with-theme preview tile, `SegmentedControl` (font size, default note mode) |

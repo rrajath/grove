@@ -3,6 +3,7 @@ package com.rrajath.grove.icon
 import android.content.ComponentName
 import android.content.Context
 import android.content.pm.PackageManager
+import com.rrajath.grove.R
 import com.rrajath.grove.settings.ThemePreference
 
 /**
@@ -73,6 +74,28 @@ object AppIconManager {
      */
     fun targetAlias(enabled: Boolean, theme: ThemePreference): String =
         if (enabled) THEME_ALIASES[theme] ?: DEFAULT_ALIAS else DEFAULT_ALIAS
+
+    // Per-theme adaptive-icon mipmaps (`res/mipmap-anydpi/ic_launcher_<key>.xml`),
+    // for surfaces that need the actual icon image rather than just its mark
+    // color (e.g. the Ledger widget's header tile) — everything else here only
+    // ever needed [markColor] or the alias name.
+    private val THEME_MIPMAPS: Map<ThemePreference, Int> = mapOf(
+        ThemePreference.LIGHT to R.mipmap.ic_launcher_light,
+        ThemePreference.DARK to R.mipmap.ic_launcher_dark,
+        ThemePreference.TOKYONIGHT to R.mipmap.ic_launcher_tokyonight,
+        ThemePreference.TOKYODAY to R.mipmap.ic_launcher_tokyoday,
+        ThemePreference.SYNTHWAVE to R.mipmap.ic_launcher_synthwave,
+        ThemePreference.DRACULA to R.mipmap.ic_launcher_dracula,
+        ThemePreference.CATPPUCCIN to R.mipmap.ic_launcher_catppuccin,
+        ThemePreference.CATPPUCCINLATTE to R.mipmap.ic_launcher_catppuccinlatte,
+        ThemePreference.NORD to R.mipmap.ic_launcher_nord,
+        ThemePreference.ROSEPINEDAWN to R.mipmap.ic_launcher_rosepinedawn,
+        ThemePreference.ROSEPINEMOON to R.mipmap.ic_launcher_rosepinemoon,
+    )
+
+    /** Same (enabled, theme) mapping as [markColor]/[targetAlias], as the actual icon mipmap. */
+    fun mipmapRes(enabled: Boolean, theme: ThemePreference): Int =
+        if (enabled) THEME_MIPMAPS[theme] ?: R.mipmap.ic_launcher else R.mipmap.ic_launcher
 
     /**
      * The launcher-alias [ComponentName] that is *actually* enabled right

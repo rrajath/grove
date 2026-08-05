@@ -264,6 +264,33 @@
                 android:resource="@xml/capture_widget_info" />
         </receiver>
 
+        <receiver
+            android:name=".widget.LedgerWidgetReceiver"
+            android:exported="true"
+            android:label="Agenda">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/ledger_widget_info" />
+        </receiver>
+
+        <!--
+          The Ledger widget's "+" button: same one-shot-errand pattern as
+          RescheduleActivity below (empty taskAffinity, transparent window,
+          excluded from recents) so the small composer overlays whatever app
+          the user was in and finishing it never touches Grove's own task.
+        -->
+        <activity
+            android:name=".widget.WidgetQuickAddActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:launchMode="singleInstance"
+            android:taskAffinity=""
+            android:theme="@style/Theme.Grove.Transparent"
+            android:windowSoftInputMode="adjustResize" />
+
         <!-- SCHEDULED/DEADLINE reminder notifications. -->
         <receiver android:name=".reminders.ReminderAlarmReceiver" android:exported="false" />
         <receiver android:name=".reminders.ReminderDigestReceiver" android:exported="false" />

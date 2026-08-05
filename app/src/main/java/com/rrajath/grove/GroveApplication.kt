@@ -23,6 +23,8 @@ import com.rrajath.grove.vault.FileStore
 import com.rrajath.grove.widget.CaptureNotification
 import com.rrajath.grove.vault.SafFileStore
 import com.rrajath.grove.vault.Vault
+import com.rrajath.grove.widget.LedgerWidget
+import androidx.glance.appwidget.updateAll
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -99,7 +101,10 @@ class GroveApplication : Application() {
                 val settings = settingsRepository.settings.first()
                 reminderReconciler.reconcileFile(fileName, doc, settings.defaultReminderTime, settings.remindersEnabled)
             },
-            onSyncCompleted = { reminderReconciler.catchUpOverdue() },
+            onSyncCompleted = {
+                reminderReconciler.catchUpOverdue()
+                LedgerWidget().updateAll(this@GroveApplication)
+            },
         )
     }
 

@@ -694,14 +694,14 @@ private fun StateChip(keyword: String, isDone: Boolean, modifier: Modifier = Mod
  * shared `GroveColors.priorityColor`, which paints C green; that reads as
  * "done" next to this screen's green checkboxes.
  */
-private fun GroveColors.agendaPriorityColor(priority: String): Color = when (priority.uppercase()) {
+internal fun GroveColors.agendaPriorityColor(priority: String): Color = when (priority.uppercase()) {
     "A" -> red
     "B" -> amber
     "C" -> blue
     else -> ink3
 }
 
-private fun GroveColors.metaColor(tone: AgendaMetaTone): Color = when (tone) {
+internal fun GroveColors.metaColor(tone: AgendaMetaTone): Color = when (tone) {
     AgendaMetaTone.NORMAL -> ink2
     AgendaMetaTone.MUTED -> ink3
     AgendaMetaTone.DANGER -> red

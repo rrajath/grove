@@ -93,6 +93,61 @@ The levers (grouping, state filter, tags/source-file on rows) persist in `Settin
 
 Agenda is also a mutation surface, not just a view: the row checkbox toggles done (`OrgMutations.markDone` / `reopen`), swipe gestures write planning dates, and the overdue card's "Move to today" rewrites every overdue heading at once. That last one edits several files, so the undo snapshot is a *list* of pre-mutation file texts rather than a single one. Within a file, headings are rewritten highest-line-first and the document re-parsed between edits, since adding a planning line shifts every line index below it.
 
+## Home-screen widgets (`widget/`)
+
+Two Glance (`androidx.glance.appwidget`) widgets, both RemoteViews under the hood
+so they render outside the app's own process/lifecycle:
+
+- **Capture** (`CaptureWidget`/`CaptureWidgetReceiver`): one tap, opens the
+  capture picker via the `grove://capture` deep link. No state of its own.
+- **Agenda ledger** (`LedgerWidget`/`LedgerWidgetReceiver`): the "Widget A ·
+  ledger" prototype variant, re-grouped by day (`LedgerBuckets`, pure/JVM-tested
+  like `AgendaBuckets`) instead of priority — an always-first unbounded Overdue
+  section, then one section per day out to a 14-day window, empty days omitted.
+  Row construction is shared with the Agenda screen (`AgendaViewModel.row`), so
+  meta chips/tags/priority match exactly. See `docs/DESIGN_SYSTEM.md`'s "Ledger
+  widget" entry for the full visual spec and the Glance-platform limits it runs
+  into (no border modifier, no backdrop blur, no real text-layout metrics —
+  the checkbox/keyword-pill vertical centering against just the title's first
+  line is a fixed-height-box approximation, not a measured one). The header's
+  icon tile is the actual theme-synced app icon: `AppIconManager.mipmapRes`
+  (new, alongside the existing `markColor`/`targetAlias` per-theme maps) picks
+  the same per-theme adaptive-icon mipmap "Sync App Icon with Theme" swaps the
+  launcher to.
+
+  `provideGlance` does a one-shot read of the vault/settings/index on every
+  render rather than holding a live Flow collector open — Glance gives no
+  guarantee a widget's composition keeps running across its host process's own
+  lifecycle, so anything that changes what should be on screen re-triggers a
+  render explicitly instead: the row checkbox's `MarkDoneAction` (an
+  `ActionCallback`, same "mark done" semantics as `AgendaViewModel.toggleDone`
+  — recurring headings advance their repeater instead of gaining a done
+  keyword and are therefore never auto-archived; a non-recurring done item is
+  auto-archived when Settings has it enabled — but with no undo), the quick-add
+  composer's send action, and `SyncManager`'s `onSyncCompleted` hook all call
+  `LedgerWidget().updateAll(context)` after they mutate something. Tapping a
+  row's body opens Read mode via the same `grove://note/{id}?mode=read` deep
+  link the rest of the app uses (`NoteRef` + `Routes.encode`).
+
+  The "+" button opens `WidgetQuickAddActivity`, not the full Capture Picker:
+  a small transient overlay on the same one-shot-errand pattern as
+  `ui/reminders/RescheduleActivity` (empty `taskAffinity`, transparent window,
+  excluded from recents), reproducing the prototype's compact `wCapOpen`
+  composer instead of the multi-step template flow. The text field auto-focuses
+  and shows the keyboard immediately; since a translucent activity's
+  `windowSoftInputMode="adjustResize"` doesn't reliably resize the window, the
+  activity instead calls `WindowCompat.setDecorFitsSystemWindows(window, false)`
+  and the sheet rides the IME inset itself via `Modifier.imePadding()`. The
+  notebook chip's default is Settings § Sharing's "Shared content target"
+  (`GroveSettings.shareTargetFile`), resolved the same way
+  `AppViewModel.consumeSharedContent` resolves it for a shared link — not any
+  capture template's target file, since the composer never touches the
+  template system. Sending appends a plain top-level heading to the bottom of
+  the chosen notebook via `CaptureInserter.insert` +
+  `OrgMutations.setPriority`/`setScheduled` — the same on-disk formatting path
+  every other capture surface writes through, just without template
+  placeholders/datetree targets, which this composer has no UI for.
+
 ## Reminders (`reminders/`)
 
 A system notification fires when a heading's SCHEDULED or DEADLINE timestamp arrives, with **Complete** (flips the TODO keyword to the first done-type keyword) and **Reschedule** (opens `PlanningDatesScreen`, focused on whichever of the two dates the reminder was for) actions. Tapping the notification body instead deep-links into the app (`grove://reminder/...` → `ReminderResolveScreen` → the note in read mode).

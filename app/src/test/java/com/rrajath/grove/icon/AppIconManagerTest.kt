@@ -54,6 +54,22 @@ class AppIconManagerTest {
     }
 
     @Test
+    fun `mipmap toggle off always falls back to the default launcher icon`() {
+        for (theme in ThemePreference.entries) {
+            assertEquals(
+                AppIconManager.mipmapRes(enabled = false, theme = ThemePreference.LIGHT),
+                AppIconManager.mipmapRes(enabled = false, theme = theme),
+            )
+        }
+    }
+
+    @Test
+    fun `every theme has a distinct mipmap so no theme silently falls back`() {
+        val themedMipmaps = ThemePreference.entries.map { AppIconManager.mipmapRes(enabled = true, theme = it) }
+        assertEquals(ThemePreference.entries.size, themedMipmaps.toSet().size)
+    }
+
+    @Test
     fun `every theme has a distinct alias and is included in ALL_ALIASES`() {
         assertEquals(ThemePreference.entries.size, AppIconManager.THEME_ALIASES.size)
         assertEquals(AppIconManager.THEME_ALIASES.values.toSet().size, AppIconManager.THEME_ALIASES.size)
