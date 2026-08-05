@@ -28,6 +28,8 @@ updated and push.
 
 ## [Unreleased]
 
+## [1.0.200] - 2026-08-05
+
 ### Fixed
 - Sync conflicts' "Keep both" now line-diffs the current file against the conflict copy and keeps
   both versions right where they diverge, instead of appending the whole conflict copy under a new
