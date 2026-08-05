@@ -28,6 +28,8 @@ updated and push.
 
 ## [Unreleased]
 
+## [1.0.194] - 2026-08-05
+
 ### Added
 - The star button on the Search page now opens a searchable dropdown of saved searches
   (plus the quick-start cards) instead of a plain name prompt: typing continuously filters
