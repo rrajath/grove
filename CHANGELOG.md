@@ -37,6 +37,15 @@ updated and push.
 - A What's New modal now appears once after an app update, listing everything from
   CHANGELOG.md since the version you last saw, formatted the same way as the changelog
   itself (Added/Fixed/etc. sections with bullet items)
+- The star button on the Search page now opens a searchable dropdown of saved searches
+  (plus the quick-start cards) instead of a plain name prompt: typing continuously filters
+  the list, picking an existing entry asks to overwrite it, and a name not in the list saves
+  as a new search
+- The Filters bottom sheet's negatable facets (Notebook, Tags, TODO state, Priority) now show
+  a "tap again to exclude" hint next to their section label
+- The Filters bottom sheet now also has Closed and Created date facets, matching the existing
+  Scheduled/Deadline ones (Today/Next 7 days/Overdue/No date/Custom range)
+- The Advanced panel's operator chips gained d./c./cr., alongside the existing t./i./s./b./p.
 
 ### Fixed
 - Killing (marking done) a recurring task with auto-archive enabled no longer archives it: a
@@ -46,6 +55,24 @@ updated and push.
 - Setting a SCHEDULED or DEADLINE to a date/time already in the past no longer fires an
   immediate "task is due" notification; only a genuine catch-up (the device was off or the
   app was closed when an already-armed future reminder came due) still fires one
+- `s.overdue`/`d.overdue` search expressions returned nothing: the "overdue" period token
+  wasn't recognized at all; they now match anything scheduled/due strictly before today
+- `s.nodate`/`d.nodate` returned nothing: only `s.none`/`d.none` were recognized; `nodate` is
+  now accepted as an alias for `none`
+- `s.today`/`d.today` matched anything scheduled/due on or before today (i.e. everything
+  already overdue too) instead of only today itself
+- The Search page's "Overdue" quick-start card only checked the deadline date by default,
+  missing open tasks that were overdue on their scheduled date instead
+- The "Open tasks" quick-start card's default search ANDed every active TODO keyword together
+  instead of ORing them, which could never match anything once more than one keyword was
+  configured; the same AND-instead-of-OR mirroring bug affected any multi-value Filters
+  selection (e.g. two tags picked together) whenever the mirrored text field re-narrowed the
+  results a second time
+- The Advanced panel's operator chips now reflow naturally with the available width instead
+  of a fixed two-row split, so short chips no longer wrap to a second line while there's still
+  room on the first
+- Scheduled/deadline pills no longer render on already-done items in search results, since a
+  completed item's dates aren't actionable
 
 ## [1.0.187] - 2026-08-04
 
