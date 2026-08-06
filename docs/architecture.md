@@ -148,6 +148,18 @@ so they render outside the app's own process/lifecycle:
   legitimate but were previously silent, which is what made this class of bug
   so hard to tell apart from "the tap never fired at all".
 
+  Glance dispatches the tap by resolving the callback's *class name* out of the
+  intent and calling `getDeclaredConstructor().newInstance()`. Glance's consumer
+  ProGuard rule keeps `ActionCallback` implementations as classes but says
+  nothing about their members, so R8 shrinks the no-arg constructor away as
+  unreachable and the reflection throws — the class ships, the tap does nothing,
+  and none of the guard logs above ever run. `app/proguard-rules.pro` therefore
+  keeps `<init>()` on every `ActionCallback`. This failure mode is release-only
+  (debug builds don't run R8), so a widget action that works from Android Studio
+  can still be inert in a production build of the same commit; any new
+  `ActionCallback` is covered by the existing rule, but verify a release build,
+  not just a debug one.
+
   The "+" button opens `WidgetQuickAddActivity`, not the full Capture Picker:
   a small transient overlay on the same one-shot-errand pattern as
   `ui/reminders/RescheduleActivity` (empty `taskAffinity`, transparent window,

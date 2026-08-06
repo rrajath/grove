@@ -40,6 +40,11 @@ updated and push.
   from inside its own composition, so it redraws itself as soon as an edit lands. This also fixes
   the same staleness after widget quick-add, and rows whose keyword pill rendered as plain title
   text
+- Marking a task done from the Agenda widget did nothing at all in release builds, while working
+  correctly in debug builds of the same commit. Glance starts a widget action by looking up the
+  callback class by name and constructing it reflectively; R8 could not see that constructor being
+  called from anywhere, so it removed it from the release APK and the tap threw before any of the
+  widget's code ran. Release builds now keep the constructor on widget action callbacks
 
 ## [1.0.206] - 2026-08-06
 
