@@ -28,6 +28,12 @@ updated and push.
 
 ## [Unreleased]
 
+### Changed
+- Widget quick-add's date and notebook chips now open a dropdown listing every option instead of
+  cycling one tap at a time. Date adds a "Custom date…" entry that opens the same
+  `PlanningDatesScreen` used by Reschedule; presets still resolve at send time so "Today" stays
+  correct even if the sheet is left open across midnight
+
 ## [1.0.208] - 2026-08-06
 
 ### Fixed
