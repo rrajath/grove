@@ -28,6 +28,8 @@ updated and push.
 
 ## [Unreleased]
 
+## [1.0.204] - 2026-08-06
+
 ### Fixed
 - The Agenda widget's task circle now has a much larger tap target (it absorbed the dead space that
   used to sit between it and the title), and its ring border is thinner
