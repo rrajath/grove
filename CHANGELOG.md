@@ -28,6 +28,8 @@ updated and push.
 
 ## [Unreleased]
 
+## [1.0.206] - 2026-08-06
+
 ### Fixed
 - Marking a task done from the Agenda widget could silently do nothing if Android had killed the
   app process in the background: the tap read the vault before its background initialization had
