@@ -21,6 +21,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -51,8 +54,10 @@ import com.rrajath.grove.org.OrgKeywords
 import com.rrajath.grove.org.OrgMutations
 import com.rrajath.grove.org.OrgParser
 import com.rrajath.grove.org.OrgTimestamp
+import com.rrajath.grove.org.PlanningKind
 import com.rrajath.grove.org.ShorthandParse
 import com.rrajath.grove.settings.GroveSettings
+import com.rrajath.grove.ui.components.PlanningDatesScreen
 import com.rrajath.grove.ui.theme.GroveTheme
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
@@ -127,12 +132,31 @@ private fun QuickAddSheet(onDismiss: () -> Unit) {
     var text by remember { mutableStateOf("") }
     var keyword by remember(keywords) { mutableStateOf(keywords.first()) }
     var priority by remember { mutableStateOf<Char?>(null) }
-    var dateOption by remember { mutableStateOf(QuickAddDate.TODAY) }
+    // Exactly one of these two is "live" at a time: picking a preset clears
+    // customDate, confirming the custom picker clears dateOption (null). Kept
+    // separate rather than one eagerly-resolved OrgTimestamp so a preset like
+    // "Today" still resolves at *send* time (see savedDate below), staying
+    // correct even if the sheet is left open across midnight.
+    var dateOption by remember { mutableStateOf<QuickAddDate?>(QuickAddDate.TODAY) }
+    var customDate by remember { mutableStateOf<OrgTimestamp?>(null) }
+    var dateMenuOpen by remember { mutableStateOf(false) }
+    var customDateOpen by remember { mutableStateOf(false) }
     var notebook by remember(defaultNotebook) { mutableStateOf(defaultNotebook) }
+    var notebookMenuOpen by remember { mutableStateOf(false) }
     // The Settings-configured share target is the default even when it isn't an
     // existing notebook yet (it gets created on send, same as sharing does); the
-    // notebook chip still needs it in its cycle list so cycling away and back works.
+    // notebook chip's pop-out still needs it in its list even before that happens.
     val notebookChoices = remember(notebooks, defaultNotebook) { (listOf(defaultNotebook) + notebooks).distinct() }
+
+    // Resolved lazily on every recomposition (not eagerly at pick time) so a
+    // preset like "Today" still reflects the actual date whenever it's read,
+    // staying correct even if the sheet is left open across midnight.
+    val resolvedPresetDate = dateOption?.shorthand?.let { sh ->
+        (DateShorthandParser.parse(sh, LocalDate.now()) as? ShorthandParse.Ok)?.value?.date
+            ?.let { OrgTimestamp(it, active = true) }
+    }
+    val selectedDate = customDate ?: resolvedPresetDate
+    val dateChipLabel = customDate?.formatHuman() ?: dateOption?.label ?: QuickAddDate.NONE.label
 
     val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -179,16 +203,47 @@ private fun QuickAddSheet(onDismiss: () -> Unit) {
             Box(Modifier.fillMaxWidth().height(1.dp).background(MaterialTheme.grove.line))
             Spacer(Modifier.height(11.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                ComposerChip(dateOption.label, active = dateOption != QuickAddDate.NONE) {
-                    dateOption = QuickAddDate.entries.next(dateOption)
+                Box {
+                    ComposerChip(dateChipLabel, active = dateOption != QuickAddDate.NONE || customDate != null) {
+                        dateMenuOpen = true
+                    }
+                    DropdownMenu(
+                        expanded = dateMenuOpen,
+                        onDismissRequest = { dateMenuOpen = false },
+                        containerColor = MaterialTheme.grove.surface,
+                    ) {
+                        QuickAddDate.entries.forEach { preset ->
+                            DropdownMenuItem(
+                                text = { Text(preset.label, fontFamily = PlexSans, color = MaterialTheme.grove.ink) },
+                                onClick = { dateOption = preset; customDate = null; dateMenuOpen = false },
+                            )
+                        }
+                        HorizontalDivider(color = MaterialTheme.grove.line)
+                        DropdownMenuItem(
+                            text = { Text("Custom date…", fontFamily = PlexSans, color = MaterialTheme.grove.accent) },
+                            onClick = { dateMenuOpen = false; customDateOpen = true },
+                        )
+                    }
                 }
                 Spacer(Modifier.width(7.dp))
                 ComposerChip(priority?.let { "#$it" } ?: "Priority", active = priority != null) {
                     priority = PRIORITIES.next(priority)
                 }
                 Spacer(Modifier.width(7.dp))
-                ComposerChip(notebook.removeSuffix(".org"), active = false) {
-                    notebook = notebookChoices.next(notebook)
+                Box {
+                    ComposerChip(notebook, active = false) { notebookMenuOpen = true }
+                    DropdownMenu(
+                        expanded = notebookMenuOpen,
+                        onDismissRequest = { notebookMenuOpen = false },
+                        containerColor = MaterialTheme.grove.surface,
+                    ) {
+                        notebookChoices.forEach { nb ->
+                            DropdownMenuItem(
+                                text = { Text(nb, fontFamily = PlexSans, color = MaterialTheme.grove.ink) },
+                                onClick = { notebook = nb; notebookMenuOpen = false },
+                            )
+                        }
+                    }
                 }
                 Spacer(Modifier.weight(1f))
                 val canSend = text.isNotBlank()
@@ -201,9 +256,7 @@ private fun QuickAddSheet(onDismiss: () -> Unit) {
                             val savedText = text.trim()
                             val savedKeyword = keyword
                             val savedPriority = priority
-                            val savedDate = dateOption.shorthand?.let { sh ->
-                                (DateShorthandParser.parse(sh, LocalDate.now()) as? ShorthandParse.Ok)?.value?.date
-                            }
+                            val savedDate = selectedDate
                             val savedNotebook = notebook
                             app.appScope.launch {
                                 submitQuickAdd(app, savedNotebook, savedKeyword, savedPriority, savedText, savedDate)
@@ -223,6 +276,20 @@ private fun QuickAddSheet(onDismiss: () -> Unit) {
                 }
             }
         }
+    }
+
+    if (customDateOpen) {
+        PlanningDatesScreen(
+            title = text.ifBlank { "New task" },
+            scheduled = selectedDate,
+            deadline = null,
+            focus = PlanningKind.SCHEDULED,
+            onDismiss = { customDateOpen = false },
+            // Quick-add has no deadline concept, so PlanningDatesScreen is reused
+            // exactly as Reschedule uses it (both sections shown); the deadline
+            // half of the result is simply never read.
+            onConfirm = { sched, _ -> dateOption = null; customDate = sched; customDateOpen = false },
+        )
     }
 }
 
@@ -292,7 +359,7 @@ private suspend fun submitQuickAdd(
     keyword: String,
     priority: Char?,
     title: String,
-    date: LocalDate?,
+    date: OrgTimestamp?,
 ) {
     if (title.isBlank()) return
     val vault = app.vault.filterNotNull().first()
@@ -316,7 +383,7 @@ private suspend fun submitQuickAdd(
             headline = doc.headlineAtLine(insertion.insertedAtLine)
         }
         if (date != null && headline != null) {
-            text = OrgMutations.setScheduled(doc, headline, OrgTimestamp(date, active = true))
+            text = OrgMutations.setScheduled(doc, headline, date)
         }
         text
     }
