@@ -36,12 +36,17 @@
             </intent-filter>
             <!--
               Open .org files: register Grove so it can be set as the default
-              handler. Org has no registered MIME type, so we match by extension
-              (file managers usually send application/octet-stream or text/*) as
-              well as the conventional text/org type. The repeated pathPatterns
-              work around Android's greedy `.*` not spanning earlier dots in a
-              file name (e.g. "notes.2026.org").
+              handler. Org has no registered MIME type, so this is split into two
+              filters rather than one: Android ANDs every <data> constraint inside
+              a single intent-filter together, so a filter combining mimeType with
+              pathPattern only matches senders that satisfy both at once. Most
+              callers don't: a file manager typically sends
+              application/octet-stream (or no type at all) for an unrecognized
+              extension, while a cloud provider's content:// URI often has an
+              opaque path that doesn't literally end in ".org". Splitting lets
+              either kind of match resolve to Grove on its own.
             -->
+            <!-- Path-based: matches by filename extension, any (or no) MIME type. -->
             <intent-filter android:label="@string/app_name">
                 <action android:name="android.intent.action.VIEW" />
                 <action android:name="android.intent.action.EDIT" />
@@ -50,12 +55,23 @@
                 <data android:scheme="content" />
                 <data android:scheme="file" />
                 <data android:host="*" />
-                <data android:mimeType="text/org" />
-                <data android:mimeType="text/x-org" />
-                <data android:mimeType="application/octet-stream" />
+                <!-- Repeated pathPatterns work around Android's greedy `.*` not
+                     spanning earlier dots in a file name (e.g. "notes.2026.org"). -->
                 <data android:pathPattern=".*\\.org" />
                 <data android:pathPattern=".*\\..*\\.org" />
                 <data android:pathPattern=".*\\..*\\..*\\.org" />
+            </intent-filter>
+            <!-- MIME-type-based: matches providers that correctly tag org content,
+                 regardless of what its content:// URI path looks like. -->
+            <intent-filter android:label="@string/app_name">
+                <action android:name="android.intent.action.VIEW" />
+                <action android:name="android.intent.action.EDIT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:mimeType="text/org" />
+                <data android:mimeType="text/x-org" />
             </intent-filter>
         </activity>
 

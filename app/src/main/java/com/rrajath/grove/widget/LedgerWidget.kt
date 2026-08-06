@@ -145,28 +145,32 @@ private fun HeaderRow(context: Context, colors: GroveColors, todayCount: Int, to
         modifier = GlanceModifier.fillMaxWidth().padding(horizontal = 13.dp, vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Image(
-            provider = ImageProvider(iconRes),
-            contentDescription = null,
+        Row(
             modifier = GlanceModifier
-                .size(22.dp)
-                .cornerRadius(7.dp)
+                .defaultWeight()
                 .clickable(actionStartActivity(Intent(context, MainActivity::class.java))),
-        )
-        Spacer(modifier = GlanceModifier.width(10.dp))
-        Column(modifier = GlanceModifier.defaultWeight()) {
-            Text(
-                "Agenda",
-                style = TextStyle(color = ColorProvider(colors.ink), fontSize = 13.5.sp, fontWeight = FontWeight.Medium),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Image(
+                provider = ImageProvider(iconRes),
+                contentDescription = null,
+                modifier = GlanceModifier.size(22.dp).cornerRadius(7.dp),
             )
-            Text(
-                "$todayCount today · $totalCount in $windowDays days",
-                style = TextStyle(
-                    color = ColorProvider(colors.ink2),
-                    fontSize = 10.5.sp,
-                    fontFamily = FontFamily.Monospace,
-                ),
-            )
+            Spacer(modifier = GlanceModifier.width(10.dp))
+            Column(modifier = GlanceModifier.defaultWeight()) {
+                Text(
+                    "Agenda",
+                    style = TextStyle(color = ColorProvider(colors.ink), fontSize = 13.5.sp, fontWeight = FontWeight.Medium),
+                )
+                Text(
+                    "$todayCount today · $totalCount in $windowDays days",
+                    style = TextStyle(
+                        color = ColorProvider(colors.ink2),
+                        fontSize = 10.5.sp,
+                        fontFamily = FontFamily.Monospace,
+                    ),
+                )
+            }
         }
         Box(
             modifier = GlanceModifier
@@ -225,9 +229,24 @@ private fun LedgerRow(context: Context, colors: GroveColors, row: AgendaRow) {
         modifier = GlanceModifier.fillMaxWidth().padding(horizontal = 13.dp, vertical = 8.dp),
         verticalAlignment = Alignment.Top,
     ) {
+        // Width folds in the 9dp gap that used to be a separate Spacer, so the
+        // clickable region is wider than the visible ring without shifting the
+        // title (the ring stays left-aligned at the same x it always rendered at).
+        val gutterModifier = GlanceModifier.height(LEDGER_LINE_HEIGHT).width(23.dp)
         Box(
-            modifier = GlanceModifier.height(LEDGER_LINE_HEIGHT).width(14.dp),
-            contentAlignment = Alignment.Center,
+            modifier = if (row.keyword != null) {
+                gutterModifier.clickable(
+                    actionRunCallback<MarkDoneAction>(
+                        actionParametersOf(
+                            FILE_NAME_KEY to row.fileName,
+                            LINE_INDEX_KEY to row.lineIndex,
+                        ),
+                    ),
+                )
+            } else {
+                gutterModifier
+            },
+            contentAlignment = Alignment.CenterStart,
         ) {
             if (row.keyword != null) {
                 // No border() modifier in Glance 1.1.1: the "hollow ring" is faked
@@ -236,22 +255,13 @@ private fun LedgerRow(context: Context, colors: GroveColors, row: AgendaRow) {
                     modifier = GlanceModifier
                         .size(14.dp)
                         .cornerRadius(7.dp)
-                        .background(ColorProvider(colors.line2))
-                        .clickable(
-                            actionRunCallback<MarkDoneAction>(
-                                actionParametersOf(
-                                    FILE_NAME_KEY to row.fileName,
-                                    LINE_INDEX_KEY to row.lineIndex,
-                                ),
-                            ),
-                        ),
+                        .background(ColorProvider(colors.line2)),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Box(modifier = GlanceModifier.size(10.dp).cornerRadius(5.dp).background(ColorProvider(colors.surface))) {}
+                    Box(modifier = GlanceModifier.size(12.dp).cornerRadius(6.dp).background(ColorProvider(colors.surface))) {}
                 }
             }
         }
-        Spacer(modifier = GlanceModifier.width(9.dp))
         Column(modifier = GlanceModifier.defaultWeight().clickable(actionStartActivity(openIntent))) {
             Row(verticalAlignment = Alignment.Top) {
                 if (row.keyword != null) {

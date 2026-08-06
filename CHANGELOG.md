@@ -28,6 +28,16 @@ updated and push.
 
 ## [Unreleased]
 
+### Fixed
+- The Agenda widget's task circle now has a much larger tap target (it absorbed the dead space that
+  used to sit between it and the title), and its ring border is thinner
+- Tapping anywhere in the Agenda widget's header row (logo, "N today · N in N days") now opens
+  Grove, not just the logo icon; the "+" button is unaffected
+- Grove now shows up as an app that can open `.org` files from more sources (file managers that tag
+  them `application/octet-stream`, and cloud providers whose content URI doesn't end in `.org`) —
+  the intent filter previously required both a matching MIME type and a matching path in the same
+  rule, which most senders satisfy only one of
+
 ## [1.0.200] - 2026-08-05
 
 ### Fixed
