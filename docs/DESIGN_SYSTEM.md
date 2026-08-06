@@ -831,8 +831,20 @@ mode writes each change straight to disk (`DocumentViewModel`, immediate save + 
 sheet's own UI and behavior are identical either way. Sections, each preceded by a `SheetLabel` (PlexSans SemiBold 12sp,
 1sp letter-spacing, `accent`): State (chips, `none` + every configured keyword, done-type
 keywords tint `green`/`greenSoft`, others `amber`/`amberSoft`), Priority (`none`/`#A`/`#B`/`#C`
-chips), Tags (`OutlinedTextField` + autocomplete `Pill` row), **Schedule/Deadline**, then
+chips), **Tags** (search/create dropdown, see below), **Schedule/Deadline**, then
 **+ Add note**.
+
+**Tags**: an `OutlinedTextField` ("Search or create tag" placeholder) backed by a
+`DropdownMenu` popup, modeled on the saved-search star-button dropdown in
+`SearchScreen.kt` (`SaveSearchDropdown`) — typing filters the vault's tag pool
+(prefix/substring match, already-applied tags excluded) into a tappable list; when
+the typed text isn't an existing tag, a "Create tag "…"" row appears above the
+divider. Multi-select: every tap appends to the headline's tags and clears the
+query so the dropdown stays open for the next pick (unlike `SaveSearchDropdown`'s
+single-shot save-and-dismiss). Already-selected tags render below the field as one
+org-style colon string (`:work:planning:`, `PlexMono` 11sp `synTag`, zero
+horizontal spacing so it reads as one continuous run); tapping a `tag:` segment
+removes that tag.
 
 **Schedule/Deadline row**: a single 8dp-radius `surface2` pill (was two separate SCHEDULED/
 DEADLINE rows) showing both values inline — `SCHED <date>` in `blue`, `DUE <date>` in `red`,
@@ -1080,21 +1092,37 @@ prototype's `wCapOpen` sheet instead. Keyword-cycle chip (the vault's active
 keywords), a free-text field (auto-focused, keyboard shown immediately;
 the sheet manages the IME inset itself via `Modifier.imePadding()` — a
 translucent activity's `windowSoftInputMode="adjustResize"` isn't reliable —
-so it rides up above the keyboard rather than sitting behind it), then date
-(Today/Tomorrow/This weekend/Next week/No date, via `DateShorthandParser`),
+so it rides up above the keyboard rather than sitting behind it), then date,
 priority, and notebook chips, and a 34dp `accent` send button (disabled until
 the text is non-blank). All text uses the app's own `PlexSans`/`PlexMono`
 (explicit `fontFamily`, since this Activity's default Material typography
 doesn't automatically carry into every `Text` call the way `GroveTheme`'s
-Compose screens do). The notebook chip defaults to Settings § Sharing's
-"Shared content target" (`GroveSettings.shareTargetFile`, resolved exactly
-like `AppViewModel.consumeSharedContent` resolves it for a shared link) —
-not any capture template's target file, since this composer bypasses the
-template system entirely. Sending appends a plain top-level heading to the
-bottom of the chosen notebook via `CaptureInserter` +
-`OrgMutations.setPriority`/`setScheduled` — the same formatting path every
-other capture surface writes through, just without the template system
-(placeholders, datetree targets, etc. aren't available here).
+Compose screens do).
+
+The date and notebook chips open a `DropdownMenu` pop-out on tap (not a
+cycling `next()` step, unlike the priority chip which still cycles
+null→A→B→C). The **date** pop-out lists the five presets (Today/Tomorrow/This
+weekend/Next week/No date, each resolved lazily via `DateShorthandParser` at
+read time, not eagerly at pick time — so "Today" stays correct even if the
+sheet sits open across midnight) plus a divider and "Custom date…", which
+opens `PlanningDatesScreen` — the same dual SCHEDULED/DEADLINE screen
+`RescheduleActivity` uses for the notification's "Reschedule" action, reused
+unmodified; quick-add has no deadline concept, so only the SCHEDULED half of
+the result is read. A custom pick is shown on the chip via
+`OrgTimestamp.formatHuman()` and, unlike a preset, can carry a time/repeater
+through to the saved file. The **notebook** chip's pop-out lists
+`notebookChoices` with the full `.org` extension shown (the chip itself also
+shows `.org`, matching every menu item — this only differs from the
+post-send success toast, which still strips it for a shorter message). The
+notebook chip defaults to Settings § Sharing's "Shared content target"
+(`GroveSettings.shareTargetFile`, resolved exactly like
+`AppViewModel.consumeSharedContent` resolves it for a shared link) — not any
+capture template's target file, since this composer bypasses the template
+system entirely. Sending appends a plain top-level heading to the bottom of
+the chosen notebook via `CaptureInserter` + `OrgMutations.setPriority`/
+`setScheduled` — the same formatting path every other capture surface writes
+through, just without the template system (placeholders, datetree targets,
+etc. aren't available here).
 
 ---
 
@@ -1117,7 +1145,7 @@ other capture surface writes through, just without the template system
 | Dates (SCHEDULED + DEADLINE) | (full-window dialog) | `PlanningDatesScreen`: shorthand box (`DateShorthandParser`), two-date calendar with lead-time band, per-section presets / time range / org repeater, raw org preview footer |
 | Reschedule (from a reminder notification) | (own activity, `RescheduleActivity`) | The same `PlanningDatesScreen` over a transparent window in its own task. Confirming writes the dates, toasts "Task rescheduled to …", and finishes back to whatever app the user came from; it never enters Grove's own navigation |
 | Home-screen widget — Agenda ledger | (Glance `LedgerWidget`, receiver `LedgerWidgetReceiver`) | Overdue + day-grouped sections (see Ledger widget component doc above); tapping a row opens Read mode via the `grove://note/{id}?mode=read` deep link, tapping the "+" opens the quick-add composer |
-| Widget quick-add composer | (own activity, `WidgetQuickAddActivity`) | Small `wCapOpen`-style overlay over a transparent window in its own task (same pattern as Reschedule): keyword/date/priority/notebook chips + text field + send. Appends a heading to the chosen notebook and finishes back to whatever app the user came from |
+| Widget quick-add composer | (own activity, `WidgetQuickAddActivity`) | Small `wCapOpen`-style overlay over a transparent window in its own task (same pattern as Reschedule): keyword-cycle chip, date/notebook chips opening a `DropdownMenu` pop-out (date pop-out adds "Custom date…" → `PlanningDatesScreen`; notebook pop-out shows `.org`), priority-cycle chip, text field, send. Appends a heading to the chosen notebook and finishes back to whatever app the user came from |
 | Conflict | `conflict/{notebookId}` | `GroveTopBar`, warning banner, unified diff view, action buttons |
 | Settings (hub) | `settings` | `GroveTopBar`, a single `SettingsGroup` list of eight section pages (Look and Feel, Capture Templates, Sync, Notes, Agenda, Reminders, Sharing, Backup), each row a `SettingsRow` with a one-line description and `›` chevron; app version footer |
 | Settings › Look and Feel | `settings/appearance` | `ThemeDropdownPicker` (theme, ordered light-then-dark alphabetically within each), sync-app-icon-with-theme preview tile, `SegmentedControl` (font size, default note mode) |
