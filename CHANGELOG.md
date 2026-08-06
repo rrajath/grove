@@ -28,6 +28,15 @@ updated and push.
 
 ## [Unreleased]
 
+### Fixed
+- Marking a task done from the Agenda widget could silently do nothing if Android had killed the
+  app process in the background: the tap read the vault before its background initialization had
+  finished, so the write never happened even though the circle still showed as tapped. It now waits
+  for the vault to finish loading before writing
+- Settings > Notes > TODO keywords' "Apply" action is now always available, not just after editing
+  the field, so it also works as a manual "rebuild index" action (e.g. to recompute a notebook's
+  done/open state after it was indexed under an older keyword config)
+
 ## [1.0.204] - 2026-08-06
 
 ### Fixed

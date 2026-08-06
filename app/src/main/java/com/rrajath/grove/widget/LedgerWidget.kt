@@ -56,7 +56,9 @@ import com.rrajath.grove.ui.vault.NoteRef
 import com.rrajath.grove.ui.vault.headlineAtLine
 import com.rrajath.grove.vault.AutoArchive
 import com.rrajath.grove.vault.StateChangeResult
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 import java.time.LocalDate
 import java.time.LocalDateTime
 
@@ -356,7 +358,11 @@ class MarkDoneAction : ActionCallback {
         val fileName = parameters[FILE_NAME_KEY] ?: return
         val lineIndex = parameters[LINE_INDEX_KEY] ?: return
         val app = context.applicationContext as GroveApplication
-        val vault = app.vault.value ?: return
+        // app.vault is a StateFlow seeded null until the settings DataStore read
+        // completes; a widget tap can easily revive a process Android had killed
+        // in the background (same race reindexNow's doc comment calls out), so
+        // reading .value synchronously here would silently no-op on a cold start.
+        val vault = withTimeoutOrNull(5_000) { app.vault.filterNotNull().first() } ?: return
         val doc = vault.open(fileName) ?: return
         val headline = doc.headlineAtLine(lineIndex) ?: return
         val keyword = headline.keyword ?: return

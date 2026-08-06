@@ -80,18 +80,19 @@ fun SettingsNotesScreen(
                     textStyle = TextStyle(fontFamily = PlexMono, fontSize = 13.sp),
                     modifier = Modifier.fillMaxWidth(),
                 )
-                if (keywordsText != settings.todoKeywords) {
-                    Text(
-                        "Apply (re-indexes all notebooks)",
-                        fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
-                        fontSize = 13.sp, color = c.accent,
-                        modifier = Modifier
-                            .padding(top = 6.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .clickable { onSetTodoKeywords(keywordsText) }
-                            .padding(6.dp),
-                    )
-                }
+                // Always visible (not just after an edit): also doubles as a manual
+                // "rebuild index" action, e.g. to recompute isDone for notebooks whose
+                // stale Room rows predate the keywords they were indexed under.
+                Text(
+                    "Apply (re-indexes all notebooks)",
+                    fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
+                    fontSize = 13.sp, color = c.accent,
+                    modifier = Modifier
+                        .padding(top = 6.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable { onSetTodoKeywords(keywordsText) }
+                        .padding(6.dp),
+                )
             }
             RowDivider()
             SettingsRow(label = "Default priority") {

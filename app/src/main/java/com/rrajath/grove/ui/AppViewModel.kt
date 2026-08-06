@@ -154,8 +154,17 @@ class AppViewModel(private val app: GroveApplication) : ViewModel() {
     fun setPeriodicSyncMinutes(minutes: Int) =
         viewModelScope.launch { settingsRepository.setPeriodicSyncMinutes(minutes) }
 
-    fun setTodoKeywords(config: String) =
-        viewModelScope.launch { settingsRepository.setTodoKeywords(config) }
+    /**
+     * Also the target of Settings > Notes' always-visible "Apply (re-indexes all
+     * notebooks)" action, so it forces a rebuild even when [config] is unchanged
+     * from the persisted value: the DataStore-diff collector in
+     * [GroveApplication] that reindexes on an actual keyword-config change
+     * wouldn't otherwise fire for a no-op write.
+     */
+    fun setTodoKeywords(config: String) = viewModelScope.launch {
+        settingsRepository.setTodoKeywords(config)
+        app.syncManager.clearAndResync("todo keywords applied")
+    }
 
     fun setDefaultPriority(priority: Char?) =
         viewModelScope.launch { settingsRepository.setDefaultPriority(priority) }
