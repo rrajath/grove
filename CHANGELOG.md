@@ -28,6 +28,8 @@ updated and push.
 
 ## [Unreleased]
 
+## [1.0.208] - 2026-08-06
+
 ### Fixed
 - Marking a task done from the Agenda widget appeared to do nothing: the row stayed put, still
   showing its old keyword. The file on disk and the search index were in fact being updated
