@@ -10,6 +10,7 @@ import com.rrajath.grove.capture.ShortcutSyncer
 import com.rrajath.grove.capture.TemplatesRepository
 import com.rrajath.grove.data.FavoritesRepository
 import com.rrajath.grove.data.GroveDatabase
+import com.rrajath.grove.data.RoomNoteIndex
 import com.rrajath.grove.icon.AppIconManager
 import com.rrajath.grove.icon.NotificationAppearance
 import com.rrajath.grove.org.OrgKeywords
@@ -97,12 +98,7 @@ class GroveApplication : Application() {
         SyncManager(
             this, appScope, database,
             keywords = { keywords.value },
-            onNotebookIndexed = { fileName, doc ->
-                val settings = settingsRepository.settings.first()
-                reminderReconciler.reconcileFile(
-                    fileName, doc, settings.defaultReminderTime, settings.remindersEnabled, settings.reminderLeadTime,
-                )
-            },
+            onNotebookIndexed = ::reconcileFileReminders,
             onSyncCompleted = {
                 reminderReconciler.catchUpOverdue()
                 LedgerWidget().updateAll(this@GroveApplication)
@@ -122,6 +118,40 @@ class GroveApplication : Application() {
     val vault: StateFlow<Vault?> by lazy {
         combine(fileStore, keywords) { store, kw -> store?.let { Vault(it, kw) } }
             .stateIn(appScope, SharingStarted.Eagerly, null)
+    }
+
+    private suspend fun reconcileFileReminders(fileName: String, doc: com.rrajath.grove.org.OrgDocument) {
+        val settings = settingsRepository.settings.first()
+        reminderReconciler.reconcileFile(
+            fileName, doc, settings.defaultReminderTime, settings.remindersEnabled, settings.reminderLeadTime,
+        )
+    }
+
+    /**
+     * Indexes [fileName] into Room right now from [text] the caller just wrote to
+     * the vault, instead of waiting on [syncManager]'s async, revision-diffed
+     * sync pass. That pass is fire-and-forget ([SyncManager.requestSync] returns
+     * before it finishes) and, worse, a complete no-op if it runs before
+     * [syncManager] has been `attach`ed yet - which a widget action can easily
+     * hit, since it may be reviving a process Android had killed in the
+     * background, racing [fileStore]'s async DataStore read. The ledger widget's
+     * mark-done/quick-add actions call this right after [Vault.save] so their
+     * own immediate `LedgerWidget().updateAll()` is guaranteed to see the edit,
+     * rather than depending on a sync pass that might not land for a while, or
+     * at all.
+     */
+    suspend fun reindexNow(fileName: String, text: String) {
+        val store = fileStore.value ?: return
+        val stat = store.stat(fileName) ?: return
+        val conflictFileName = database.indexDao().notebookSyncStates()
+            .firstOrNull { it.fileName == fileName }?.conflictFileName
+        RoomNoteIndex(database, keywords = { keywords.value }, onIndexed = ::reconcileFileReminders).indexNotebook(
+            fileName = fileName,
+            revision = "${stat.lastModified}:${stat.size}",
+            text = text,
+            lastModified = stat.lastModified,
+            conflictFileName = conflictFileName,
+        )
     }
 
     override fun onCreate() {

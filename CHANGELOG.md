@@ -41,6 +41,12 @@ updated and push.
   time-of-day too, so its total always matches what the Agenda screen shows for today (overdue +
   due today); it previously excluded timed tasks since they also get their own "due now"
   notification, which made the digest undercount
+- Marking a task done in the Agenda widget now removes it from the widget right away. The
+  widget used to depend on the app's background sync to notice the file changed and reindex it,
+  which was fire-and-forget and, if the widget action revived a process Android had killed in the
+  background, could be a complete no-op — the task would only disappear once some later, unrelated
+  sync happened to run. It's now indexed immediately from the text just written, independent of
+  background sync
 
 ## [1.0.200] - 2026-08-05
 

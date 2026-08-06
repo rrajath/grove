@@ -298,7 +298,7 @@ private suspend fun submitQuickAdd(
     val vault = app.vault.filterNotNull().first()
     if (vault.open(notebook) == null) vault.createNotebook(notebook)
     val orgKeywords = OrgKeywords.parse(app.settingsRepository.settings.first().todoKeywords)
-    withContext(Dispatchers.Default) {
+    val text = withContext(Dispatchers.Default) {
         val baseText = vault.open(notebook)?.text ?: ""
         val insertion = CaptureInserter.insert(
             docText = baseText,
@@ -318,8 +318,10 @@ private suspend fun submitQuickAdd(
         if (date != null && headline != null) {
             text = OrgMutations.setScheduled(doc, headline, OrgTimestamp(date, active = true))
         }
-        vault.save(notebook, text)
+        text
     }
+    vault.save(notebook, text)
+    app.reindexNow(notebook, text)
     app.syncManager.requestSync("widget quick add")
     LedgerWidget().updateAll(app)
 }

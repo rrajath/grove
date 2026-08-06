@@ -366,10 +366,17 @@ class MarkDoneAction : ActionCallback {
         when (
             val result = AutoArchive.apply(vault, settings, doc, fileName, headline, doneKeyword, LocalDateTime.now())
         ) {
-            is StateChangeResult.Plain -> vault.save(fileName, result.text)
+            is StateChangeResult.Plain -> {
+                vault.save(fileName, result.text)
+                app.reindexNow(fileName, result.text)
+            }
             is StateChangeResult.Archived -> {
                 vault.save(fileName, result.sourceText)
-                if (result.destFile != fileName) vault.save(result.destFile, result.destText)
+                app.reindexNow(fileName, result.sourceText)
+                if (result.destFile != fileName) {
+                    vault.save(result.destFile, result.destText)
+                    app.reindexNow(result.destFile, result.destText)
+                }
             }
         }
         app.syncManager.requestSync("ledger widget mark done")
