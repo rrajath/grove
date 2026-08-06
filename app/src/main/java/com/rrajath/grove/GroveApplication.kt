@@ -141,8 +141,10 @@ class GroveApplication : Application() {
      * at all.
      */
     suspend fun reindexNow(fileName: String, text: String) {
-        val store = fileStore.value ?: return
-        val stat = store.stat(fileName) ?: return
+        val store = fileStore.value
+            ?: return run { android.util.Log.w("GroveWidget", "reindexNow: fileStore null for $fileName") }
+        val stat = store.stat(fileName)
+            ?: return run { android.util.Log.w("GroveWidget", "reindexNow: stat null for $fileName") }
         val conflictFileName = database.indexDao().notebookSyncStates()
             .firstOrNull { it.fileName == fileName }?.conflictFileName
         RoomNoteIndex(database, keywords = { keywords.value }, onIndexed = ::reconcileFileReminders).indexNotebook(

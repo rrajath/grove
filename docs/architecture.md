@@ -115,19 +115,38 @@ so they render outside the app's own process/lifecycle:
   the same per-theme adaptive-icon mipmap "Sync App Icon with Theme" swaps the
   launcher to.
 
-  `provideGlance` does a one-shot read of the vault/settings/index on every
-  render rather than holding a live Flow collector open — Glance gives no
-  guarantee a widget's composition keeps running across its host process's own
-  lifecycle, so anything that changes what should be on screen re-triggers a
-  render explicitly instead: the row checkbox's `MarkDoneAction` (an
-  `ActionCallback`, same "mark done" semantics as `AgendaViewModel.toggleDone`
-  — recurring headings advance their repeater instead of gaining a done
-  keyword and are therefore never auto-archived; a non-recurring done item is
-  auto-archived when Settings has it enabled — but with no undo), the quick-add
-  composer's send action, and `SyncManager`'s `onSyncCompleted` hook all call
-  `LedgerWidget().updateAll(context)` after they mutate something. Tapping a
-  row's body opens Read mode via the same `grove://note/{id}?mode=read` deep
-  link the rest of the app uses (`NoteRef` + `Routes.encode`).
+  `provideGlance` collects the settings and index Flows **inside**
+  `provideContent`'s composition (`collectAsState`, seeded with a `first()` read
+  so the first frame after a cold session start is already correct). That
+  placement is load-bearing, not stylistic: while a Glance session is alive,
+  `updateAll()` only *recomposes* the existing content — it never re-invokes
+  `provideGlance`. An earlier version read the index into local variables before
+  `provideContent` and relied on `updateAll()` to refresh; because recomposition
+  replayed the same captured snapshot, the ledger redrew identical rows forever
+  and only a brand-new session (app relaunch, host rebind) ever showed an edit.
+  That is what made widget mark-done look like a no-op even though the `.org`
+  write and the Room reindex had both succeeded. Hoisting these reads back out
+  of the composition will silently reintroduce that bug.
+
+  Because the Flows are collected in-composition, any vault write that reaches
+  Room now pushes the widget an update on its own. The explicit
+  `LedgerWidget().updateAll(context)` calls — from the row checkbox's
+  `MarkDoneAction` (an `ActionCallback`, same "mark done" semantics as
+  `AgendaViewModel.toggleDone` — recurring headings advance their repeater
+  instead of gaining a done keyword and are therefore never auto-archived; a
+  non-recurring done item is auto-archived when Settings has it enabled — but
+  with no undo), the quick-add composer's send action, and `SyncManager`'s
+  `onSyncCompleted` hook — are kept as a nudge for the case where *no* session
+  is running, which is the one situation where `updateAll()` does start one and
+  re-run `provideGlance`. Tapping a row's body opens Read mode via the same
+  `grove://note/{id}?mode=read` deep link the rest of the app uses (`NoteRef` +
+  `Routes.encode`).
+
+  `MarkDoneAction` logs a warning under the `GroveWidget` tag at each of its
+  early-return guards (vault never loaded, file missing, no headline at the
+  indexed line, no done keyword configured). Those bails are individually
+  legitimate but were previously silent, which is what made this class of bug
+  so hard to tell apart from "the tap never fired at all".
 
   The "+" button opens `WidgetQuickAddActivity`, not the full Capture Picker:
   a small transient overlay on the same one-shot-errand pattern as

@@ -28,6 +28,17 @@ updated and push.
 
 ## [Unreleased]
 
+### Fixed
+- Marking a task done from the Agenda widget appeared to do nothing: the row stayed put, still
+  showing its old keyword. The file on disk and the search index were in fact being updated
+  correctly every time — only the widget's *display* was stale. It read its rows into local
+  variables before handing them to Glance, and while a widget session is live `updateAll()` only
+  recomposes that already-captured snapshot instead of re-reading anything, so the ledger kept
+  redrawing the same rows until the app was relaunched. The widget now reads the index and settings
+  from inside its own composition, so it redraws itself as soon as an edit lands. This also fixes
+  the same staleness after widget quick-add, and rows whose keyword pill rendered as plain title
+  text
+
 ## [1.0.206] - 2026-08-06
 
 ### Fixed

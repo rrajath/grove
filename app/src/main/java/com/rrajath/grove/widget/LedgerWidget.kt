@@ -2,7 +2,10 @@ package com.rrajath.grove.widget
 
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -64,31 +67,47 @@ import java.time.LocalDateTime
 
 /**
  * Home-screen "Agenda · ledger" widget: `design/Grove.dc.html`'s Widget A variant,
- * re-grouped by day (per-widget spec) instead of priority. Each `provideGlance` call
- * is a one-shot read of the current vault/settings state — like [com.rrajath.grove.ui.reminders.RescheduleActivity],
- * not a long-lived reactive collector, since a Glance composition cannot be relied
- * on to keep running across the widget host process's own lifecycle. Callers that
- * change what the widget should show (mark-done, quick-add, sync completing) are
- * responsible for calling `LedgerWidget().updateAll(context)` themselves.
+ * re-grouped by day (per-widget spec) instead of priority.
+ *
+ * The Room/settings reads happen *inside* [provideContent]'s composition, via
+ * `collectAsState`, rather than being snapshotted into locals beforehand. That
+ * distinction is the whole reason mark-done used to look like a no-op: while a
+ * Glance session is alive, `updateAll()` only recomposes the existing content —
+ * it does not re-invoke [provideGlance]. A composition built from values captured
+ * before `provideContent` therefore re-rendered the exact same stale rows forever,
+ * no matter how correctly the tap had rewritten the file and reindexed Room; only
+ * a brand-new session (app relaunch, host rebind) ever picked the edit up.
+ *
+ * Collecting the flows in-composition means any vault write that lands in Room
+ * pushes a fresh emission straight into the live session, so the widget redraws on
+ * its own. `updateAll()` calls are kept as a belt-and-braces nudge for the case
+ * where no session is running at all (then, and only then, does it start one and
+ * re-run this function).
+ *
+ * The initial values are read with `first()` so the very first frame after a cold
+ * session start is already correct instead of flashing an empty ledger.
  */
 class LedgerWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val app = context.applicationContext as GroveApplication
-        val settings = app.settingsRepository.settings.first()
-        val colors = groveColorsFor(settings.theme)
-        val today = LocalDate.now()
-        val windowDays = settings.agendaWidgetDaysAhead
-        val openNotes = app.database.indexDao().plannedNotes().first()
-            .map { it.toNoteMeta() }
-            .filter { !it.isDoneKeyword }
-        val sections = LedgerBuckets.build(openNotes, today, windowDays, settings)
-        val todayCount = sections.firstOrNull { it.key.startsWith("Today") }?.count ?: 0
-        val totalCount = sections.sumOf { it.count }
-        val iconRes = AppIconManager.mipmapRes(settings.syncAppIconWithTheme, settings.theme)
-        val backgroundColor = colors.surface.copy(alpha = 1f - settings.agendaWidgetTransparency)
+        val initialSettings = app.settingsRepository.settings.first()
+        val initialNotes = app.database.indexDao().plannedNotes().first()
 
         provideContent {
+            val settings by app.settingsRepository.settings.collectAsState(initial = initialSettings)
+            val notes by app.database.indexDao().plannedNotes().collectAsState(initial = initialNotes)
+
+            val colors = groveColorsFor(settings.theme)
+            val today = LocalDate.now()
+            val windowDays = settings.agendaWidgetDaysAhead
+            val openNotes = notes.map { it.toNoteMeta() }.filter { !it.isDoneKeyword }
+            val sections = LedgerBuckets.build(openNotes, today, windowDays, settings)
+            val todayCount = sections.firstOrNull { it.key.startsWith("Today") }?.count ?: 0
+            val totalCount = sections.sumOf { it.count }
+            val iconRes = AppIconManager.mipmapRes(settings.syncAppIconWithTheme, settings.theme)
+            val backgroundColor = colors.surface.copy(alpha = 1f - settings.agendaWidgetTransparency)
+
             LedgerContent(context, colors, backgroundColor, sections, todayCount, totalCount, windowDays, iconRes)
         }
     }
@@ -355,19 +374,32 @@ private val LINE_INDEX_KEY = ActionParameters.Key<Int>("lineIndex")
  */
 class MarkDoneAction : ActionCallback {
     override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
-        val fileName = parameters[FILE_NAME_KEY] ?: return
-        val lineIndex = parameters[LINE_INDEX_KEY] ?: return
+        val fileName = parameters[FILE_NAME_KEY] ?: return run { Log.w(TAG, "no fileName parameter") }
+        val lineIndex = parameters[LINE_INDEX_KEY] ?: return run { Log.w(TAG, "no lineIndex parameter") }
         val app = context.applicationContext as GroveApplication
         // app.vault is a StateFlow seeded null until the settings DataStore read
         // completes; a widget tap can easily revive a process Android had killed
         // in the background (same race reindexNow's doc comment calls out), so
         // reading .value synchronously here would silently no-op on a cold start.
-        val vault = withTimeoutOrNull(5_000) { app.vault.filterNotNull().first() } ?: return
-        val doc = vault.open(fileName) ?: return
-        val headline = doc.headlineAtLine(lineIndex) ?: return
-        val keyword = headline.keyword ?: return
-        if (doc.keywords.isDone(keyword)) return
-        val doneKeyword = doc.keywords.done.firstOrNull() ?: return
+        val vault = withTimeoutOrNull(5_000) { app.vault.filterNotNull().first() }
+            ?: return run { Log.w(TAG, "vault still null after 5s; giving up on $fileName:$lineIndex") }
+        val doc = vault.open(fileName)
+            ?: return run { Log.w(TAG, "vault.open returned null for $fileName") }
+        val headline = doc.headlineAtLine(lineIndex)
+            ?: return run {
+                Log.w(
+                    TAG,
+                    "no headline at $fileName:$lineIndex (stale index?); " +
+                        "headline lines are ${doc.headlines.map { it.lineIndex }}",
+                )
+            }
+        val keyword = headline.keyword
+            ?: return run { Log.w(TAG, "headline at $fileName:$lineIndex has no keyword") }
+        if (doc.keywords.isDone(keyword)) {
+            return run { Log.i(TAG, "headline at $fileName:$lineIndex is already done ($keyword)") }
+        }
+        val doneKeyword = doc.keywords.done.firstOrNull()
+            ?: return run { Log.w(TAG, "no done keyword configured; keywords=${doc.keywords}") }
         val settings = app.settingsRepository.settings.first()
         when (
             val result = AutoArchive.apply(vault, settings, doc, fileName, headline, doneKeyword, LocalDateTime.now())
@@ -387,5 +419,9 @@ class MarkDoneAction : ActionCallback {
         }
         app.syncManager.requestSync("ledger widget mark done")
         LedgerWidget().updateAll(context)
+    }
+
+    private companion object {
+        const val TAG = "GroveWidget"
     }
 }
