@@ -2,9 +2,10 @@ package com.rrajath.grove.ui.editor
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -71,7 +72,12 @@ fun MetadataSheet(
     ) {
         Column(Modifier.padding(horizontal = 22.dp).padding(bottom = 30.dp)) {
             SheetLabel("State")
-            Row {
+            // FlowRow, not Row: vaults can define arbitrarily many TODO keywords,
+            // which must wrap onto more lines instead of squeezing each other.
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
                 val current = headline?.keyword
                 StateChip(
                     label = "none",
@@ -79,7 +85,6 @@ fun MetadataSheet(
                     fg = c.ink2, bg = c.surface2,
                 ) { onChangeKeyword(null) }
                 keywords.all.forEach { kw ->
-                    Spacer(Modifier.width(6.dp))
                     val done = keywords.isDone(kw)
                     StateChip(
                         label = kw,
@@ -93,7 +98,10 @@ fun MetadataSheet(
             }
 
             SheetLabel("Priority")
-            Row {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
                 listOf<Char?>(null, 'A', 'B', 'C').forEach { p ->
                     StateChip(
                         label = p?.let { "#$it" } ?: "none",
@@ -101,7 +109,6 @@ fun MetadataSheet(
                         fg = p?.let { c.priorityColor(it) } ?: c.ink2,
                         bg = p?.let { c.prioritySoftColor(it) } ?: c.surface2,
                     ) { onSetPriority(p) }
-                    Spacer(Modifier.width(6.dp))
                 }
             }
 
@@ -220,6 +227,10 @@ private fun StateChip(
             fontWeight = if (active) FontWeight.Bold else FontWeight.Normal,
             fontSize = 12.sp,
             color = if (active) fg else c.ink2,
+            // A long keyword must keep its chip on one line; FlowRow wraps chips,
+            // never their labels.
+            maxLines = 1,
+            softWrap = false,
         )
     }
 }

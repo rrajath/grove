@@ -96,6 +96,9 @@ fun StateChip(label: String, active: Boolean, fg: Color, bg: Color, onClick: () 
             fontWeight = if (active) FontWeight.Bold else FontWeight.Normal,
             fontSize = 12.sp,
             color = if (active) fg else c.ink2,
+            // FlowRow wraps chips; a long keyword must not wrap inside its own chip.
+            maxLines = 1,
+            softWrap = false,
         )
     }
 }

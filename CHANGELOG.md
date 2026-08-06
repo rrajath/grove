@@ -31,7 +31,11 @@ updated and push.
 ## [1.0.208] - 2026-08-06
 
 ### Fixed
-- Marking a task done from the Agenda widget appeared to do nothing: the row stayed put, still
+- Extra TODO keywords squished the metadata sheet's State chips instead of wrapping. The State and
+  Priority chip rows were plain `Row`s, so once the configured keywords no longer fit on one line
+  Compose shrank each chip to fit, and the last one degraded into a column of single letters
+  (`K I L L`). Both rows are now `FlowRow`s that wrap onto additional lines, and a chip's label
+  never wraps inside the chip itself the row stayed put, still
   showing its old keyword. The file on disk and the search index were in fact being updated
   correctly every time — only the widget's *display* was stale. It read its rows into local
   variables before handing them to Glance, and while a widget session is live `updateAll()` only
