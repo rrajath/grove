@@ -37,6 +37,10 @@ updated and push.
   them `application/octet-stream`, and cloud providers whose content URI doesn't end in `.org`) —
   the intent filter previously required both a matching MIME type and a matching path in the same
   rule, which most senders satisfy only one of
+- The daily reminder digest ("You have X tasks due today") now counts tasks with a specific
+  time-of-day too, so its total always matches what the Agenda screen shows for today (overdue +
+  due today); it previously excluded timed tasks since they also get their own "due now"
+  notification, which made the digest undercount
 
 ## [1.0.200] - 2026-08-05
 
