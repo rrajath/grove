@@ -29,10 +29,27 @@ updated and push.
 ## [Unreleased]
 
 ### Changed
+- Metadata sheet's Tags field is now a search/create dropdown instead of a free-text
+  space-separated field: typing filters the vault's tag pool into a tappable list, with a
+  "Create tag "…"" option when there's no exact match. Applied tags render below the field as one
+  `:tag:tag:` colon string; tapping a segment removes that tag
 - Widget quick-add's date and notebook chips now open a dropdown listing every option instead of
   cycling one tap at a time. Date adds a "Custom date…" entry that opens the same
   `PlanningDatesScreen` used by Reschedule; presets still resolve at send time so "Today" stays
   correct even if the sheet is left open across midnight
+
+### Fixed
+- Typing in the metadata sheet's tag field could get silently cleared partway through: the
+  autocomplete dropdown's dismiss handler wiped the typed text on any dismissal, including
+  transient ones while the keyboard/sheet were still settling into place. Dismissing the dropdown
+  no longer touches what's been typed
+- The metadata sheet's tag field could be hidden behind the keyboard when focused, and scrolling
+  the sheet fully open could push the "+ Add note" button out of view with no way to reach it,
+  since the sheet's content never reserved space for the keyboard or allowed scrolling past it
+
+### Documentation
+- Updated the design system doc for the tags dropdown and the widget quick-add date/notebook
+  pop-out chips described above
 
 ## [1.0.208] - 2026-08-06
 
