@@ -1,5 +1,12 @@
 package com.rrajath.grove.ui.components
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -496,53 +503,70 @@ private fun BothDatesCalendar(
             }
             .padding(start = 11.dp, end = 11.dp, top = 11.dp, bottom = 12.dp),
     ) {
-        Row(
-            Modifier.fillMaxWidth().padding(bottom = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            MonthArrow("‹", onPrev)
-            Text(
-                month.format(MonthLabel),
-                fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
-                fontSize = 13.5.sp, color = c.ink, textAlign = TextAlign.Center,
-                modifier = Modifier.weight(1f),
-            )
-            MonthArrow("›", onNext)
-        }
-
-        Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-            listOf("S", "M", "T", "W", "T", "F", "S").forEach { d ->
-                Text(
-                    d,
-                    fontFamily = PlexSans, fontSize = 10.sp, color = c.ink3,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.weight(1f).padding(bottom = 4.dp),
-                )
-            }
-        }
-
-        // Sunday-first grid: DayOfWeek.value is Mon=1..Sun=7, so % 7 puts Sunday at 0.
-        val leading = month.atDay(1).dayOfWeek.value % 7
-        val cells = List(leading) { null } + (1..month.lengthOfMonth()).map { month.atDay(it) }
-        cells.chunked(7).forEach { week ->
-            Row(
-                Modifier.fillMaxWidth().padding(bottom = 2.dp),
-                horizontalArrangement = Arrangement.spacedBy(2.dp),
-            ) {
-                week.forEach { date ->
-                    DayCell(
-                        date = date,
-                        today = today,
-                        isScheduled = date != null && date == scheduled,
-                        isDeadline = date != null && date == deadline,
-                        inBand = date != null && bandStart != null && bandEnd != null &&
-                                date.isAfter(bandStart) && date.isBefore(bandEnd),
-                        onPick = onPick,
+        AnimatedContent(
+            targetState = month,
+            transitionSpec = {
+                // Same direction convention as the swipe/arrows: moving to a later
+                // month slides the new one in from the right as the old one exits
+                // left; moving earlier reverses it.
+                val forward = targetState.isAfter(initialState)
+                (slideInHorizontally(tween(260)) { width -> if (forward) width else -width } + fadeIn(tween(260)))
+                    .togetherWith(
+                        slideOutHorizontally(tween(260)) { width -> if (forward) -width else width } + fadeOut(tween(260)),
+                    )
+            },
+            label = "calendar-month",
+        ) { animatedMonth ->
+            Column {
+                Row(
+                    Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    MonthArrow("‹", onPrev)
+                    Text(
+                        animatedMonth.format(MonthLabel),
+                        fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
+                        fontSize = 13.5.sp, color = c.ink, textAlign = TextAlign.Center,
                         modifier = Modifier.weight(1f),
                     )
+                    MonthArrow("›", onNext)
                 }
-                repeat(7 - week.size) { Spacer(Modifier.weight(1f)) }
+
+                Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                    listOf("S", "M", "T", "W", "T", "F", "S").forEach { d ->
+                        Text(
+                            d,
+                            fontFamily = PlexSans, fontSize = 10.sp, color = c.ink3,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.weight(1f).padding(bottom = 4.dp),
+                        )
+                    }
+                }
+
+                // Sunday-first grid: DayOfWeek.value is Mon=1..Sun=7, so % 7 puts Sunday at 0.
+                val leading = animatedMonth.atDay(1).dayOfWeek.value % 7
+                val cells = List(leading) { null } + (1..animatedMonth.lengthOfMonth()).map { animatedMonth.atDay(it) }
+                cells.chunked(7).forEach { week ->
+                    Row(
+                        Modifier.fillMaxWidth().padding(bottom = 2.dp),
+                        horizontalArrangement = Arrangement.spacedBy(2.dp),
+                    ) {
+                        week.forEach { date ->
+                            DayCell(
+                                date = date,
+                                today = today,
+                                isScheduled = date != null && date == scheduled,
+                                isDeadline = date != null && date == deadline,
+                                inBand = date != null && bandStart != null && bandEnd != null &&
+                                        date.isAfter(bandStart) && date.isBefore(bandEnd),
+                                onPick = onPick,
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                        repeat(7 - week.size) { Spacer(Modifier.weight(1f)) }
+                    }
+                }
             }
         }
 

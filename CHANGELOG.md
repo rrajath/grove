@@ -34,20 +34,23 @@ updated and push.
 - Phone numbers written in prose (e.g. `833-806-1627`, `(833) 806-1627`, `+1 833-806-1627`) are
   now detected in read mode, shown reformatted as `(833) 806-1627`, and tappable to place a call —
   no `[[tel:...]]` link syntax required
-- Capture template editor's Target file field now has a `DropdownMenu` pop-out (▾) listing the
-  vault's existing notebooks, same pattern as the widget quick-add's notebook chip
-- That Target file field's dropdown now filters live as you type, and the field is validated as a
-  filesystem-safe `.org` filename (checked live and on focus-out); Save is disabled until it's valid
+- Capture template editor's Target file field now has an inline expanding suggestion list (▾ to
+  toggle, filters live as you type) below the field, listing the vault's existing notebooks, styled
+  like the settings screen's other dropdown pickers
+- That Target file field is validated as a filesystem-safe `.org` filename (checked live and on
+  focus-out); Save is disabled until it's valid
 - The Template field is validated for unsupported `%...` placeholders and shows the offending tokens
   inline; both the Capture Templates settings list and the "Capture to…" picker sheet now show a
   small `⚠ N` badge on any template with filename or placeholder errors
 - Left/right swipes on the planning-dates calendar now step to the previous/next month, same
-  direction as the existing ‹/› arrows
+  direction as the existing ‹/› arrows, with the outgoing month sliding away as the new one slides in
 
 ### Fixed
 - Auto-capitalizing the first letter of a heading only worked for individual keystrokes; swipe-typed
   or autocorrect-committed words (delivered as one multi-character insertion, not one key event per
   letter) skipped it entirely. Both paths now capitalize consistently
+- The template editor's Template field could be hidden behind the keyboard when focused, since the
+  screen never reserved space for the keyboard; it now scrolls the focused field above it
 
 ## [1.0.217] - 2026-08-07
 

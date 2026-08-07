@@ -1,21 +1,27 @@
 package com.rrajath.grove.ui.capture
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -160,6 +166,7 @@ fun TemplateEditScreen(
             Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp),
         ) {
@@ -178,46 +185,60 @@ fun TemplateEditScreen(
             }
 
             FieldLabel("Target file")
-            Box {
-                OutlinedTextField(
-                    value = targetFile,
-                    onValueChange = { targetFile = it; targetFileMenuOpen = true },
-                    singleLine = true,
-                    modifier = Modifier
+            OutlinedTextField(
+                value = targetFile,
+                onValueChange = { targetFile = it; targetFileMenuOpen = true },
+                singleLine = true,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .onFocusChanged { state ->
+                        targetFileMenuOpen = state.isFocused
+                    },
+                isError = targetFileError != null,
+                supportingText = {
+                    if (targetFileError != null) {
+                        Text(targetFileError, color = c.red, fontFamily = PlexSans, fontSize = 12.sp)
+                    }
+                },
+                textStyle = TextStyle(fontFamily = PlexMono),
+                placeholder = { Text("notebook.org", fontFamily = PlexMono, color = c.ink3) },
+                trailingIcon = {
+                    Text(
+                        "▾", fontFamily = PlexMono, fontSize = 16.sp, color = c.ink2,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { targetFileMenuOpen = !targetFileMenuOpen }
+                            .padding(8.dp),
+                    )
+                },
+            )
+            // An inline expanding list (DropdownPicker's chrome) rather than a DropdownMenu
+            // popup: a popup overlaps the field it's anchored to instead of pushing content
+            // below it, and being focusable by default it also steals the IME away from the
+            // field on every keystroke as the suggestion list recomposes.
+            AnimatedVisibility(targetFileMenuOpen && filteredNotebooks.isNotEmpty()) {
+                Column(
+                    Modifier
+                        .padding(top = 6.dp)
                         .fillMaxWidth()
-                        .onFocusChanged { state ->
-                            targetFileMenuOpen = state.isFocused
-                        },
-                    isError = targetFileError != null,
-                    supportingText = {
-                        if (targetFileError != null) {
-                            Text(targetFileError, color = c.red, fontFamily = PlexSans, fontSize = 12.sp)
-                        }
-                    },
-                    textStyle = TextStyle(fontFamily = PlexMono),
-                    placeholder = { Text("notebook.org", fontFamily = PlexMono, color = c.ink3) },
-                    trailingIcon = {
-                        Text(
-                            "▾", fontFamily = PlexMono, fontSize = 16.sp, color = c.ink2,
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .clickable { targetFileMenuOpen = !targetFileMenuOpen }
-                                .padding(8.dp),
-                        )
-                    },
-                )
-                DropdownMenu(
-                    expanded = targetFileMenuOpen && filteredNotebooks.isNotEmpty(),
-                    onDismissRequest = { targetFileMenuOpen = false },
-                    containerColor = c.surface,
+                        .clip(RoundedCornerShape(13.dp))
+                        .background(c.surface2)
+                        .padding(6.dp)
+                        .heightIn(max = 176.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
                 ) {
                     filteredNotebooks.forEach { nb ->
-                        DropdownMenuItem(
-                            text = { Text(nb, fontFamily = PlexMono, color = c.ink) },
-                            onClick = {
-                                targetFile = nb
-                                targetFileMenuOpen = false
-                            },
+                        Text(
+                            nb, fontFamily = PlexMono, fontSize = 13.5.sp, color = c.ink,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(9.dp))
+                                .clickable {
+                                    targetFile = nb
+                                    targetFileMenuOpen = false
+                                }
+                                .padding(horizontal = 10.dp, vertical = 10.dp),
                         )
                     }
                 }
