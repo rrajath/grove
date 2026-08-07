@@ -61,6 +61,7 @@ import com.rrajath.grove.ui.screens.settings.SettingsRemindersScreen
 import com.rrajath.grove.ui.screens.settings.SettingsSharingScreen
 import com.rrajath.grove.ui.screens.settings.SettingsSyncScreen
 import com.rrajath.grove.ui.screens.SyncLogScreen
+import com.rrajath.grove.ui.vault.DocumentViewModel
 import com.rrajath.grove.ui.vault.NoteRef
 import com.rrajath.grove.ui.theme.GroveTheme
 import com.rrajath.grove.ui.theme.grove
@@ -273,9 +274,28 @@ private fun GroveNavigation(
             composable(Routes.OUTLINE) { entry ->
                 val notebookId = entry.arguments?.getString("notebookId").orEmpty()
                 val narrowTo = entry.arguments?.getString("narrowTo")?.toIntOrNull()
+                // Hoisted (rather than left to OutlineScreen's own default) so the deferred
+                // auto-archive result the note route leaves in this entry's savedStateHandle —
+                // set only after ON_DESTROY, once Read/Edit mode's own DocumentViewModel is
+                // already gone — can be adopted into the exact instance OutlineScreen renders
+                // against, reusing its normal undo/snack plumbing.
+                val documentViewModel: DocumentViewModel = viewModel(factory = DocumentViewModel.Factory)
+                val archivedMessage by entry.savedStateHandle
+                    .getStateFlow<String?>("archivedUndoMessage", null)
+                    .collectAsStateWithLifecycle()
+                LaunchedEffect(archivedMessage) {
+                    val message = archivedMessage ?: return@LaunchedEffect
+                    val names = entry.savedStateHandle.get<ArrayList<String>>("archivedUndoNames").orEmpty()
+                    val texts = entry.savedStateHandle.get<ArrayList<String>>("archivedUndoTexts").orEmpty()
+                    entry.savedStateHandle.remove<String>("archivedUndoMessage")
+                    entry.savedStateHandle.remove<ArrayList<String>>("archivedUndoNames")
+                    entry.savedStateHandle.remove<ArrayList<String>>("archivedUndoTexts")
+                    documentViewModel.adoptExternalUndo(names.zip(texts), message)
+                }
                 OutlineScreen(
                     notebookId = notebookId,
                     narrowLineIndex = narrowTo,
+                    viewModel = documentViewModel,
                     onBack = { navController.popBackStack() },
                     onWiden = {
                         navController.navigate(Routes.outline(notebookId)) {
@@ -327,6 +347,44 @@ private fun GroveNavigation(
                 if (ref == null) {
                     navController.popBackStack()
                 } else {
+                    // Read/Edit mode write a done-type keyword immediately but defer the
+                    // refile itself (AutoArchive.apply's allowArchive=false) until the user
+                    // actually leaves this note, so marking something done doesn't yank the
+                    // screen out from under them. ON_DESTROY (not just DisposableEffect's
+                    // onDispose, which also fires when another destination is merely pushed
+                    // on top) is the one signal that fires only once this route is truly
+                    // popped, whether by the back gesture or by popping further back later.
+                    // Scoped to the whole route (not per read/edit sub-screen) so toggling
+                    // between Read and Edit mid-visit — a local mode flip, not a navigation —
+                    // never looks like "leaving".
+                    DisposableEffect(entry) {
+                        val observer = LifecycleEventObserver { _, event ->
+                            if (event != Lifecycle.Event.ON_DESTROY) return@LifecycleEventObserver
+                            app.appScope.launch {
+                                val vault = app.vault.value ?: return@launch
+                                val settings = app.settingsRepository.settings.first()
+                                val originalText = vault.open(ref.fileName)?.text ?: return@launch
+                                val result = com.rrajath.grove.vault.AutoArchive.archiveIfStillDone(
+                                    vault, settings, ref.fileName, ref.lineIndex,
+                                ) ?: return@launch
+                                vault.save(result.sourceFile, result.sourceText)
+                                if (result.destFile != result.sourceFile) vault.save(result.destFile, result.destText)
+                                app.syncManager.requestSync("note left, auto-archived")
+                                val handle = navController.currentBackStackEntry?.savedStateHandle ?: return@launch
+                                val (names, texts) = if (result.sourceFile == result.destFile) {
+                                    arrayListOf(result.sourceFile) to arrayListOf(originalText)
+                                } else {
+                                    arrayListOf(result.sourceFile, result.destFile) to
+                                        arrayListOf(originalText, result.destTextBefore)
+                                }
+                                handle["archivedUndoNames"] = names
+                                handle["archivedUndoTexts"] = texts
+                                handle["archivedUndoMessage"] = "Marked done. Refiled to ${result.label}"
+                            }
+                        }
+                        entry.lifecycle.addObserver(observer)
+                        onDispose { entry.lifecycle.removeObserver(observer) }
+                    }
                     // Local, not a nav argument: switching read <-> edit for this
                     // same note must not re-navigate, or it re-triggers the full-screen
                     // enter/exit transition meant for moving between distinct screens.

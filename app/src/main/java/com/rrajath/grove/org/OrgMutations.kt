@@ -228,6 +228,58 @@ object OrgMutations {
         }
     }
 
+    /** Result of [refreshHeadingCookie]: the (possibly unchanged) new text, and whether the
+     *  counted children are now all done — the caller's cue to also transition [h] itself. */
+    data class CookieUpdate(val text: String, val complete: Boolean)
+
+    /** Whether [title] carries an org statistics cookie (`[/]`, `[x/y]`, or `[%]`). */
+    fun hasStatisticsCookie(title: String): Boolean =
+        FRACTION_COOKIE.containsMatchIn(title) || PERCENT_COOKIE.containsMatchIn(title)
+
+    /**
+     * Refresh a heading's own `[/]`/`[%]` title cookie against whichever set of
+     * children it actually tracks: direct TODO-keyword subheadings if it has
+     * any (done vs total), otherwise checkbox list items in its own body —
+     * the shallowest indent level only, so a nested sub-list isn't
+     * double-counted, mirroring [updateParentCookie]. Only refreshes a cookie
+     * that's already present in the title (org never invents one). Returns
+     * null when there's no cookie, or no children to count against it.
+     */
+    fun refreshHeadingCookie(doc: OrgDocument, h: OrgHeadline): CookieUpdate? {
+        if (!hasStatisticsCookie(h.title)) return null
+        val (done, total) = todoChildStats(doc, h) ?: checklistBodyStats(doc, h) ?: return null
+        val newTitle = FRACTION_COOKIE.find(h.title)?.let { h.title.replaceRange(it.range, "[$done/$total]") }
+            ?: PERCENT_COOKIE.find(h.title)?.let {
+                h.title.replaceRange(it.range, "[${(done * 100.0 / total).roundToInt()}%]")
+            }
+        val text = if (newTitle == null || newTitle == h.title) {
+            doc.text
+        } else {
+            replaceLine(doc, h.lineIndex, headlineLine(h.level, h.keyword, h.priority, newTitle, h.tags))
+        }
+        return CookieUpdate(text, done == total)
+    }
+
+    /** Done/total among [h]'s direct child headlines that carry a TODO keyword, or null if none do. */
+    private fun todoChildStats(doc: OrgDocument, h: OrgHeadline): Pair<Int, Int>? {
+        val children = doc.directChildren(h).filter { it.keyword != null }
+        if (children.isEmpty()) return null
+        return children.count { doc.keywords.isDone(it.keyword!!) } to children.size
+    }
+
+    /** Done/total among the shallowest-indent checkbox items in [h]'s own body (not spilling
+     *  into a child heading's body), or null if it has none. */
+    private fun checklistBodyStats(doc: OrgDocument, h: OrgHeadline): Pair<Int, Int>? {
+        data class Item(val indent: Int, val checkbox: Char?)
+        val items = doc.bodyOf(h).mapNotNull { line ->
+            LIST_ITEM_LINE.matchEntire(line)?.let { Item(it.groupValues[1].length, it.groupValues[2].firstOrNull()) }
+        }
+        val shallowest = items.minOfOrNull { it.indent } ?: return null
+        val direct = items.filter { it.indent == shallowest && it.checkbox != null }
+        if (direct.isEmpty()) return null
+        return direct.count { it.checkbox == 'X' || it.checkbox == 'x' } to direct.size
+    }
+
     // --- structural edits ---
 
     fun subtreeText(doc: OrgDocument, h: OrgHeadline): String =

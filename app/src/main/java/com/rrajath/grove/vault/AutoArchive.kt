@@ -57,6 +57,14 @@ object AutoArchive {
             ArchiveTarget(file, settings.autoArchiveHeadingPath.split('/').filter { it.isNotEmpty() })
         }
 
+    /**
+     * @param allowArchive Read/Edit mode passes `false` while the note being changed is the one
+     * currently on screen: the keyword/CLOSED-stamp change still lands on disk immediately (so
+     * sync, search, and the agenda see it right away), but the refile itself is deferred until
+     * the user actually leaves that note (see [com.rrajath.grove.ui.GroveApp]'s note-route
+     * lifecycle observer), so marking something done doesn't yank it out from under them
+     * mid-read/edit. Every other caller (Outline/Agenda/Search swipe) leaves this `true`.
+     */
     suspend fun apply(
         vault: Vault,
         settings: GroveSettings,
@@ -65,10 +73,43 @@ object AutoArchive {
         headline: OrgHeadline,
         newKeyword: String?,
         now: LocalDateTime,
+        allowArchive: Boolean = true,
+    ): StateChangeResult {
+        // A heading whose *parent* carries a statistics cookie is a checklist-style member of
+        // that group (same as a checkbox item never getting archived on its own): even though
+        // this heading itself just went done-type, it stays put until the whole group does, so
+        // the primary step below is never allowed to archive it individually — only the cascade,
+        // once the parent's cookie actually completes (taking this heading with it as part of
+        // the parent's subtree), can.
+        val parentHasCookie = doc.parent(headline)?.let { OrgMutations.hasStatisticsCookie(it.title) } == true
+        val primary = markAndMaybeArchive(
+            vault, settings, doc, fileName, headline, newKeyword, now, allowArchive && !parentHasCookie,
+        )
+        val primaryDoc = when (primary) {
+            // Already refiled: the whole subtree (and any parent-cookie bookkeeping in the
+            // source file) moved away with it, so there's nothing left here to cascade against.
+            is StateChangeResult.Archived -> return primary
+            is StateChangeResult.Plain -> primary.doc
+        }
+        return cascadeParentCookie(vault, settings, fileName, primaryDoc, headline, now, allowArchive) ?: primary
+    }
+
+    /** [apply] minus the parent-cookie cascade: mark [headline] with [newKeyword] and, if that
+     *  makes it done-type and [allowArchive], refile it. */
+    private suspend fun markAndMaybeArchive(
+        vault: Vault,
+        settings: GroveSettings,
+        doc: OrgDocument,
+        fileName: String,
+        headline: OrgHeadline,
+        newKeyword: String?,
+        now: LocalDateTime,
+        allowArchive: Boolean,
     ): StateChangeResult {
         val plainText = OrgMutations.changeKeyword(doc, headline, newKeyword, doc.keywords, now)
         val plainDoc = OrgParser.parse(plainText, doc.keywords)
         fun plain() = StateChangeResult.Plain(fileName, plainText, plainDoc)
+        if (!allowArchive) return plain()
 
         val movedHeadline = plainDoc.headlines.firstOrNull { it.lineIndex == headline.lineIndex } ?: return plain()
 
@@ -83,6 +124,72 @@ object AutoArchive {
         val target = ArchiveLocation.resolve(plainDoc, movedHeadline, settingsFallback(settings)) ?: return plain()
         val write = refileSubtree(vault, plainDoc, fileName, movedHeadline, target) ?: return plain()
 
+        return StateChangeResult.Archived(
+            sourceFile = write.sourceFile,
+            sourceText = write.sourceText,
+            sourceDoc = OrgParser.parse(write.sourceText, doc.keywords),
+            destFile = write.destFile,
+            destText = write.destText,
+            destTextBefore = write.destTextBefore,
+            destLineIndex = write.destLineIndex,
+            label = write.label,
+        )
+    }
+
+    /**
+     * After [headline]'s TODO state changed, refresh its *immediate* parent's own `[/]`/`[%]`
+     * title cookie (if it has one) to match its direct TODO-keyword children, and — same as any
+     * other checklist reaching 100% — mark the parent itself done too when they all are. Only
+     * ever touches this one parent, not further ancestors, mirroring
+     * [OrgMutations.updateParentCookie]'s single-level rule (this also keeps it faithful to
+     * vanilla org-mode, where `org-update-parent-todo-statistics` only ever updates the direct
+     * parent, not a chain of ancestors). Returns null when there's no cookie to refresh, nothing
+     * changed, or the parent doesn't need to transition.
+     */
+    private suspend fun cascadeParentCookie(
+        vault: Vault,
+        settings: GroveSettings,
+        fileName: String,
+        doc: OrgDocument,
+        headline: OrgHeadline,
+        now: LocalDateTime,
+        allowArchive: Boolean,
+    ): StateChangeResult? {
+        val movedHeadline = doc.headlines.firstOrNull { it.lineIndex == headline.lineIndex } ?: return null
+        val parent = doc.parent(movedHeadline) ?: return null
+        val cookie = OrgMutations.refreshHeadingCookie(doc, parent) ?: return null
+        val cookieDoc = if (cookie.text == doc.text) doc else OrgParser.parse(cookie.text, doc.keywords)
+        if (!cookie.complete) return StateChangeResult.Plain(fileName, cookieDoc.text, cookieDoc)
+
+        val cookieParent = cookieDoc.headlines.firstOrNull { it.lineIndex == parent.lineIndex }
+            ?: return StateChangeResult.Plain(fileName, cookieDoc.text, cookieDoc)
+        val doneKeyword = cookieDoc.keywords.done.firstOrNull()
+        if (cookieParent.keyword == null || cookieDoc.keywords.isDone(cookieParent.keyword) || doneKeyword == null) {
+            return StateChangeResult.Plain(fileName, cookieDoc.text, cookieDoc)
+        }
+        return markAndMaybeArchive(vault, settings, cookieDoc, fileName, cookieParent, doneKeyword, now, allowArchive)
+    }
+
+    /**
+     * Re-checks [fileName]:[lineIndex]'s *current on-disk* keyword — not one captured earlier —
+     * and refiles it if it's still done-type and auto-archive is enabled. Used when the mark-done
+     * and the archive are deliberately split across time (see [apply]'s `allowArchive`): Read/Edit
+     * mode call this once the user actually leaves the note, so re-reading state here (rather than
+     * trusting a flag set at mark-done time) means changing your mind and reopening the item
+     * before leaving quietly cancels the archive, with no special-casing needed.
+     */
+    suspend fun archiveIfStillDone(
+        vault: Vault,
+        settings: GroveSettings,
+        fileName: String,
+        lineIndex: Int,
+    ): StateChangeResult.Archived? {
+        if (!settings.autoArchiveDoneItems) return null
+        val doc = vault.open(fileName) ?: return null
+        val headline = doc.headlines.firstOrNull { it.lineIndex == lineIndex } ?: return null
+        if (headline.keyword == null || !doc.keywords.isDone(headline.keyword)) return null
+        val target = ArchiveLocation.resolve(doc, headline, settingsFallback(settings)) ?: return null
+        val write = refileSubtree(vault, doc, fileName, headline, target) ?: return null
         return StateChangeResult.Archived(
             sourceFile = write.sourceFile,
             sourceText = write.sourceText,

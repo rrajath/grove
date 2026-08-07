@@ -38,6 +38,18 @@ updated and push.
   vault's existing notebooks, same pattern as the widget quick-add's notebook chip
 - Left/right swipes on the planning-dates calendar now step to the previous/next month, same
   direction as the existing ‹/› arrows
+- A TODO heading whose title carries a `[/]` or `[%]` statistics cookie now stays in sync the same
+  way a checklist's cookie already did: it counts direct TODO-keyword subheadings if it has any,
+  otherwise checkbox items in its own body, and auto-transitions to DONE once they're all
+  complete — cascading into auto-archive (Settings › Notes) if that's enabled
+
+### Changed
+- Marking a note done from Read or Edit mode's own metadata sheet no longer refiles it to the
+  archive immediately: the DONE keyword still saves right away, but the actual move is deferred
+  until you leave that note's screen, so it stays visible/editable in place afterward instead of
+  the outline jumping you to whatever note happened to land on the same line once the old one was
+  refiled out from under it. The confirmation snackbar (with working Undo) now shows on the
+  outline you return to
 
 ### Fixed
 - Auto-capitalizing the first letter of a heading only worked for individual keystrokes; swipe-typed

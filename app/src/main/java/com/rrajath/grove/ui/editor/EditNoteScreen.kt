@@ -57,7 +57,6 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rrajath.grove.org.LineEditing
 import com.rrajath.grove.ui.components.GroveTopBar
-import com.rrajath.grove.ui.components.GroveUndoSnackbar
 import com.rrajath.grove.ui.components.ScrollJumpButtons
 import com.rrajath.grove.ui.components.SegmentedControl
 import com.rrajath.grove.ui.screens.IconGlyph
@@ -85,7 +84,6 @@ fun EditNoteScreen(
     val c = MaterialTheme.grove
     val context = LocalContext.current
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val snack by viewModel.snack.collectAsStateWithLifecycle()
     val textState = rememberTextFieldState()
     var metadataOpen by remember { mutableStateOf(false) }
     var confirmLeave by remember { mutableStateOf(false) }
@@ -299,11 +297,6 @@ fun EditNoteScreen(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
                         .padding(16.dp),
-                )
-                GroveUndoSnackbar(
-                    snack = snack,
-                    onUndo = viewModel::undo,
-                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 16.dp),
                 )
             }
             EditorToolbar(

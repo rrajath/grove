@@ -10,12 +10,8 @@ import com.rrajath.grove.org.OrgMutations
 import com.rrajath.grove.org.OrgParser
 import com.rrajath.grove.org.OrgTimestamp
 import com.rrajath.grove.ui.vault.NoteRef
-import com.rrajath.grove.ui.vault.OutlineSnack
 import com.rrajath.grove.ui.vault.factory
-import com.rrajath.grove.vault.AutoArchive
-import com.rrajath.grove.vault.StateChangeResult
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
@@ -60,52 +56,6 @@ class EditorViewModel(private val app: GroveApplication) : ViewModel() {
 
     /** Serializes writes so an idle auto-save and an explicit save can't race. */
     private val saveMutex = Mutex()
-
-    private val _snack = MutableStateFlow<OutlineSnack?>(null)
-    val snack: StateFlow<OutlineSnack?> = _snack
-    private var eventId = 0L
-
-    /** Everything needed to put the buffer back where [changeKeyword]'s auto-archive found it. */
-    private data class ArchiveUndo(
-        val files: List<Pair<String, String>>,
-        val fileName: String,
-        val lineIndex: Int,
-        val buffer: String,
-    )
-
-    private var archiveUndo: ArchiveUndo? = null
-
-    private fun showSnack(message: String) {
-        val s = OutlineSnack(message, ++eventId)
-        _snack.value = s
-        viewModelScope.launch {
-            delay(4200)
-            if (_snack.value?.id == s.id) _snack.value = null
-        }
-    }
-
-    /** Reverts the auto-archive move (state change + refile) from the most recent [changeKeyword]. */
-    fun undo() {
-        val snap = archiveUndo ?: return
-        archiveUndo = null
-        _snack.value = null
-        viewModelScope.launch {
-            val vault = app.vault.value ?: return@launch
-            snap.files.forEach { (name, text) -> vault.save(name, text) }
-            app.syncManager.requestSync("note undo")
-            val revision = vault.revision(snap.fileName)
-            _state.update {
-                it.copy(
-                    fileName = snap.fileName,
-                    lineIndex = snap.lineIndex,
-                    buffer = snap.buffer,
-                    dirty = false,
-                    loadedRevision = revision,
-                    bufferRevision = it.bufferRevision + 1,
-                )
-            }
-        }
-    }
 
     fun load(ref: NoteRef) {
         // Republished as loading first so a re-load (the stale-file banner's
@@ -211,85 +161,16 @@ class EditorViewModel(private val app: GroveApplication) : ViewModel() {
      * picking a plain (non-done) keyword away from a done state also clears the
      * stale CLOSED stamp, the same as `OrgMutations.reopen`.
      *
-     * Picking a done-type keyword may auto-archive (Settings § Notes), which needs the
-     * vault and Settings and so can't stay inside the synchronous [mutateBuffer] path
-     * every other chip uses; it flushes the buffer to disk first (auto-archive resolves
-     * against the on-disk file, not the in-memory buffer) and, on a successful archive,
-     * repoints [EditorUiState.fileName]/[EditorUiState.lineIndex] at the note's new
-     * location so editing continues transparently.
+     * A done-type keyword never auto-archives from here: the keyword/CLOSED-stamp
+     * change lands in the buffer immediately like any other chip, but the refile
+     * (Settings § Notes) is deferred until the user actually leaves this note — see
+     * [com.rrajath.grove.ui.GroveApp]'s note-route lifecycle observer and
+     * [AutoArchive.archiveIfStillDone] — so editing can continue uninterrupted right
+     * after marking something done.
      */
-    fun changeKeyword(keyword: String?) {
-        val (bufDoc, bufHeadline) = bufferHeadline() ?: return
-        if (bufHeadline.keyword == keyword) return
-        val maybeArchives = keyword != null && bufDoc.keywords.isDone(keyword)
-        if (!maybeArchives) {
-            mutateBuffer { d, h -> OrgMutations.changeKeyword(d, h, keyword, d.keywords, LocalDateTime.now()) }
-            return
-        }
-        viewModelScope.launch {
-            val vault = app.vault.value
-            if (vault == null) {
-                mutateBuffer { d, h -> OrgMutations.changeKeyword(d, h, keyword, d.keywords, LocalDateTime.now()) }
-                return@launch
-            }
-            saveMutex.withLock { writeBuffer(force = true) }
-            val s = _state.value
-            val doc = vault.open(s.fileName)
-            val headline = doc?.headlines?.firstOrNull { it.lineIndex == s.lineIndex }
-            if (doc == null || headline == null) {
-                mutateBuffer { d, h -> OrgMutations.changeKeyword(d, h, keyword, d.keywords, LocalDateTime.now()) }
-                return@launch
-            }
-            val settings = app.settingsRepository.settings.first()
-            when (
-                val result = AutoArchive.apply(vault, settings, doc, s.fileName, headline, keyword, LocalDateTime.now())
-            ) {
-                is StateChangeResult.Plain -> {
-                    vault.save(s.fileName, result.text)
-                    app.syncManager.requestSync("note state set")
-                    val newHeadline = result.doc.headlines.firstOrNull { it.lineIndex == s.lineIndex }
-                    val revision = vault.revision(s.fileName)
-                    _state.update {
-                        it.copy(
-                            buffer = newHeadline?.let { h -> OrgMutations.subtreeText(result.doc, h) } ?: it.buffer,
-                            dirty = false,
-                            loadedRevision = revision,
-                            bufferRevision = it.bufferRevision + 1,
-                        )
-                    }
-                }
-                is StateChangeResult.Archived -> {
-                    archiveUndo = ArchiveUndo(
-                        files = if (result.sourceFile == result.destFile) {
-                            listOf(result.sourceFile to doc.text)
-                        } else {
-                            listOf(s.fileName to doc.text, result.destFile to result.destTextBefore)
-                        },
-                        fileName = s.fileName,
-                        lineIndex = s.lineIndex,
-                        buffer = s.buffer,
-                    )
-                    vault.save(s.fileName, result.sourceText)
-                    if (result.destFile != s.fileName) vault.save(result.destFile, result.destText)
-                    app.syncManager.requestSync("note state set")
-                    val destDoc = OrgParser.parse(result.destText, doc.keywords)
-                    val destHeadline = destDoc.headlines.firstOrNull { it.lineIndex == result.destLineIndex }
-                    val destRevision = vault.revision(result.destFile)
-                    _state.update {
-                        it.copy(
-                            fileName = result.destFile,
-                            lineIndex = result.destLineIndex,
-                            buffer = destHeadline?.let { h -> OrgMutations.subtreeText(destDoc, h) } ?: it.buffer,
-                            dirty = false,
-                            loadedRevision = destRevision,
-                            bufferRevision = it.bufferRevision + 1,
-                        )
-                    }
-                    showSnack("Marked done. Refiled to ${result.label}")
-                }
-            }
-        }
-    }
+    fun changeKeyword(keyword: String?) =
+        mutateBuffer { d, h -> OrgMutations.changeKeyword(d, h, keyword, d.keywords, LocalDateTime.now()) }
+
     fun setPriority(priority: Char?) = mutateBuffer { d, h -> OrgMutations.setPriority(d, h, priority) }
     fun setTags(tags: List<String>) = mutateBuffer { d, h -> OrgMutations.setTags(d, h, tags) }
     fun setScheduled(ts: OrgTimestamp?) = mutateBuffer { d, h -> OrgMutations.setScheduled(d, h, ts) }

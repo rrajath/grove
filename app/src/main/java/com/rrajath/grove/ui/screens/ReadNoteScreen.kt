@@ -214,7 +214,9 @@ fun ReadNoteScreen(
                             onOpenNote = onOpenNote,
                             fileName = noteRef.fileName,
                             onEditAt = onEdit,
-                            onToggleCheckbox = { line -> viewModel.toggleChecklistItem(line, checklistStates.marks) },
+                            onToggleCheckbox = { line ->
+                                viewModel.toggleChecklistItem(line, checklistStates.marks, noteRef.lineIndex)
+                            },
                             showPropertyDrawers = showPropertyDrawers,
                             favoriteLines = favoriteLines,
                         )
@@ -238,7 +240,7 @@ fun ReadNoteScreen(
                 headline = headline,
                 keywords = doc.keywords,
                 allTags = allTags,
-                onChangeKeyword = { kw -> viewModel.setState(headline, kw) },
+                onChangeKeyword = { kw -> viewModel.setState(headline, kw, deferArchive = true) },
                 onSetPriority = { p -> viewModel.setPriority(headline, p) },
                 onSetTags = { tags -> viewModel.setTags(headline, tags) },
                 onSetPlanningDates = { sched, dead -> viewModel.setPlanningDates(headline, sched, dead) },

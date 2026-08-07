@@ -52,6 +52,38 @@ Supporting pieces: `OrgTimestamp` (parse/format org timestamps incl. repeaters),
 
 A file's **revision** is the string `"mtime:size"`: cheap to compute from a directory listing and good enough to detect external edits.
 
+### Auto-archive (`vault/AutoArchive.kt`)
+
+`AutoArchive.apply` is the single "mark done, maybe refile" mutation shared by every surface that
+can change a TODO state (Outline, Agenda, Search, widget, Read/Edit mode's metadata sheet), so
+auto-archive behaves identically everywhere. It does two things beyond the plain keyword change:
+
+- **Parent-cookie cascade**: if the heading's immediate parent carries a `[/]`/`[%]` statistics
+  cookie (`OrgMutations.refreshHeadingCookie`), it's refreshed against whichever set of children
+  the parent actually has — direct TODO-keyword subheadings if any, else checkbox items in its own
+  body — and, once every counted child is done, the parent itself transitions to done too. This
+  mirrors the existing single-level checklist-item cookie (`updateParentCookie`) and, deliberately,
+  does not cascade past one level (same as vanilla org's `org-update-parent-todo-statistics`). A
+  heading whose parent has an active cookie is never auto-archived *on its own* — it's a
+  checklist-style member of that group and waits for the whole group to complete, at which point it
+  goes with the parent's subtree.
+- **Deferred archive (`allowArchive` param)**: Read/Edit mode pass `allowArchive = false` when the
+  heading being changed is the note currently on screen (or, for a checklist-driven completion, when
+  the completing heading *is* that note). The keyword/CLOSED-stamp change still lands on disk
+  immediately — sync, search, and the agenda see it right away — but the refile itself is skipped,
+  so marking something done doesn't navigate the screen out from under the user mid-read/edit. The
+  actual refile happens later via `AutoArchive.archiveIfStillDone`, triggered by
+  `GroveApp.kt`'s `Routes.NOTE` composable observing the nav back-stack entry's `Lifecycle` for
+  `ON_DESTROY` (fires only on a true pop, not when another destination is merely pushed on top, so
+  toggling Read↔Edit mid-visit never counts as "leaving"). It re-reads the heading's *current*
+  on-disk keyword rather than trusting a flag captured at mark-done time, so reopening the item
+  before actually leaving quietly cancels the pending archive. Because that check runs after the
+  note screen's own `DocumentViewModel` is already gone, a successful archive's undo snapshot and
+  confirmation message are handed to the destination screen through
+  `NavBackStackEntry.savedStateHandle` and adopted by a hoisted `DocumentViewModel` in the
+  `Routes.OUTLINE` composable (`DocumentViewModel.adoptExternalUndo`), so the real undo-snackbar
+  (with a working Undo) renders on the outline the user lands back on.
+
 ## Sync (`sync/` + `data/`)
 
 For the v1 local-folder backend, "sync" means **re-indexing**: the files are already the truth (Syncthing moves the bytes), so Grove's job is noticing changes and keeping its index current.
