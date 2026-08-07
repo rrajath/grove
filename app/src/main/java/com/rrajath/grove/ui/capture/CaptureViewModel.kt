@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -155,6 +156,11 @@ class CaptureViewModel(private val app: GroveApplication) : ViewModel() {
 class TemplatesViewModel(private val app: GroveApplication) : ViewModel() {
 
     val templates: StateFlow<List<CaptureTemplate>> = app.templatesRepository.templates
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    /** Existing vault notebook file names, for the target-file picker dropdown. */
+    val notebooks: StateFlow<List<String>> = app.database.indexDao().notebooksFlow()
+        .map { list -> list.map { it.fileName }.sorted() }
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     fun upsert(template: CaptureTemplate) =

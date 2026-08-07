@@ -34,6 +34,15 @@ updated and push.
 - Phone numbers written in prose (e.g. `833-806-1627`, `(833) 806-1627`, `+1 833-806-1627`) are
   now detected in read mode, shown reformatted as `(833) 806-1627`, and tappable to place a call —
   no `[[tel:...]]` link syntax required
+- Capture template editor's Target file field now has a `DropdownMenu` pop-out (▾) listing the
+  vault's existing notebooks, same pattern as the widget quick-add's notebook chip
+- Left/right swipes on the planning-dates calendar now step to the previous/next month, same
+  direction as the existing ‹/› arrows
+
+### Fixed
+- Auto-capitalizing the first letter of a heading only worked for individual keystrokes; swipe-typed
+  or autocorrect-committed words (delivered as one multi-character insertion, not one key event per
+  letter) skipped it entirely. Both paths now capitalize consistently
 
 ## [1.0.217] - 2026-08-07
 

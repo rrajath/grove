@@ -235,4 +235,46 @@ class LineEditingTest {
         val edit = LineEditing.changeListIndent("- one\n- two\n- three", 8, +1)!!
         assertEquals("- one\n  - two\n- three", edit.text)
     }
+
+    @Test
+    fun `single key press capitalizes the first heading letter`() {
+        val edit = LineEditing.capitalizeHeadingOnType("* ", "* h", 3)!!
+        assertEquals("* H", edit.text)
+        assertEquals(3, edit.cursor)
+    }
+
+    @Test
+    fun `swipe-typed word capitalizes its first letter`() {
+        // Gboard delivers a swiped word as one multi-character commitText, not
+        // one key event per letter, so newText grows by more than 1 char here.
+        val edit = LineEditing.capitalizeHeadingOnType("* ", "* hello", 7)!!
+        assertEquals("* Hello", edit.text)
+        assertEquals(7, edit.cursor)
+    }
+
+    @Test
+    fun `swipe-typed word on a sub-heading capitalizes too`() {
+        val edit = LineEditing.capitalizeHeadingOnType("** ", "** buy milk", 11)!!
+        assertEquals("** Buy milk", edit.text)
+    }
+
+    @Test
+    fun `already-uppercase first letter is left alone`() {
+        assertNull(LineEditing.capitalizeHeadingOnType("* ", "* Hello", 7))
+    }
+
+    @Test
+    fun `typing past the first character is not touched`() {
+        assertNull(LineEditing.capitalizeHeadingOnType("* h", "* he", 4))
+    }
+
+    @Test
+    fun `typing into a non-heading line does nothing`() {
+        assertNull(LineEditing.capitalizeHeadingOnType("", "hello", 5))
+    }
+
+    @Test
+    fun `a plain deletion is not treated as an insertion`() {
+        assertNull(LineEditing.capitalizeHeadingOnType("* hello", "* hell", 6))
+    }
 }

@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -61,11 +63,13 @@ fun TemplateEditScreen(
 ) {
     val c = MaterialTheme.grove
     val templates by viewModel.templates.collectAsStateWithLifecycle()
+    val notebooks by viewModel.notebooks.collectAsStateWithLifecycle()
     val existing = templates.firstOrNull { it.id == templateId }
 
     var name by remember(existing) { mutableStateOf(existing?.name ?: "") }
     var icon by remember(existing) { mutableStateOf(existing?.icon ?: "✶") }
     var targetFile by remember(existing) { mutableStateOf(existing?.targetFile ?: "inbox.org") }
+    var targetFileMenuOpen by remember { mutableStateOf(false) }
     var locationIdx by remember(existing) {
         mutableStateOf(existing?.location?.let { locationIndex(it) } ?: 1)
     }
@@ -159,12 +163,35 @@ fun TemplateEditScreen(
             }
 
             FieldLabel("Target file")
-            OutlinedTextField(
-                value = targetFile, onValueChange = { targetFile = it },
-                singleLine = true, modifier = Modifier.fillMaxWidth(),
-                textStyle = TextStyle(fontFamily = PlexMono),
-                placeholder = { Text("notebook.org", fontFamily = PlexMono, color = c.ink3) },
-            )
+            Box {
+                OutlinedTextField(
+                    value = targetFile, onValueChange = { targetFile = it },
+                    singleLine = true, modifier = Modifier.fillMaxWidth(),
+                    textStyle = TextStyle(fontFamily = PlexMono),
+                    placeholder = { Text("notebook.org", fontFamily = PlexMono, color = c.ink3) },
+                    trailingIcon = {
+                        Text(
+                            "▾", fontFamily = PlexMono, fontSize = 16.sp, color = c.ink2,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { targetFileMenuOpen = true }
+                                .padding(8.dp),
+                        )
+                    },
+                )
+                DropdownMenu(
+                    expanded = targetFileMenuOpen,
+                    onDismissRequest = { targetFileMenuOpen = false },
+                    containerColor = c.surface,
+                ) {
+                    notebooks.forEach { nb ->
+                        DropdownMenuItem(
+                            text = { Text(nb, fontFamily = PlexMono, color = c.ink) },
+                            onClick = { targetFile = nb; targetFileMenuOpen = false },
+                        )
+                    }
+                }
+            }
 
             FieldLabel("Insert at")
             Column {

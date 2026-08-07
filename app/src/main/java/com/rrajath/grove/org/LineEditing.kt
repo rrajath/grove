@@ -85,25 +85,38 @@ object LineEditing {
         )
     }
 
-    private val HEADING_FIRST_CHAR = Regex("""^\*+ [a-z]$""")
+    private val EMPTY_HEADING_CONTENT = Regex("""^\*+ $""")
 
     /**
      * Auto-capitalize the first letter typed into an org heading. Returns null
      * when no capitalization is needed (not a heading line, char already uppercase,
-     * or cursor not right after the first content character).
+     * or the edit isn't an insertion landing right at the first content character).
+     *
+     * Diffs [oldText]/[newText] by common prefix/suffix rather than assuming a
+     * single-character change, so this also fires for swipe-typed or
+     * autocorrect-committed words, which an IME delivers as a multi-character
+     * insertion in one batch rather than one key event per letter.
      *
      * Call this after [continueListOnEnter] in the text-change handler, passing
      * the old text (before the edit) and the new text + cursor from the IME.
      */
     fun capitalizeHeadingOnType(oldText: String, newText: String, cursor: Int): TextEdit? {
-        if (newText.length != oldText.length + 1) return null
-        if (cursor < 1 || cursor > newText.length) return null
-        val newChar = newText[cursor - 1]
+        if (newText.length <= oldText.length) return null
+        val maxPrefix = minOf(oldText.length, newText.length)
+        var prefix = 0
+        while (prefix < maxPrefix && oldText[prefix] == newText[prefix]) prefix++
+        val maxSuffix = maxPrefix - prefix
+        var suffix = 0
+        while (suffix < maxSuffix && oldText[oldText.length - 1 - suffix] == newText[newText.length - 1 - suffix]) suffix++
+        val insertEnd = newText.length - suffix
+        if (insertEnd <= prefix) return null
+        if (cursor != insertEnd) return null
+        val newChar = newText[prefix]
         if (!newChar.isLetter() || newChar.isUpperCase()) return null
-        val lineStart = newText.lastIndexOf('\n', cursor - 2) + 1
-        val lineUpToCursor = newText.substring(lineStart, cursor)
-        if (!HEADING_FIRST_CHAR.matches(lineUpToCursor)) return null
-        val capitalized = newText.substring(0, cursor - 1) + newChar.uppercaseChar() + newText.substring(cursor)
+        val lineStart = newText.lastIndexOf('\n', prefix - 1) + 1
+        val lineBeforeInsertion = newText.substring(lineStart, prefix)
+        if (!EMPTY_HEADING_CONTENT.matches(lineBeforeInsertion)) return null
+        val capitalized = newText.substring(0, prefix) + newChar.uppercaseChar() + newText.substring(prefix + 1)
         return TextEdit(capitalized, cursor)
     }
 

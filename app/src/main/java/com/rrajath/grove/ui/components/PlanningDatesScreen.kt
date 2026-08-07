@@ -3,6 +3,7 @@ package com.rrajath.grove.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -49,6 +50,7 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLayoutResult
@@ -463,6 +465,14 @@ private fun BothDatesCalendar(
     val bandStart = if (scheduled != null && deadline != null && scheduled.isBefore(deadline)) scheduled else null
     val bandEnd = if (bandStart != null) deadline else null
 
+    // Left/right swipe steps the month, same direction convention as the ‹/›
+    // arrows: a leftward drag (negative total) reveals next month, rightward
+    // reveals the previous one. Accumulated over the whole gesture rather than
+    // acted on per-move so a single swipe only ever changes one month.
+    val density = LocalDensity.current
+    val swipeThresholdPx = remember(density) { with(density) { 56.dp.toPx() } }
+    var dragAccum by remember { mutableStateOf(0f) }
+
     Column(
         Modifier
             .fillMaxWidth()
@@ -470,6 +480,20 @@ private fun BothDatesCalendar(
             .clip(RoundedCornerShape(16.dp))
             .background(c.surface)
             .border(1.dp, c.line, RoundedCornerShape(16.dp))
+            .pointerInput(onPrev, onNext) {
+                detectHorizontalDragGestures(
+                    onDragStart = { dragAccum = 0f },
+                    onDragEnd = {
+                        if (dragAccum <= -swipeThresholdPx) onNext()
+                        else if (dragAccum >= swipeThresholdPx) onPrev()
+                        dragAccum = 0f
+                    },
+                    onDragCancel = { dragAccum = 0f },
+                ) { change, dragAmount ->
+                    change.consume()
+                    dragAccum += dragAmount
+                }
+            }
             .padding(start = 11.dp, end = 11.dp, top = 11.dp, bottom = 12.dp),
     ) {
         Row(
