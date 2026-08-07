@@ -26,12 +26,27 @@ data class ExpandedTemplate(
     val cursorOffset: Int,
 )
 
+/** An unsupported `%...`-looking token found in a template body (PLACEHOLDER_DOCS). */
+data class InvalidPlaceholder(val token: String, val range: IntRange)
+
 /** Expands org-capture style placeholders (PRD §7.3). */
 object PlaceholderExpander {
 
     // Closing brace must be escaped: Android's ICU regex engine rejects a bare
     // `}` outside a character class (the JVM engine used in unit tests allows it).
     private val PROMPT = Regex("""%\^\{([^}]*)\}""")
+
+    // A `%`-looking token that isn't a recognized placeholder: optional `^` (a
+    // malformed prompt missing its `{...}`) followed by word chars. Used only to
+    // report what the user probably meant; `expand` never consults this.
+    private val ATTEMPTED_PLACEHOLDER = Regex("""%\^?[A-Za-z_]*""")
+
+    // Longest first so e.g. %shared_text wins over a stray %s, %time wins over %t.
+    // Shared with findInvalid so the two can never disagree about what's supported.
+    private val SIMPLE_KEYS = listOf(
+        "%shared_text", "%shared_url", "%clipboard", "%cursor", "%month", "%date",
+        "%time", "%year", "%day", "%t", "%T", "%u", "%U", "%?",
+    )
 
     /** Prompts the UI must collect (in order, deduplicated) before expanding. */
     fun prompts(template: String): List<String> =
@@ -45,6 +60,23 @@ object PlaceholderExpander {
             if (ctx.dateOnly) dateStamp
             else OrgTimestamp(date, time = time.withSecond(0).withNano(0))
         val timeText = "%d:%02d".format(time.hour, time.minute)
+
+        val values: Map<String, (() -> String)?> = mapOf(
+            "%shared_text" to { ctx.sharedText },
+            "%shared_url" to { ctx.sharedUrl },
+            "%clipboard" to { ctx.clipboard },
+            "%cursor" to null,
+            "%month" to { date.month.getDisplayName(TextStyle.FULL, Locale.ENGLISH) },
+            "%date" to { date.toString() },
+            "%time" to { timeText },
+            "%year" to { date.year.toString() },
+            "%day" to { date.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.ENGLISH) },
+            "%t" to { dateStamp.copy(active = false).format() },
+            "%T" to { dateStamp.format() },
+            "%u" to { dateTimeStamp.copy(active = false).format() },
+            "%U" to { dateTimeStamp.format() },
+            "%?" to null,
+        )
 
         val sb = StringBuilder()
         var cursor: Int? = null
@@ -62,30 +94,13 @@ object PlaceholderExpander {
                 i += promptMatch.value.length
                 continue
             }
-            val simple = listOf(
-                // Longest first so %time wins over %t
-                "%shared_text" to { ctx.sharedText },
-                "%shared_url" to { ctx.sharedUrl },
-                "%clipboard" to { ctx.clipboard },
-                "%cursor" to null,
-                "%month" to { date.month.getDisplayName(TextStyle.FULL, Locale.ENGLISH) },
-                "%date" to { date.toString() },
-                "%time" to { timeText },
-                "%year" to { date.year.toString() },
-                "%day" to { date.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.ENGLISH) },
-                "%t" to { dateStamp.copy(active = false).format() },
-                "%T" to { dateStamp.format() },
-                "%u" to { dateTimeStamp.copy(active = false).format() },
-                "%U" to { dateTimeStamp.format() },
-                "%?" to null,
-            ).firstOrNull { (key, _) -> template.startsWith(key, i) }
-
-            if (simple == null) {
+            val key = SIMPLE_KEYS.firstOrNull { template.startsWith(it, i) }
+            if (key == null) {
                 sb.append(ch)
                 i++
                 continue
             }
-            val (key, value) = simple
+            val value = values.getValue(key)
             if (value == null) {
                 if (cursor == null) cursor = sb.length
             } else {
@@ -94,5 +109,40 @@ object PlaceholderExpander {
             i += key.length
         }
         return ExpandedTemplate(sb.toString(), cursor ?: sb.length)
+    }
+
+    /**
+     * `%...`-looking tokens in [template] that aren't `%^{prompt}` and don't match
+     * any [SIMPLE_KEYS] entry — i.e. would silently pass through [expand] verbatim
+     * instead of being substituted. A lone `%` not followed by `^`/a letter (as in
+     * `50% off`) is ordinary prose, not an attempted placeholder, and isn't flagged.
+     */
+    fun findInvalid(template: String): List<InvalidPlaceholder> {
+        val invalid = mutableListOf<InvalidPlaceholder>()
+        var i = 0
+        while (i < template.length) {
+            if (template[i] != '%') {
+                i++
+                continue
+            }
+            val promptMatch = PROMPT.matchAt(template, i)
+            if (promptMatch != null) {
+                i += promptMatch.value.length
+                continue
+            }
+            val key = SIMPLE_KEYS.firstOrNull { template.startsWith(it, i) }
+            if (key != null) {
+                i += key.length
+                continue
+            }
+            val attempt = ATTEMPTED_PLACEHOLDER.matchAt(template, i)?.value.orEmpty()
+            if (attempt.length > 1) {
+                invalid += InvalidPlaceholder(attempt, i until i + attempt.length)
+                i += attempt.length
+            } else {
+                i++
+            }
+        }
+        return invalid
     }
 }

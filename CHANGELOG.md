@@ -36,6 +36,11 @@ updated and push.
   no `[[tel:...]]` link syntax required
 - Capture template editor's Target file field now has a `DropdownMenu` pop-out (▾) listing the
   vault's existing notebooks, same pattern as the widget quick-add's notebook chip
+- That Target file field's dropdown now filters live as you type, and the field is validated as a
+  filesystem-safe `.org` filename (checked live and on focus-out); Save is disabled until it's valid
+- The Template field is validated for unsupported `%...` placeholders and shows the offending tokens
+  inline; both the Capture Templates settings list and the "Capture to…" picker sheet now show a
+  small `⚠ N` badge on any template with filename or placeholder errors
 - Left/right swipes on the planning-dates calendar now step to the previous/next month, same
   direction as the existing ‹/› arrows
 

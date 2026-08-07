@@ -17,6 +17,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -27,6 +28,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rrajath.grove.capture.CaptureTemplate
+import com.rrajath.grove.capture.TemplateValidator
+import com.rrajath.grove.ui.components.Pill
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
@@ -125,6 +128,11 @@ private fun TemplateRow(template: CaptureTemplate, onClick: () -> Unit) {
                 "${template.targetFile} · ${template.location.describe()}",
                 fontFamily = PlexMono, fontSize = 12.5.sp, color = c.ink2,
             )
+        }
+        val issues = remember(template) { TemplateValidator.validate(template) }
+        if (issues.hasErrors) {
+            Pill(text = "⚠ ${issues.count}", fg = c.red, bg = c.redSoft)
+            Spacer(Modifier.width(8.dp))
         }
         Text("›", fontFamily = PlexMono, fontSize = 16.sp, color = c.ink3)
     }

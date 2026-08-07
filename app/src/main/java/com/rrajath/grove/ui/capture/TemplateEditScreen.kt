@@ -22,12 +22,14 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
@@ -35,6 +37,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rrajath.grove.capture.CaptureTemplate
+import com.rrajath.grove.capture.FilenameValidation
+import com.rrajath.grove.capture.PlaceholderExpander
 import com.rrajath.grove.capture.TargetLocation
 import com.rrajath.grove.ui.components.GroveTopBar
 import com.rrajath.grove.ui.components.SegmentedControl
@@ -70,6 +74,13 @@ fun TemplateEditScreen(
     var icon by remember(existing) { mutableStateOf(existing?.icon ?: "✶") }
     var targetFile by remember(existing) { mutableStateOf(existing?.targetFile ?: "inbox.org") }
     var targetFileMenuOpen by remember { mutableStateOf(false) }
+    val filteredNotebooks by remember(notebooks) {
+        derivedStateOf {
+            if (targetFile.isBlank()) notebooks
+            else notebooks.filter { it.contains(targetFile, ignoreCase = true) }
+        }
+    }
+    val targetFileError = FilenameValidation.errorFor(targetFile)
     var locationIdx by remember(existing) {
         mutableStateOf(existing?.location?.let { locationIndex(it) } ?: 1)
     }
@@ -80,6 +91,9 @@ fun TemplateEditScreen(
         mutableStateOf((existing?.location as? TargetLocation.UnderHeading)?.customId ?: "")
     }
     var templateText by remember(existing) { mutableStateOf(existing?.template ?: "* %^{Title}\n%cursor") }
+    val invalidPlaceholders = remember(templateText) {
+        PlaceholderExpander.findInvalid(templateText).map { it.token }.distinct()
+    }
     var showPlaceholderHelp by remember { mutableStateOf(false) }
 
     fun buildLocation(): TargetLocation = when (locationIdx) {
@@ -112,11 +126,12 @@ fun TemplateEditScreen(
                     )
                 },
                 actions = {
+                    val canSave = name.isNotBlank() && targetFileError == null
                     Box(
                         Modifier
                             .clip(RoundedCornerShape(11.dp))
-                            .background(c.accent)
-                            .clickable(enabled = name.isNotBlank() && targetFile.isNotBlank()) {
+                            .background(if (canSave) c.accent else c.line)
+                            .clickable(enabled = canSave) {
                                 viewModel.upsert(
                                     CaptureTemplate(
                                         id = existing?.id ?: viewModel.newId(),
@@ -134,7 +149,7 @@ fun TemplateEditScreen(
                         Text(
                             "Save",
                             fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
-                            fontSize = 14.sp, color = c.accentInk,
+                            fontSize = 14.sp, color = if (canSave) c.accentInk else c.ink3,
                         )
                     }
                 },
@@ -165,8 +180,20 @@ fun TemplateEditScreen(
             FieldLabel("Target file")
             Box {
                 OutlinedTextField(
-                    value = targetFile, onValueChange = { targetFile = it },
-                    singleLine = true, modifier = Modifier.fillMaxWidth(),
+                    value = targetFile,
+                    onValueChange = { targetFile = it; targetFileMenuOpen = true },
+                    singleLine = true,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .onFocusChanged { state ->
+                            targetFileMenuOpen = state.isFocused
+                        },
+                    isError = targetFileError != null,
+                    supportingText = {
+                        if (targetFileError != null) {
+                            Text(targetFileError, color = c.red, fontFamily = PlexSans, fontSize = 12.sp)
+                        }
+                    },
                     textStyle = TextStyle(fontFamily = PlexMono),
                     placeholder = { Text("notebook.org", fontFamily = PlexMono, color = c.ink3) },
                     trailingIcon = {
@@ -174,20 +201,23 @@ fun TemplateEditScreen(
                             "▾", fontFamily = PlexMono, fontSize = 16.sp, color = c.ink2,
                             modifier = Modifier
                                 .clip(RoundedCornerShape(8.dp))
-                                .clickable { targetFileMenuOpen = true }
+                                .clickable { targetFileMenuOpen = !targetFileMenuOpen }
                                 .padding(8.dp),
                         )
                     },
                 )
                 DropdownMenu(
-                    expanded = targetFileMenuOpen,
+                    expanded = targetFileMenuOpen && filteredNotebooks.isNotEmpty(),
                     onDismissRequest = { targetFileMenuOpen = false },
                     containerColor = c.surface,
                 ) {
-                    notebooks.forEach { nb ->
+                    filteredNotebooks.forEach { nb ->
                         DropdownMenuItem(
                             text = { Text(nb, fontFamily = PlexMono, color = c.ink) },
-                            onClick = { targetFile = nb; targetFileMenuOpen = false },
+                            onClick = {
+                                targetFile = nb
+                                targetFileMenuOpen = false
+                            },
                         )
                     }
                 }
@@ -241,8 +271,17 @@ fun TemplateEditScreen(
             OutlinedTextField(
                 value = templateText, onValueChange = { templateText = it },
                 modifier = Modifier.fillMaxWidth().height(140.dp),
+                isError = invalidPlaceholders.isNotEmpty(),
                 textStyle = TextStyle(fontFamily = PlexMono, fontSize = 13.5.sp),
             )
+            if (invalidPlaceholders.isNotEmpty()) {
+                Text(
+                    "Unsupported placeholder${if (invalidPlaceholders.size > 1) "s" else ""}: " +
+                        invalidPlaceholders.joinToString(", "),
+                    fontFamily = PlexSans, fontSize = 12.sp, color = c.red,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+            }
             Text(
                 "placeholder help",
                 fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,

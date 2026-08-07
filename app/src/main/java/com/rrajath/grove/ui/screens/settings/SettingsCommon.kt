@@ -19,6 +19,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -26,9 +27,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.rrajath.grove.capture.CaptureTemplate
+import com.rrajath.grove.capture.TemplateValidator
 import com.rrajath.grove.settings.AgendaSwipeAction
 import com.rrajath.grove.settings.ChecklistStates
 import com.rrajath.grove.ui.components.GroveTopBar
+import com.rrajath.grove.ui.components.Pill
 import com.rrajath.grove.ui.screens.IconGlyph
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
@@ -230,6 +233,11 @@ internal fun TemplateSettingsRow(
                 "${template.targetFile} · ${template.location.describe()}",
                 fontFamily = PlexMono, fontSize = 12.sp, color = c.ink2,
             )
+        }
+        val issues = remember(template) { TemplateValidator.validate(template) }
+        if (issues.hasErrors) {
+            Pill(text = "⚠ ${issues.count}", fg = c.red, bg = c.redSoft)
+            Spacer(Modifier.width(8.dp))
         }
         SmallAction("↑", enabled = onMoveUp != null) { onMoveUp?.invoke() }
         SmallAction("↓", enabled = onMoveDown != null) { onMoveDown?.invoke() }
