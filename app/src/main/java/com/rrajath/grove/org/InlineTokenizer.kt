@@ -30,6 +30,13 @@ object InlineTokenizer {
     // Bare URLs and other schemes org recognizes unbracketed
     private val BARE_URL = Regex("""(?:https?://|mailto:|tel:|sms:|geo:|file:)[^\s\[\]<>]+""")
 
+    // NANP phone numbers written in prose, e.g. "833-806-1627", "(833) 806-1627",
+    // "+1 833-806-1627". Requires a separator between groups (never a bare digit
+    // run) so dates, IDs, and other incidental numbers aren't mistaken for one.
+    private val PHONE = Regex(
+        """(?<![\w.])(?:\+?1[\s.-])?(?:\(\d{3}\)[\s.-]?|\d{3}[\s.-])\d{3}[\s.-]\d{4}(?!\w)"""
+    )
+
     private val TIMESTAMP = Regex("""[<\[]\d{4}-\d{2}-\d{2}[^>\]\n]*[>\]]""")
 
     private fun emphasis(marker: Char): Regex {
@@ -75,6 +82,10 @@ object InlineTokenizer {
         addAll(BARE_URL) { m ->
             InlineToken(m.range, InlineType.LINK, m.value, m.value)
         }
+        addAll(PHONE) { m ->
+            val (display, target) = formatPhone(m.value)
+            InlineToken(m.range, InlineType.LINK, display, target)
+        }
         addAll(BOLD) { m -> InlineToken(m.range, InlineType.BOLD, m.groupValues[1]) }
         addAll(ITALIC) { m -> InlineToken(m.range, InlineType.ITALIC, m.groupValues[1]) }
         addAll(UNDERLINE) { m -> InlineToken(m.range, InlineType.UNDERLINE, m.groupValues[1]) }
@@ -100,5 +111,12 @@ object InlineTokenizer {
             result.add(InlineToken(pos until line.length, InlineType.TEXT, line.substring(pos)))
         }
         return result
+    }
+
+    /** "833-806-1627" (or any [PHONE]-matched variant) -> ("(833) 806-1627", "tel:+18338061627"). */
+    private fun formatPhone(raw: String): Pair<String, String> {
+        val national = raw.filter(Char::isDigit).takeLast(10)
+        val display = "(${national.substring(0, 3)}) ${national.substring(3, 6)}-${national.substring(6)}"
+        return display to "tel:+1$national"
     }
 }

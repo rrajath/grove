@@ -28,6 +28,11 @@ updated and push.
 
 ## [Unreleased]
 
+### Added
+- Phone numbers written in prose (e.g. `833-806-1627`, `(833) 806-1627`, `+1 833-806-1627`) are
+  now detected in read mode, shown reformatted as `(833) 806-1627`, and tappable to place a call —
+  no `[[tel:...]]` link syntax required
+
 ## [1.0.217] - 2026-08-07
 
 ### Changed

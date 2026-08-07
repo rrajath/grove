@@ -85,6 +85,30 @@ class InlineTokenizerTest {
     }
 
     @Test
+    fun `phone numbers become tappable and formatted`() {
+        for (raw in listOf("833-806-1627", "(833) 806-1627", "833.806.1627", "+1 833-806-1627", "1-833-806-1627")) {
+            val tokens = InlineTokenizer.tokenize("call $raw now")
+            val link = tokens.first { it.type == InlineType.LINK }
+            assertEquals("(833) 806-1627", link.text)
+            assertEquals("tel:+18338061627", link.target)
+        }
+    }
+
+    @Test
+    fun `bare digit runs are not phone numbers`() {
+        assertEquals(listOf(InlineType.TEXT), types("order id 8338061627"))
+        assertEquals(listOf(InlineType.TEXT), types("version 1.2.3.4567"))
+    }
+
+    @Test
+    fun `explicit tel scheme link is untouched by phone formatting`() {
+        val tokens = InlineTokenizer.tokenize("contact tel:+15551234 here")
+        val link = tokens.first { it.type == InlineType.LINK }
+        assertEquals("tel:+15551234", link.target)
+        assertEquals("tel:+15551234", link.text)
+    }
+
+    @Test
     fun `timestamps tokenize`() {
         val tokens = InlineTokenizer.tokenize("due <2025-06-27 Fri> and noted [2025-01-04 Sat]")
         assertEquals(2, tokens.count { it.type == InlineType.TIMESTAMP })
