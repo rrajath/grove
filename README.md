@@ -63,11 +63,7 @@ app/src/main/java/com/rrajath/grove/
 |---|---|
 | [docs/architecture.md](docs/architecture.md) | Layers, data flow, threading, and the invariants that hold the app together |
 | [docs/terminology.md](docs/terminology.md) | Glossary of org-mode and Grove-specific terms used throughout the code |
-| [docs/design-decisions.md](docs/design-decisions.md) | Why things are the way they are, with the trade-offs considered |
 | [docs/search-syntax.md](docs/search-syntax.md) | Full reference for the search query language |
-| `prd-android-orgmode-app.md` | The original product requirements document |
-| `design/README.md` | Pixel-level design spec: color tokens, typography, all screens |
-| `MILESTONES.md` | Development milestone tracker (M1–M7, v1 descopes, v2 backlog) |
 
 ## Tech stack
 
