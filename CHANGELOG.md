@@ -37,6 +37,8 @@ updated and push.
   cycling one tap at a time. Date adds a "Custom date…" entry that opens the same
   `PlanningDatesScreen` used by Reschedule; presets still resolve at send time so "Today" stays
   correct even if the sheet is left open across midnight
+- Updated the design system doc for the tags dropdown and the widget quick-add date/notebook
+  pop-out chips described above
 
 ### Fixed
 - Typing in the metadata sheet's tag field could get silently cleared partway through: the
@@ -46,10 +48,10 @@ updated and push.
 - The metadata sheet's tag field could be hidden behind the keyboard when focused, and scrolling
   the sheet fully open could push the "+ Add note" button out of view with no way to reach it,
   since the sheet's content never reserved space for the keyboard or allowed scrolling past it
-
-### Documentation
-- Updated the design system doc for the tags dropdown and the widget quick-add date/notebook
-  pop-out chips described above
+- CI's unit test build was failing: the last backfill introduced a `### Documentation` subsection
+  heading, which `ChangelogParserTest` correctly rejects since it isn't one of the Keep-a-Changelog
+  categories the parser and widget "what's new" screen support. That bullet now lives under
+  `### Changed` instead
 
 ## [1.0.208] - 2026-08-06
 
