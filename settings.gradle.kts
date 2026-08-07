@@ -21,5 +21,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "Grove"
 include(":app")
-include(":macrobenchmark")
  
