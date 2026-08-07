@@ -28,6 +28,8 @@ updated and push.
 
 ## [Unreleased]
 
+## [1.0.217] - 2026-08-07
+
 ### Changed
 - Metadata sheet's Tags field is now a search/create dropdown instead of a free-text
   space-separated field: typing filters the vault's tag pool into a tappable list, with a
