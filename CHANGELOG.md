@@ -28,6 +28,8 @@ updated and push.
 
 ## [Unreleased]
 
+## [1.0.234] - 2026-08-07
+
 ### Added
 - Capture template editor's Target file field now has an inline expanding suggestion list (▾ to
   toggle, filters live as you type) below the field, listing the vault's existing notebooks, styled
