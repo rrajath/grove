@@ -18,6 +18,11 @@ Grove edits plain `.org` files in a folder you choose. There is no account, no p
 - **Sync that respects your tools**: change detection by file revision, Syncthing `.sync-conflict-*` detection with a keep-local / keep-remote / keep-both picker, manual through continuous sync modes, `.orgzlyignore` support.
 - **A warm, deliberate design**: IBM Plex Sans/Serif/Mono, an earth-tone palette with full dark mode, and org syntax tokens colored the way an Emacs theme would.
 
+---
+
+**Note**: This app was built with help from LLM-based coding tools (Claude Code). All design decisions, architecture, and every piece of code are reviewed and tested by me. LLMs are a tool in the workflow, not an autopilot.
+
+---
 ## Getting started
 
 ### Requirements
