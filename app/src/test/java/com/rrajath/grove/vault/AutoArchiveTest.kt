@@ -262,4 +262,39 @@ class AutoArchiveTest {
 
         assertTrue(AutoArchive.archiveIfStillDone(v, settings, "todo.org", 0) == null)
     }
+
+    @Test
+    fun `archiveIfStillDone on a cookie-tracked child archives the whole parent subtree, not just the child`() = runTest {
+        // Regression: the note the user was actually viewing (a checklist-style child under a
+        // parent with a completed cookie) must never be peeled out and archived on its own — only
+        // the parent, taking every child with it. This is the on-disk state right after
+        // AutoArchive.apply's deferred (allowArchive=false) cascade already flipped both the child
+        // and the parent to DONE but didn't refile either; archiveIfStillDone re-checks later,
+        // straight off the *child's* own (still done-type) line index.
+        tmp.newFile("todo.org").writeText(
+            """
+            * DONE Ship it [2/2]
+            :PROPERTIES:
+            :ARCHIVE: ./todo.org::* Archive
+            :END:
+            ** DONE Write code
+            ** DONE Write tests
+            * Archive
+            """.trimIndent() + "\n"
+        )
+        val v = vault()
+        val child = v.open("todo.org")!!.headlines.first { it.title == "Write tests" }
+        val settings = GroveSettings(autoArchiveDoneItems = true)
+
+        val result = AutoArchive.archiveIfStillDone(v, settings, "todo.org", child.lineIndex)
+
+        assertTrue(result != null)
+        result as StateChangeResult.Archived
+        assertTrue(result.destText.contains("Ship it [2/2]"))
+        assertTrue(result.destText.contains("Write code"))
+        assertTrue(result.destText.contains("Write tests"))
+        // Same-file refile: "Ship it" isn't gone from the doc, it's nested under Archive now.
+        assertTrue(result.sourceDoc.headlines.none { it.title == "Ship it [2/2]" && it.level == 1 })
+        assertTrue(result.sourceDoc.headlines.any { it.title == "Ship it [2/2]" && it.level == 2 })
+    }
 }

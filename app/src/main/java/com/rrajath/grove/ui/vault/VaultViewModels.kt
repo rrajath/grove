@@ -223,6 +223,33 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
     private val _focusedLine = MutableStateFlow<Int?>(null)
     val focusedLine: StateFlow<Int?> = _focusedLine
 
+    /**
+     * Read mode's own currently-displayed heading, as a *live* line index rather than the
+     * immutable [NoteRef.lineIndex] nav argument: a deferred parent-cookie cascade (see
+     * [setState]'s `deferArchive`) can insert a CLOSED line into an ancestor that sits earlier in
+     * the file than the heading actually on screen, shifting it out from under a fixed line
+     * number even though nothing was archived. [ReadNoteScreen] seeds this from `noteRef` on load
+     * and re-resolves its content against this instead. Null until seeded.
+     */
+    private val _viewedLine = MutableStateFlow<Int?>(null)
+    val viewedLine: StateFlow<Int?> = _viewedLine
+
+    fun setViewedLine(line: Int) {
+        _viewedLine.value = line
+    }
+
+    /** Relocates [headline] in [doc] by document-order position, which a changeKeyword/cascade
+     *  mutation never alters (only text within existing headings), unlike raw line numbers. */
+    private fun relocate(doc: OrgDocument, headline: OrgHeadline): OrgHeadline? =
+        doc.headlines.getOrNull(headline.index)
+
+    /** Updates [_viewedLine] to wherever [original] ended up in [doc], if this is the heading
+     *  read mode currently has on screen. */
+    private fun trackViewedLine(doc: OrgDocument, original: OrgHeadline) {
+        if (_viewedLine.value != original.lineIndex) return
+        relocate(doc, original)?.let { _viewedLine.value = it.lineIndex }
+    }
+
     private val _refile = MutableStateFlow<RefileUiState?>(null)
     val refile: StateFlow<RefileUiState?> = _refile
 
@@ -449,12 +476,14 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
         vault: Vault,
         fileName: String,
         originalText: String,
+        originalHeadline: OrgHeadline,
         result: StateChangeResult,
         plainMessage: String?,
         syncReason: String,
     ) {
         when (result) {
             is StateChangeResult.Plain -> {
+                trackViewedLine(result.doc, originalHeadline)
                 _state.value = DocumentUiState.Loaded(fileName, result.doc)
                 vault.save(fileName, result.text)
                 if (plainMessage != null) showToast(plainMessage)
@@ -504,7 +533,8 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
                 allowArchive = !deferArchive,
             )
             applyStateChangeResult(
-                vault, loaded.fileName, loaded.document.text, result, "State → ${keyword ?: "none"}", "state set",
+                vault, loaded.fileName, loaded.document.text, headline, result,
+                "State → ${keyword ?: "none"}", "state set",
             )
         }
     }
@@ -554,7 +584,10 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
                 vault, settings, cookieDoc, loaded.fileName, cookieHeadline, doneKeyword, LocalDateTime.now(),
                 allowArchive = owner.lineIndex != viewedLineIndex,
             )
-            applyStateChangeResult(vault, loaded.fileName, loaded.document.text, result, null, "checklist toggled")
+            val viewedHeadline = loaded.document.headlineAtLine(viewedLineIndex) ?: cookieHeadline
+            applyStateChangeResult(
+                vault, loaded.fileName, loaded.document.text, viewedHeadline, result, null, "checklist toggled",
+            )
         }
     }
 

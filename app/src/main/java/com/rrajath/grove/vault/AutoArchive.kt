@@ -187,9 +187,14 @@ object AutoArchive {
         if (!settings.autoArchiveDoneItems) return null
         val doc = vault.open(fileName) ?: return null
         val headline = doc.headlines.firstOrNull { it.lineIndex == lineIndex } ?: return null
-        if (headline.keyword == null || !doc.keywords.isDone(headline.keyword)) return null
-        val target = ArchiveLocation.resolve(doc, headline, settingsFallback(settings)) ?: return null
-        val write = refileSubtree(vault, doc, fileName, headline, target) ?: return null
+        // Same checklist-style guard as apply()'s parentHasCookie: a heading whose parent tracks
+        // it via a statistics cookie is never archived on its own, only as part of the parent's
+        // subtree once the whole group is done — otherwise this would peel just this one heading
+        // (e.g. the note the user was actually looking at) out of its still-together siblings.
+        val target = doc.parent(headline)?.takeIf { OrgMutations.hasStatisticsCookie(it.title) } ?: headline
+        if (target.keyword == null || !doc.keywords.isDone(target.keyword)) return null
+        val archiveTarget = ArchiveLocation.resolve(doc, target, settingsFallback(settings)) ?: return null
+        val write = refileSubtree(vault, doc, fileName, target, archiveTarget) ?: return null
         return StateChangeResult.Archived(
             sourceFile = write.sourceFile,
             sourceText = write.sourceText,
