@@ -28,12 +28,7 @@ updated and push.
 
 ## [Unreleased]
 
-## [1.0.219] - 2026-08-07
-
 ### Added
-- Phone numbers written in prose (e.g. `833-806-1627`, `(833) 806-1627`, `+1 833-806-1627`) are
-  now detected in read mode, shown reformatted as `(833) 806-1627`, and tappable to place a call —
-  no `[[tel:...]]` link syntax required
 - Capture template editor's Target file field now has an inline expanding suggestion list (▾ to
   toggle, filters live as you type) below the field, listing the vault's existing notebooks, styled
   like the settings screen's other dropdown pickers
@@ -51,6 +46,13 @@ updated and push.
   letter) skipped it entirely. Both paths now capitalize consistently
 - The template editor's Template field could be hidden behind the keyboard when focused, since the
   screen never reserved space for the keyboard; it now scrolls the focused field above it
+
+## [1.0.219] - 2026-08-07
+
+### Added
+- Phone numbers written in prose (e.g. `833-806-1627`, `(833) 806-1627`, `+1 833-806-1627`) are
+  now detected in read mode, shown reformatted as `(833) 806-1627`, and tappable to place a call —
+  no `[[tel:...]]` link syntax required
 
 ## [1.0.217] - 2026-08-07
 
