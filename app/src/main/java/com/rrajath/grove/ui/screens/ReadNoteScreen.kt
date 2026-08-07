@@ -127,12 +127,7 @@ fun ReadNoteScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val allTags by viewModel.allTags.collectAsStateWithLifecycle()
     var metadataOpen by remember { mutableStateOf(false) }
-    // A deferred parent-cookie cascade (setState's deferArchive) can insert a CLOSED line into an
-    // ancestor earlier in the file than this note, shifting it out from under a fixed line number
-    // even though nothing archived; viewModel.viewedLine tracks the note's live position instead.
-    val viewedLine by viewModel.viewedLine.collectAsStateWithLifecycle()
-    val displayLine = viewedLine ?: noteRef.lineIndex
-    val currentHeadline = (state as? DocumentUiState.Loaded)?.document?.headlineAtLine(displayLine)
+    val currentHeadline = (state as? DocumentUiState.Loaded)?.document?.headlineAtLine(noteRef.lineIndex)
     // Reload whenever the screen comes back to the foreground (e.g. returning
     // from the editor) so saved edits show immediately.
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
@@ -145,10 +140,7 @@ fun ReadNoteScreen(
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
-    LaunchedEffect(noteRef.fileName, noteRef.lineIndex) {
-        viewModel.setViewedLine(noteRef.lineIndex)
-        viewModel.load(noteRef.fileName)
-    }
+    LaunchedEffect(noteRef.fileName) { viewModel.load(noteRef.fileName) }
 
     Scaffold(
         containerColor = c.bg,
@@ -166,7 +158,7 @@ fun ReadNoteScreen(
                 },
                 subtitle = {
                     (state as? DocumentUiState.Loaded)?.document?.let { doc ->
-                        doc.headlineAtLine(displayLine)?.let { h ->
+                        doc.headlineAtLine(noteRef.lineIndex)?.let { h ->
                             val path = remember(doc, h) {
                                 val chain = mutableListOf(h)
                                 var p = doc.parent(h)
@@ -194,7 +186,7 @@ fun ReadNoteScreen(
 
             is DocumentUiState.Loaded -> {
                 val doc = s.document
-                val headline = doc.headlineAtLine(displayLine)
+                val headline = doc.headlineAtLine(noteRef.lineIndex)
                 if (headline == null) {
                     Box(
                         Modifier.fillMaxSize().padding(padding),
@@ -222,9 +214,7 @@ fun ReadNoteScreen(
                             onOpenNote = onOpenNote,
                             fileName = noteRef.fileName,
                             onEditAt = onEdit,
-                            onToggleCheckbox = { line ->
-                                viewModel.toggleChecklistItem(line, checklistStates.marks, displayLine)
-                            },
+                            onToggleCheckbox = { line -> viewModel.toggleChecklistItem(line, checklistStates.marks) },
                             showPropertyDrawers = showPropertyDrawers,
                             favoriteLines = favoriteLines,
                         )
@@ -248,7 +238,7 @@ fun ReadNoteScreen(
                 headline = headline,
                 keywords = doc.keywords,
                 allTags = allTags,
-                onChangeKeyword = { kw -> viewModel.setState(headline, kw, deferArchive = true) },
+                onChangeKeyword = { kw -> viewModel.setState(headline, kw) },
                 onSetPriority = { p -> viewModel.setPriority(headline, p) },
                 onSetTags = { tags -> viewModel.setTags(headline, tags) },
                 onSetPlanningDates = { sched, dead -> viewModel.setPlanningDates(headline, sched, dead) },

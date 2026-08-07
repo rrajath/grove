@@ -223,33 +223,6 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
     private val _focusedLine = MutableStateFlow<Int?>(null)
     val focusedLine: StateFlow<Int?> = _focusedLine
 
-    /**
-     * Read mode's own currently-displayed heading, as a *live* line index rather than the
-     * immutable [NoteRef.lineIndex] nav argument: a deferred parent-cookie cascade (see
-     * [setState]'s `deferArchive`) can insert a CLOSED line into an ancestor that sits earlier in
-     * the file than the heading actually on screen, shifting it out from under a fixed line
-     * number even though nothing was archived. [ReadNoteScreen] seeds this from `noteRef` on load
-     * and re-resolves its content against this instead. Null until seeded.
-     */
-    private val _viewedLine = MutableStateFlow<Int?>(null)
-    val viewedLine: StateFlow<Int?> = _viewedLine
-
-    fun setViewedLine(line: Int) {
-        _viewedLine.value = line
-    }
-
-    /** Relocates [headline] in [doc] by document-order position, which a changeKeyword/cascade
-     *  mutation never alters (only text within existing headings), unlike raw line numbers. */
-    private fun relocate(doc: OrgDocument, headline: OrgHeadline): OrgHeadline? =
-        doc.headlines.getOrNull(headline.index)
-
-    /** Updates [_viewedLine] to wherever [original] ended up in [doc], if this is the heading
-     *  read mode currently has on screen. */
-    private fun trackViewedLine(doc: OrgDocument, original: OrgHeadline) {
-        if (_viewedLine.value != original.lineIndex) return
-        relocate(doc, original)?.let { _viewedLine.value = it.lineIndex }
-    }
-
     private val _refile = MutableStateFlow<RefileUiState?>(null)
     val refile: StateFlow<RefileUiState?> = _refile
 
@@ -311,20 +284,6 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
     private data class UndoSnapshot(val files: List<Pair<String, String>>)
 
     private var undoSnapshot: UndoSnapshot? = null
-
-    /**
-     * Adopts an undo snapshot + confirmation message computed *outside* this ViewModel: the
-     * note-route lifecycle observer in [com.rrajath.grove.ui.GroveApp] runs the deferred
-     * auto-archive (see [setState]'s `deferArchive`) only once Read/Edit mode's own
-     * DocumentViewModel instance is already torn down, so the result is handed to whichever
-     * screen the user lands back on (typically this one, via Navigation's savedStateHandle).
-     * Wires it into this instance's own [undo]/[snack] so it behaves exactly like any other
-     * undoable op here.
-     */
-    fun adoptExternalUndo(files: List<Pair<String, String>>, message: String) {
-        undoSnapshot = UndoSnapshot(files)
-        showSnack(message)
-    }
 
     fun undo() {
         val snap = undoSnapshot ?: return
@@ -465,48 +424,6 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
     }
 
     /**
-     * Applies an [AutoArchive] result identically regardless of which caller triggered it
-     * (direct state change, or a checklist/subheading cookie auto-completing its heading):
-     * publishes the parse, persists it, and on an actual refile snapshots the pre-mutation text
-     * for undo and shows the "Marked done" snack. [originalText] is [fileName]'s content before
-     * this whole mutation (the undo target), captured by the caller since by the time [result]
-     * comes back, [DocumentViewModel.state] may already have moved on.
-     */
-    private suspend fun applyStateChangeResult(
-        vault: Vault,
-        fileName: String,
-        originalText: String,
-        originalHeadline: OrgHeadline,
-        result: StateChangeResult,
-        plainMessage: String?,
-        syncReason: String,
-    ) {
-        when (result) {
-            is StateChangeResult.Plain -> {
-                trackViewedLine(result.doc, originalHeadline)
-                _state.value = DocumentUiState.Loaded(fileName, result.doc)
-                vault.save(fileName, result.text)
-                if (plainMessage != null) showToast(plainMessage)
-            }
-            is StateChangeResult.Archived -> {
-                undoSnapshot = UndoSnapshot(
-                    if (result.sourceFile == result.destFile) {
-                        listOf(result.sourceFile to originalText)
-                    } else {
-                        listOf(fileName to originalText, result.destFile to result.destTextBefore)
-                    }
-                )
-                _focusedLine.value = null
-                _state.value = DocumentUiState.Loaded(fileName, result.sourceDoc)
-                vault.save(fileName, result.sourceText)
-                if (result.destFile != fileName) vault.save(result.destFile, result.destText)
-                showSnack("Marked done. Refiled to ${result.label}")
-            }
-        }
-        app.syncManager.requestSync(syncReason)
-    }
-
-    /**
      * Swipe-right quick action: set the TODO state to exactly the keyword the
      * user picked from the state sheet (null = clear it). Picking a done-type
      * keyword applies full org-todo "mark done" semantics: a repeating
@@ -515,40 +432,49 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
      * drops that stamp, via [OrgMutations.changeKeyword], so marking a task
      * done/reopening it from the outline behaves the same as from the metadata
      * sheet, Search's state sheet, or the agenda swipe.
-     *
-     * [deferArchive] is true for read mode's own metadata sheet, marking
-     * *this screen's* note: the keyword still saves immediately, but the
-     * refile waits until the note-route lifecycle observer in
-     * [com.rrajath.grove.ui.GroveApp] sees the user actually leave, so the
-     * screen doesn't navigate/re-point out from under them mid-read.
      */
-    fun setState(headline: OrgHeadline, keyword: String?, deferArchive: Boolean = false) {
+    fun setState(headline: OrgHeadline, keyword: String?) {
         val loaded = _state.value as? DocumentUiState.Loaded ?: return
         val vault = app.vault.value ?: return
         if (headline.keyword == keyword) return
         viewModelScope.launch {
             val settings = app.settingsRepository.settings.first()
-            val result = AutoArchive.apply(
-                vault, settings, loaded.document, loaded.fileName, headline, keyword, LocalDateTime.now(),
-                allowArchive = !deferArchive,
-            )
-            applyStateChangeResult(
-                vault, loaded.fileName, loaded.document.text, headline, result,
-                "State → ${keyword ?: "none"}", "state set",
-            )
+            when (
+                val result = AutoArchive.apply(
+                    vault, settings, loaded.document, loaded.fileName, headline, keyword, LocalDateTime.now(),
+                )
+            ) {
+                is StateChangeResult.Plain -> {
+                    _state.value = DocumentUiState.Loaded(loaded.fileName, result.doc)
+                    vault.save(loaded.fileName, result.text)
+                    app.syncManager.requestSync("state set")
+                    showToast("State → ${keyword ?: "none"}")
+                }
+                is StateChangeResult.Archived -> {
+                    undoSnapshot = UndoSnapshot(
+                        if (result.sourceFile == result.destFile) {
+                            listOf(result.sourceFile to loaded.document.text)
+                        } else {
+                            listOf(loaded.fileName to loaded.document.text, result.destFile to result.destTextBefore)
+                        }
+                    )
+                    _focusedLine.value = null
+                    _state.value = DocumentUiState.Loaded(loaded.fileName, result.sourceDoc)
+                    vault.save(loaded.fileName, result.sourceText)
+                    if (result.destFile != loaded.fileName) vault.save(result.destFile, result.destText)
+                    app.syncManager.requestSync("state set")
+                    showSnack("Marked done. Refiled to ${result.label}")
+                }
+            }
         }
     }
 
     /**
      * Read mode: tap a checklist item to cycle its box through [states].
      * [lineIndex] is absolute into the document (a [BlockParser.ListItem]'s
-     * body-relative line plus the owning headline's `bodyStart`). If the
-     * checkbox's owning heading carries a `[/]`/`[%]` cookie, refreshes it and,
-     * once every item is checked, marks that heading done too (deferring the
-     * archive exactly like [setState] when the owner is the note currently on
-     * screen, i.e. [viewedLineIndex]).
+     * body-relative line plus the owning headline's `bodyStart`).
      */
-    fun toggleChecklistItem(lineIndex: Int, states: List<Char>, viewedLineIndex: Int) {
+    fun toggleChecklistItem(lineIndex: Int, states: List<Char>) {
         val loaded = _state.value as? DocumentUiState.Loaded ?: return
         val vault = app.vault.value ?: return
         viewModelScope.launch {
@@ -558,36 +484,9 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
             val newDoc = withContext(Dispatchers.Default) {
                 OrgParser.parse(newText, loaded.document.keywords)
             }
-            val owner = newDoc.enclosingHeadline(lineIndex)
-            val cookie = owner?.let { OrgMutations.refreshHeadingCookie(newDoc, it) }
-            if (cookie == null) {
-                _state.value = DocumentUiState.Loaded(loaded.fileName, newDoc)
-                vault.save(loaded.fileName, newText)
-                app.syncManager.requestSync("checklist toggled")
-                return@launch
-            }
-            val cookieDoc = if (cookie.text == newText) newDoc else withContext(Dispatchers.Default) {
-                OrgParser.parse(cookie.text, newDoc.keywords)
-            }
-            val cookieHeadline = cookieDoc.headlines.firstOrNull { it.lineIndex == owner.lineIndex }
-            val doneKeyword = cookieDoc.keywords.done.firstOrNull()
-            val shouldComplete = cookie.complete && cookieHeadline != null && cookieHeadline.keyword != null &&
-                !cookieDoc.keywords.isDone(cookieHeadline.keyword) && doneKeyword != null
-            if (!shouldComplete) {
-                _state.value = DocumentUiState.Loaded(loaded.fileName, cookieDoc)
-                vault.save(loaded.fileName, cookie.text)
-                app.syncManager.requestSync("checklist toggled")
-                return@launch
-            }
-            val settings = app.settingsRepository.settings.first()
-            val result = AutoArchive.apply(
-                vault, settings, cookieDoc, loaded.fileName, cookieHeadline, doneKeyword, LocalDateTime.now(),
-                allowArchive = owner.lineIndex != viewedLineIndex,
-            )
-            val viewedHeadline = loaded.document.headlineAtLine(viewedLineIndex) ?: cookieHeadline
-            applyStateChangeResult(
-                vault, loaded.fileName, loaded.document.text, viewedHeadline, result, null, "checklist toggled",
-            )
+            _state.value = DocumentUiState.Loaded(loaded.fileName, newDoc)
+            vault.save(loaded.fileName, newText)
+            app.syncManager.requestSync("checklist toggled")
         }
     }
 
@@ -902,11 +801,6 @@ data class NoteRef(val fileName: String, val lineIndex: Int) {
 
 fun OrgDocument.headlineAtLine(lineIndex: Int): OrgHeadline? =
     headlines.firstOrNull { it.lineIndex == lineIndex }
-
-/** The headline whose own body (not a descendant's) contains [lineIndex] — the nearest
- *  enclosing heading for an arbitrary body line, e.g. a checklist item's line. */
-fun OrgDocument.enclosingHeadline(lineIndex: Int): OrgHeadline? =
-    headlines.lastOrNull { it.lineIndex <= lineIndex }
 
 internal fun <T : ViewModel> factory(create: (GroveApplication) -> T) =
     object : ViewModelProvider.Factory {
