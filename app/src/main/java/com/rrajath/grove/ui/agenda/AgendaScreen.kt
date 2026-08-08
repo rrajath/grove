@@ -44,7 +44,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.vectorResource
@@ -128,6 +127,7 @@ fun AgendaScreen(
                 day = state.headerDay,
                 date = state.headerDate,
                 todayCount = state.todayCount,
+                leversOpen = state.leversOpen,
                 onBack = onBack,
                 onToggleLevers = viewModel::toggleLevers,
             )
@@ -135,7 +135,7 @@ fun AgendaScreen(
             AgendaTabs(
                 tab = state.tab,
                 onSelect = viewModel::setTab,
-                modifier = Modifier.padding(start = 14.dp, top = 11.dp, end = 14.dp),
+                modifier = Modifier.padding(start = 14.dp, top = 11.dp, end = 14.dp, bottom = 14.dp),
             )
 
             if (state.leversOpen) {
@@ -215,6 +215,7 @@ private fun AgendaHeader(
     day: String,
     date: String,
     todayCount: Int,
+    leversOpen: Boolean,
     onBack: () -> Unit,
     onToggleLevers: () -> Unit,
 ) {
@@ -247,11 +248,13 @@ private fun AgendaHeader(
             Modifier
                 .size(36.dp)
                 .clip(RoundedCornerShape(11.dp))
-                .background(c.surface2)
+                // Tinted accent while open, so the toggle itself shows the levers
+                // panel can be tapped shut again, not just its own panel appearing.
+                .background(if (leversOpen) c.accentSoft else c.surface2)
                 .clickable(onClick = onToggleLevers),
             contentAlignment = Alignment.Center,
         ) {
-            Text("⇅", fontFamily = PlexSans, fontSize = 15.sp, color = c.ink2)
+            Text("⇅", fontFamily = PlexSans, fontSize = 15.sp, color = if (leversOpen) c.accent else c.ink2)
         }
     }
 }
@@ -261,11 +264,9 @@ private fun AgendaHeader(
  * prototype's agenda tabs raise the active option on a `surface` card rather
  * than filling it with `accent`.
  *
- * The card alone is nearly invisible on the dark themes: an elevation shadow
- * has almost no contrast to cast against `surface2`, so the active option also
- * carries a 1dp `accent` border, and inactive labels drop to `ink3` to widen the
- * gap. That keeps the "raised card, not filled pill" character while still
- * reading as selected on every theme.
+ * The active option is marked by a plain `surface3` fill (one step darker than
+ * the bar's own `surface2`) with no outline or shadow, so it reads as
+ * "selected" through color contrast alone rather than a border.
  */
 @Composable
 private fun AgendaTabs(
@@ -287,13 +288,8 @@ private fun AgendaTabs(
             Box(
                 Modifier
                     .weight(1f)
-                    .then(if (active) Modifier.shadow(2.dp, RoundedCornerShape(8.dp)) else Modifier)
                     .clip(RoundedCornerShape(8.dp))
-                    .background(if (active) c.surface else Color.Transparent)
-                    .then(
-                        if (active) Modifier.border(1.dp, c.accent, RoundedCornerShape(8.dp))
-                        else Modifier
-                    )
+                    .background(if (active) c.surface3 else Color.Transparent)
                     .clickable { onSelect(value) }
                     .padding(horizontal = 4.dp, vertical = 7.dp),
                 contentAlignment = Alignment.Center,

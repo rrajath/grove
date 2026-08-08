@@ -284,6 +284,12 @@ private fun TagsColonRow(tags: List<String>, onRemove: (String) -> Unit) {
     }
 }
 
+/**
+ * [fg] always paints the label, active or not, so a done-type keyword (green)
+ * reads the same as its badge everywhere else in the app (Outline rows, Search
+ * results, Agenda rows); the active chip additionally gets the filled [bg] and
+ * bold weight to mark it as the current selection.
+ */
 @Composable
 private fun StateChip(
     label: String,
@@ -305,7 +311,7 @@ private fun StateChip(
             fontFamily = PlexMono,
             fontWeight = if (active) FontWeight.Bold else FontWeight.Normal,
             fontSize = 12.sp,
-            color = if (active) fg else c.ink2,
+            color = fg,
             // A long keyword must keep its chip on one line; FlowRow wraps chips,
             // never their labels.
             maxLines = 1,

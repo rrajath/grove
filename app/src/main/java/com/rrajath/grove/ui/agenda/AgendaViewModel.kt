@@ -179,9 +179,14 @@ class AgendaViewModel(private val app: GroveApplication) : ViewModel() {
         recompute()
     }
 
-    fun setGrouping(grouping: AgendaGrouping) = persist { it.setAgendaGrouping(grouping) }
+    /** Writes whichever tab is currently showing, so Today and Upcoming keep independent choices. */
+    fun setGrouping(grouping: AgendaGrouping) = persist {
+        if (tab == AgendaTab.TODAY) it.setAgendaGroupingToday(grouping) else it.setAgendaGroupingUpcoming(grouping)
+    }
 
-    fun setStateFilter(filter: AgendaStateFilter) = persist { it.setAgendaStateFilter(filter) }
+    fun setStateFilter(filter: AgendaStateFilter) = persist {
+        if (tab == AgendaTab.TODAY) it.setAgendaStateFilterToday(filter) else it.setAgendaStateFilterUpcoming(filter)
+    }
 
     fun setShowTags(show: Boolean) = persist { it.setAgendaShowTags(show) }
 
@@ -212,10 +217,16 @@ class AgendaViewModel(private val app: GroveApplication) : ViewModel() {
         val today = LocalDate.now()
         val p = prefs
         val active = keywords.active
+        val isTodayTab = tab == AgendaTab.TODAY
+        // Each tab keeps its own grouping and state filter (Settings § Agenda
+        // levers), so changing one on Today never re-buckets or re-filters
+        // Upcoming, and vice versa.
+        val grouping = if (isTodayTab) p.agendaGroupingToday else p.agendaGroupingUpcoming
+        val rawFilter = if (isTodayTab) p.agendaStateFilterToday else p.agendaStateFilterUpcoming
         // A persisted keyword filter can outlive the keyword itself (the user
         // edited todoKeywords); fall back rather than showing an empty list
         // with no chip selected.
-        val filter = p.agendaStateFilter
+        val filter = rawFilter
             .takeUnless { it is AgendaStateFilter.Keyword && it.name !in active }
             ?: AgendaStateFilter.Open
         val visible = matched.filter { AgendaBuckets.keep(it, filter) }
@@ -224,11 +235,10 @@ class AgendaViewModel(private val app: GroveApplication) : ViewModel() {
         val overdueItems = AgendaBuckets.overdue(visible, today)
         val futureItems = AgendaBuckets.upcoming(visible, today, windowDays)
 
-        val isTodayTab = tab == AgendaTab.TODAY
         val list = if (isTodayTab) todayItems else futureItems
         // Date grouping already puts the day in the section header; every other
         // grouping mixes days together, so the rows have to carry it themselves.
-        val showDate = p.agendaGrouping != AgendaGrouping.DATE && !isTodayTab
+        val showDate = grouping != AgendaGrouping.DATE && !isTodayTab
 
         return AgendaUiState(
             headerDay = today.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.ENGLISH),
@@ -238,9 +248,9 @@ class AgendaViewModel(private val app: GroveApplication) : ViewModel() {
             leversOpen = leversOpen,
             overdueOpen = overdueOpen,
             overdue = overdueItems.map { row(it, today, showDate = true, p = p) },
-            groups = AgendaBuckets.group(list, today, p.agendaGrouping, isTodayTab)
+            groups = AgendaBuckets.group(list, today, grouping, isTodayTab)
                 .map { b -> AgendaGroup(b.key, b.notes.size, b.notes.map { row(it, today, showDate, p) }) },
-            grouping = p.agendaGrouping,
+            grouping = grouping,
             stateFilter = filter,
             activeKeywords = active,
             showTags = p.agendaShowTags,

@@ -79,7 +79,13 @@ fun StatePickerSheet(
     }
 }
 
-/** Matches the metadata sheet's state chips so every picker reads as one control. */
+/**
+ * Matches the metadata sheet's state chips so every picker reads as one control.
+ * [fg] always paints the label, active or not, so a done-type keyword (green)
+ * reads the same as its badge everywhere else in the app (Outline rows, Search
+ * results, Agenda rows); the active chip additionally gets the filled [bg] and
+ * bold weight to mark it as the current selection.
+ */
 @Composable
 fun StateChip(label: String, active: Boolean, fg: Color, bg: Color, onClick: () -> Unit) {
     val c = MaterialTheme.grove
@@ -95,7 +101,7 @@ fun StateChip(label: String, active: Boolean, fg: Color, bg: Color, onClick: () 
             fontFamily = PlexMono,
             fontWeight = if (active) FontWeight.Bold else FontWeight.Normal,
             fontSize = 12.sp,
-            color = if (active) fg else c.ink2,
+            color = fg,
             // FlowRow wraps chips; a long keyword must not wrap inside its own chip.
             maxLines = 1,
             softWrap = false,

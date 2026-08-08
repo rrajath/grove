@@ -37,6 +37,10 @@ class SettingsSerializationTest {
         reminderLeadTime = ReminderLeadTime.MIN_15,
         agendaSwipeLeftAction = AgendaSwipeAction.MARK_DONE,
         agendaSwipeRightAction = AgendaSwipeAction.SET_DEADLINE,
+        agendaGroupingToday = AgendaGrouping.PRIORITY,
+        agendaGroupingUpcoming = AgendaGrouping.TAG,
+        agendaStateFilterToday = AgendaStateFilter.Keyword("NEXT"),
+        agendaStateFilterUpcoming = AgendaStateFilter.All,
         agendaWidgetTransparency = 0.35f,
         agendaWidgetDaysAhead = 21,
         autoArchiveDoneItems = true,
@@ -83,6 +87,10 @@ class SettingsSerializationTest {
         assertEquals(sample.reminderLeadTime, restored.reminderLeadTime)
         assertEquals(sample.agendaSwipeLeftAction, restored.agendaSwipeLeftAction)
         assertEquals(sample.agendaSwipeRightAction, restored.agendaSwipeRightAction)
+        assertEquals(sample.agendaGroupingToday, restored.agendaGroupingToday)
+        assertEquals(sample.agendaGroupingUpcoming, restored.agendaGroupingUpcoming)
+        assertEquals(sample.agendaStateFilterToday, restored.agendaStateFilterToday)
+        assertEquals(sample.agendaStateFilterUpcoming, restored.agendaStateFilterUpcoming)
         assertEquals(sample.agendaWidgetTransparency, restored.agendaWidgetTransparency)
         assertEquals(sample.agendaWidgetDaysAhead, restored.agendaWidgetDaysAhead)
         assertEquals(sample.autoArchiveDoneItems, restored.autoArchiveDoneItems)

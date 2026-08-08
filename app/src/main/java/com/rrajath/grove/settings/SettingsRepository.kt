@@ -81,9 +81,14 @@ data class GroveSettings(
     /** Agenda row swipe-left/swipe-right gestures (Settings § Agenda). */
     val agendaSwipeLeftAction: AgendaSwipeAction = AgendaSwipeAction.MARK_DONE,
     val agendaSwipeRightAction: AgendaSwipeAction = AgendaSwipeAction.SET_SCHEDULED,
-    // Agenda levers panel: sticky across visits, unlike the Today/Upcoming tab.
-    val agendaGrouping: AgendaGrouping = AgendaGrouping.DATE,
-    val agendaStateFilter: AgendaStateFilter = AgendaStateFilter.Open,
+    // Agenda levers panel: sticky across visits, unlike the Today/Upcoming tab
+    // itself. Tracked separately per tab so picking e.g. "Tag" grouping while on
+    // Today doesn't silently re-bucket Upcoming (and vice versa) — each tab
+    // remembers its own choice, with Upcoming's own default staying "Date".
+    val agendaGroupingToday: AgendaGrouping = AgendaGrouping.DATE,
+    val agendaGroupingUpcoming: AgendaGrouping = AgendaGrouping.DATE,
+    val agendaStateFilterToday: AgendaStateFilter = AgendaStateFilter.Open,
+    val agendaStateFilterUpcoming: AgendaStateFilter = AgendaStateFilter.Open,
     val agendaShowTags: Boolean = true,
     val agendaShowFile: Boolean = false,
     /** Agenda ledger home-screen widget background transparency: 0 = opaque, 1 = fully transparent. */
@@ -139,8 +144,10 @@ class SettingsRepository(private val context: Context) {
         val reminderLeadTime = stringPreferencesKey("reminder_lead_time")
         val agendaSwipeLeftAction = stringPreferencesKey("agenda_swipe_left_action")
         val agendaSwipeRightAction = stringPreferencesKey("agenda_swipe_right_action")
-        val agendaGrouping = stringPreferencesKey("agenda_grouping")
-        val agendaStateFilter = stringPreferencesKey("agenda_state_filter")
+        val agendaGroupingToday = stringPreferencesKey("agenda_grouping_today")
+        val agendaGroupingUpcoming = stringPreferencesKey("agenda_grouping_upcoming")
+        val agendaStateFilterToday = stringPreferencesKey("agenda_state_filter_today")
+        val agendaStateFilterUpcoming = stringPreferencesKey("agenda_state_filter_upcoming")
         val agendaShowTags = booleanPreferencesKey("agenda_show_tags")
         val agendaShowFile = booleanPreferencesKey("agenda_show_file")
         val agendaWidgetTransparency = floatPreferencesKey("agenda_widget_transparency")
@@ -190,8 +197,10 @@ class SettingsRepository(private val context: Context) {
             agendaSwipeRightAction = AgendaSwipeAction.fromStorage(
                 prefs[Keys.agendaSwipeRightAction], AgendaSwipeAction.SET_SCHEDULED
             ),
-            agendaGrouping = AgendaGrouping.fromStorage(prefs[Keys.agendaGrouping]),
-            agendaStateFilter = AgendaStateFilter.fromStorage(prefs[Keys.agendaStateFilter]),
+            agendaGroupingToday = AgendaGrouping.fromStorage(prefs[Keys.agendaGroupingToday]),
+            agendaGroupingUpcoming = AgendaGrouping.fromStorage(prefs[Keys.agendaGroupingUpcoming]),
+            agendaStateFilterToday = AgendaStateFilter.fromStorage(prefs[Keys.agendaStateFilterToday]),
+            agendaStateFilterUpcoming = AgendaStateFilter.fromStorage(prefs[Keys.agendaStateFilterUpcoming]),
             agendaShowTags = prefs[Keys.agendaShowTags] ?: true,
             agendaShowFile = prefs[Keys.agendaShowFile] ?: false,
             agendaWidgetTransparency = prefs[Keys.agendaWidgetTransparency] ?: 0f,
@@ -259,8 +268,10 @@ class SettingsRepository(private val context: Context) {
             p[Keys.reminderLeadTime] = s.reminderLeadTime.storageKey
             p[Keys.agendaSwipeLeftAction] = s.agendaSwipeLeftAction.storageKey
             p[Keys.agendaSwipeRightAction] = s.agendaSwipeRightAction.storageKey
-            p[Keys.agendaGrouping] = s.agendaGrouping.storageKey
-            p[Keys.agendaStateFilter] = s.agendaStateFilter.storageKey
+            p[Keys.agendaGroupingToday] = s.agendaGroupingToday.storageKey
+            p[Keys.agendaGroupingUpcoming] = s.agendaGroupingUpcoming.storageKey
+            p[Keys.agendaStateFilterToday] = s.agendaStateFilterToday.storageKey
+            p[Keys.agendaStateFilterUpcoming] = s.agendaStateFilterUpcoming.storageKey
             p[Keys.agendaShowTags] = s.agendaShowTags
             p[Keys.agendaShowFile] = s.agendaShowFile
             p[Keys.agendaWidgetTransparency] = s.agendaWidgetTransparency
@@ -390,12 +401,20 @@ class SettingsRepository(private val context: Context) {
         context.settingsDataStore.edit { it[Keys.agendaSwipeRightAction] = action.storageKey }
     }
 
-    suspend fun setAgendaGrouping(grouping: AgendaGrouping) {
-        context.settingsDataStore.edit { it[Keys.agendaGrouping] = grouping.storageKey }
+    suspend fun setAgendaGroupingToday(grouping: AgendaGrouping) {
+        context.settingsDataStore.edit { it[Keys.agendaGroupingToday] = grouping.storageKey }
     }
 
-    suspend fun setAgendaStateFilter(filter: AgendaStateFilter) {
-        context.settingsDataStore.edit { it[Keys.agendaStateFilter] = filter.storageKey }
+    suspend fun setAgendaGroupingUpcoming(grouping: AgendaGrouping) {
+        context.settingsDataStore.edit { it[Keys.agendaGroupingUpcoming] = grouping.storageKey }
+    }
+
+    suspend fun setAgendaStateFilterToday(filter: AgendaStateFilter) {
+        context.settingsDataStore.edit { it[Keys.agendaStateFilterToday] = filter.storageKey }
+    }
+
+    suspend fun setAgendaStateFilterUpcoming(filter: AgendaStateFilter) {
+        context.settingsDataStore.edit { it[Keys.agendaStateFilterUpcoming] = filter.storageKey }
     }
 
     suspend fun setAgendaShowTags(show: Boolean) {

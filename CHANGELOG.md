@@ -28,6 +28,21 @@ updated and push.
 
 ## [Unreleased]
 
+### Fixed
+- The metadata sheet's and the state-change sheet's (swipe reveal row "state" action) keyword
+  chips now always tint by done/active state, not just the currently-selected chip, matching the
+  keyword badges shown everywhere else in the app (Outline rows, Search results, Agenda rows)
+- The Agenda screen's Today/Upcoming tabs now have proper spacing below them; the overdue card and
+  list no longer sit flush against the tab bar
+- The Agenda screen's Group by and Show (state) levers are now tracked separately for the Today and
+  Upcoming tabs; changing one no longer silently re-buckets or re-filters the other tab, and
+  Upcoming still defaults to grouping by date
+
+### Changed
+- The Agenda screen's selected Today/Upcoming tab is now marked with a plain darker fill instead of
+  an accent-colored outline
+- The Agenda screen's ⇅ levers button now highlights with an accent tint while its panel is open
+
 ## [1.0.234] - 2026-08-07
 
 ### Added
