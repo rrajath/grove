@@ -28,6 +28,8 @@ updated and push.
 
 ## [Unreleased]
 
+## [1.0.236] - 2026-08-08
+
 ### Fixed
 - The metadata sheet's and the state-change sheet's (swipe reveal row "state" action) keyword
   chips now always tint by done/active state, not just the currently-selected chip, matching the
