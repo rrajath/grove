@@ -60,6 +60,11 @@ updated and push.
 - Refiling a note out from under the Read-mode or Editor screen now waits for the move to
   actually land (and its undo window to close) before leaving, instead of navigating away the
   instant the picker closed — which risked cancelling the refile's file write mid-flight
+- Fixed a cold-start race where the very first sync after launching the app (most likely right
+  after an update) could index some notebooks before the persisted TODO keyword config had
+  finished loading, silently falling back to the default keywords and leaving custom keywords
+  (e.g. a user-defined `KILL` state) unrecognized and unhighlighted in the agenda until the next
+  full reindex
 
 ## [1.0.240] - 2026-08-10
 

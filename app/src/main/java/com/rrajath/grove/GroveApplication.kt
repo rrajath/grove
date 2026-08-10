@@ -182,6 +182,18 @@ class GroveApplication : Application() {
         }
 
         appScope.launch {
+            // Wait for a real settings read before wiring up sync triggers.
+            // [fileStore] and [keywords] are independent `stateIn` flows each
+            // doing their own async DataStore read; without this wait,
+            // [syncManager.attach] can fire (and index every notebook) while
+            // [keywords] is still on its `OrgKeywords.DEFAULT` seed, baking a
+            // wrong `keyword`/`isDone` into Room for any custom TODO keyword
+            // until the next full reindex. DataStore caches the loaded
+            // Preferences in memory after this first read, so [keywords]'s own
+            // subscription (triggered lazily below, inside the sync this
+            // `attach` kicks off) picks up the real value on a cache hit
+            // instead of racing a fresh disk read.
+            settingsRepository.settings.first()
             fileStore.collect { syncManager.attach(it) }
         }
         appScope.launch {
