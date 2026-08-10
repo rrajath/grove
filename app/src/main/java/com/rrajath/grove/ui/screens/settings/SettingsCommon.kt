@@ -23,6 +23,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -49,11 +50,15 @@ internal fun SettingsPageScaffold(
     content: @Composable () -> Unit,
 ) {
     val c = MaterialTheme.grove
+    val focusManager = LocalFocusManager.current
     Scaffold(
         containerColor = c.bg,
         topBar = {
             GroveTopBar(
-                leading = { IconGlyph("←", onClick = onBack) },
+                // A focused field's cursor/selection handle lives in its own Popup, outside this
+                // page's exit transition — clear focus before navigating so it doesn't hang in
+                // place over the previous screen while this page fades out from under it.
+                leading = { IconGlyph("←", onClick = { focusManager.clearFocus(force = true); onBack() }) },
                 title = {
                     Text(
                         title,

@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -63,6 +64,7 @@ fun MetadataSheet(
     onSetTags: (List<String>) -> Unit,
     onSetPlanningDates: (OrgTimestamp?, OrgTimestamp?) -> Unit,
     onAddNote: (String) -> Unit,
+    onRefile: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     val c = MaterialTheme.grove
@@ -207,15 +209,26 @@ fun MetadataSheet(
             )
 
             Spacer(Modifier.height(16.dp))
-            Text(
-                "+ Add note",
-                fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
-                fontSize = 13.sp, color = c.accent,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .clickable { noteDialogOpen = true }
-                    .padding(vertical = 6.dp),
-            )
+            Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+                Text(
+                    "+ Add note",
+                    fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
+                    fontSize = 13.sp, color = c.accent,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable { noteDialogOpen = true }
+                        .padding(vertical = 6.dp),
+                )
+                Text(
+                    "→ Refile",
+                    fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
+                    fontSize = 13.sp, color = c.accent,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable(onClick = onRefile)
+                        .padding(vertical = 6.dp),
+                )
+            }
         }
     }
 

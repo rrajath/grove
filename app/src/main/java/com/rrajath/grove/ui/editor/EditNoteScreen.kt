@@ -61,10 +61,14 @@ import com.rrajath.grove.ui.components.GroveUndoSnackbar
 import com.rrajath.grove.ui.components.ScrollJumpButtons
 import com.rrajath.grove.ui.components.SegmentedControl
 import com.rrajath.grove.ui.screens.IconGlyph
+import com.rrajath.grove.ui.screens.RefileSheet
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
+import com.rrajath.grove.ui.vault.DocumentUiState
+import com.rrajath.grove.ui.vault.DocumentViewModel
 import com.rrajath.grove.ui.vault.NoteRef
+import com.rrajath.grove.ui.vault.headlineAtLine
 import kotlinx.coroutines.delay
 import java.time.LocalTime
 
@@ -91,6 +95,7 @@ fun EditNoteScreen(
     var confirmLeave by remember { mutableStateOf(false) }
     var confirmDiscardBlankHeading by remember { mutableStateOf(false) }
     var showEmptyHeadingAlert by remember { mutableStateOf(false) }
+    var confirmRefile by remember { mutableStateOf(false) }
     // Timestamp of the most recent save (auto or manual), shown as a tappable
     // save (floppy) icon in the top bar: green + tap-to-save-now while dirty,
     // grey + tap-for-last-saved-toast once clean.
@@ -135,6 +140,45 @@ fun EditNoteScreen(
         }
     }
     androidx.activity.compose.BackHandler { leave() }
+
+    // Refile is a disk-level move-between-files operation; the editor only holds an in-memory
+    // buffer until Save. A dedicated DocumentViewModel drives the refile picker itself (that
+    // state machine works against a loaded on-disk document, not this screen's buffer) once the
+    // buffer has been flushed to disk.
+    val refileViewModel: DocumentViewModel = viewModel(factory = DocumentViewModel.Factory)
+    val refileDocState by refileViewModel.state.collectAsStateWithLifecycle()
+    val refileState by refileViewModel.refile.collectAsStateWithLifecycle()
+    val refileSnack by refileViewModel.snack.collectAsStateWithLifecycle()
+    var refileTarget by remember { mutableStateOf<Pair<String, Int>?>(null) }
+    LaunchedEffect(refileDocState, refileTarget) {
+        val target = refileTarget ?: return@LaunchedEffect
+        val loaded = refileDocState as? DocumentUiState.Loaded ?: return@LaunchedEffect
+        if (loaded.fileName != target.first) return@LaunchedEffect
+        refileTarget = null
+        loaded.document.headlineAtLine(target.second)?.let(refileViewModel::startRefile)
+    }
+    // Set on a completed move (refileConfirm/refileToArchive/refileToLastUsed), not a plain
+    // cancel/back-out. The move itself (file write + the "Refiled to X" snack) runs async in
+    // refileViewModel.viewModelScope *after* `refile` is already nulled out to close the sheet,
+    // so this can't just watch `refile`: leaving immediately would pop this screen's back-stack
+    // entry — and with it refileViewModel's scope — out from under that still-in-flight
+    // coroutine. Instead it waits for the snack this move ends with to actually appear and then
+    // clear, which both guarantees the write has landed and gives the user the undo window this
+    // screen closing shouldn't cut short. A tap on Undo restores this note at its original
+    // fileName/lineIndex, which the buffer this screen is editing still targets, so it clears
+    // the flag instead of leaving.
+    var refileAwaitingLeave by remember { mutableStateOf(false) }
+    var refileSnackSeen by remember { mutableStateOf(false) }
+    LaunchedEffect(refileSnack) {
+        if (!refileAwaitingLeave) return@LaunchedEffect
+        if (refileSnack != null) {
+            refileSnackSeen = true
+        } else if (refileSnackSeen) {
+            refileAwaitingLeave = false
+            refileSnackSeen = false
+            leave()
+        }
+    }
 
     LaunchedEffect(noteRef) { viewModel.load(noteRef) }
     LaunchedEffect(state.loading) {
@@ -305,6 +349,18 @@ fun EditNoteScreen(
                     onUndo = viewModel::undo,
                     modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 16.dp),
                 )
+                GroveUndoSnackbar(
+                    snack = refileSnack,
+                    onUndo = {
+                        // Restores this note at its original fileName/lineIndex, which the
+                        // buffer this screen is editing still targets, so the pending
+                        // auto-leave from the move this snack belongs to must not fire.
+                        refileAwaitingLeave = false
+                        refileSnackSeen = false
+                        refileViewModel.undo()
+                    },
+                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 16.dp),
+                )
             }
             EditorToolbar(
                 onWrap = { marker -> textState.applyEdit { wrapSelection(it, marker) } },
@@ -337,7 +393,62 @@ fun EditNoteScreen(
             onSetTags = viewModel::setTags,
             onSetPlanningDates = viewModel::setPlanningDates,
             onAddNote = viewModel::addNote,
+            onRefile = {
+                metadataOpen = false
+                confirmRefile = true
+            },
             onDismiss = { metadataOpen = false },
+        )
+    }
+
+    if (confirmRefile) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { confirmRefile = false },
+            containerColor = c.surface,
+            title = {
+                Text(
+                    "Refile this note?",
+                    fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
+                    fontSize = 16.sp, color = c.ink,
+                )
+            },
+            text = {
+                Text(
+                    "The note will be saved in its current state and refiled to the location you choose.",
+                    fontFamily = PlexSans, fontSize = 14.sp, color = c.ink2,
+                )
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    confirmRefile = false
+                    trySave {
+                        val s = viewModel.state.value
+                        refileTarget = s.fileName to s.lineIndex
+                        refileViewModel.load(s.fileName)
+                    }
+                }) { Text("Continue", color = c.accent, fontWeight = FontWeight.SemiBold) }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { confirmRefile = false }) {
+                    Text("Cancel", color = c.ink2)
+                }
+            },
+        )
+    }
+
+    refileState?.let { refile ->
+        val doc = (refileDocState as? DocumentUiState.Loaded)?.document
+        RefileSheet(
+            state = refile,
+            currentFileName = state.fileName,
+            currentDoc = doc,
+            onPickNotebook = refileViewModel::refilePickNotebook,
+            onDrillInto = refileViewModel::refileDrillInto,
+            onBack = refileViewModel::refileBack,
+            onCancel = refileViewModel::refileCancel,
+            onConfirm = { refileAwaitingLeave = true; refileViewModel.refileConfirm() },
+            onArchive = { refileAwaitingLeave = true; refileViewModel.refileToArchive() },
+            onPickLastUsed = { refileAwaitingLeave = true; refileViewModel.refileToLastUsed() },
         )
     }
 

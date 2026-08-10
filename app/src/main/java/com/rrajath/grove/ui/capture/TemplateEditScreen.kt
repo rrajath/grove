@@ -1,9 +1,7 @@
 package com.rrajath.grove.ui.capture
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -13,7 +11,6 @@ import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
@@ -28,14 +25,13 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
@@ -47,6 +43,7 @@ import com.rrajath.grove.capture.FilenameValidation
 import com.rrajath.grove.capture.PlaceholderExpander
 import com.rrajath.grove.capture.TargetLocation
 import com.rrajath.grove.ui.components.GroveTopBar
+import com.rrajath.grove.ui.components.NotebookFileField
 import com.rrajath.grove.ui.components.SegmentedControl
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
@@ -72,6 +69,11 @@ fun TemplateEditScreen(
     viewModel: TemplatesViewModel = viewModel(factory = TemplatesViewModel.Factory),
 ) {
     val c = MaterialTheme.grove
+    val focusManager = LocalFocusManager.current
+    // A focused OutlinedTextField's cursor/selection handle renders in its own Popup, which
+    // isn't part of this screen's exit transition — without clearing focus first, it hangs in
+    // place over the previous screen while this composable fades out from under it.
+    val leave: () -> Unit = { focusManager.clearFocus(force = true); onBack() }
     val templates by viewModel.templates.collectAsStateWithLifecycle()
     val notebooks by viewModel.notebooks.collectAsStateWithLifecycle()
     val existing = templates.firstOrNull { it.id == templateId }
@@ -79,13 +81,6 @@ fun TemplateEditScreen(
     var name by remember(existing) { mutableStateOf(existing?.name ?: "") }
     var icon by remember(existing) { mutableStateOf(existing?.icon ?: "✶") }
     var targetFile by remember(existing) { mutableStateOf(existing?.targetFile ?: "inbox.org") }
-    var targetFileMenuOpen by remember { mutableStateOf(false) }
-    val filteredNotebooks by remember(notebooks) {
-        derivedStateOf {
-            if (targetFile.isBlank()) notebooks
-            else notebooks.filter { it.contains(targetFile, ignoreCase = true) }
-        }
-    }
     val targetFileError = FilenameValidation.errorFor(targetFile)
     var locationIdx by remember(existing) {
         mutableStateOf(existing?.location?.let { locationIndex(it) } ?: 1)
@@ -121,7 +116,7 @@ fun TemplateEditScreen(
                     Box(
                         Modifier
                             .clip(RoundedCornerShape(10.dp))
-                            .clickable(onClick = onBack)
+                            .clickable(onClick = leave)
                             .padding(12.dp),
                     ) { Text("←", fontFamily = PlexMono, fontSize = 18.sp, color = c.ink) }
                 },
@@ -148,7 +143,7 @@ fun TemplateEditScreen(
                                         template = templateText,
                                     )
                                 )
-                                onBack()
+                                leave()
                             }
                             .padding(horizontal = 16.dp, vertical = 9.dp),
                     ) {
@@ -180,69 +175,18 @@ fun TemplateEditScreen(
                 OutlinedTextField(
                     value = name, onValueChange = { name = it },
                     singleLine = true, modifier = Modifier.weight(1f),
-                    placeholder = { Text("Meeting Note", color = c.ink3) },
+                    textStyle = TextStyle(fontFamily = PlexSans),
+                    placeholder = { Text("Meeting Note", fontFamily = PlexSans, color = c.ink3) },
                 )
             }
 
             FieldLabel("Target file")
-            OutlinedTextField(
+            NotebookFileField(
                 value = targetFile,
-                onValueChange = { targetFile = it; targetFileMenuOpen = true },
-                singleLine = true,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .onFocusChanged { state ->
-                        targetFileMenuOpen = state.isFocused
-                    },
-                isError = targetFileError != null,
-                supportingText = {
-                    if (targetFileError != null) {
-                        Text(targetFileError, color = c.red, fontFamily = PlexSans, fontSize = 12.sp)
-                    }
-                },
-                textStyle = TextStyle(fontFamily = PlexMono),
-                placeholder = { Text("notebook.org", fontFamily = PlexMono, color = c.ink3) },
-                trailingIcon = {
-                    Text(
-                        "▾", fontFamily = PlexMono, fontSize = 16.sp, color = c.ink2,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .clickable { targetFileMenuOpen = !targetFileMenuOpen }
-                            .padding(8.dp),
-                    )
-                },
+                onValueChange = { targetFile = it },
+                notebooks = notebooks,
+                modifier = Modifier.fillMaxWidth(),
             )
-            // An inline expanding list (DropdownPicker's chrome) rather than a DropdownMenu
-            // popup: a popup overlaps the field it's anchored to instead of pushing content
-            // below it, and being focusable by default it also steals the IME away from the
-            // field on every keystroke as the suggestion list recomposes.
-            AnimatedVisibility(targetFileMenuOpen && filteredNotebooks.isNotEmpty()) {
-                Column(
-                    Modifier
-                        .padding(top = 6.dp)
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(13.dp))
-                        .background(c.surface2)
-                        .padding(6.dp)
-                        .heightIn(max = 176.dp)
-                        .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(2.dp),
-                ) {
-                    filteredNotebooks.forEach { nb ->
-                        Text(
-                            nb, fontFamily = PlexMono, fontSize = 13.5.sp, color = c.ink,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(9.dp))
-                                .clickable {
-                                    targetFile = nb
-                                    targetFileMenuOpen = false
-                                }
-                                .padding(horizontal = 10.dp, vertical = 10.dp),
-                        )
-                    }
-                }
-            }
 
             FieldLabel("Insert at")
             Column {
@@ -284,7 +228,8 @@ fun TemplateEditScreen(
                 OutlinedTextField(
                     value = headingTitle, onValueChange = { headingTitle = it },
                     singleLine = true, modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("…or exact heading name", color = c.ink3) },
+                    textStyle = TextStyle(fontFamily = PlexSans),
+                    placeholder = { Text("…or exact heading name", fontFamily = PlexSans, color = c.ink3) },
                 )
             }
 

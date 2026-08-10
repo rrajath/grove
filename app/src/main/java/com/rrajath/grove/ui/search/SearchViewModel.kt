@@ -144,7 +144,7 @@ data class SearchCatalog(
     val notebooks: List<String> = emptyList(),
 )
 
-data class QuickCounts(val overdue: Int = 0, val today: Int = 0, val openTasks: Int = 0)
+data class QuickCounts(val overdue: Int = 0, val today: Int = 0, val openTasks: Int = 0, val unscheduled: Int = 0)
 
 data class SearchUiState(
     val query: String = "",
@@ -694,11 +694,14 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
         }
         val dueToday = notes.count { it.scheduledDate == today || it.deadlineDate == today }
         val openTasks = notes.count { it.keyword != null && !it.isDone }
+        val unscheduled = notes.count {
+            it.keyword != null && !it.isDone && it.scheduledDate == null && it.deadlineDate == null
+        }
         vaultNoteCount = notes.size
         vaultNotebookCount = notebooks.size
         _state.value = _state.value.copy(
             catalog = SearchCatalog(tags, states, notebooks),
-            quickCounts = QuickCounts(overdue, dueToday, openTasks),
+            quickCounts = QuickCounts(overdue, dueToday, openTasks, unscheduled),
             activeStates = keywords.active,
         )
     }

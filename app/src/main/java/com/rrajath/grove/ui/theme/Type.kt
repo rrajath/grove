@@ -39,6 +39,11 @@ val PlexMono = FontFamily(
 fun groveTypography(scale: Float = 1f): Typography {
     fun sz(v: Double) = (v * scale).sp
     return Typography(
+        // Display Large: M3 TimePicker digit dials fall back to this if unset,
+        // which otherwise renders in the platform default font, not Plex.
+        displayLarge = TextStyle(
+            fontFamily = PlexSans, fontWeight = FontWeight.Normal, fontSize = sz(57.0),
+        ),
         // Display: app name on onboarding (30sp / 600)
         displaySmall = TextStyle(
             fontFamily = PlexSans, fontWeight = FontWeight.SemiBold, fontSize = sz(30.0),

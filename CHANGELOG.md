@@ -28,6 +28,37 @@ updated and push.
 
 ## [Unreleased]
 
+### Added
+- Metadata bottom sheet: a "Refile" option next to "Add note". In Read mode it opens the Refile
+  picker directly; in the Editor it first confirms ("this note will be saved and refiled to the
+  location you choose"), saves the buffer, then opens the picker against the saved file
+- A completed refile from the metadata sheet now shows the same "Refiled to X" snackbar (with
+  Undo) as refiling from the Outline view
+
+### Changed
+- Agenda's swipe-left/swipe-right dropdowns now only offer Mark as Done and Schedule Task; Set
+  Deadline is no longer selectable there (still supported if set via an older settings export)
+- Settings › Sharing's target-file field is now the same notebook-autocomplete field (with
+  inline filename validation) used by the capture-template editor's Target file field, instead of
+  a plain, unvalidated text field
+- Search's "Browse tags" quick-start card is now "Unscheduled": it filters to open TODOs with
+  neither a scheduled date nor a deadline, using a live count like the other quick-start cards
+- Search's quick-start cards now use real Material icons at a consistent size instead of
+  text-glyph icons that rendered at mismatched sizes
+- Search's saved-search star now aligns with the title line instead of centering against both
+  lines
+
+### Fixed
+- The time picker's digits, the capture template editor's Name field, and its Heading name field
+  (including their placeholder text) now use the app's UI font instead of silently falling back
+  to the read-mode serif font
+- The text-selection teardrop handle no longer hangs over the previous screen, still blinking,
+  when navigating back out of a settings page (or the capture template editor) while a text field
+  is focused
+- Refiling a note out from under the Read-mode or Editor screen now waits for the move to
+  actually land (and its undo window to close) before leaving, instead of navigating away the
+  instant the picker closed — which risked cancelling the refile's file write mid-flight
+
 ## [1.0.240] - 2026-08-10
 
 ### Changed

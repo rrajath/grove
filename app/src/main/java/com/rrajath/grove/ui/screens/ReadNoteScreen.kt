@@ -79,6 +79,7 @@ import com.rrajath.grove.ui.components.CollapsibleKvSection
 import com.rrajath.grove.ui.components.CollapsibleLogSection
 import com.rrajath.grove.ui.components.FavoriteStar
 import com.rrajath.grove.ui.components.GroveTopBar
+import com.rrajath.grove.ui.components.GroveUndoSnackbar
 import com.rrajath.grove.ui.editor.MetadataSheet
 import com.rrajath.grove.ui.components.Pill
 import com.rrajath.grove.ui.components.SegmentedControl
@@ -126,7 +127,30 @@ fun ReadNoteScreen(
     val c = MaterialTheme.grove
     val state by viewModel.state.collectAsStateWithLifecycle()
     val allTags by viewModel.allTags.collectAsStateWithLifecycle()
+    val refileState by viewModel.refile.collectAsStateWithLifecycle()
+    val snack by viewModel.snack.collectAsStateWithLifecycle()
     var metadataOpen by remember { mutableStateOf(false) }
+    // Set on a completed move (refileConfirm/refileToArchive/refileToLastUsed), not a plain
+    // cancel/back-out. The move itself (file write + the "Refiled to X" snack) runs async in
+    // viewModel.viewModelScope *after* `refile` is already nulled out to close the sheet, so
+    // this can't just watch `refile`: leaving immediately would pop this screen's back-stack
+    // entry — and with it viewModel's scope — out from under that still-in-flight coroutine.
+    // Instead it waits for the snack this move ends with to actually appear and then clear,
+    // which both guarantees the write has landed and gives the user the undo window this
+    // screen closing shouldn't cut short. A tap on Undo restores this exact note in place
+    // (same fileName/lineIndex), so it clears the flag instead of leaving.
+    var refileAwaitingLeave by remember { mutableStateOf(false) }
+    var refileSnackSeen by remember { mutableStateOf(false) }
+    LaunchedEffect(snack) {
+        if (!refileAwaitingLeave) return@LaunchedEffect
+        if (snack != null) {
+            refileSnackSeen = true
+        } else if (refileSnackSeen) {
+            refileAwaitingLeave = false
+            refileSnackSeen = false
+            onBack()
+        }
+    }
     val currentHeadline = (state as? DocumentUiState.Loaded)?.document?.headlineAtLine(noteRef.lineIndex)
     // Reload whenever the screen comes back to the foreground (e.g. returning
     // from the editor) so saved edits show immediately.
@@ -175,6 +199,7 @@ fun ReadNoteScreen(
             )
         },
     ) { padding ->
+        Box(Modifier.fillMaxSize()) {
         when (val s = state) {
             is DocumentUiState.Loading -> {}
             is DocumentUiState.Error -> Box(
@@ -228,6 +253,21 @@ fun ReadNoteScreen(
                 }
             }
         }
+        GroveUndoSnackbar(
+            snack = snack,
+            onUndo = {
+                // Restores this exact note (same fileName/lineIndex) in place, so the
+                // pending auto-leave from the move this snack belongs to must not fire.
+                refileAwaitingLeave = false
+                refileSnackSeen = false
+                viewModel.undo()
+            },
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(padding)
+                .padding(bottom = 16.dp),
+        )
+        }
     }
 
     if (metadataOpen) {
@@ -243,9 +283,26 @@ fun ReadNoteScreen(
                 onSetTags = { tags -> viewModel.setTags(headline, tags) },
                 onSetPlanningDates = { sched, dead -> viewModel.setPlanningDates(headline, sched, dead) },
                 onAddNote = { note -> viewModel.addNote(headline, note) },
+                onRefile = { metadataOpen = false; viewModel.startRefile(headline) },
                 onDismiss = { metadataOpen = false },
             )
         }
+    }
+
+    refileState?.let { refile ->
+        val doc = (state as? DocumentUiState.Loaded)?.document
+        RefileSheet(
+            state = refile,
+            currentFileName = noteRef.fileName,
+            currentDoc = doc,
+            onPickNotebook = viewModel::refilePickNotebook,
+            onDrillInto = viewModel::refileDrillInto,
+            onBack = viewModel::refileBack,
+            onCancel = viewModel::refileCancel,
+            onConfirm = { refileAwaitingLeave = true; viewModel.refileConfirm() },
+            onArchive = { refileAwaitingLeave = true; viewModel.refileToArchive() },
+            onPickLastUsed = { refileAwaitingLeave = true; viewModel.refileToLastUsed() },
+        )
     }
 }
 

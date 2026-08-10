@@ -32,8 +32,13 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
+import androidx.compose.material.icons.filled.EventBusy
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material.icons.filled.PriorityHigh
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -104,7 +109,7 @@ private val OPERATOR_CHIPS = listOf(
 
 /** Quick-start card labels (see [BlankState]), included in the star button's
  *  searchable dropdown alongside actual saved searches. */
-private val QUICK_START_NAMES = listOf("Overdue", "Today", "Open tasks", "Browse tags")
+private val QUICK_START_NAMES = listOf("Overdue", "Today", "Open tasks", "Unscheduled")
 
 /** Full-text + faceted search, results grouped by file (design spec §9
  *  "Search B: panel"). Finding a specific note; for upcoming/overdue browsing
@@ -252,7 +257,6 @@ fun SearchScreen(
                         savedSearches = savedSearches,
                         onQuick = viewModel::applyQuickFilter,
                         onQuickQuery = viewModel::applyQuickQuery,
-                        onOpenTags = { filterPanelOpen = true },
                         onSavedTap = viewModel::submit,
                         onRenameSaved = viewModel::renameSavedSearch,
                         onDeleteSaved = viewModel::deleteSavedSearch,
@@ -583,7 +587,7 @@ private fun NoResultsState(onOpenFilters: () -> Unit) {
 }
 
 private data class QuickCard(
-    val icon: String,
+    val icon: ImageVector,
     val label: String,
     val meta: String,
     val fg: Color,
@@ -598,7 +602,6 @@ private fun BlankState(
     savedSearches: List<SavedSearch>,
     onQuick: (SearchFilters) -> Unit,
     onQuickQuery: (String) -> Unit,
-    onOpenTags: () -> Unit,
     onSavedTap: (String) -> Unit,
     onRenameSaved: (id: String, name: String) -> Unit,
     onDeleteSaved: (id: String) -> Unit,
@@ -611,7 +614,7 @@ private fun BlankState(
         // drives the query text directly. Equivalent to
         // "(i.KW1 OR i.KW2 OR …) AND (s.overdue OR d.overdue)", expanded into
         // the grammar's flat OR-of-AND-groups since it has no parens.
-        QuickCard("!", "Overdue", "${quickCounts.overdue} past their date", c.red, c.redSoft) {
+        QuickCard(Icons.Filled.PriorityHigh, "Overdue", "${quickCounts.overdue} past their date", c.red, c.redSoft) {
             val expr = if (activeStates.isEmpty()) {
                 "s.overdue OR d.overdue"
             } else {
@@ -619,17 +622,23 @@ private fun BlankState(
             }
             onQuickQuery(expr)
         },
-        QuickCard("◷", "Today", "${quickCounts.today} scheduled or due", c.amber, c.amberSoft) {
+        QuickCard(Icons.Filled.Schedule, "Today", "${quickCounts.today} scheduled or due", c.amber, c.amberSoft) {
             onQuick(SearchFilters(scheduled = DatePreset.TODAY))
         },
         QuickCard(
-            "□", "Open tasks",
+            Icons.Filled.CheckBoxOutlineBlank, "Open tasks",
             "${quickCounts.openTasks} ${if (quickCounts.openTasks == 1) "TODO item" else "TODO items"}",
             c.blue, c.blueSoft,
         ) {
             onQuick(SearchFilters(states = activeStates.toSet()))
         },
-        QuickCard("#", "Browse tags", "Tap to filter by tag", c.synTag, c.accentSoft, onOpenTags),
+        QuickCard(
+            Icons.Filled.EventBusy, "Unscheduled",
+            "${quickCounts.unscheduled} without a date",
+            c.synTag, c.accentSoft,
+        ) {
+            onQuick(SearchFilters(states = activeStates.toSet(), scheduled = DatePreset.NO_DATE, deadline = DatePreset.NO_DATE))
+        },
     )
     var menuTarget by remember { mutableStateOf<SavedSearch?>(null) }
     var renameTarget by remember { mutableStateOf<SavedSearch?>(null) }
@@ -666,7 +675,10 @@ private fun BlankState(
                                 onLongClick = { menuTarget = saved },
                             )
                             .padding(horizontal = 12.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
+                        // Top, not CenterVertically: centering against the whole two-line
+                        // Column (title + query) sinks the star between the lines instead of
+                        // level with the title.
+                        verticalAlignment = Alignment.Top,
                     ) {
                         Text("★", fontSize = 14.sp, color = c.accent)
                         Spacer(Modifier.width(11.dp))
@@ -744,7 +756,7 @@ private fun QuickCardView(card: QuickCard, modifier: Modifier = Modifier) {
             Modifier.size(30.dp).clip(RoundedCornerShape(9.dp)).background(card.bg),
             contentAlignment = Alignment.Center,
         ) {
-            Text(card.icon, fontFamily = PlexMono, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = card.fg)
+            Icon(card.icon, contentDescription = null, tint = card.fg, modifier = Modifier.size(16.dp))
         }
         Text(
             card.label, fontFamily = PlexSans, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = c.ink,

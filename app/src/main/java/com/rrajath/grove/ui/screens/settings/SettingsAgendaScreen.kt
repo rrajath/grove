@@ -34,6 +34,12 @@ import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
 import kotlin.math.roundToInt
 
+/**
+ * Only these two are offered from the swipe-action pickers below; [AgendaSwipeAction.SET_DEADLINE]
+ * stays a valid stored value (an older export can still carry it) but is no longer user-selectable.
+ */
+private val SWIPE_ACTION_OPTIONS = listOf(AgendaSwipeAction.MARK_DONE, AgendaSwipeAction.SET_SCHEDULED)
+
 /** Settings § Agenda. */
 @Composable
 fun SettingsAgendaScreen(
@@ -60,9 +66,9 @@ fun SettingsAgendaScreen(
                     modifier = Modifier.padding(bottom = 10.dp),
                 )
                 DropdownPicker(
-                    options = AgendaSwipeAction.entries.map { it.label },
-                    selectedIndex = settings.agendaSwipeLeftAction.ordinal,
-                    onSelect = { onSetAgendaSwipeLeftAction(AgendaSwipeAction.entries[it]) },
+                    options = SWIPE_ACTION_OPTIONS.map { it.label },
+                    selectedIndex = SWIPE_ACTION_OPTIONS.indexOf(settings.agendaSwipeLeftAction).coerceAtLeast(0),
+                    onSelect = { onSetAgendaSwipeLeftAction(SWIPE_ACTION_OPTIONS[it]) },
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
@@ -80,9 +86,9 @@ fun SettingsAgendaScreen(
                     modifier = Modifier.padding(bottom = 10.dp),
                 )
                 DropdownPicker(
-                    options = AgendaSwipeAction.entries.map { it.label },
-                    selectedIndex = settings.agendaSwipeRightAction.ordinal,
-                    onSelect = { onSetAgendaSwipeRightAction(AgendaSwipeAction.entries[it]) },
+                    options = SWIPE_ACTION_OPTIONS.map { it.label },
+                    selectedIndex = SWIPE_ACTION_OPTIONS.indexOf(settings.agendaSwipeRightAction).coerceAtLeast(0),
+                    onSelect = { onSetAgendaSwipeRightAction(SWIPE_ACTION_OPTIONS[it]) },
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
