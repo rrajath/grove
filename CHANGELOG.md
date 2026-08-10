@@ -28,6 +28,8 @@ updated and push.
 
 ## [Unreleased]
 
+## [1.0.240] - 2026-08-10
+
 ### Changed
 - Removed the Synthwave, Nord, and Dracula themes (and their app-icon variants)
 - The theme dropdown's active-theme checkmark and the outline screen's overflow-menu toggles now
