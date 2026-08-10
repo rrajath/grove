@@ -28,6 +28,8 @@ updated and push.
 
 ## [Unreleased]
 
+## [1.0.245] - 2026-08-10
+
 ### Fixed
 - Fixed a cold-start race where the very first sync after launching the app (most likely right
   after an update) could index some notebooks before the persisted TODO keyword config had
