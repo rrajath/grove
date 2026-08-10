@@ -28,6 +28,8 @@ updated and push.
 
 ## [Unreleased]
 
+## [1.0.242] - 2026-08-10
+
 ### Added
 - Metadata bottom sheet: a "Refile" option next to "Add note". In Read mode it opens the Refile
   picker directly; in the Editor it first confirms ("this note will be saved and refiled to the
