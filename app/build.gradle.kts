@@ -6,8 +6,6 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
-
-    id("io.sentry.android.gradle") version "6.14.0"
 }
 
 // Version is derived from git at build time: nothing is hardcoded or written
@@ -53,15 +51,6 @@ abstract class CopyChangelogTask : org.gradle.api.DefaultTask() {
         inputFile.get().asFile.copyTo(File(dest, "CHANGELOG.md"), overwrite = true)
     }
 }
-
-// The release string the Sentry SDK reports at runtime (crash/event "release"
-// tag). Kept identical to the GitHub Release tag (see
-// .github/workflows/build.yml, which tags "v$semanticVersion") so a Sentry
-// issue's release always resolves to a real, findable GitHub Release. The
-// Sentry Android Gradle plugin has no env-var hook for this (unlike its JS/
-// fastlane counterparts); the only override point is this manifest
-// placeholder, consumed by the io.sentry.release meta-data below.
-val sentryRelease = "v$semanticVersion"
 
 // Release signing comes from the environment (CI secrets). We validate the
 // keystore and alias up front so a missing or misconfigured secret degrades to
@@ -113,7 +102,6 @@ android {
         targetSdk = 36
         versionCode = gitCommitCount
         versionName = semanticVersion
-        manifestPlaceholders["sentryRelease"] = sentryRelease
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -221,20 +209,4 @@ dependencies {
 // truth: `./gradlew -q printVersionName` → "1.0.123".
 tasks.register("printVersionName") {
     doLast { println(semanticVersion) }
-}
-
-// Upload tasks need SENTRY_AUTH_TOKEN (sentry-cli reads it from the
-// environment). It's absent for fork PRs and local builds without
-// sentry.properties, so uploads are disabled rather than failing the build.
-val hasSentryAuthToken = (System.getenv("SENTRY_AUTH_TOKEN")?.isNotBlank() == true) ||
-    rootProject.file("sentry.properties").exists()
-
-sentry {
-    org.set("rajath-ramakrishna")
-    projectName.set("grove")
-
-    // this will upload your source code to Sentry to show it as part of the stack traces
-    // disable if you don't want to expose your sources
-    includeSourceContext.set(hasSentryAuthToken)
-    autoUploadProguardMapping.set(hasSentryAuthToken)
 }

@@ -185,34 +185,6 @@
         </activity-alias>
 
         <activity-alias
-            android:name=".IconSynthwave"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/ic_launcher_synthwave"
-            android:roundIcon="@mipmap/ic_launcher_synthwave_round"
-            android:label="@string/app_name"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity-alias>
-
-        <activity-alias
-            android:name=".IconDracula"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/ic_launcher_dracula"
-            android:roundIcon="@mipmap/ic_launcher_dracula_round"
-            android:label="@string/app_name"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity-alias>
-
-        <activity-alias
             android:name=".IconCatppuccin"
             android:enabled="false"
             android:exported="true"
@@ -232,20 +204,6 @@
             android:exported="true"
             android:icon="@mipmap/ic_launcher_catppuccinlatte"
             android:roundIcon="@mipmap/ic_launcher_catppuccinlatte_round"
-            android:label="@string/app_name"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity-alias>
-
-        <activity-alias
-            android:name=".IconNord"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/ic_launcher_nord"
-            android:roundIcon="@mipmap/ic_launcher_nord_round"
             android:label="@string/app_name"
             android:targetActivity=".MainActivity">
             <intent-filter>
@@ -340,22 +298,6 @@
             </intent-filter>
         </receiver>
 
-    <!-- Required: set your sentry.io project identifier (DSN) -->
-    <meta-data android:name="io.sentry.dsn" android:value="https://22613e1316854dcc4634e34bd7964521@o4504759805476864.ingest.us.sentry.io/4511700837138432" />
-
-    <!-- set up releases -->
-    <meta-data android:name="io.sentry.release" android:value="${sentryRelease}" />
-    <!-- set up sentry session tracking -->
-    <meta-data android:name="io.sentry.session-tracking.timeout-interval-millis" android:value="60000" />
-    <!-- enable automatic breadcrumbs for user interactions (clicks, swipes, scrolls) -->
-    <meta-data android:name="io.sentry.traces.user-interaction.enable" android:value="true" />
-    <!-- enable screenshot for crashes (could contain sensitive/PII data) -->
-    <meta-data android:name="io.sentry.attach-screenshot" android:value="true" />
-    <!-- enable view hierarchy for crashes -->
-    <meta-data android:name="io.sentry.attach-view-hierarchy" android:value="true" />
-
-    <!-- enable the performance API by setting a sample-rate, adjust in production env -->
-    <meta-data android:name="io.sentry.traces.sample-rate" android:value="1.0" />
 </application>
 
 </manifest>

@@ -247,11 +247,8 @@ private val ThemeSwatches = listOf(
     ThemeSwatch(ThemePreference.TOKYODAY, "Tokyo Day", Color(0xFFE1E2E7), Color(0xFF3760BF), listOf(Color(0xFF2E7DE9), Color(0xFF9854F1), Color(0xFF587539))),
     // Dark
     ThemeSwatch(ThemePreference.CATPPUCCIN, "Catppuccin Mocha", Color(0xFF1E1E2E), Color(0xFFCDD6F4), listOf(Color(0xFFCBA6F7), Color(0xFFF38BA8), Color(0xFFA6E3A1))),
-    ThemeSwatch(ThemePreference.DRACULA, "Dracula", Color(0xFF282A36), Color(0xFFF8F8F2), listOf(Color(0xFFBD93F9), Color(0xFFFF79C6), Color(0xFF50FA7B))),
     ThemeSwatch(ThemePreference.DARK, "Grove Dark", Color(0xFF201C15), Color(0xFFECE4D5), listOf(Color(0xFFCB9D62), Color(0xFF8FB46A), Color(0xFF7FB0C4))),
-    ThemeSwatch(ThemePreference.NORD, "Nord", Color(0xFF2E3440), Color(0xFFECEFF4), listOf(Color(0xFF88C0D0), Color(0xFFA3BE8C), Color(0xFFB48EAD))),
     ThemeSwatch(ThemePreference.ROSEPINEMOON, "Rosé Pine Moon", Color(0xFF232136), Color(0xFFE0DEF4), listOf(Color(0xFFEA9A97), Color(0xFF3E8FB0), Color(0xFF9CCFD8))),
-    ThemeSwatch(ThemePreference.SYNTHWAVE, "Synthwave", Color(0xFF262335), Color(0xFFF8F8F2), listOf(Color(0xFFFF7EDB), Color(0xFF03EDF9), Color(0xFFFEDE5D))),
     ThemeSwatch(ThemePreference.TOKYONIGHT, "Tokyo Night", Color(0xFF1A1B26), Color(0xFFC0CAF5), listOf(Color(0xFF7AA2F7), Color(0xFFBB9AF7), Color(0xFF7DCFFF))),
 )
 
@@ -352,11 +349,11 @@ private fun ThemeDropdownRow(swatch: ThemeSwatch, active: Boolean, onClick: () -
             modifier = Modifier.weight(1f),
         )
         if (active) {
-            Text(
-                "✓",
-                color = swatch.dots[0],
-                fontWeight = FontWeight.Bold,
-                fontSize = 15.sp,
+            Icon(
+                Icons.Default.Check,
+                contentDescription = null,
+                tint = swatch.dots[0],
+                modifier = Modifier.size(15.dp),
             )
         }
     }

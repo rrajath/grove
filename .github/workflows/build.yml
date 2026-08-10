@@ -47,11 +47,6 @@ jobs:
         run: ./gradlew testDebugUnitTest
 
       # Computed once here and reused for the GitHub Release tag/title below.
-      # build.gradle.kts derives versionName and the Sentry release
-      # (io.sentry.release manifest placeholder) from the same git commit
-      # count independently, so all three agree without needing to thread a
-      # value through the build step — the Sentry Android Gradle plugin has
-      # no env-var hook to receive one.
       - name: Compute version
         run: |
           set -euo pipefail
@@ -72,10 +67,6 @@ jobs:
           SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
           SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
           SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
-          # Read by the Sentry Gradle plugin's upload tasks (proguard mappings,
-          # source bundle). sentry.properties is gitignored and never present
-          # in CI, so auth must come from the environment instead.
-          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
         run: ./gradlew assembleDebug assembleRelease
 
       - name: Upload debug APK
@@ -120,9 +111,7 @@ jobs:
 
       # Publish a GitHub Release with both APKs, but only when there was
       # something under Unreleased to publish. The tag is "v$VERSION" — the
-      # same VERSION computed above and the same format build.gradle.kts uses
-      # for the Sentry release — so GitHub and Sentry always agree on what a
-      # given build is called. Re-runs of the same commit re-upload the
+      # same VERSION computed above. Re-runs of the same commit re-upload the
       # assets instead of failing on an existing tag.
       - name: Publish GitHub Release
         if: github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && env.HAS_RELEASE == 'true'

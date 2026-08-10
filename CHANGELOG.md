@@ -28,6 +28,19 @@ updated and push.
 
 ## [Unreleased]
 
+### Changed
+- Removed the Synthwave, Nord, and Dracula themes (and their app-icon variants)
+- The theme dropdown's active-theme checkmark and the outline screen's overflow-menu toggles now
+  use real Material check/checkbox icons instead of raw "✓" text glyphs, matching the checkmark
+  style used elsewhere in the app (e.g. the notebooks list top bar's synced indicator)
+- Removed the Sentry crash-reporting integration entirely (Gradle plugin, manifest config, CI
+  upload step)
+
+### Fixed
+- Preface, properties-drawer, and logbook keys are now visibly colored in Grove Dark, Tokyo Day,
+  Catppuccin Latte, Rosé Pine Dawn, and Rosé Pine Moon — their key color had been left equal to
+  the body-text color, making keys blend into values
+
 ## [1.0.236] - 2026-08-08
 
 ### Fixed

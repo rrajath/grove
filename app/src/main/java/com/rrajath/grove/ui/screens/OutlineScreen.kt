@@ -26,6 +26,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckBox
+import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FormatIndentDecrease
 import androidx.compose.material.icons.filled.FormatIndentIncrease
@@ -310,8 +312,15 @@ fun OutlineScreen(
                                     androidx.compose.material3.DropdownMenuItem(
                                         text = {
                                             Text(
-                                                (if (value) "✓ " else "   ") + label,
+                                                label,
                                                 fontFamily = PlexSans, fontSize = 14.sp, color = c.ink,
+                                            )
+                                        },
+                                        leadingIcon = {
+                                            Icon(
+                                                if (value) Icons.Default.CheckBox else Icons.Default.CheckBoxOutlineBlank,
+                                                contentDescription = null,
+                                                tint = if (value) c.accent else c.ink3,
                                             )
                                         },
                                         onClick = { onToggleDisplay(toggle, !value) },

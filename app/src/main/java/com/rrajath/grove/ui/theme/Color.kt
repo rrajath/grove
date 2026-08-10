@@ -102,7 +102,7 @@ val GroveDarkColors = GroveColors(
     synStar = Color(0xFF8FB46A),
     synTodo = Color(0xFFD7A64F),
     synDone = Color(0xFF8FB46A),
-    synKw = Color(0xFFB4A98F),
+    synKw = Color(0xFFAD9BD1), // = violet; was ink2, indistinguishable from key/value text
     synTs = Color(0xFF7FB0C4),
     synTag = Color(0xFFCB9D62),
     synLink = Color(0xFF7FB0C4),
@@ -143,72 +143,6 @@ val GroveTokyoNightColors = GroveColors(
     isDark = true,
 )
 
-val GroveSynthwaveColors = GroveColors(
-    bg = Color(0xFF262335),
-    surface = Color(0xFF2A2140),
-    surface2 = Color(0xFF34294D),
-    surface3 = Color(0xFF3F3159),
-    ink = Color(0xFFF8F8F2),
-    ink2 = Color(0xFFC4B7E0),
-    ink3 = Color(0xFF8B7DAE),
-    line = Color(0xFF3A2F52),
-    line2 = Color(0xFF4A3D68),
-    accent = Color(0xFFFF7EDB),
-    accentInk = Color(0xFF1A1226),
-    accentSoft = Color(0x29FF7EDB), // 0.16
-    green = Color(0xFF72F1B8),
-    greenSoft = Color(0x2972F1B8), // 0.16
-    amber = Color(0xFFFEDE5D),
-    amberSoft = Color(0x29FEDE5D), // 0.16
-    red = Color(0xFFFE4450),
-    redSoft = Color(0x29FE4450), // 0.16
-    blue = Color(0xFF03EDF9),
-    blueSoft = Color(0x2903EDF9), // 0.16
-    violet = Color(0xFFB967FF), // no violet token in the design palette; derived to keep the star-color cycle distinct
-    synStar = Color(0xFFFEDE5D),
-    synTodo = Color(0xFFFF8B39),
-    synDone = Color(0xFF72F1B8),
-    synKw = Color(0xFFFF7EDB),
-    synTs = Color(0xFF03EDF9),
-    synTag = Color(0xFFFF7EDB),
-    synLink = Color(0xFF03EDF9),
-    synProp = Color(0xFF8B7DAE),
-    isDark = true,
-)
-
-val GroveDraculaColors = GroveColors(
-    bg = Color(0xFF282A36),
-    surface = Color(0xFF2D2F3D),
-    surface2 = Color(0xFF343746),
-    surface3 = Color(0xFF44475A),
-    ink = Color(0xFFF8F8F2),
-    ink2 = Color(0xFFC3C6D4),
-    ink3 = Color(0xFF6272A4),
-    line = Color(0xFF383B4A),
-    line2 = Color(0xFF44475A),
-    accent = Color(0xFFBD93F9),
-    accentInk = Color(0xFF21222C),
-    accentSoft = Color(0x29BD93F9), // 0.16
-    green = Color(0xFF50FA7B),
-    greenSoft = Color(0x2650FA7B), // 0.15
-    amber = Color(0xFFFFB86C),
-    amberSoft = Color(0x29FFB86C), // 0.16
-    red = Color(0xFFFF5555),
-    redSoft = Color(0x26FF5555), // 0.15
-    blue = Color(0xFF8BE9FD),
-    blueSoft = Color(0x298BE9FD), // 0.16
-    violet = Color(0xFFBD93F9),
-    synStar = Color(0xFFBD93F9),
-    synTodo = Color(0xFFFFB86C),
-    synDone = Color(0xFF50FA7B),
-    synKw = Color(0xFFFF79C6),
-    synTs = Color(0xFF8BE9FD),
-    synTag = Color(0xFF50FA7B),
-    synLink = Color(0xFF8BE9FD),
-    synProp = Color(0xFF6272A4),
-    isDark = true,
-)
-
 val GroveCatppuccinColors = GroveColors(
     bg = Color(0xFF1E1E2E),
     surface = Color(0xFF292A3D),
@@ -242,39 +176,6 @@ val GroveCatppuccinColors = GroveColors(
     isDark = true,
 )
 
-val GroveNordColors = GroveColors(
-    bg = Color(0xFF2E3440),
-    surface = Color(0xFF333B4A),
-    surface2 = Color(0xFF3B4252),
-    surface3 = Color(0xFF434C5E),
-    ink = Color(0xFFECEFF4),
-    ink2 = Color(0xFFD8DEE9),
-    ink3 = Color(0xFF7B88A1),
-    line = Color(0xFF3B4252),
-    line2 = Color(0xFF4C566A),
-    accent = Color(0xFF88C0D0),
-    accentInk = Color(0xFF2E3440),
-    accentSoft = Color(0x2E88C0D0), // 0.18
-    green = Color(0xFFA3BE8C),
-    greenSoft = Color(0x2BA3BE8C), // 0.17
-    amber = Color(0xFFEBCB8B),
-    amberSoft = Color(0x2BEBCB8B), // 0.17
-    red = Color(0xFFBF616A),
-    redSoft = Color(0x2BBF616A), // 0.17
-    blue = Color(0xFF81A1C1),
-    blueSoft = Color(0x2B81A1C1), // 0.17
-    violet = Color(0xFFB48EAD),
-    synStar = Color(0xFF88C0D0),
-    synTodo = Color(0xFFEBCB8B),
-    synDone = Color(0xFFA3BE8C),
-    synKw = Color(0xFF81A1C1),
-    synTs = Color(0xFF8FBCBB),
-    synTag = Color(0xFFB48EAD),
-    synLink = Color(0xFF88C0D0),
-    synProp = Color(0xFF7B88A1),
-    isDark = true,
-)
-
 val GroveTokyoDayColors = GroveColors(
     bg = Color(0xFFE1E2E7),
     surface = Color(0xFFEDEEF2),
@@ -300,7 +201,7 @@ val GroveTokyoDayColors = GroveColors(
     synStar = Color(0xFF9854F1),
     synTodo = Color(0xFFB15C00),
     synDone = Color(0xFF587539),
-    synKw = Color(0xFF5A638F),
+    synKw = Color(0xFF007197), // = blue; was ink2, indistinguishable from key/value text
     synTs = Color(0xFF007197),
     synTag = Color(0xFF2E7DE9),
     synLink = Color(0xFF007197),
@@ -333,7 +234,7 @@ val GroveCatppuccinLatteColors = GroveColors(
     synStar = Color(0xFF8839EF),
     synTodo = Color(0xFFDF8E1D),
     synDone = Color(0xFF40A02B),
-    synKw = Color(0xFF6C6F85),
+    synKw = Color(0xFF7287FD), // = violet; was ink2, indistinguishable from key/value text
     synTs = Color(0xFF1E66F5),
     synTag = Color(0xFF8839EF),
     synLink = Color(0xFF1E66F5),
@@ -366,7 +267,7 @@ val GroveRosePineDawnColors = GroveColors(
     synStar = Color(0xFF907AA9),
     synTodo = Color(0xFFEA9D34),
     synDone = Color(0xFF286983),
-    synKw = Color(0xFF797593),
+    synKw = Color(0xFF56949F), // = blue; was ink2, indistinguishable from key/value text
     synTs = Color(0xFF56949F),
     synTag = Color(0xFFD7827E),
     synLink = Color(0xFF56949F),
@@ -399,7 +300,7 @@ val GroveRosePineMoonColors = GroveColors(
     synStar = Color(0xFFC4A7E7),
     synTodo = Color(0xFFF6C177),
     synDone = Color(0xFF3E8FB0),
-    synKw = Color(0xFF908CAA),
+    synKw = Color(0xFF9CCFD8), // = blue; was ink2, indistinguishable from key/value text
     synTs = Color(0xFF9CCFD8),
     synTag = Color(0xFFEA9A97),
     synLink = Color(0xFF9CCFD8),

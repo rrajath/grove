@@ -53,11 +53,8 @@ fun groveColorsFor(theme: ThemePreference): GroveColors = when (theme) {
     ThemePreference.DARK -> GroveDarkColors
     ThemePreference.TOKYONIGHT -> GroveTokyoNightColors
     ThemePreference.TOKYODAY -> GroveTokyoDayColors
-    ThemePreference.SYNTHWAVE -> GroveSynthwaveColors
-    ThemePreference.DRACULA -> GroveDraculaColors
     ThemePreference.CATPPUCCIN -> GroveCatppuccinColors
     ThemePreference.CATPPUCCINLATTE -> GroveCatppuccinLatteColors
-    ThemePreference.NORD -> GroveNordColors
     ThemePreference.ROSEPINEDAWN -> GroveRosePineDawnColors
     ThemePreference.ROSEPINEMOON -> GroveRosePineMoonColors
 }

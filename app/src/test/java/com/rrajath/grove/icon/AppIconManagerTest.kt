@@ -19,10 +19,7 @@ class AppIconManagerTest {
         assertEquals(".IconLight", AppIconManager.targetAlias(enabled = true, theme = ThemePreference.LIGHT))
         assertEquals(".IconDark", AppIconManager.targetAlias(enabled = true, theme = ThemePreference.DARK))
         assertEquals(".IconTokyoNight", AppIconManager.targetAlias(enabled = true, theme = ThemePreference.TOKYONIGHT))
-        assertEquals(".IconSynthwave", AppIconManager.targetAlias(enabled = true, theme = ThemePreference.SYNTHWAVE))
-        assertEquals(".IconDracula", AppIconManager.targetAlias(enabled = true, theme = ThemePreference.DRACULA))
         assertEquals(".IconCatppuccin", AppIconManager.targetAlias(enabled = true, theme = ThemePreference.CATPPUCCIN))
-        assertEquals(".IconNord", AppIconManager.targetAlias(enabled = true, theme = ThemePreference.NORD))
     }
 
     @Test
@@ -34,8 +31,6 @@ class AppIconManagerTest {
         // On: the fill of the matching ic_launcher_foreground_* drawable.
         assertEquals(0xFF8A5A2B.toInt(), AppIconManager.markColor(enabled = true, theme = ThemePreference.LIGHT))
         assertEquals(0xFF7AA2F7.toInt(), AppIconManager.markColor(enabled = true, theme = ThemePreference.TOKYONIGHT))
-        assertEquals(0xFFBD93F9.toInt(), AppIconManager.markColor(enabled = true, theme = ThemePreference.DRACULA))
-        assertEquals(0xFF88C0D0.toInt(), AppIconManager.markColor(enabled = true, theme = ThemePreference.NORD))
     }
 
     @Test

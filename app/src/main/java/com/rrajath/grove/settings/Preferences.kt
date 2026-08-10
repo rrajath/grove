@@ -7,11 +7,8 @@ enum class ThemePreference(val storageKey: String) {
     DARK("dark"),
     TOKYONIGHT("tokyonight"),
     TOKYODAY("tokyoday"),
-    SYNTHWAVE("synthwave"),
-    DRACULA("dracula"),
     CATPPUCCIN("catppuccin"),
     CATPPUCCINLATTE("catppuccinlatte"),
-    NORD("nord"),
     ROSEPINEDAWN("rosepinedawn"),
     ROSEPINEMOON("rosepinemoon");
 

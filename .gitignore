@@ -17,8 +17,6 @@ local.properties
 *.keystore
 *.jks
 
-# Sentry Config File
-sentry.properties
 PROGRESS.md
 .understand-anything
 
