@@ -28,6 +28,8 @@ updated and push.
 
 ## [Unreleased]
 
+## [1.0.249] - 2026-08-11
+
 ### Changed
 - The planning calendar's "has items" marker (days some other note has a SCHEDULED/DEADLINE on)
   is now a bold, violet-tinted day number instead of a dot, matching how Emacs org-mode marks its
