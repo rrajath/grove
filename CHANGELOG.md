@@ -28,6 +28,20 @@ updated and push.
 
 ## [Unreleased]
 
+### Changed
+- The planning calendar's "has items" marker (days some other note has a SCHEDULED/DEADLINE on)
+  is now a bold, violet-tinted day number instead of a dot, matching how Emacs org-mode marks its
+  scheduling calendar; the "has items" legend swatch is gone since the coloring speaks for itself
+- The planning calendar no longer marks today with its own dot unless today itself is scheduled
+  or deadlined
+
+### Fixed
+- The planning calendar dialog's status and navigation bar icons no longer render light-on-light
+  in light themes; the dialog opens its own platform window that wasn't picking up the app's
+  theme-driven icon appearance
+- The Ledger widget's mark-done tap target is back to the visible ring's actual width instead of
+  the wider region that was compensating for an unrelated stale-render bug already fixed elsewhere
+
 ## [1.0.245] - 2026-08-10
 
 ### Fixed
