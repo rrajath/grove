@@ -250,10 +250,12 @@ private fun LedgerRow(context: Context, colors: GroveColors, row: AgendaRow) {
         modifier = GlanceModifier.fillMaxWidth().padding(horizontal = 13.dp, vertical = 8.dp),
         verticalAlignment = Alignment.Top,
     ) {
-        // Width folds in the 9dp gap that used to be a separate Spacer, so the
-        // clickable region is wider than the visible ring without shifting the
-        // title (the ring stays left-aligned at the same x it always rendered at).
-        val gutterModifier = GlanceModifier.height(LEDGER_LINE_HEIGHT).width(23.dp)
+        // Clickable region matches the visible 14dp ring exactly: widening it to
+        // 23dp (folding in the following spacer) used to compensate for a stale-
+        // render bug that made mark-done look unresponsive, but the real fix was
+        // the collectAsState move above, so the wider tap target just left the
+        // gutter's dead space between the ring and the title clickable too.
+        val gutterModifier = GlanceModifier.height(LEDGER_LINE_HEIGHT).width(14.dp)
         Box(
             modifier = if (row.keyword != null) {
                 gutterModifier.clickable(
@@ -267,7 +269,7 @@ private fun LedgerRow(context: Context, colors: GroveColors, row: AgendaRow) {
             } else {
                 gutterModifier
             },
-            contentAlignment = Alignment.CenterStart,
+            contentAlignment = Alignment.Center,
         ) {
             if (row.keyword != null) {
                 // No border() modifier in Glance 1.1.1: the "hollow ring" is faked
@@ -283,6 +285,7 @@ private fun LedgerRow(context: Context, colors: GroveColors, row: AgendaRow) {
                 }
             }
         }
+        Spacer(modifier = GlanceModifier.width(9.dp))
         Column(modifier = GlanceModifier.defaultWeight().clickable(actionStartActivity(openIntent))) {
             Row(verticalAlignment = Alignment.Top) {
                 if (row.keyword != null) {
