@@ -43,6 +43,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -57,7 +59,9 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLayoutResult
@@ -72,6 +76,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.DialogWindowProvider
+import androidx.core.view.WindowCompat
+import com.rrajath.grove.GroveApplication
 import com.rrajath.grove.org.DateShorthandParser
 import com.rrajath.grove.org.OrgTimestamp
 import com.rrajath.grove.org.PlanningKind
@@ -114,6 +121,21 @@ fun PlanningDatesScreen(
 ) {
     val c = MaterialTheme.grove
     val today = remember { LocalDate.now() }
+
+    // Every other note's SCHEDULED/DEADLINE day, so the calendar can mark days
+    // that already have something on them (mirrors Emacs org-mode's scheduling
+    // calendar) distinctly from this note's own dates, which get the full blue/
+    // red fill instead.
+    val app = LocalContext.current.applicationContext as GroveApplication
+    val plannedNotes by app.database.indexDao().plannedNotes().collectAsState(initial = emptyList())
+    val plannedDates = remember(plannedNotes) {
+        plannedNotes.flatMapTo(mutableSetOf()) { note ->
+            listOfNotNull(
+                note.scheduled?.let { OrgTimestamp.parse(it)?.date },
+                note.deadline?.let { OrgTimestamp.parse(it)?.date },
+            )
+        }
+    }
 
     var sched by remember { mutableStateOf(scheduled) }
     var dead by remember { mutableStateOf(deadline) }
@@ -176,6 +198,20 @@ fun PlanningDatesScreen(
             decorFitsSystemWindows = false,
         ),
     ) {
+        // This Dialog opens its own platform Window (decorFitsSystemWindows = false
+        // to go edge-to-edge), separate from the Activity window GroveTheme's
+        // SideEffect already styles — so the status/nav bar icon appearance has to
+        // be re-asserted here too, or it falls back to the platform default (light
+        // icons), unreadable over Grove's light-theme background.
+        val dialogView = LocalView.current
+        if (!dialogView.isInEditMode) {
+            SideEffect {
+                val window = (dialogView.parent as? DialogWindowProvider)?.window ?: return@SideEffect
+                val controller = WindowCompat.getInsetsController(window, dialogView)
+                controller.isAppearanceLightStatusBars = !c.isDark
+                controller.isAppearanceLightNavigationBars = !c.isDark
+            }
+        }
         Surface(Modifier.fillMaxSize(), color = c.bg) {
             Column(Modifier.fillMaxSize().safeDrawingPadding().imePadding()) {
 
@@ -263,6 +299,7 @@ fun PlanningDatesScreen(
                         today = today,
                         scheduled = sched?.date,
                         deadline = dead?.date,
+                        plannedDates = plannedDates,
                         activeLabel = if (isSched) "SCHEDULED" else "DEADLINE",
                         onPrev = { month = month.minusMonths(1) },
                         onNext = { month = month.plusMonths(1) },
@@ -463,6 +500,7 @@ private fun BothDatesCalendar(
     today: LocalDate,
     scheduled: LocalDate?,
     deadline: LocalDate?,
+    plannedDates: Set<LocalDate>,
     activeLabel: String,
     onPrev: () -> Unit,
     onNext: () -> Unit,
@@ -560,6 +598,7 @@ private fun BothDatesCalendar(
                                 isDeadline = date != null && date == deadline,
                                 inBand = date != null && bandStart != null && bandEnd != null &&
                                         date.isAfter(bandStart) && date.isBefore(bandEnd),
+                                hasPlanned = date != null && date in plannedDates,
                                 onPick = onPick,
                                 modifier = Modifier.weight(1f),
                             )
@@ -614,6 +653,7 @@ private fun DayCell(
     isScheduled: Boolean,
     isDeadline: Boolean,
     inBand: Boolean,
+    hasPlanned: Boolean,
     onPick: (LocalDate) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -637,7 +677,17 @@ private fun DayCell(
         isToday -> c.line2
         else -> Color.Transparent
     }
-    val ink = if (isScheduled || isDeadline) c.surface else c.ink
+    // Some other note has a SCHEDULED/DEADLINE this day; this note's own dates
+    // already get the full blue/red fill above, so this only ever applies to
+    // days that fill doesn't already cover. Emacs-style: tint the day number
+    // itself rather than a dot. No tint on today unless today itself is
+    // scheduled/deadlined.
+    val hasPlannedTint = hasPlanned && !isToday && !isScheduled && !isDeadline
+    val ink = when {
+        isScheduled || isDeadline -> c.surface
+        hasPlannedTint -> c.violet
+        else -> c.ink
+    }
 
     Box(
         modifier
@@ -651,18 +701,12 @@ private fun DayCell(
         Text(
             date.dayOfMonth.toString(),
             fontFamily = PlexMono, fontSize = 13.sp, color = ink,
-            fontWeight = if (isScheduled || isDeadline) FontWeight.SemiBold else FontWeight.Normal,
+            fontWeight = when {
+                isScheduled || isDeadline -> FontWeight.SemiBold
+                hasPlannedTint -> FontWeight.Bold
+                else -> FontWeight.Normal
+            },
         )
-        if (isToday && !isScheduled && !isDeadline) {
-            Box(
-                Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 5.dp)
-                    .size(4.dp)
-                    .clip(CircleShape)
-                    .background(c.accent),
-            )
-        }
     }
 }
 
