@@ -7,12 +7,13 @@ import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import com.rrajath.grove.org.LineEditing
+import com.rrajath.grove.org.OrgKeywords
 import com.rrajath.grove.org.TextEdit
 
 /**
  * Org-aware typing behaviour shared by the note editor and quick capture:
  * continues lists on Enter and capitalizes the first letter typed into a
- * heading.
+ * heading, including right after a TODO keyword (e.g. `"* TODO "`).
  *
  * An [InputTransformation] runs only for genuine user input (soft/hard
  * keyboard, paste, accessibility). Programmatic [TextFieldState.edit] writes
@@ -20,14 +21,14 @@ import com.rrajath.grove.org.TextEdit
  * rewrite) can never re-trigger list continuation on text that already has it.
  */
 @OptIn(ExperimentalFoundationApi::class)
-val OrgInputTransformation = InputTransformation {
+fun orgInputTransformation(keywords: OrgKeywords = OrgKeywords.DEFAULT) = InputTransformation {
     val old = originalText.toString()
     val typed = toString()
     val cursor = selection.start
 
     val afterList = if (insertedSoloNewlineAt(cursor)) LineEditing.continueListOnEnter(typed, cursor) else null
     val base = afterList ?: TextEdit(typed, cursor)
-    val result = LineEditing.capitalizeHeadingOnType(old, base.text, base.cursor) ?: base
+    val result = LineEditing.capitalizeHeadingOnType(old, base.text, base.cursor, keywords) ?: base
 
     if (result.text != typed || result.cursor != cursor) {
         replace(0, length, result.text)

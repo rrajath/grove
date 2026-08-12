@@ -277,4 +277,29 @@ class LineEditingTest {
     fun `a plain deletion is not treated as an insertion`() {
         assertNull(LineEditing.capitalizeHeadingOnType("* hello", "* hell", 6))
     }
+
+    @Test
+    fun `single key press capitalizes the first letter after a TODO keyword`() {
+        val edit = LineEditing.capitalizeHeadingOnType("* TODO ", "* TODO b", 8)!!
+        assertEquals("* TODO B", edit.text)
+        assertEquals(8, edit.cursor)
+    }
+
+    @Test
+    fun `swipe-typed word after a TODO keyword capitalizes too`() {
+        val edit = LineEditing.capitalizeHeadingOnType("* TODO ", "* TODO buy milk", 15)!!
+        assertEquals("* TODO Buy milk", edit.text)
+    }
+
+    @Test
+    fun `a custom keyword configuration is honored`() {
+        val keywords = OrgKeywords.parse("NEXT | DONE")
+        val edit = LineEditing.capitalizeHeadingOnType("* NEXT ", "* NEXT b", 8, keywords)!!
+        assertEquals("* NEXT B", edit.text)
+    }
+
+    @Test
+    fun `a keyword not in the configured list is not treated as empty heading content`() {
+        assertNull(LineEditing.capitalizeHeadingOnType("* NEXT ", "* NEXT b", 8))
+    }
 }

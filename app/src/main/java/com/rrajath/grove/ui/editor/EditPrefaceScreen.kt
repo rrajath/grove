@@ -207,7 +207,7 @@ fun EditPrefaceScreen(
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 BasicTextField(
                     state = textState,
-                    inputTransformation = OrgInputTransformation,
+                    inputTransformation = remember(state.keywords) { orgInputTransformation(state.keywords) },
                     outputTransformation = highlight,
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                     lineLimits = TextFieldLineLimits.MultiLine(),

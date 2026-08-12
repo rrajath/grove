@@ -85,11 +85,25 @@ object LineEditing {
         )
     }
 
-    private val EMPTY_HEADING_CONTENT = Regex("""^\*+ $""")
+    /**
+     * Whether [line] is a heading line with no title typed yet: just stars,
+     * e.g. `"* "`, `"** "`, or stars followed by one of [keywords]' TODO
+     * states, e.g. `"* TODO "`. Either way the very next character typed is
+     * the first letter of the heading title.
+     */
+    private fun isEmptyHeadingPrefix(line: String, keywords: OrgKeywords): Boolean {
+        var stars = 0
+        while (stars < line.length && line[stars] == '*') stars++
+        if (stars == 0 || stars >= line.length || line[stars] != ' ') return false
+        val rest = line.substring(stars + 1)
+        if (rest.isEmpty()) return true
+        return keywords.all.any { rest == "$it " }
+    }
 
     /**
-     * Auto-capitalize the first letter typed into an org heading. Returns null
-     * when no capitalization is needed (not a heading line, char already uppercase,
+     * Auto-capitalize the first letter typed into an org heading (including
+     * right after a TODO keyword, e.g. `"* TODO "`). Returns null when no
+     * capitalization is needed (not a heading line, char already uppercase,
      * or the edit isn't an insertion landing right at the first content character).
      *
      * Diffs [oldText]/[newText] by common prefix/suffix rather than assuming a
@@ -100,7 +114,12 @@ object LineEditing {
      * Call this after [continueListOnEnter] in the text-change handler, passing
      * the old text (before the edit) and the new text + cursor from the IME.
      */
-    fun capitalizeHeadingOnType(oldText: String, newText: String, cursor: Int): TextEdit? {
+    fun capitalizeHeadingOnType(
+        oldText: String,
+        newText: String,
+        cursor: Int,
+        keywords: OrgKeywords = OrgKeywords.DEFAULT,
+    ): TextEdit? {
         if (newText.length <= oldText.length) return null
         val maxPrefix = minOf(oldText.length, newText.length)
         var prefix = 0
@@ -115,7 +134,7 @@ object LineEditing {
         if (!newChar.isLetter() || newChar.isUpperCase()) return null
         val lineStart = newText.lastIndexOf('\n', prefix - 1) + 1
         val lineBeforeInsertion = newText.substring(lineStart, prefix)
-        if (!EMPTY_HEADING_CONTENT.matches(lineBeforeInsertion)) return null
+        if (!isEmptyHeadingPrefix(lineBeforeInsertion, keywords)) return null
         val capitalized = newText.substring(0, prefix) + newChar.uppercaseChar() + newText.substring(prefix + 1)
         return TextEdit(capitalized, cursor)
     }

@@ -333,7 +333,7 @@ val GroveChalkColors = GroveColors(
     synStar = Color(0xFF4A6B56),
     synTodo = Color(0xFF8A7434),
     synDone = Color(0xFF4A6B56),
-    synKw = Color(0xFF6B7278),
+    synKw = Color(0xFF714B89), // = violet; was too close to synProp (property values)
     synTs = Color(0xFF4A647D),
     synTag = Color(0xFF3F4A52),
     synLink = Color(0xFF4A647D),
@@ -366,7 +366,7 @@ val GroveCobaltColors = GroveColors(
     synStar = Color(0xFF3F6F52),
     synTodo = Color(0xFF8A6F2C),
     synDone = Color(0xFF3F6F52),
-    synKw = Color(0xFF5F6B7A),
+    synKw = Color(0xFF7730A3), // = violet; was too close to synProp (property values)
     synTs = Color(0xFF1D5AA8),
     synTag = Color(0xFF1D5AA8),
     synLink = Color(0xFF1D5AA8),
@@ -399,7 +399,7 @@ val GroveDelftColors = GroveColors(
     synStar = Color(0xFF456F57),
     synTodo = Color(0xFF8A7030),
     synDone = Color(0xFF456F57),
-    synKw = Color(0xFF616C7B),
+    synKw = Color(0xFF77399D), // = violet; was too close to synProp (property values)
     synTs = Color(0xFF2A5D9E),
     synTag = Color(0xFF2A5D9E),
     synLink = Color(0xFF2A5D9E),
@@ -432,7 +432,7 @@ val GroveSageColors = GroveColors(
     synStar = Color(0xFF4E6B53),
     synTodo = Color(0xFF8A7333),
     synDone = Color(0xFF4E6B53),
-    synKw = Color(0xFF6A736D),
+    synKw = Color(0xFF714D87), // = violet; was too close to synProp (property values)
     synTs = Color(0xFF4C6A78),
     synTag = Color(0xFF4E6B53),
     synLink = Color(0xFF4C6A78),
@@ -465,7 +465,7 @@ val GroveAshRoseColors = GroveColors(
     synStar = Color(0xFF526B54),
     synTodo = Color(0xFF8A6F36),
     synDone = Color(0xFF526B54),
-    synKw = Color(0xFF726669),
+    synKw = Color(0xFF714E87), // = violet; was too close to synProp (property values)
     synTs = Color(0xFF4D6478),
     synTag = Color(0xFF7D5560),
     synLink = Color(0xFF4D6478),
@@ -498,7 +498,7 @@ val GroveObsidianColors = GroveColors(
     synStar = Color(0xFF86A58E),
     synTodo = Color(0xFFC2A86E),
     synDone = Color(0xFF86A58E),
-    synKw = Color(0xFF9AA1A7),
+    synKw = Color(0xFFAD88C4), // = violet; was too close to synProp (property values)
     synTs = Color(0xFF8FABC0),
     synTag = Color(0xFF9FB0BB),
     synLink = Color(0xFF8FABC0),
@@ -531,7 +531,7 @@ val GroveMossColors = GroveColors(
     synStar = Color(0xFF8FAA87),
     synTodo = Color(0xFFC0A76C),
     synDone = Color(0xFF8FAA87),
-    synKw = Color(0xFF98A394),
+    synKw = Color(0xFFA582BA), // = violet; was too close to synProp (property values)
     synTs = Color(0xFF86A8AD),
     synTag = Color(0xFF8FAA87),
     synLink = Color(0xFF86A8AD),
@@ -564,7 +564,7 @@ val GroveLanternColors = GroveColors(
     synStar = Color(0xFFE0C069),
     synTodo = Color(0xFFE0C069),
     synDone = Color(0xFF8FAE86),
-    synKw = Color(0xFFA0A09C),
+    synKw = Color(0xFFAC84C4), // = violet; was too close to synProp (property values)
     synTs = Color(0xFF8AA8BD),
     synTag = Color(0xFFE0C069),
     synLink = Color(0xFF8AA8BD),
@@ -597,7 +597,7 @@ val GroveWisteriaColors = GroveColors(
     synStar = Color(0xFFA99BC4),
     synTodo = Color(0xFFC1A674),
     synDone = Color(0xFF8BA88F),
-    synKw = Color(0xFF9D97A9),
+    synKw = Color(0xFFB18EC6), // = violet; was too close to synProp (property values)
     synTs = Color(0xFF8FA6C6),
     synTag = Color(0xFFA99BC4),
     synLink = Color(0xFF8FA6C6),
@@ -630,7 +630,7 @@ val GroveLighthouseColors = GroveColors(
     synStar = Color(0xFFE8C777),
     synTodo = Color(0xFFE8C777),
     synDone = Color(0xFF8BB08F),
-    synKw = Color(0xFF94A1B3),
+    synKw = Color(0xFFB284CE), // = violet; was too close to synProp (property values)
     synTs = Color(0xFF86A9CC),
     synTag = Color(0xFFE8C777),
     synLink = Color(0xFF86A9CC),

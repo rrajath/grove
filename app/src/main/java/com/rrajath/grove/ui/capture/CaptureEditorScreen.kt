@@ -1,8 +1,6 @@
 package com.rrajath.grove.ui.capture
 
 import android.widget.Toast
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -43,7 +41,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -71,7 +68,7 @@ import com.rrajath.grove.ui.components.Pill
 import com.rrajath.grove.ui.editor.AutoSaveTimestamp
 import com.rrajath.grove.ui.editor.EditorToolbar
 import kotlinx.coroutines.delay
-import com.rrajath.grove.ui.editor.OrgInputTransformation
+import com.rrajath.grove.ui.editor.orgInputTransformation
 import com.rrajath.grove.ui.editor.OrgSyntaxHighlight
 import com.rrajath.grove.ui.editor.applyEdit
 import com.rrajath.grove.ui.editor.insertAtCursor
@@ -168,21 +165,21 @@ fun CaptureEditorScreen(
     var showEmptyHeadingAlert by remember { mutableStateOf(false) }
 
     // Mirrors the note editor's auto-save indicator: a tappable save (floppy)
-    // icon in the top bar once the draft has been auto-saved at least once.
+    // icon in the top bar, shown once the draft has been edited or saved at
+    // least once. Green + tap-to-save-now while dirty; grey + tap-for-last-
+    // saved-toast once clean, exactly like EditNoteScreen/EditPrefaceScreen.
     var lastAutoSavedAt by remember { mutableStateOf<LocalTime?>(null) }
-    // Text as of the last auto-save, so the save icon can tell whether the
-    // draft has drifted since then (grey) or still matches disk (green).
+    // Text as of the last auto-save, so dirty can be computed by comparison.
     var lastAutoSavedText by remember(expanded) { mutableStateOf(initialText) }
-    // Blinks the save icon twice on each auto-save instead of a toast;
-    // tapping the icon still shows a "saved at" toast on demand.
-    val saveIconAlpha = remember { Animatable(1f) }
+    val dirty = draftText != lastAutoSavedText
     val toastContext = LocalContext.current
 
-    LaunchedEffect(lastAutoSavedAt) {
-        if (lastAutoSavedAt == null) return@LaunchedEffect
-        repeat(2) {
-            saveIconAlpha.animateTo(0.15f, tween(120))
-            saveIconAlpha.animateTo(1f, tween(120))
+    /** Immediate autosave, used by the idle timer and by tapping the dirty save icon. */
+    fun saveNow() {
+        if (!CaptureInserter.hasBlankHeading(draftText)) {
+            viewModel.autosave(template, draftText, context)
+            lastAutoSavedAt = LocalTime.now()
+            lastAutoSavedText = draftText
         }
     }
 
@@ -202,11 +199,7 @@ fun CaptureEditorScreen(
     // a heading-less entry the user hasn't confirmed.
     LaunchedEffect(draftText) {
         delay(5_000)
-        if (draftText != initialText && !CaptureInserter.hasBlankHeading(draftText)) {
-            viewModel.autosave(template, draftText, context)
-            lastAutoSavedAt = LocalTime.now()
-            lastAutoSavedText = draftText
-        }
+        if (dirty) saveNow()
     }
 
     fun trySave() {
@@ -231,24 +224,24 @@ fun CaptureEditorScreen(
                     ) {
                         Text("×", fontFamily = PlexSans, fontSize = 22.sp, color = c.ink)
                     }
-                    lastAutoSavedAt?.let { savedAt ->
+                    if (dirty || lastAutoSavedAt != null) {
                         Icon(
                             Icons.Outlined.Save,
-                            contentDescription = "Auto saved",
-                            // Green while the draft matches what's on disk (and
-                            // blinks right after a save); grey again the moment a
-                            // keystroke makes it dirty, until the next auto-save.
-                            tint = if (draftText != lastAutoSavedText) c.ink3 else c.green,
+                            contentDescription = if (dirty) "Unsaved changes, tap to save" else "Saved",
+                            tint = if (dirty) c.green else c.ink3,
                             modifier = Modifier
-                                .alpha(saveIconAlpha.value)
                                 .clip(RoundedCornerShape(10.dp))
                                 .clickable {
-                                    val formatted = AutoSaveTimestamp.format(savedAt)
-                                    Toast.makeText(
-                                        toastContext,
-                                        "The note auto saved at: $formatted",
-                                        Toast.LENGTH_SHORT,
-                                    ).show()
+                                    if (dirty) {
+                                        saveNow()
+                                    } else {
+                                        val formatted = lastAutoSavedAt?.let(AutoSaveTimestamp::format)
+                                        Toast.makeText(
+                                            toastContext,
+                                            "The note auto saved at: $formatted",
+                                            Toast.LENGTH_SHORT,
+                                        ).show()
+                                    }
                                 }
                                 .padding(10.dp),
                         )
@@ -289,7 +282,7 @@ fun CaptureEditorScreen(
                 // shrinks the viewport.
                 BasicTextField(
                     state = textState,
-                    inputTransformation = OrgInputTransformation,
+                    inputTransformation = remember(keywords) { orgInputTransformation(keywords) },
                     outputTransformation = remember(c, keywords) { OrgSyntaxHighlight(c, keywords) },
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                     lineLimits = TextFieldLineLimits.MultiLine(),

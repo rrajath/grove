@@ -28,6 +28,23 @@ updated and push.
 
 ## [Unreleased]
 
+### Fixed
+- Quick capture's save icon now matches the note/preface editor's UX exactly: green while
+  dirty (tap saves immediately), grey once saved (tap shows a "last saved at" toast), no
+  blink animation. It previously started hidden, blinked twice on every auto-save, and used
+  the two colors with inverted meaning.
+- Auto-capitalizing the first letter of a heading now also fires right after a TODO keyword
+  (e.g. `* TODO buy milk` → `* TODO Buy milk`), including for swipe-typed words, matching the
+  existing behavior on plain headings. Also now respects a custom `todoKeywords` configuration
+  instead of assuming the default set.
+- The Quick Add widget's text field now auto-capitalizes like a sentence, matching every other
+  text entry point in the app.
+- The ten newest themes (Chalk, Cobalt, Delft, Sage, Ash Rose, Obsidian, Lantern, Lighthouse,
+  Moss, Wisteria) now use a hue-distinct color for property/drawer keys instead of a shade of
+  the same neutral used for values, so preface, `:PROPERTIES:`, and `:LOGBOOK:` drawer keys
+  are visually distinct from their values, matching Grove Dark/Light and the other community
+  themes.
+
 ## [1.0.251] - 2026-08-12
 
 ### Added

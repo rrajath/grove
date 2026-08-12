@@ -322,7 +322,7 @@ fun EditNoteScreen(
                 // shrinks the viewport.
                 BasicTextField(
                     state = textState,
-                    inputTransformation = OrgInputTransformation,
+                    inputTransformation = remember(state.keywords) { orgInputTransformation(state.keywords) },
                     outputTransformation = highlight,
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                     lineLimits = TextFieldLineLimits.MultiLine(),
