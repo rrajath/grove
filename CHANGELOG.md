@@ -28,6 +28,8 @@ updated and push.
 
 ## [Unreleased]
 
+## [1.0.255] - 2026-08-12
+
 ### Fixed
 - Quick capture's save icon now matches the note/preface editor's UX exactly: green while
   dirty (tap saves immediately), grey once saved (tap shows a "last saved at" toast), no
