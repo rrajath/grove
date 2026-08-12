@@ -29,6 +29,16 @@ object AppIconManager {
         ThemePreference.CATPPUCCINLATTE to ".IconCatppuccinLatte",
         ThemePreference.ROSEPINEDAWN to ".IconRosePineDawn",
         ThemePreference.ROSEPINEMOON to ".IconRosePineMoon",
+        ThemePreference.CHALK to ".IconChalk",
+        ThemePreference.COBALT to ".IconCobalt",
+        ThemePreference.DELFT to ".IconDelft",
+        ThemePreference.SAGE to ".IconSage",
+        ThemePreference.ASHROSE to ".IconAshRose",
+        ThemePreference.OBSIDIAN to ".IconObsidian",
+        ThemePreference.LANTERN to ".IconLantern",
+        ThemePreference.LIGHTHOUSE to ".IconLighthouse",
+        ThemePreference.MOSS to ".IconMoss",
+        ThemePreference.WISTERIA to ".IconWisteria",
     )
 
     val ALL_ALIASES: List<String> = listOf(DEFAULT_ALIAS) + THEME_ALIASES.values
@@ -46,6 +56,16 @@ object AppIconManager {
         ThemePreference.CATPPUCCINLATTE to 0xFF8839EF.toInt(),
         ThemePreference.ROSEPINEDAWN to 0xFF907AA9.toInt(),
         ThemePreference.ROSEPINEMOON to 0xFFC4A7E7.toInt(),
+        ThemePreference.CHALK to 0xFF3F4A52.toInt(),
+        ThemePreference.COBALT to 0xFF1D5AA8.toInt(),
+        ThemePreference.DELFT to 0xFF2A5D9E.toInt(),
+        ThemePreference.SAGE to 0xFF4E6B53.toInt(),
+        ThemePreference.ASHROSE to 0xFF7D5560.toInt(),
+        ThemePreference.OBSIDIAN to 0xFF9FB0BB.toInt(),
+        ThemePreference.LANTERN to 0xFFE0C069.toInt(),
+        ThemePreference.LIGHTHOUSE to 0xFFE8C777.toInt(),
+        ThemePreference.MOSS to 0xFF8FAA87.toInt(),
+        ThemePreference.WISTERIA to 0xFFA99BC4.toInt(),
     )
 
     /**
@@ -82,6 +102,16 @@ object AppIconManager {
         ThemePreference.CATPPUCCINLATTE to R.mipmap.ic_launcher_catppuccinlatte,
         ThemePreference.ROSEPINEDAWN to R.mipmap.ic_launcher_rosepinedawn,
         ThemePreference.ROSEPINEMOON to R.mipmap.ic_launcher_rosepinemoon,
+        ThemePreference.CHALK to R.mipmap.ic_launcher_chalk,
+        ThemePreference.COBALT to R.mipmap.ic_launcher_cobalt,
+        ThemePreference.DELFT to R.mipmap.ic_launcher_delft,
+        ThemePreference.SAGE to R.mipmap.ic_launcher_sage,
+        ThemePreference.ASHROSE to R.mipmap.ic_launcher_ashrose,
+        ThemePreference.OBSIDIAN to R.mipmap.ic_launcher_obsidian,
+        ThemePreference.LANTERN to R.mipmap.ic_launcher_lantern,
+        ThemePreference.LIGHTHOUSE to R.mipmap.ic_launcher_lighthouse,
+        ThemePreference.MOSS to R.mipmap.ic_launcher_moss,
+        ThemePreference.WISTERIA to R.mipmap.ic_launcher_wisteria,
     )
 
     /** Same (enabled, theme) mapping as [markColor]/[targetAlias], as the actual icon mipmap. */

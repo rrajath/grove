@@ -16,5 +16,15 @@ class ThemeTest {
         assertEquals(GroveCatppuccinLatteColors, groveColorsFor(ThemePreference.CATPPUCCINLATTE))
         assertEquals(GroveRosePineDawnColors, groveColorsFor(ThemePreference.ROSEPINEDAWN))
         assertEquals(GroveRosePineMoonColors, groveColorsFor(ThemePreference.ROSEPINEMOON))
+        assertEquals(GroveChalkColors, groveColorsFor(ThemePreference.CHALK))
+        assertEquals(GroveCobaltColors, groveColorsFor(ThemePreference.COBALT))
+        assertEquals(GroveDelftColors, groveColorsFor(ThemePreference.DELFT))
+        assertEquals(GroveSageColors, groveColorsFor(ThemePreference.SAGE))
+        assertEquals(GroveAshRoseColors, groveColorsFor(ThemePreference.ASHROSE))
+        assertEquals(GroveObsidianColors, groveColorsFor(ThemePreference.OBSIDIAN))
+        assertEquals(GroveLanternColors, groveColorsFor(ThemePreference.LANTERN))
+        assertEquals(GroveLighthouseColors, groveColorsFor(ThemePreference.LIGHTHOUSE))
+        assertEquals(GroveMossColors, groveColorsFor(ThemePreference.MOSS))
+        assertEquals(GroveWisteriaColors, groveColorsFor(ThemePreference.WISTERIA))
     }
 }

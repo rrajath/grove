@@ -57,6 +57,16 @@ fun groveColorsFor(theme: ThemePreference): GroveColors = when (theme) {
     ThemePreference.CATPPUCCINLATTE -> GroveCatppuccinLatteColors
     ThemePreference.ROSEPINEDAWN -> GroveRosePineDawnColors
     ThemePreference.ROSEPINEMOON -> GroveRosePineMoonColors
+    ThemePreference.CHALK -> GroveChalkColors
+    ThemePreference.COBALT -> GroveCobaltColors
+    ThemePreference.DELFT -> GroveDelftColors
+    ThemePreference.SAGE -> GroveSageColors
+    ThemePreference.ASHROSE -> GroveAshRoseColors
+    ThemePreference.OBSIDIAN -> GroveObsidianColors
+    ThemePreference.LANTERN -> GroveLanternColors
+    ThemePreference.LIGHTHOUSE -> GroveLighthouseColors
+    ThemePreference.MOSS -> GroveMossColors
+    ThemePreference.WISTERIA -> GroveWisteriaColors
 }
 
 @Composable

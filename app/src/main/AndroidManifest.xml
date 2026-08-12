@@ -240,6 +240,146 @@
             </intent-filter>
         </activity-alias>
 
+        <activity-alias
+            android:name=".IconChalk"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_chalk"
+            android:roundIcon="@mipmap/ic_launcher_chalk_round"
+            android:label="@string/app_name"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".IconCobalt"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_cobalt"
+            android:roundIcon="@mipmap/ic_launcher_cobalt_round"
+            android:label="@string/app_name"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".IconDelft"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_delft"
+            android:roundIcon="@mipmap/ic_launcher_delft_round"
+            android:label="@string/app_name"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".IconSage"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_sage"
+            android:roundIcon="@mipmap/ic_launcher_sage_round"
+            android:label="@string/app_name"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".IconAshRose"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_ashrose"
+            android:roundIcon="@mipmap/ic_launcher_ashrose_round"
+            android:label="@string/app_name"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".IconObsidian"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_obsidian"
+            android:roundIcon="@mipmap/ic_launcher_obsidian_round"
+            android:label="@string/app_name"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".IconLantern"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_lantern"
+            android:roundIcon="@mipmap/ic_launcher_lantern_round"
+            android:label="@string/app_name"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".IconLighthouse"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_lighthouse"
+            android:roundIcon="@mipmap/ic_launcher_lighthouse_round"
+            android:label="@string/app_name"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".IconMoss"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_moss"
+            android:roundIcon="@mipmap/ic_launcher_moss_round"
+            android:label="@string/app_name"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".IconWisteria"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_wisteria"
+            android:roundIcon="@mipmap/ic_launcher_wisteria_round"
+            android:label="@string/app_name"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
         <receiver
             android:name=".widget.CaptureWidgetReceiver"
             android:exported="true"

@@ -28,6 +28,11 @@ updated and push.
 
 ## [Unreleased]
 
+### Added
+- Ten new themes in Settings § Look and Feel: Chalk, Cobalt, Delft, Sage, Ash Rose (light-family)
+  and Obsidian, Lantern, Lighthouse, Moss, Wisteria (dark-family), each with a matching
+  "Sync App Icon with Theme" launcher icon variant
+
 ## [1.0.249] - 2026-08-11
 
 ### Changed

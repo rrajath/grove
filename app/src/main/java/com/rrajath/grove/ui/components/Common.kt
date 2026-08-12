@@ -241,15 +241,25 @@ private data class ThemeSwatch(
  */
 private val ThemeSwatches = listOf(
     // Light
+    ThemeSwatch(ThemePreference.ASHROSE, "Ash Rose", Color(0xFFFAF6F6), Color(0xFF241F21), listOf(Color(0xFF7D5560), Color(0xFF526B54), Color(0xFF4D6478))),
     ThemeSwatch(ThemePreference.CATPPUCCINLATTE, "Catppuccin Latte", Color(0xFFEFF1F5), Color(0xFF4C4F69), listOf(Color(0xFF8839EF), Color(0xFFD20F39), Color(0xFF40A02B))),
+    ThemeSwatch(ThemePreference.CHALK, "Chalk", Color(0xFFFFFFFF), Color(0xFF1C1F22), listOf(Color(0xFF3F4A52), Color(0xFF4A6B56), Color(0xFF4A647D))),
+    ThemeSwatch(ThemePreference.COBALT, "Cobalt", Color(0xFFFFFFFF), Color(0xFF151A21), listOf(Color(0xFF1D5AA8), Color(0xFF3F6F52), Color(0xFF8A6F2C))),
+    ThemeSwatch(ThemePreference.DELFT, "Delft", Color(0xFFEEF1F6), Color(0xFF1A222D), listOf(Color(0xFF2A5D9E), Color(0xFF456F57), Color(0xFF8A7030))),
     ThemeSwatch(ThemePreference.LIGHT, "Grove Light", Color(0xFFF3EDE1), Color(0xFF2A251F), listOf(Color(0xFF8A5A2B), Color(0xFF4F7A3A), Color(0xFF3F6F86))),
     ThemeSwatch(ThemePreference.ROSEPINEDAWN, "Rosé Pine Dawn", Color(0xFFFAF4ED), Color(0xFF575279), listOf(Color(0xFFD7827E), Color(0xFF286983), Color(0xFF907AA9))),
+    ThemeSwatch(ThemePreference.SAGE, "Sage", Color(0xFFF6F8F4), Color(0xFF1F2622), listOf(Color(0xFF4E6B53), Color(0xFF4C6A78), Color(0xFF8A7333))),
     ThemeSwatch(ThemePreference.TOKYODAY, "Tokyo Day", Color(0xFFE1E2E7), Color(0xFF3760BF), listOf(Color(0xFF2E7DE9), Color(0xFF9854F1), Color(0xFF587539))),
     // Dark
     ThemeSwatch(ThemePreference.CATPPUCCIN, "Catppuccin Mocha", Color(0xFF1E1E2E), Color(0xFFCDD6F4), listOf(Color(0xFFCBA6F7), Color(0xFFF38BA8), Color(0xFFA6E3A1))),
     ThemeSwatch(ThemePreference.DARK, "Grove Dark", Color(0xFF201C15), Color(0xFFECE4D5), listOf(Color(0xFFCB9D62), Color(0xFF8FB46A), Color(0xFF7FB0C4))),
+    ThemeSwatch(ThemePreference.LANTERN, "Lantern", Color(0xFF17181A), Color(0xFFE8E6E2), listOf(Color(0xFFE0C069), Color(0xFF8FAE86), Color(0xFF8AA8BD))),
+    ThemeSwatch(ThemePreference.LIGHTHOUSE, "Lighthouse", Color(0xFF0F1723), Color(0xFFE3E8EF), listOf(Color(0xFFE8C777), Color(0xFF86A9CC), Color(0xFF8BB08F))),
+    ThemeSwatch(ThemePreference.MOSS, "Moss", Color(0xFF000000), Color(0xFFE2E8DE), listOf(Color(0xFF8FAA87), Color(0xFF86A8AD), Color(0xFFC0A76C))),
+    ThemeSwatch(ThemePreference.OBSIDIAN, "Obsidian", Color(0xFF000000), Color(0xFFE6E8EA), listOf(Color(0xFF9FB0BB), Color(0xFF86A58E), Color(0xFF8FABC0))),
     ThemeSwatch(ThemePreference.ROSEPINEMOON, "Rosé Pine Moon", Color(0xFF232136), Color(0xFFE0DEF4), listOf(Color(0xFFEA9A97), Color(0xFF3E8FB0), Color(0xFF9CCFD8))),
     ThemeSwatch(ThemePreference.TOKYONIGHT, "Tokyo Night", Color(0xFF1A1B26), Color(0xFFC0CAF5), listOf(Color(0xFF7AA2F7), Color(0xFFBB9AF7), Color(0xFF7DCFFF))),
+    ThemeSwatch(ThemePreference.WISTERIA, "Wisteria", Color(0xFF131019), Color(0xFFE6E2EC), listOf(Color(0xFFA99BC4), Color(0xFF8FA6C6), Color(0xFF8BA88F))),
 )
 
 /**
