@@ -334,19 +334,24 @@ private fun GroveNavigation(
                     var mode by rememberSaveable(noteId) {
                         mutableStateOf(entry.arguments?.getString("mode") ?: "read")
                     }
+                    // Line of the subheading double-tapped in read mode, if any; carried
+                    // alongside `mode` (not a nav arg) so the mode toggle keeps not
+                    // re-navigating/re-triggering the enter/exit transition.
+                    var editTargetLine by rememberSaveable(noteId) { mutableStateOf<Int?>(null) }
                     if (mode == "edit") {
                         EditNoteScreen(
                             noteRef = ref,
                             isNewNote = isNew,
+                            initialCursorLine = editTargetLine,
                             onBack = { navController.popBackStack() },
-                            onSwitchToRead = { mode = "read" },
+                            onSwitchToRead = { editTargetLine = null; mode = "read" },
                         )
                     } else {
                         ReadNoteScreen(
                             noteRef = ref,
                             onBack = { navController.popBackStack() },
                             onOpenNote = { target -> navController.navigate(Routes.note(target.encode())) },
-                            onEdit = { mode = "edit" },
+                            onEdit = { targetLine -> editTargetLine = targetLine; mode = "edit" },
                             // null (file breadcrumb) opens the full outline; a heading's
                             // line index narrows the outline to that heading's subtree.
                             onOpenBreadcrumb = { targetLine ->

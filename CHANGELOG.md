@@ -44,6 +44,11 @@ updated and push.
   the same neutral used for values, so preface, `:PROPERTIES:`, and `:LOGBOOK:` drawer keys
   are visually distinct from their values, matching Grove Dark/Light and the other community
   themes.
+- Double-tapping a subheading while reading now opens the editor with the cursor and scroll
+  position landing on that subheading instead of always at the top of the note. Previously,
+  double-tapping anywhere jumped into the editor at the very first line, forcing a manual
+  scroll through the whole buffer to reach a subheading buried further down. Double-tapping
+  the note's own heading/body is unchanged.
 
 ## [1.0.251] - 2026-08-12
 

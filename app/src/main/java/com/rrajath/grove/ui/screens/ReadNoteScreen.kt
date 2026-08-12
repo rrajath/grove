@@ -108,8 +108,13 @@ fun ReadNoteScreen(
     noteRef: NoteRef,
     onBack: () -> Unit,
     onOpenNote: (NoteRef) -> Unit,
-    /** Double-tap anywhere switches to edit mode. */
-    onEdit: () -> Unit,
+    /**
+     * Double-tap anywhere switches to edit mode. Double-tapping a specific
+     * subheading's title/body passes that heading's line index so the editor
+     * can land the cursor there instead of at the top; `null` for taps on
+     * the note's own heading/blank space or the Read/Edit toggle.
+     */
+    onEdit: (Int?) -> Unit,
     /**
      * A breadcrumb segment was tapped: `null` for the file/notebook segment
      * (opens the full outline), or a heading's line index (narrows the
@@ -176,7 +181,7 @@ fun ReadNoteScreen(
                     SegmentedControl(
                         options = listOf("Read", "Edit"),
                         selectedIndex = 0,
-                        onSelect = { if (it == 1) onEdit() },
+                        onSelect = { if (it == 1) onEdit(null) },
                         modifier = Modifier.width(140.dp),
                     )
                 },
@@ -234,7 +239,7 @@ fun ReadNoteScreen(
                                 // double-tap-select-word, so in practice this outer
                                 // catch-all only ever fires for empty margins.
                                 .pointerInput(Unit) {
-                                    detectTapGestures(onDoubleTap = { onEdit() })
+                                    detectTapGestures(onDoubleTap = { onEdit(null) })
                                 },
                             onOpenNote = onOpenNote,
                             fileName = noteRef.fileName,
@@ -347,7 +352,7 @@ private fun NoteContent(
     headline: OrgHeadline,
     fileName: String,
     onOpenNote: (NoteRef) -> Unit,
-    onEditAt: () -> Unit,
+    onEditAt: (Int?) -> Unit,
     onToggleCheckbox: (Int) -> Unit,
     scrollState: ScrollState,
     modifier: Modifier = Modifier,
@@ -435,7 +440,7 @@ private fun NoteContent(
                 Row(verticalAlignment = Alignment.Top) {
                     OrgText(
                         headline.title, onOpenLink = openLink, onLinkLongPress = onLinkLongPress,
-                        onDoubleTapAt = onEditAt,
+                        onDoubleTapAt = { onEditAt(null) },
                         style = TextStyle(
                             fontFamily = PlexSerif, fontWeight = FontWeight.SemiBold,
                             fontSize = 25.sp, color = c.ink, lineHeight = 1.3.em,
@@ -498,7 +503,7 @@ private fun NoteContent(
                 Spacer(Modifier.height(16.dp))
 
                 // Own body
-                BodyBlocks(ownBody, headline.bodyStart, onToggleCheckbox, openLink, onLinkLongPress, onEditAt)
+                BodyBlocks(ownBody, headline.bodyStart, onToggleCheckbox, openLink, onLinkLongPress) { onEditAt(null) }
 
                 // Subtree rendered inline, headings sized by relative depth
                 children.forEach { (child, body) ->
@@ -525,7 +530,7 @@ private fun NoteContent(
                             }
                             OrgText(
                                 child.title, onOpenLink = openLink, onLinkLongPress = onLinkLongPress,
-                                onDoubleTapAt = onEditAt,
+                                onDoubleTapAt = { onEditAt(child.lineIndex) },
                                 style = TextStyle(
                                     fontFamily = PlexSerif, fontWeight = FontWeight.SemiBold,
                                     fontSize = when (rel) {
@@ -571,7 +576,7 @@ private fun NoteContent(
                         } else {
                             Spacer(Modifier.height(8.dp))
                         }
-                        BodyBlocks(body, child.bodyStart, onToggleCheckbox, openLink, onLinkLongPress, onEditAt)
+                        BodyBlocks(body, child.bodyStart, onToggleCheckbox, openLink, onLinkLongPress) { onEditAt(child.lineIndex) }
                     }
                 }
 

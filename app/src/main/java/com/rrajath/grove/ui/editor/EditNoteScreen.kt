@@ -38,6 +38,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -84,6 +85,12 @@ fun EditNoteScreen(
     onSwitchToRead: () -> Unit,
     /** True when the note was just created (e.g. via the outline + button). */
     isNewNote: Boolean = false,
+    /**
+     * Absolute doc line of a subheading double-tapped in read mode, if any.
+     * The cursor and scroll position land there instead of the default
+     * "end of the first line" placement.
+     */
+    initialCursorLine: Int? = null,
     viewModel: EditorViewModel = viewModel(factory = EditorViewModel.Factory),
 ) {
     val c = MaterialTheme.grove
@@ -180,6 +187,9 @@ fun EditNoteScreen(
         }
     }
 
+    val scrollState = rememberScrollState()
+    val editorLineHeightPx = with(LocalDensity.current) { (13.5f * 1.85f).sp.toPx() }
+
     LaunchedEffect(noteRef) { viewModel.load(noteRef) }
     LaunchedEffect(state.loading) {
         if (!state.loading && state.error == null) {
@@ -191,13 +201,25 @@ fun EditNoteScreen(
                 val bodyText = state.buffer + "\n"
                 setText(bodyText, TextRange(bodyText.length))
             } else {
-                val cursor = state.buffer.length.coerceAtMost(
+                val targetOffset = charOffsetForLine(state.buffer, state.lineIndex, initialCursorLine)
+                val cursor = targetOffset ?: state.buffer.length.coerceAtMost(
                     state.buffer.indexOf('\n').let { if (it == -1) state.buffer.length else it },
                 )
                 setText(state.buffer, TextRange(cursor))
             }
             fieldLoaded = true
             if (isNewNote) focusRequester.requestFocus()
+            // Scroll the tapped subheading into view. The buffer/cursor were
+            // just set above, so scrollState's layout (and thus maxValue) is
+            // still stale for this frame; give it two frames to catch up
+            // before reading/clamping against it.
+            val relativeLine = initialCursorLine?.let { it - state.lineIndex }
+            if (relativeLine != null && relativeLine > 0) {
+                withFrameNanos {}
+                withFrameNanos {}
+                val targetPx = ((relativeLine - 2).coerceAtLeast(0) * editorLineHeightPx).toInt()
+                scrollState.scrollTo(targetPx.coerceIn(0, scrollState.maxValue))
+            }
         }
     }
     // Metadata-sheet mutations rewrite the buffer outside the text field. Keyed
@@ -239,7 +261,6 @@ fun EditNoteScreen(
         }
     }
 
-    val scrollState = rememberScrollState()
     // Five lines of editor text (13.5sp font * 1.85 line height), so the jump
     // buttons don't flash on every keystroke as typing nudges the view.
     val scrollButtonThresholdPx = with(LocalDensity.current) { (13.5f * 1.85f * 5).sp.toPx() }
@@ -539,6 +560,23 @@ fun EditNoteScreen(
             },
         )
     }
+}
+
+/**
+ * Char offset of the start of absolute doc line [targetLineIndex] within
+ * [buffer], whose own line 0 is [bufferStartLine] in the full document (see
+ * `OrgMutations.subtreeText`). Returns null for no target, the buffer's own
+ * first line (the root heading), or an out-of-range line — all of which fall
+ * back to the caller's default cursor placement.
+ */
+private fun charOffsetForLine(buffer: String, bufferStartLine: Int, targetLineIndex: Int?): Int? {
+    val relativeLine = (targetLineIndex ?: return null) - bufferStartLine
+    if (relativeLine <= 0) return null
+    val lines = buffer.split('\n')
+    if (relativeLine >= lines.size) return null
+    var offset = 0
+    for (i in 0 until relativeLine) offset += lines[i].length + 1
+    return offset
 }
 
 @Composable
