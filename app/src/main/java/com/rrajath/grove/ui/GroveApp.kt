@@ -55,6 +55,7 @@ import com.rrajath.grove.ui.screens.SettingsScreen
 import com.rrajath.grove.ui.screens.settings.SettingsAgendaScreen
 import com.rrajath.grove.ui.screens.settings.SettingsAppearanceScreen
 import com.rrajath.grove.ui.screens.settings.SettingsBackupScreen
+import com.rrajath.grove.ui.screens.settings.SettingsBugReportScreen
 import com.rrajath.grove.ui.screens.settings.SettingsCaptureTemplatesScreen
 import com.rrajath.grove.ui.screens.settings.SettingsNotesScreen
 import com.rrajath.grove.ui.screens.settings.SettingsRemindersScreen
@@ -457,6 +458,7 @@ private fun GroveNavigation(
                     onOpenReminders = { navController.navigate(Routes.SETTINGS_REMINDERS) },
                     onOpenSharing = { navController.navigate(Routes.SETTINGS_SHARING) },
                     onOpenBackup = { navController.navigate(Routes.SETTINGS_BACKUP) },
+                    onOpenBugReport = { navController.navigate(Routes.SETTINGS_BUG_REPORT) },
                 )
             }
             composable(Routes.SETTINGS_APPEARANCE) {
@@ -556,6 +558,9 @@ private fun GroveNavigation(
                     onExportSettings = viewModel::exportSettings,
                     onImportSettings = viewModel::importSettings,
                 )
+            }
+            composable(Routes.SETTINGS_BUG_REPORT) {
+                SettingsBugReportScreen(onBack = { navController.popBackStack() })
             }
         }
     }

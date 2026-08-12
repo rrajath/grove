@@ -34,6 +34,11 @@ updated and push.
 - Ten new themes in Settings § Look and Feel: Chalk, Cobalt, Delft, Sage, Ash Rose (light-family)
   and Obsidian, Lantern, Lighthouse, Moss, Wisteria (dark-family), each with a matching
   "Sync App Icon with Theme" launcher icon variant
+- Settings § Help § Report a bug screen: description (required) and steps-to-reproduce
+  (optional) fields, toggles for including device/app info and the recent error log, an
+  expandable "show exactly what gets sent" payload preview, and Send/Copy actions. Send has
+  no crash server to submit to yet, so it surfaces the entered report as a toast instead;
+  Copy places a plain-text version on the clipboard for pasting into a GitHub issue.
 
 ## [1.0.249] - 2026-08-11
 

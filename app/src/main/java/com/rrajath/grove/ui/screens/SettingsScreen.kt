@@ -1,8 +1,10 @@
 package com.rrajath.grove.ui.screens
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -16,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.rrajath.grove.ui.components.GroveTopBar
 import com.rrajath.grove.ui.screens.settings.RowDivider
+import com.rrajath.grove.ui.screens.settings.SectionLabel
 import com.rrajath.grove.ui.screens.settings.SettingsGroup
 import com.rrajath.grove.ui.screens.settings.SettingsRow
 import com.rrajath.grove.ui.theme.PlexMono
@@ -39,6 +42,7 @@ fun SettingsScreen(
     onOpenReminders: () -> Unit,
     onOpenSharing: () -> Unit,
     onOpenBackup: () -> Unit,
+    onOpenBugReport: () -> Unit,
 ) {
     val c = MaterialTheme.grove
     val pages = listOf(
@@ -81,6 +85,18 @@ fun SettingsScreen(
                     SettingsRow(label = page.title, description = page.description, onClick = page.onClick) {
                         Text("›", fontFamily = PlexMono, fontSize = 14.sp, color = c.ink2)
                     }
+                }
+            }
+
+            Spacer(Modifier.height(10.dp))
+            SectionLabel("HELP")
+            SettingsGroup {
+                SettingsRow(
+                    label = "Report a bug",
+                    description = "Send a report to our own crash server",
+                    onClick = onOpenBugReport,
+                ) {
+                    Text("›", fontFamily = PlexMono, fontSize = 14.sp, color = c.ink2)
                 }
             }
 
