@@ -28,6 +28,8 @@ updated and push.
 
 ## [Unreleased]
 
+## [1.0.251] - 2026-08-12
+
 ### Added
 - Ten new themes in Settings § Look and Feel: Chalk, Cobalt, Delft, Sage, Ash Rose (light-family)
   and Obsidian, Lantern, Lighthouse, Moss, Wisteria (dark-family), each with a matching
