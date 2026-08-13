@@ -28,6 +28,8 @@ updated and push.
 
 ## [Unreleased]
 
+## [1.0.259] - 2026-08-13
+
 ### Fixed
 - Shared-link title fetching (PageTitleFetcher) no longer accepts a generic app-shell
   `<title>` — like YouTube's bare "YouTube" — as a shared link's title. The previous fix for
