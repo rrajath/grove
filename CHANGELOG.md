@@ -28,6 +28,14 @@ updated and push.
 
 ## [Unreleased]
 
+### Fixed
+- Shared-link title fetching (PageTitleFetcher) no longer accepts a generic app-shell
+  `<title>` — like YouTube's bare "YouTube" — as a shared link's title. The previous fix for
+  this only special-cased Reddit's known shell titles; the check is now site-agnostic: it
+  derives the shared URL's own brand from its host and rejects a fetched title that reduces to
+  nothing but that brand (alone, or as a short lead-in tagline), falling back to the WebView
+  fetch either way so the real, client-rendered title is used instead.
+
 ## [1.0.255] - 2026-08-12
 
 ### Fixed

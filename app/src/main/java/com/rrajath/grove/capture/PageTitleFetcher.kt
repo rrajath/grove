@@ -23,19 +23,22 @@ object PageTitleFetcher {
     )
 
     // Bot-check interstitials (Cloudflare, etc.) serve one of these instead of the real title
-    // while a JS challenge resolves. Reddit instead serves a generic app-shell title (just
-    // "Reddit", or a marketing tagline like "Reddit - The heart of the internet") to every URL
-    // — the real post/subreddit title is only set client-side once its JS bundle hydrates and
-    // fetches the post data. Either way, a plain HTTP GET can't get the real title, so a title
-    // matching this pattern triggers the WebView fallback (which can run that JS) and, once
-    // there, keeps that fallback polling rather than accepting the shell title as final.
-    private val PLACEHOLDER_TITLE = Regex(
+    // while a JS challenge resolves. A plain HTTP GET can't get past that, so a title matching
+    // this pattern triggers the WebView fallback (which can run the challenge's JS) and, once
+    // there, keeps that fallback polling rather than accepting the interstitial title as final.
+    private val INTERSTITIAL_TITLE = Regex(
         "please wait|just a moment|attention required|checking your browser|" +
             "verify(?:ing)? you(?:'| a)re? (?:a )?human|human verification|" +
-            "enable javascript|are you a robot|ddos protection by|access denied|" +
-            "^reddit$|^reddit\\s*[-|]\\s*(the heart of the internet|dive into anything)$",
+            "enable javascript|are you a robot|ddos protection by|access denied",
         RegexOption.IGNORE_CASE,
     )
+
+    // Second-level labels that are themselves generic (co.uk, org.in, ...) so the real brand
+    // sits one label further left, e.g. "bbc.co.uk" -> "bbc", not "co".
+    private val GENERIC_DOMAIN_LABELS = setOf("co", "com", "org", "net", "gov", "edu", "ac", "mil", "info")
+
+    private val TITLE_SEGMENT_SPLIT = Regex("[-|:·•/»—–]")
+    private val NON_ALNUM = Regex("[^a-z0-9]+")
 
     private const val WEBVIEW_TIMEOUT_MS = 12_000L
     private const val WEBVIEW_POLL_INTERVAL_MS = 400L
@@ -43,11 +46,52 @@ object PageTitleFetcher {
     /** Returns the page title, or null on any failure. Runs its I/O on [Dispatchers.IO]. */
     suspend fun fetch(url: String, context: Context): String? {
         val httpTitle = fetchViaHttp(url)
-        return if (httpTitle != null && !PLACEHOLDER_TITLE.containsMatchIn(httpTitle)) {
+        return if (httpTitle != null && !isPlaceholderTitle(httpTitle, url)) {
             httpTitle
         } else {
             fetchViaWebView(url, context)
         }
+    }
+
+    // internal (rather than private): exercised directly by PageTitleFetcherTest since the
+    // network/WebView-dependent callers around it can't run in a local JVM unit test.
+    internal fun isPlaceholderTitle(title: String, url: String): Boolean =
+        INTERSTITIAL_TITLE.containsMatchIn(title) || isBrandShellTitle(title, url)
+
+    // Many sites (Reddit, YouTube, Instagram, ...) serve a generic app-shell <title> —
+    // just the site's own brand name, or that name plus a marketing tagline — to every URL,
+    // and only swap in the real, content-specific title once client-side JS hydrates. Rather
+    // than enumerate those sites' known shell titles one by one, this derives the site's own
+    // brand token from the shared URL's host and checks whether the fetched title is nothing
+    // more than that brand: either the whole title, or a title that *opens* with the brand as
+    // a short lead-in (like a tagline) without also *closing* with it — real content titles
+    // conventionally put the brand at the end instead ("Video Title - YouTube", "repo · GitHub").
+    internal fun isBrandShellTitle(title: String, url: String): Boolean {
+        val brand = brandTokenFromUrl(url) ?: return false
+        val normalized = normalizeForBrandCompare(title)
+        if (normalized == brand) return true
+
+        val segments = title.split(TITLE_SEGMENT_SPLIT)
+            .map(::normalizeForBrandCompare)
+            .filter { it.isNotEmpty() }
+        if (segments.size < 2) return false
+        if (segments.first() != brand) return false
+        if (segments.last() == brand) return false
+
+        val remainderWordCount = segments.drop(1).sumOf { it.split(' ').size }
+        return remainderWordCount <= 6
+    }
+
+    private fun normalizeForBrandCompare(s: String): String =
+        s.lowercase().replace(NON_ALNUM, " ").trim()
+
+    internal fun brandTokenFromUrl(url: String): String? {
+        val host = runCatching { URL(url).host }.getOrNull()?.lowercase() ?: return null
+        val labels = host.removePrefix("www.").split(".").filter { it.isNotEmpty() }
+        if (labels.size < 2) return labels.firstOrNull()
+        var idx = labels.size - 2
+        if (labels[idx] in GENERIC_DOMAIN_LABELS && idx - 1 >= 0) idx -= 1
+        return labels[idx]
     }
 
     private suspend fun fetchViaHttp(url: String): String? = withContext(Dispatchers.IO) {
@@ -83,13 +127,13 @@ object PageTitleFetcher {
         }.getOrNull()?.takeIf { it.isNotBlank() }
     }
 
-    // Runs the page in a hidden WebView so its JS challenge/redirect (or, for an SPA like
-    // Reddit, its client-side data fetch) can resolve, then reads the real document title.
-    // Polls webView.title after onPageFinished rather than reading it once after a fixed
-    // delay: how long an SPA takes to swap its shell title for the real one varies with
-    // network speed, so this keeps checking — at [WEBVIEW_POLL_INTERVAL_MS] intervals — until
-    // the title escapes [PLACEHOLDER_TITLE], or the outer timeout gives up and this returns
-    // null rather than surface a shell/interstitial title as if it were real.
+    // Runs the page in a hidden WebView so its JS challenge/redirect (or, for an SPA, its
+    // client-side data fetch) can resolve, then reads the real document title. Polls
+    // webView.title after onPageFinished rather than reading it once after a fixed delay: how
+    // long an SPA takes to swap its shell title for the real one varies with network speed, so
+    // this keeps checking — at [WEBVIEW_POLL_INTERVAL_MS] intervals — until the title escapes
+    // [isPlaceholderTitle], or the outer timeout gives up and this returns null rather than
+    // surface a shell/interstitial title as if it were real.
     @SuppressLint("SetJavaScriptEnabled")
     private suspend fun fetchViaWebView(url: String, context: Context): String? =
         withContext(Dispatchers.Main) {
@@ -101,7 +145,7 @@ object PageTitleFetcher {
                         lateinit var poll: Runnable
                         poll = Runnable {
                             val title = webView.title?.let(::cleanTitle)
-                            if (title != null && title.isNotBlank() && !PLACEHOLDER_TITLE.containsMatchIn(title)) {
+                            if (title != null && title.isNotBlank() && !isPlaceholderTitle(title, url)) {
                                 if (cont.isActive) cont.resume(title)
                             } else {
                                 handler.postDelayed(poll, WEBVIEW_POLL_INTERVAL_MS)
