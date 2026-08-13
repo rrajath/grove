@@ -51,6 +51,23 @@ updated and push.
   double-tapping anywhere jumped into the editor at the very first line, forcing a manual
   scroll through the whole buffer to reach a subheading buried further down. Double-tapping
   the note's own heading/body is unchanged.
+- Report a bug screen: the steps-to-reproduce placeholder now shows each numbered step on its
+  own line instead of run together on one line; hitting Enter on a numbered item now continues
+  the list (or removes the item if it was left empty), auto-capitalizing the first letter typed
+  into a new item, matching the note editor's list behavior; removed the "Privacy policy" link
+  (no such page exists) and replaced em dashes with plain punctuation throughout the screen's
+  copy; the "Report sent" checkmark now uses the same check icon as the Notebooks screen's sync
+  indicator instead of a plain "✓" glyph; a successful send now shows a popup with a link to the
+  filed GitHub issue and Dismiss/Go to Issue buttons instead of a toast; "Copy as text" is now
+  styled as a visible link instead of unstyled plain text. The "What went wrong" and "Steps to
+  reproduce" fields now auto-capitalize like a sentence as you type (via the keyboard's own
+  sentence-cap input mode, same as every other text field in the app), rather than never
+  capitalizing at all.
+- Sharing a Reddit link into Grove no longer saves the note titled just "Reddit" (or "Reddit -
+  The heart of the internet"). Reddit serves that generic placeholder to every URL over plain
+  HTTP and only swaps in the real post/subreddit title once its page finishes loading
+  client-side; the title fetcher now recognizes those placeholders and waits for the real title
+  to appear instead of accepting the placeholder as final.
 
 ## [1.0.251] - 2026-08-12
 

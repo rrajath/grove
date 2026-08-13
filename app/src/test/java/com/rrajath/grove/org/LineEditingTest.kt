@@ -302,4 +302,46 @@ class LineEditingTest {
     fun `a keyword not in the configured list is not treated as empty heading content`() {
         assertNull(LineEditing.capitalizeHeadingOnType("* NEXT ", "* NEXT b", 8))
     }
+
+    // --- numbered list item capitalization ---
+
+    @Test
+    fun `single key press capitalizes the first letter of a numbered item`() {
+        val edit = LineEditing.capitalizeListItemOnType("1. ", "1. o", 4)!!
+        assertEquals("1. O", edit.text)
+        assertEquals(4, edit.cursor)
+    }
+
+    @Test
+    fun `paren-style numbered bullet also capitalizes`() {
+        val edit = LineEditing.capitalizeListItemOnType("2) ", "2) o", 4)!!
+        assertEquals("2) O", edit.text)
+    }
+
+    @Test
+    fun `swipe-typed word on a numbered item capitalizes its first letter`() {
+        val edit = LineEditing.capitalizeListItemOnType("1. ", "1. open a note", 14)!!
+        assertEquals("1. Open a note", edit.text)
+    }
+
+    @Test
+    fun `numbered item capitalization works mid-document`() {
+        val edit = LineEditing.capitalizeListItemOnType("1. first\n2. ", "1. first\n2. t", 13)!!
+        assertEquals("1. first\n2. T", edit.text)
+    }
+
+    @Test
+    fun `already-uppercase first letter on a numbered item is left alone`() {
+        assertNull(LineEditing.capitalizeListItemOnType("1. ", "1. O", 4))
+    }
+
+    @Test
+    fun `typing past the first character of a numbered item is not touched`() {
+        assertNull(LineEditing.capitalizeListItemOnType("1. o", "1. op", 5))
+    }
+
+    @Test
+    fun `dash bullets are not capitalized as numbered items`() {
+        assertNull(LineEditing.capitalizeListItemOnType("- ", "- o", 3))
+    }
 }

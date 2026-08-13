@@ -45,9 +45,13 @@ fun orgInputTransformation(keywords: OrgKeywords = OrgKeywords.DEFAULT) = InputT
  * earlier on the same line, in the same batch as the Enter that follows it,
  * doesn't hide the newline insertion inside a larger "more than one character
  * changed" diff and get mistaken for something other than Enter.
+ *
+ * `internal` rather than `private`: the bug-report screen's list-only
+ * transformation (`SettingsBugReportScreen.kt`) reuses this rather than
+ * duplicating it.
  */
 @OptIn(ExperimentalFoundationApi::class)
-private fun TextFieldBuffer.insertedSoloNewlineAt(cursor: Int): Boolean {
+internal fun TextFieldBuffer.insertedSoloNewlineAt(cursor: Int): Boolean {
     if (cursor < 1) return false
     for (i in 0 until changes.changeCount) {
         val range = changes.getRange(i)

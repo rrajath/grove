@@ -119,6 +119,38 @@ object LineEditing {
         newText: String,
         cursor: Int,
         keywords: OrgKeywords = OrgKeywords.DEFAULT,
+    ): TextEdit? = capitalizeFirstCharOnType(oldText, newText, cursor) { isEmptyHeadingPrefix(it, keywords) }
+
+    /**
+     * Auto-capitalize the first letter typed as the content of a numbered
+     * list item (`"1. "`, `"2) "`, …) — the list-item counterpart of
+     * [capitalizeHeadingOnType]. Returns null when no capitalization is
+     * needed (not an empty numbered-item prefix, char already uppercase, or
+     * the edit isn't an insertion landing right at the first content
+     * character).
+     */
+    fun capitalizeListItemOnType(oldText: String, newText: String, cursor: Int): TextEdit? =
+        capitalizeFirstCharOnType(oldText, newText, cursor, ::isEmptyNumberedListItemPrefix)
+
+    private fun isEmptyNumberedListItemPrefix(line: String): Boolean {
+        val item = LIST_ITEM.matchEntire(line) ?: return false
+        val (_, bullet, _, _, _, content) = item.destructured
+        return content.isEmpty() && NUMBERED.matches(bullet)
+    }
+
+    /**
+     * Diffs [oldText]/[newText] by common prefix/suffix (rather than assuming
+     * a single-character change, so this also fires for swipe-typed or
+     * autocorrect-committed words) and, when the insertion is a single
+     * lowercase letter landing right where [isEmptyPrefix] says the line so
+     * far is an "empty" prefix (a bare heading/list-bullet with no title or
+     * content yet), uppercases it.
+     */
+    private fun capitalizeFirstCharOnType(
+        oldText: String,
+        newText: String,
+        cursor: Int,
+        isEmptyPrefix: (String) -> Boolean,
     ): TextEdit? {
         if (newText.length <= oldText.length) return null
         val maxPrefix = minOf(oldText.length, newText.length)
@@ -134,7 +166,7 @@ object LineEditing {
         if (!newChar.isLetter() || newChar.isUpperCase()) return null
         val lineStart = newText.lastIndexOf('\n', prefix - 1) + 1
         val lineBeforeInsertion = newText.substring(lineStart, prefix)
-        if (!isEmptyHeadingPrefix(lineBeforeInsertion, keywords)) return null
+        if (!isEmptyPrefix(lineBeforeInsertion)) return null
         val capitalized = newText.substring(0, prefix) + newChar.uppercaseChar() + newText.substring(prefix + 1)
         return TextEdit(capitalized, cursor)
     }
