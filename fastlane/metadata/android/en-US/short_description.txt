@@ -1,0 +1,1 @@
+A native Org-mode notes app for Android. Your notes stay plain .org files.
