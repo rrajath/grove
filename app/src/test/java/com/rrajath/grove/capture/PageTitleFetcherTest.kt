@@ -76,4 +76,12 @@ class PageTitleFetcherTest {
     fun `bot check interstitial title is a placeholder regardless of brand`() {
         assertTrue(placeholder("Just a moment...", "https://stackoverflow.com/questions/1"))
     }
+
+    @Test
+    fun `placeholder check must use the post-redirect url, not a shortener's`() {
+        // youtu.be redirects to youtube.com before serving anything; checking against the
+        // shortener's own host ("youtu") misses that "YouTube" is youtube.com's shell title.
+        assertFalse(placeholder("YouTube", "https://youtu.be/dQw4w9WgXcQ"))
+        assertTrue(placeholder("YouTube", "https://www.youtube.com/watch?v=dQw4w9WgXcQ"))
+    }
 }

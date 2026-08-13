@@ -43,11 +43,18 @@ object PageTitleFetcher {
     private const val WEBVIEW_TIMEOUT_MS = 12_000L
     private const val WEBVIEW_POLL_INTERVAL_MS = 400L
 
+    private const val MAX_REDIRECTS = 8
+
+    private data class HttpTitleResult(val title: String, val finalUrl: String)
+
     /** Returns the page title, or null on any failure. Runs its I/O on [Dispatchers.IO]. */
     suspend fun fetch(url: String, context: Context): String? {
-        val httpTitle = fetchViaHttp(url)
-        return if (httpTitle != null && !isPlaceholderTitle(httpTitle, url)) {
-            httpTitle
+        val httpResult = fetchViaHttp(url)
+        // Check the placeholder heuristic against finalUrl, not the shared url: a short link
+        // like youtu.be redirects to youtube.com before any title is served, so the brand the
+        // title is compared against must be the redirected site's, not the shortener's.
+        return if (httpResult != null && !isPlaceholderTitle(httpResult.title, httpResult.finalUrl)) {
+            httpResult.title
         } else {
             fetchViaWebView(url, context)
         }
@@ -94,19 +101,38 @@ object PageTitleFetcher {
         return labels[idx]
     }
 
-    private suspend fun fetchViaHttp(url: String): String? = withContext(Dispatchers.IO) {
+    // Follows redirects manually (rather than instanceFollowRedirects = true) so the final,
+    // post-redirect URL is known: a URL shortener like youtu.be redirects to the real site
+    // before serving anything, and the placeholder-brand check needs the real site's host,
+    // not the shortener's, to know what a "just the brand" title would look like there.
+    private suspend fun fetchViaHttp(url: String): HttpTitleResult? = withContext(Dispatchers.IO) {
         runCatching {
-            val conn = (URL(url).openConnection() as HttpURLConnection).apply {
-                instanceFollowRedirects = true
-                connectTimeout = 8_000
-                readTimeout = 8_000
-                requestMethod = "GET"
-                setRequestProperty(
-                    "User-Agent",
-                    "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) " +
-                        "Chrome/124.0.0.0 Mobile Safari/537.36",
-                )
-                setRequestProperty("Accept", "text/html,application/xhtml+xml")
+            var currentUrl = url
+            var conn: HttpURLConnection
+            var hops = 0
+            while (true) {
+                conn = (URL(currentUrl).openConnection() as HttpURLConnection).apply {
+                    instanceFollowRedirects = false
+                    connectTimeout = 8_000
+                    readTimeout = 8_000
+                    requestMethod = "GET"
+                    setRequestProperty(
+                        "User-Agent",
+                        "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) " +
+                            "Chrome/124.0.0.0 Mobile Safari/537.36",
+                    )
+                    setRequestProperty("Accept", "text/html,application/xhtml+xml")
+                }
+                val code = conn.responseCode
+                if (code in 300..399 && hops < MAX_REDIRECTS) {
+                    val location = conn.getHeaderField("Location")
+                    conn.disconnect()
+                    if (location == null) return@runCatching null
+                    currentUrl = URL(URL(currentUrl), location).toString()
+                    hops++
+                    continue
+                }
+                break
             }
             try {
                 // Read only as far as </title> rather than the whole page.
@@ -120,11 +146,12 @@ object PageTitleFetcher {
                     }
                     sb.toString()
                 }
-                TITLE.find(head)?.groupValues?.get(1)?.let(::cleanTitle)
+                TITLE.find(head)?.groupValues?.get(1)?.let(::cleanTitle)?.takeIf { it.isNotBlank() }
+                    ?.let { HttpTitleResult(it, currentUrl) }
             } finally {
                 conn.disconnect()
             }
-        }.getOrNull()?.takeIf { it.isNotBlank() }
+        }.getOrNull()
     }
 
     // Runs the page in a hidden WebView so its JS challenge/redirect (or, for an SPA, its
@@ -145,7 +172,10 @@ object PageTitleFetcher {
                         lateinit var poll: Runnable
                         poll = Runnable {
                             val title = webView.title?.let(::cleanTitle)
-                            if (title != null && title.isNotBlank() && !isPlaceholderTitle(title, url)) {
+                            // webView.url reflects wherever a redirect (e.g. a youtu.be short
+                            // link) actually landed, not the URL that was originally loaded.
+                            val currentUrl = webView.url ?: url
+                            if (title != null && title.isNotBlank() && !isPlaceholderTitle(title, currentUrl)) {
                                 if (cont.isActive) cont.resume(title)
                             } else {
                                 handler.postDelayed(poll, WEBVIEW_POLL_INTERVAL_MS)

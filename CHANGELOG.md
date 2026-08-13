@@ -35,6 +35,13 @@ updated and push.
   derives the shared URL's own brand from its host and rejects a fetched title that reduces to
   nothing but that brand (alone, or as a short lead-in tagline), falling back to the WebView
   fetch either way so the real, client-rendered title is used instead.
+- Fixed that brand check still missing YouTube links shared via the native share sheet, which
+  hand over a `youtu.be/<id>` short link: `PageTitleFetcher` was comparing the fetched title
+  against the shortener's own host ("youtu") rather than the real site it redirects to
+  ("youtube"), so the brand never matched and the "YouTube" placeholder slipped through. HTTP
+  fetches now follow redirects manually so the placeholder check runs against the final,
+  post-redirect URL; the WebView fallback's poll loop does the same using `webView.url`.
+  Verified on-device: a shared `youtu.be` link now resolves to the real video title.
 
 ## [1.0.255] - 2026-08-12
 
