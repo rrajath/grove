@@ -46,6 +46,8 @@ the same tag/version and just re-uploads the APKs to the existing release.
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-08-14 (build 266)
+
 ### Fixed
 - Fixed the agenda ledger widget permanently showing the system's "Can't show content"
   fallback for vaults containing a SCHEDULED/DEADLINE timestamp with an out-of-range hour or
