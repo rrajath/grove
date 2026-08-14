@@ -69,6 +69,39 @@ the same tag/version and just re-uploads the APKs to the existing release.
   fetches now follow redirects manually so the placeholder check runs against the final,
   post-redirect URL; the WebView fallback's poll loop does the same using `webView.url`.
   Verified on-device: a shared `youtu.be` link now resolves to the real video title.
+- Fixed the agenda ledger widget permanently showing the system's "Can't show content"
+  fallback for vaults containing a SCHEDULED/DEADLINE timestamp with an out-of-range hour or
+  minute (e.g. a hand-typo'd `25:00`, or a >24h CLOCK duration cookie that reads like a clock
+  time). `OrgTimestamp.parse` already guarded an invalid *date* against throwing, but not an
+  invalid *time*: `LocalTime.of` threw an uncaught `DateTimeException` straight out of the
+  widget's `provideGlance`, which Glance has no crash UI for, so the AppWidgetHost fell back to
+  its generic placeholder on every redraw — surviving delete/re-add because the bad timestamp
+  lives in the vault, not the widget instance. An out-of-range time now rejects the whole
+  timestamp the same way an out-of-range date already did. The widget's section-building is
+  also now wrapped defensively, so a future data problem degrades to an empty ledger instead of
+  taking the whole widget down again.
+- Fixed the daily digest notification again reporting hundreds of tasks as overdue with a custom
+  done-keyword (e.g. `KILL`) left unrecognized, on some cold starts. This is a second, narrower
+  gap in the same area as the earlier "Fix cold-start race that could index notebooks with stale
+  TODO keywords" fix (commits 343f65b/fd1dc85), not a full regression of it: that fix made
+  `GroveApplication.onCreate` await `settingsRepository.settings.first()` before wiring up
+  `syncManager.attach`, which does stop DataStore's *disk* read from racing the first sync. But
+  `keywords` (the parsed `OrgKeywords` used to classify every heading during indexing) is a
+  *separate* `by lazy` `StateFlow`, eagerly seeded with the default keyword set until its own
+  independent subscription delivers a real value — and nothing forced that subscription to
+  start early. Its very first read happened synchronously, with no suspension point, inside the
+  very first sync's indexing pass, so it could still return the default seed regardless of how
+  much wall-clock time had passed since the settings read. `onCreate` now explicitly blocks on
+  `keywords` itself until it has emitted the value derived from the settings just read, before
+  letting that first sync fire, closing the gap the settings-only wait left open.
+- Fixed favorites in the sidebar drawer becoming "Note not found" after the underlying `.org`
+  file was edited outside the app (Grove's whole model is that files are edited in Emacs/synced
+  via Syncthing too, not just in-app). `FavoriteNote` was keyed purely by a raw line number,
+  which drifts the moment any line above it is added or removed externally. Favoriting a note
+  already wrote a stable `:CUSTOM_ID:` onto its heading, but discarded the id afterward instead
+  of storing it; favorites, `NoteRef` navigation, and the read/edit-mode note loaders now resolve
+  by that id first, falling back to the line number only when there's no id (older favorites, or
+  a note that never got one).
 
 ## [1.0.255] - 2026-08-12
 

@@ -87,6 +87,8 @@ import java.time.LocalDateTime
  * The initial values are read with `first()` so the very first frame after a cold
  * session start is already correct instead of flashing an empty ledger.
  */
+private const val TAG = "GroveWidget"
+
 class LedgerWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
@@ -101,8 +103,22 @@ class LedgerWidget : GlanceAppWidget() {
             val colors = groveColorsFor(settings.theme)
             val today = LocalDate.now()
             val windowDays = settings.agendaWidgetDaysAhead
-            val openNotes = notes.map { it.toNoteMeta() }.filter { !it.isDoneKeyword }
-            val sections = LedgerBuckets.build(openNotes, today, windowDays, settings)
+            // Bucketing walks every planned note's SCHEDULED/DEADLINE timestamp
+            // (OrgTimestamp.parse). A single unparseable one used to take the
+            // whole composition down with it: Glance has no per-widget crash UI
+            // of its own, so the AppWidgetHost fell back to its generic "Can't
+            // show content" placeholder, and it stayed that way on every
+            // subsequent redraw (delete/re-add doesn't touch the vault data that
+            // triggered it). Degrade to an empty ledger instead of taking the
+            // whole widget down with it — the in-app Agenda screen already
+            // guides the user to the underlying data problem.
+            val sections = try {
+                val openNotes = notes.map { it.toNoteMeta() }.filter { !it.isDoneKeyword }
+                LedgerBuckets.build(openNotes, today, windowDays, settings)
+            } catch (e: Exception) {
+                Log.e(TAG, "failed to build ledger sections; showing empty widget", e)
+                emptyList()
+            }
             val todayCount = sections.firstOrNull { it.key.startsWith("Today") }?.count ?: 0
             val totalCount = sections.sumOf { it.count }
             val iconRes = AppIconManager.mipmapRes(settings.syncAppIconWithTheme, settings.theme)
@@ -422,9 +438,5 @@ class MarkDoneAction : ActionCallback {
         }
         app.syncManager.requestSync("ledger widget mark done")
         LedgerWidget().updateAll(context)
-    }
-
-    private companion object {
-        const val TAG = "GroveWidget"
     }
 }

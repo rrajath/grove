@@ -19,28 +19,37 @@ class FavoritesRepository(private val context: Context) {
         prefs[FAVORITES_KEY]?.let { FavoriteNoteSerializer.decode(it) } ?: emptyList()
     }
 
+    /**
+     * Identifies a favorite by its stable [customId] when both sides have one (survives external
+     * edits that shift [lineIndex]); falls back to the (fileName, lineIndex) pair otherwise, e.g.
+     * for favorites saved before ids existed or when a caller has no id at hand.
+     */
+    private fun matches(fav: FavoriteNote, fileName: String, lineIndex: Int, customId: String?): Boolean =
+        if (customId != null && fav.customId != null) fav.fileName == fileName && fav.customId == customId
+        else fav.fileName == fileName && fav.lineIndex == lineIndex
+
     suspend fun addFavorite(note: FavoriteNote) {
         val current = favorites.first()
-        if (current.any { it.fileName == note.fileName && it.lineIndex == note.lineIndex }) return
+        if (current.any { matches(it, note.fileName, note.lineIndex, note.customId) }) return
         context.favoritesDataStore.edit { it[FAVORITES_KEY] = FavoriteNoteSerializer.encode(current + note) }
     }
 
-    suspend fun removeFavorite(fileName: String, lineIndex: Int) {
-        val updated = favorites.first().filterNot { it.fileName == fileName && it.lineIndex == lineIndex }
+    suspend fun removeFavorite(fileName: String, lineIndex: Int, customId: String? = null) {
+        val updated = favorites.first().filterNot { matches(it, fileName, lineIndex, customId) }
         context.favoritesDataStore.edit { it[FAVORITES_KEY] = FavoriteNoteSerializer.encode(updated) }
     }
 
-    suspend fun renameFavorite(fileName: String, lineIndex: Int, title: String) {
+    suspend fun renameFavorite(fileName: String, lineIndex: Int, title: String, customId: String? = null) {
         val updated = favorites.first().map {
-            if (it.fileName == fileName && it.lineIndex == lineIndex) it.copy(title = title) else it
+            if (matches(it, fileName, lineIndex, customId)) it.copy(title = title) else it
         }
         context.favoritesDataStore.edit { it[FAVORITES_KEY] = FavoriteNoteSerializer.encode(updated) }
     }
 
-    /** Swaps the favorite at (fileName, lineIndex) with its neighbor [delta] slots away (-1 up, +1 down); no-op past either end. */
-    suspend fun moveFavorite(fileName: String, lineIndex: Int, delta: Int) {
+    /** Swaps the favorite matching (fileName, lineIndex[, customId]) with its neighbor [delta] slots away (-1 up, +1 down); no-op past either end. */
+    suspend fun moveFavorite(fileName: String, lineIndex: Int, delta: Int, customId: String? = null) {
         val current = favorites.first().toMutableList()
-        val from = current.indexOfFirst { it.fileName == fileName && it.lineIndex == lineIndex }
+        val from = current.indexOfFirst { matches(it, fileName, lineIndex, customId) }
         val to = from + delta
         if (from < 0 || to < 0 || to >= current.size) return
         current.add(to, current.removeAt(from))

@@ -38,6 +38,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 /** Composition root for app-wide singletons (manual DI; the app is small). */
 class GroveApplication : Application() {
@@ -188,12 +189,34 @@ class GroveApplication : Application() {
             // [syncManager.attach] can fire (and index every notebook) while
             // [keywords] is still on its `OrgKeywords.DEFAULT` seed, baking a
             // wrong `keyword`/`isDone` into Room for any custom TODO keyword
-            // until the next full reindex. DataStore caches the loaded
-            // Preferences in memory after this first read, so [keywords]'s own
-            // subscription (triggered lazily below, inside the sync this
-            // `attach` kicks off) picks up the real value on a cache hit
-            // instead of racing a fresh disk read.
-            settingsRepository.settings.first()
+            // until the next full reindex.
+            //
+            // Awaiting `settings.first()` alone is NOT enough (this was the gap
+            // in the previous fix, commits 343f65b/fd1dc85): it only guarantees
+            // DataStore's Preferences are cached in memory. [keywords] is a
+            // separate `by lazy` `stateIn(..., Eagerly, OrgKeywords.DEFAULT)`
+            // that nothing here has touched yet - [syncManager]'s constructor
+            // only stores the `{ keywords.value }` closure, it doesn't call it.
+            // That closure's first-ever invocation happens synchronously deep
+            // inside `RoomNoteIndex.indexNotebook`, during the very sync this
+            // `attach` triggers, with no suspension point in between. `stateIn`
+            // hands out its `DEFAULT` seed the instant the flow is *created*,
+            // regardless of how much wall-clock time has passed - so a purely
+            // time-based "it'll probably have caught up by then" assumption
+            // (which is all the previous fix provided) is still a race. Block
+            // explicitly on [keywords] itself until it has actually emitted the
+            // value derived from the settings just read, so every reader from
+            // this point on (including this sync's indexing pass) sees the real
+            // config instead of the seed.
+            val settings = settingsRepository.settings.first()
+            // Timeout is a belt-and-suspenders fallback only (e.g. settings
+            // changing again in the split second between the two reads above
+            // would otherwise wait for an [OrgKeywords] value that never
+            // arrives); it should resolve almost immediately since DataStore's
+            // Preferences are already cached by the read above.
+            withTimeoutOrNull(5_000) {
+                keywords.first { it == OrgKeywords.parse(settings.todoKeywords) }
+            }
             fileStore.collect { syncManager.attach(it) }
         }
         appScope.launch {

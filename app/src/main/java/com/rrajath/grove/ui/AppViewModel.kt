@@ -63,8 +63,8 @@ class AppViewModel(private val app: GroveApplication) : ViewModel() {
 
     fun addFavorite(fileName: String, lineIndex: Int, title: String) =
         viewModelScope.launch {
-            ensureCustomId(fileName, lineIndex)
-            app.favoritesRepository.addFavorite(FavoriteNote(fileName, lineIndex, title))
+            val customId = ensureCustomId(fileName, lineIndex)
+            app.favoritesRepository.addFavorite(FavoriteNote(fileName, lineIndex, title, customId))
         }
 
     /**
@@ -72,25 +72,32 @@ class AppViewModel(private val app: GroveApplication) : ViewModel() {
      * potentially elsewhere), which needs a stable `:ID:`/`:CUSTOM_ID:` — add a
      * `:CUSTOM_ID:` only when the heading has neither already, so an
      * intentionally-set one is never overwritten.
+     *
+     * @return the heading's existing or newly-written id, so the caller can store it on the
+     *   [FavoriteNote] and resolve by id instead of by raw line number later (line numbers
+     *   drift under external edits, which is this app's primary edit path).
      */
-    private suspend fun ensureCustomId(fileName: String, lineIndex: Int) {
-        val vault = app.vault.value ?: return
-        val doc = vault.open(fileName) ?: return
-        val headline = doc.headlineAtLine(lineIndex) ?: return
-        if (headline.id != null || headline.customId != null) return
-        val newText = OrgMutations.upsertProperty(doc, headline, "CUSTOM_ID", UUID.randomUUID().toString())
+    private suspend fun ensureCustomId(fileName: String, lineIndex: Int): String? {
+        val vault = app.vault.value ?: return null
+        val doc = vault.open(fileName) ?: return null
+        val headline = doc.headlineAtLine(lineIndex) ?: return null
+        headline.id?.let { return it }
+        headline.customId?.let { return it }
+        val newId = UUID.randomUUID().toString()
+        val newText = OrgMutations.upsertProperty(doc, headline, "CUSTOM_ID", newId)
         vault.save(fileName, newText)
         app.syncManager.requestSync("favorite added custom id")
+        return newId
     }
 
-    fun removeFavorite(fileName: String, lineIndex: Int) =
-        viewModelScope.launch { app.favoritesRepository.removeFavorite(fileName, lineIndex) }
+    fun removeFavorite(fileName: String, lineIndex: Int, customId: String? = null) =
+        viewModelScope.launch { app.favoritesRepository.removeFavorite(fileName, lineIndex, customId) }
 
-    fun renameFavorite(fileName: String, lineIndex: Int, title: String) =
-        viewModelScope.launch { app.favoritesRepository.renameFavorite(fileName, lineIndex, title) }
+    fun renameFavorite(fileName: String, lineIndex: Int, title: String, customId: String? = null) =
+        viewModelScope.launch { app.favoritesRepository.renameFavorite(fileName, lineIndex, title, customId) }
 
-    fun moveFavorite(fileName: String, lineIndex: Int, delta: Int) =
-        viewModelScope.launch { app.favoritesRepository.moveFavorite(fileName, lineIndex, delta) }
+    fun moveFavorite(fileName: String, lineIndex: Int, delta: Int, customId: String? = null) =
+        viewModelScope.launch { app.favoritesRepository.moveFavorite(fileName, lineIndex, delta, customId) }
 
     fun setTheme(theme: ThemePreference) =
         viewModelScope.launch { settingsRepository.setTheme(theme) }

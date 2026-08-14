@@ -62,4 +62,23 @@ class FavoriteNoteSerializerTest {
         val decoded = FavoriteNoteSerializer.decode(FavoriteNoteSerializer.encode(listOf(fav)))
         assertEquals(0, decoded[0].lineIndex)
     }
+
+    // --- customId (stable identity across external line-number drift) ---
+
+    @Test
+    fun `customId survives a round-trip`() {
+        val fav = FavoriteNote("inbox.org", 3, "Buy groceries", customId = "abc-123")
+        val decoded = FavoriteNoteSerializer.decode(FavoriteNoteSerializer.encode(listOf(fav)))
+        assertEquals(listOf(fav), decoded)
+        assertEquals("abc-123", decoded[0].customId)
+    }
+
+    @Test
+    fun `favorite json with no customId key decodes with null customId`() {
+        // Pre-fix persisted favorites never wrote this key at all.
+        val json = """{"favorites":[{"fileName":"notes.org","lineIndex":1,"title":"Hello"}]}"""
+        val decoded = FavoriteNoteSerializer.decode(json)
+        assertEquals(1, decoded.size)
+        assertEquals(FavoriteNote("notes.org", 1, "Hello", customId = null), decoded[0])
+    }
 }

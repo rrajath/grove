@@ -120,9 +120,9 @@ fun GroveDrawerContent(
                     DrawerItem(
                         icon = favoriteIcon(), label = fav.title, active = false,
                         onLongClick = { favMenuTarget = fav },
-                    ) { onNavigate(Routes.note(NoteRef(fav.fileName, fav.lineIndex).encode())) }
+                    ) { onNavigate(Routes.note(NoteRef(fav.fileName, fav.lineIndex, fav.customId).encode())) }
                     DrawerActionMenu(
-                        expanded = favMenuTarget?.let { it.fileName == fav.fileName && it.lineIndex == fav.lineIndex } == true,
+                        expanded = favMenuTarget == fav,
                         onDismissRequest = { favMenuTarget = null },
                         canMoveUp = index > 0,
                         canMoveDown = index < favorites.lastIndex,

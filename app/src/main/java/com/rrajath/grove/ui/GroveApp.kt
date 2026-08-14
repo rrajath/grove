@@ -230,9 +230,9 @@ private fun GroveNavigation(
                     onDeleteSavedSearch = { viewModel.deleteSavedSearch(it.id) },
                     onRenameSavedSearch = { id, name -> viewModel.renameSavedSearch(id, name) },
                     onMoveSavedSearch = { id, delta -> viewModel.moveSavedSearch(id, delta) },
-                    onDeleteFavorite = { viewModel.removeFavorite(it.fileName, it.lineIndex) },
-                    onRenameFavorite = { fav, title -> viewModel.renameFavorite(fav.fileName, fav.lineIndex, title) },
-                    onMoveFavorite = { fav, delta -> viewModel.moveFavorite(fav.fileName, fav.lineIndex, delta) },
+                    onDeleteFavorite = { viewModel.removeFavorite(it.fileName, it.lineIndex, it.customId) },
+                    onRenameFavorite = { fav, title -> viewModel.renameFavorite(fav.fileName, fav.lineIndex, title, fav.customId) },
+                    onMoveFavorite = { fav, delta -> viewModel.moveFavorite(fav.fileName, fav.lineIndex, delta, fav.customId) },
                 )
             }
         },
@@ -292,8 +292,9 @@ private fun GroveNavigation(
                     onSearchInNotebook = { navController.navigate(Routes.search(notebook = notebookId)) },
                     // Toggle: the outline's ★ swipe action both adds and removes.
                     onFavorite = { fileName, lineIndex, title ->
-                        if (favorites.any { it.fileName == fileName && it.lineIndex == lineIndex }) {
-                            viewModel.removeFavorite(fileName, lineIndex)
+                        val existing = favorites.firstOrNull { it.fileName == fileName && it.lineIndex == lineIndex }
+                        if (existing != null) {
+                            viewModel.removeFavorite(fileName, lineIndex, existing.customId)
                         } else {
                             viewModel.addFavorite(fileName, lineIndex, title)
                         }

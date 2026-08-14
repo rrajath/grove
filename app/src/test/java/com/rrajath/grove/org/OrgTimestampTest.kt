@@ -71,6 +71,21 @@ class OrgTimestampTest {
     }
 
     @Test
+    fun `rejects out-of-range hour or minute instead of throwing`() {
+        // Regression test: LocalTime.of(25, 0) / LocalTime.of(10, 99) throw
+        // DateTimeException. The regex's \d{1,2}:\d{2} happily matches these
+        // (a hand-typo'd time, or a >24h CLOCK duration cookie that looks like
+        // a clock time), so parsing must reject the whole timestamp the same
+        // way it already does for an out-of-range date, rather than letting
+        // the exception escape into callers like the agenda ledger widget's
+        // provideGlance (which had no try/catch and surfaced as the system's
+        // generic "Can't show content" widget fallback).
+        assertNull(OrgTimestamp.parse("<2025-04-30 Wed 25:00>"))
+        assertNull(OrgTimestamp.parse("<2025-04-30 Wed 10:99>"))
+        assertNull(OrgTimestamp.parse("<2025-04-30 Wed 10:00-25:30>"))
+    }
+
+    @Test
     fun `format emits canonical org form`() {
         assertEquals("<2025-04-30 Wed>", OrgTimestamp.parse("<2025-04-30 Wed>")!!.format())
         assertEquals("[2025-06-11 Wed 14:32]", OrgTimestamp.parse("[2025-06-11 Wed 14:32]")!!.format())

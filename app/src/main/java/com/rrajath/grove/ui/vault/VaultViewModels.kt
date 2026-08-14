@@ -366,15 +366,20 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
     }
 
     /**
-     * Favorites reference headlines by lineIndex; drop the ones a delete or
-     * refile removed from the file. (Remapping favorites across other
-     * structural edits is a known limitation.)
+     * Same-session cleanup for an in-app delete/refile: a favorite whose stored lineIndex falls
+     * in the removed subtree's range is dropped. This is a fast heuristic keyed on the
+     * lineIndex snapshot from *before* this edit (still accurate at this point, since the doc
+     * was just loaded), not the customId-based resolution [OrgDocument.headlineFor] uses
+     * elsewhere: a deleted subtree's CUSTOM_ID heading is gone entirely, so there is nothing to
+     * resolve against anyway. Favorites elsewhere in the file, whose lines shift as a side
+     * effect of this edit, are unaffected here on purpose — they still resolve correctly via
+     * customId the next time they're opened.
      */
     private fun dropFavoritesInRange(fileName: String, range: IntRange) {
         viewModelScope.launch {
             app.favoritesRepository.favorites.first()
                 .filter { it.fileName == fileName && it.lineIndex in range }
-                .forEach { app.favoritesRepository.removeFavorite(it.fileName, it.lineIndex) }
+                .forEach { app.favoritesRepository.removeFavorite(it.fileName, it.lineIndex, it.customId) }
         }
     }
 
@@ -785,22 +790,44 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
     }
 }
 
-/** Note identity until cross-file ids land in search (M6): "fileName@headlineLineIndex". */
-data class NoteRef(val fileName: String, val lineIndex: Int) {
-    fun encode(): String = "$fileName@$lineIndex"
+/**
+ * Note identity: "fileName@headlineLineIndex[#customId]". [lineIndex] is a snapshot from
+ * whenever this ref was created (e.g. a favorite added earlier, or an outline row tapped just
+ * now); it can go stale if the file was edited externally (this app's primary edit path) or
+ * elsewhere in-app between then and when the ref is resolved. [customId] — the heading's
+ * `:CUSTOM_ID:`/`:ID:`, when known — is the stable identity to resolve against; see
+ * [OrgDocument.headlineFor]. Null for refs with no id at hand (fresh outline taps resolve
+ * against the live doc so [lineIndex] alone is already correct there).
+ */
+data class NoteRef(val fileName: String, val lineIndex: Int, val customId: String? = null) {
+    fun encode(): String = if (customId != null) "$fileName@$lineIndex#$customId" else "$fileName@$lineIndex"
 
     companion object {
         fun decode(noteId: String): NoteRef? {
-            val at = noteId.lastIndexOf('@')
+            val hash = noteId.indexOf('#')
+            val base = if (hash >= 0) noteId.substring(0, hash) else noteId
+            val customId = if (hash >= 0) noteId.substring(hash + 1).takeIf { it.isNotEmpty() } else null
+            val at = base.lastIndexOf('@')
             if (at <= 0) return null
-            val line = noteId.substring(at + 1).toIntOrNull() ?: return null
-            return NoteRef(noteId.substring(0, at), line)
+            val line = base.substring(at + 1).toIntOrNull() ?: return null
+            return NoteRef(base.substring(0, at), line, customId)
         }
     }
 }
 
 fun OrgDocument.headlineAtLine(lineIndex: Int): OrgHeadline? =
     headlines.firstOrNull { it.lineIndex == lineIndex }
+
+/**
+ * Resolves a [NoteRef] to its headline. Tries [NoteRef.customId] first (via `:CUSTOM_ID:` then
+ * `:ID:`), which stays correct even when [NoteRef.lineIndex] has drifted from an external edit;
+ * falls back to a raw line lookup when there's no id (older favorites, refs created directly
+ * from a just-loaded doc, or an id search that came up empty).
+ */
+fun OrgDocument.headlineFor(ref: NoteRef): OrgHeadline? {
+    val byId = ref.customId?.let { findByCustomId(it) ?: findById(it) }
+    return byId ?: headlineAtLine(ref.lineIndex)
+}
 
 internal fun <T : ViewModel> factory(create: (GroveApplication) -> T) =
     object : ViewModelProvider.Factory {

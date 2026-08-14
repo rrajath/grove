@@ -114,10 +114,32 @@ data class OrgTimestamp(
             } catch (e: java.time.DateTimeException) {
                 return null
             }
-            val time = m.groupValues[6].takeIf { it.isNotEmpty() }
-                ?.let { LocalTime.of(it.toInt(), m.groupValues[7].toInt()) }
-            val endTime = m.groupValues[8].takeIf { it.isNotEmpty() }
-                ?.let { LocalTime.of(it.toInt(), m.groupValues[9].toInt()) }
+            // Guarded the same way as the date above: the regex's `\d{1,2}:\d{2}`
+            // happily matches out-of-range clock values like "25:00" or "10:99"
+            // (typo'd by hand, or a >24h CLOCK duration cookie that looks like a
+            // time), and LocalTime.of throws DateTimeException for those. Left
+            // unguarded, that exception used to escape all the way out of
+            // OrgTimestamp.parse into whichever caller triggered the lazy
+            // NoteMeta.scheduledTs/deadlineTs evaluation first — most visibly the
+            // agenda ledger widget's provideGlance, which has no caller-side
+            // try/catch and has no visible "app crashed" UI to report it, so it
+            // silently fell into the AppWidgetHost's generic "Can't show content"
+            // fallback on every recomposition, surviving delete/re-add because
+            // the bad timestamp lives in the vault, not the widget instance.
+            val time = m.groupValues[6].takeIf { it.isNotEmpty() }?.let {
+                try {
+                    LocalTime.of(it.toInt(), m.groupValues[7].toInt())
+                } catch (e: java.time.DateTimeException) {
+                    return null
+                }
+            }
+            val endTime = m.groupValues[8].takeIf { it.isNotEmpty() }?.let {
+                try {
+                    LocalTime.of(it.toInt(), m.groupValues[9].toInt())
+                } catch (e: java.time.DateTimeException) {
+                    return null
+                }
+            }
             val repeater = m.groupValues[10].trim().takeIf { it.isNotEmpty() }?.let { rep ->
                 val repMatch = REPEATER.matchEntire(rep) ?: return@let null
                 val type = RepeaterType.fromMarker(repMatch.groupValues[1]) ?: return@let null

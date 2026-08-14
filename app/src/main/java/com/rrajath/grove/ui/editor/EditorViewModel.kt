@@ -12,6 +12,7 @@ import com.rrajath.grove.org.OrgTimestamp
 import com.rrajath.grove.ui.vault.NoteRef
 import com.rrajath.grove.ui.vault.OutlineSnack
 import com.rrajath.grove.ui.vault.factory
+import com.rrajath.grove.ui.vault.headlineFor
 import com.rrajath.grove.vault.AutoArchive
 import com.rrajath.grove.vault.StateChangeResult
 import kotlinx.coroutines.Dispatchers
@@ -121,7 +122,11 @@ class EditorViewModel(private val app: GroveApplication) : ViewModel() {
                 _state.value = EditorUiState(loading = false, error = "${ref.fileName} not found")
                 return@launch
             }
-            val headline = doc.headlines.firstOrNull { it.lineIndex == ref.lineIndex } ?: run {
+            // Resolve by customId first (survives an external edit shifting ref.lineIndex);
+            // headline.lineIndex below is then the current, correct line, not ref's possibly
+            // stale snapshot — every later lookup in this session (save, delete, keyword
+            // change) keys off state.lineIndex, so this is where drift gets healed.
+            val headline = doc.headlineFor(ref) ?: run {
                 _state.value = EditorUiState(loading = false, error = "Note not found")
                 return@launch
             }
@@ -133,7 +138,7 @@ class EditorViewModel(private val app: GroveApplication) : ViewModel() {
             _state.value = EditorUiState(
                 loading = false,
                 fileName = ref.fileName,
-                lineIndex = ref.lineIndex,
+                lineIndex = headline.lineIndex,
                 buffer = OrgMutations.subtreeText(doc, headline),
                 loadedRevision = vault.revision(ref.fileName),
                 keywords = app.keywords.value,

@@ -97,7 +97,7 @@ import com.rrajath.grove.ui.theme.priorityColor
 import com.rrajath.grove.ui.vault.DocumentUiState
 import com.rrajath.grove.ui.vault.DocumentViewModel
 import com.rrajath.grove.ui.vault.NoteRef
-import com.rrajath.grove.ui.vault.headlineAtLine
+import com.rrajath.grove.ui.vault.headlineFor
 
 /**
  * Read mode per design spec §5: rendered note (own body + subtree).
@@ -156,7 +156,7 @@ fun ReadNoteScreen(
             onBack()
         }
     }
-    val currentHeadline = (state as? DocumentUiState.Loaded)?.document?.headlineAtLine(noteRef.lineIndex)
+    val currentHeadline = (state as? DocumentUiState.Loaded)?.document?.headlineFor(noteRef)
     // Reload whenever the screen comes back to the foreground (e.g. returning
     // from the editor) so saved edits show immediately.
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
@@ -187,7 +187,7 @@ fun ReadNoteScreen(
                 },
                 subtitle = {
                     (state as? DocumentUiState.Loaded)?.document?.let { doc ->
-                        doc.headlineAtLine(noteRef.lineIndex)?.let { h ->
+                        doc.headlineFor(noteRef)?.let { h ->
                             val path = remember(doc, h) {
                                 val chain = mutableListOf(h)
                                 var p = doc.parent(h)
@@ -216,7 +216,7 @@ fun ReadNoteScreen(
 
             is DocumentUiState.Loaded -> {
                 val doc = s.document
-                val headline = doc.headlineAtLine(noteRef.lineIndex)
+                val headline = doc.headlineFor(noteRef)
                 if (headline == null) {
                     Box(
                         Modifier.fillMaxSize().padding(padding),
