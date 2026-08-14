@@ -4,10 +4,9 @@ License: Apache-2.0
 AuthorName: Rajath Ramakrishna
 SourceCode: https://github.com/rrajath/grove
 IssueTracker: https://github.com/rrajath/grove/issues
-Changelog: https://github.com/rrajath/grove/blob/main/CHANGELOG.md
+Changelog: https://github.com/rrajath/grove/blob/HEAD/CHANGELOG.md
 
 AutoName: Grove
-Summary: Native Org-mode notes, synced the way you already trust
 Description: |-
   Grove is a native Android Org-mode note-taking app: a first-class mobile
   companion for Emacs org-mode users. It edits plain .org files in a folder
@@ -20,13 +19,14 @@ RepoType: git
 Repo: https://github.com/rrajath/grove
 
 Builds:
-  - versionName: '1.0.0'
+  - versionName: 1.0.0
     versionCode: 266
     commit: 45a0dbe67034be9bac9898b91c6e60aacf906083
+    subdir: app
     gradle:
-      - "yes"
+      - yes
 
-AutoUpdateMode: Version
-UpdateCheckMode: Tags
-CurrentVersion: '1.0.0'
+AutoUpdateMode: None
+UpdateCheckMode: Static
+CurrentVersion: 1.0.0
 CurrentVersionCode: 266
