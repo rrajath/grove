@@ -48,6 +48,11 @@ the same tag/version and just re-uploads the APKs to the existing release.
 
 ## [1.0.0] - 2026-08-14 (build 266)
 
+### Added
+- Added a Screenshots section to `README.md` and the F-Droid/Play store listing assets
+  (`fastlane/metadata/android/en-US/images/`): six phone screenshots and a 512x512 `icon.png`
+  rendered from the default adaptive-icon layers, since the app ships no raster launcher icon.
+
 ### Fixed
 - Fixed the agenda ledger widget permanently showing the system's "Can't show content"
   fallback for vaults containing a SCHEDULED/DEADLINE timestamp with an out-of-range hour or
