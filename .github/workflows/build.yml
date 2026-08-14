@@ -47,11 +47,17 @@ jobs:
         run: ./gradlew testDebugUnitTest
 
       # Computed once here and reused for the GitHub Release tag/title below.
+      # VERSION_CODE is also stamped into the archived CHANGELOG.md header (see
+      # the Archive step) since VERSION (versionName) is manually bumped and can
+      # repeat across releases; VERSION_CODE stays the one value the What's New
+      # modal can rely on for ordering.
       - name: Compute version
         run: |
           set -euo pipefail
           VERSION="$(./gradlew -q printVersionName | tail -n1)"
+          VERSION_CODE="$(./gradlew -q printVersionCode | tail -n1)"
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "VERSION_CODE=$VERSION_CODE" >> "$GITHUB_ENV"
 
       - name: Decode release keystore
         if: env.HAS_SIGNING == 'true'
@@ -143,11 +149,11 @@ jobs:
         run: |
           set -euo pipefail
           DATE="$(date -u +%Y-%m-%d)"
-          awk -v ver="$VERSION" -v date="$DATE" '
+          awk -v ver="$VERSION" -v date="$DATE" -v code="$VERSION_CODE" '
             /^## \[Unreleased\]$/ && !done {
               print
               print ""
-              print "## [" ver "] - " date
+              print "## [" ver "] - " date " (build " code ")"
               done=1
               next
             }

@@ -3,8 +3,15 @@ package com.rrajath.grove.whatsnew
 /** One `### Added`/`### Fixed`/etc. block under a version heading. */
 data class ChangelogSubsection(val heading: String, val items: List<String>)
 
-/** One `## [Unreleased]` or `## [1.0.<N>] - <date>` block. [versionNumber] is null for Unreleased. */
-data class ChangelogVersion(val title: String, val versionNumber: Int?, val subsections: List<ChangelogSubsection>)
+/**
+ * One `## [Unreleased]` or `## [1.0.0] - <date> (build <N>)` block. [buildNumber] is null for
+ * Unreleased, otherwise the versionCode the release was cut at — the only value still guaranteed
+ * unique and monotonically increasing across releases now that versionName is a manually-bumped
+ * SemVer string that can repeat (see CHANGELOG.md's "Versioning" section). Entries archived before
+ * that switch have no "(build N)" suffix; their title itself was "1.0.<versionCode>", so the
+ * trailing segment is recovered as a fallback.
+ */
+data class ChangelogVersion(val title: String, val buildNumber: Int?, val subsections: List<ChangelogSubsection>)
 
 /**
  * Parses `CHANGELOG.md`'s Keep-a-Changelog-style structure (see the file's own header comment)
@@ -13,12 +20,14 @@ data class ChangelogVersion(val title: String, val versionNumber: Int?, val subs
  */
 object ChangelogParser {
     private val versionHeading = Regex("""^## \[(.+?)](?: - .+)?$""")
+    private val buildSuffix = Regex("""\(build (\d+)\)\s*$""")
     private val subHeading = Regex("""^### (.+)$""")
     private val bulletStart = Regex("""^- (.+)$""")
 
     fun parse(text: String): List<ChangelogVersion> {
         val versions = mutableListOf<ChangelogVersion>()
         var title: String? = null
+        var explicitBuild: Int? = null
         var subsections = mutableListOf<ChangelogSubsection>()
         var subHeadingText: String? = null
         var items = mutableListOf<StringBuilder>()
@@ -30,8 +39,9 @@ object ChangelogParser {
         }
         fun flushVersion() {
             flushSubsection()
-            title?.let { versions.add(ChangelogVersion(it, versionNumber(it), subsections.toList())) }
+            title?.let { versions.add(ChangelogVersion(it, explicitBuild ?: legacyBuildNumber(it), subsections.toList())) }
             title = null
+            explicitBuild = null
             subsections = mutableListOf()
         }
 
@@ -43,6 +53,7 @@ object ChangelogParser {
                 versionMatch != null -> {
                     flushVersion()
                     title = versionMatch.groupValues[1]
+                    explicitBuild = buildSuffix.find(line)?.groupValues?.get(1)?.toIntOrNull()
                 }
                 title == null -> Unit // prose before the first heading (format explainer, etc.)
                 subMatch != null -> {
@@ -61,20 +72,19 @@ object ChangelogParser {
     }
 
     /**
-     * Sections strictly newer than [lastSeenVersion] down through [currentVersion] (inclusive),
-     * in the file's existing newest-first order, with empty sections (e.g. a just-cut, still-empty
-     * "Unreleased") dropped. Both version strings tolerate a build suffix like "-debug"; only the
-     * numeric commit-count segment is compared. Returns everything when [lastSeenVersion] is null
-     * — the caller decides what null means for its situation (e.g. suppress on a fresh install).
+     * Sections strictly newer than [lastSeenBuild] (a versionCode), in the file's existing
+     * newest-first order, with empty sections (e.g. a just-cut, still-empty "Unreleased") dropped.
+     * Returns everything when [lastSeenBuild] is null — the caller decides what null means for its
+     * situation (e.g. suppress on a fresh install).
      */
-    fun entriesSince(text: String, lastSeenVersion: String?, currentVersion: String): List<ChangelogVersion> {
+    fun entriesSince(text: String, lastSeenBuild: Int?): List<ChangelogVersion> {
         val all = parse(text).filter { it.subsections.any { s -> s.items.isNotEmpty() } }
-        val lastSeenN = lastSeenVersion?.let { versionNumber(stripBuildSuffix(it)) } ?: return all
-        return all.takeWhile { it.versionNumber == null || it.versionNumber > lastSeenN }
+        lastSeenBuild ?: return all
+        return all.takeWhile { it.buildNumber == null || it.buildNumber > lastSeenBuild }
     }
 
-    private fun versionNumber(title: String): Int? =
+    // Pre-migration entries titled "1.0.<versionCode>" (see CHANGELOG.md's "Versioning" section):
+    // the trailing segment was the versionCode itself, so it doubles as the build number.
+    private fun legacyBuildNumber(title: String): Int? =
         if (title == "Unreleased") null else title.substringAfterLast('.').toIntOrNull()
-
-    private fun stripBuildSuffix(version: String): String = version.substringBefore('-')
 }

@@ -8,13 +8,11 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
-// Version is derived from git at build time: nothing is hardcoded or written
-// back into the repo. Bump these two for a new major/minor line; the patch and
-// versionCode track the git commit count, so every commit yields a unique,
-// monotonically increasing build.
-val versionMajor = 1
-val versionMinor = 0
-
+// versionCode is derived from git at build time: nothing is hardcoded or
+// written back into the repo, so every commit yields a unique, monotonically
+// increasing build number. versionName is the opposite — a manually-bumped
+// SemVer string read as-is from the `versionName` key in gradle.properties;
+// nothing here computes or increments it.
 fun gitOutput(args: List<String>): String? {
     val out = providers.exec {
         commandLine(listOf("git") + args)
@@ -29,7 +27,7 @@ fun gitOutput(args: List<String>): String? {
 // (actions/checkout fetch-depth: 0) or a shallow clone undercounts. Falls back
 // to 1 outside a git checkout (e.g. a source archive).
 val gitCommitCount = gitOutput(listOf("rev-list", "--count", "HEAD"))?.toIntOrNull() ?: 1
-val semanticVersion = "$versionMajor.$versionMinor.$gitCommitCount"
+val manualVersionName = providers.gradleProperty("versionName").get()
 
 // Bundles the repo's CHANGELOG.md into the APK as a raw asset (read at runtime by the
 // What's New modal) instead of hand-duplicating its content into a resource: this keeps
@@ -101,7 +99,7 @@ android {
         minSdk = 34
         targetSdk = 36
         versionCode = gitCommitCount
-        versionName = semanticVersion
+        versionName = manualVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -211,8 +209,18 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 }
 
-// Print just the resolved versionName so CI can tag releases from one source of
-// truth: `./gradlew -q printVersionName` → "1.0.123".
+// Print just the versionName so CI can tag releases from one source of
+// truth: `./gradlew -q printVersionName` → "1.0.0". The value itself comes
+// from gradle.properties, not from anything computed here.
 tasks.register("printVersionName") {
-    doLast { println(semanticVersion) }
+    doLast { println(manualVersionName) }
+}
+
+// Print just the versionCode (`./gradlew -q printVersionCode` → "262") so CI can
+// stamp it into the CHANGELOG.md release header alongside versionName. Since
+// versionName is now manually bumped and can repeat across releases, versionCode
+// is the only value still guaranteed unique and increasing per release — the
+// What's New modal (see ChangelogParser) keys off it for that reason.
+tasks.register("printVersionCode") {
+    doLast { println(gitCommitCount) }
 }

@@ -4,33 +4,58 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-**Versioning:** this project does not use manual SemVer bumps. Every version is
-`1.0.<N>`, where `N` is the number of commits reachable from the release commit
-(`git rev-list --count HEAD`), the same value `./gradlew -q printVersionName`
-prints. Every entry below corresponds 1:1 to a real GitHub Release.
+**Versioning:** `versionCode` and `versionName` are decoupled.
+- `versionCode` is still fully automatic: it's the number of commits reachable
+  from the release commit (`git rev-list --count HEAD`), so it keeps
+  incrementing on every push with no action needed.
+- `versionName` is a manually-controlled SemVer string (`major.minor.patch`),
+  set in the `versionName` key in `gradle.properties`. CI reads it as-is via
+  `./gradlew -q printVersionName` and never computes or bumps it. Bump it by
+  hand whenever a release should carry a new version number: major = breaking
+  change, minor = new feature, patch = fix/tweak.
+- `1.0.0` marks the point this project switched from the old auto `1.0.<N>`
+  scheme (`N` = commit count) to manual SemVer, coinciding with the first
+  public release. Entries below that predate the switch keep the `1.0.<N>`
+  values they were actually released under.
+
+Every entry below still corresponds 1:1 to a real GitHub Release.
 
 The three entries marked *(local build, no GitHub Release)* predate commit 54,
 which is when the release workflow was first added; those changes shipped
 locally but nothing was ever tagged or published for them.
 
-**Cutting a release is fully automatic.** Add your changes under
-`## [Unreleased]` as you go (that part still takes a human; nobody else knows
-what the change was for). On push to `main`, CI computes the version, and:
-- if `## [Unreleased]` has content, it tags `v1.0.<N>`, publishes a GitHub
-  Release with both APKs using that content as the release notes, then pushes
-  a follow-up commit renaming `## [Unreleased]` to `## [1.0.<N>] - <date>`
-  and opening a fresh empty `## [Unreleased]` above it;
+**Cutting a release is fully automatic for `versionCode`.** Add your changes
+under `## [Unreleased]` as you go (that part still takes a human; nobody else
+knows what the change was for). On push to `main`, CI reads the current
+version (`versionCode` from the git commit count, `versionName` from
+`gradle.properties`), and:
+- if `## [Unreleased]` has content, it tags `v<versionName>`, publishes a
+  GitHub Release with both APKs using that content as the release notes, then
+  pushes a follow-up commit renaming `## [Unreleased]` to
+  `## [<versionName>] - <date> (build <versionCode>)` and opening a fresh empty
+  `## [Unreleased]` above it — the `(build N)` suffix is `versionCode`, kept
+  alongside `versionName` because the in-app What's New modal needs a value
+  that's always unique per release, which `versionName` alone no longer is;
 - if `## [Unreleased]` is empty, the push builds and tests as normal but no
   release is cut.
 
-Nothing needs to be run or renamed by hand: just keep the Unreleased section
-updated and push.
+Nothing needs to be run or renamed by hand for `versionCode`. `versionName`
+does need a manual bump in `gradle.properties` before pushing a release that
+should carry a new version number — pushing again without bumping it re-uses
+the same tag/version and just re-uploads the APKs to the existing release.
 
 ## [Unreleased]
 
 ## [1.0.259] - 2026-08-13
 
 ### Fixed
+- The in-app "What's New" modal now tracks the last-seen release by `versionCode` instead of
+  `versionName`. It previously compared `BuildConfig.VERSION_NAME` directly, which worked only
+  because that string used to embed the ever-increasing commit count; now that `versionName` is a
+  manually-bumped SemVer string that can repeat across releases (e.g. several pushes all still
+  `1.0.0`), that comparison would have silently stopped surfacing new changelog entries after the
+  first one. CHANGELOG.md's archived release headers now carry a `(build N)` suffix — the
+  `versionCode` at cut time — and `ChangelogParser`/`SettingsRepository` key off that instead.
 - Shared-link title fetching (PageTitleFetcher) no longer accepts a generic app-shell
   `<title>` — like YouTube's bare "YouTube" — as a shared link's title. The previous fix for
   this only special-cased Reddit's known shell titles; the check is now site-agnostic: it

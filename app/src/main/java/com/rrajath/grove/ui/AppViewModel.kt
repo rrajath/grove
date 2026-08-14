@@ -108,9 +108,9 @@ class AppViewModel(private val app: GroveApplication) : ViewModel() {
 
     fun completeOnboarding() = viewModelScope.launch {
         settingsRepository.setOnboardingDone(true)
-        // A brand-new install has nothing "new" to report: stamp the current version as
+        // A brand-new install has nothing "new" to report: stamp the current build as
         // already seen so the What's New modal never fires for someone who just onboarded.
-        settingsRepository.setLastSeenChangelogVersion(com.rrajath.grove.BuildConfig.VERSION_NAME)
+        settingsRepository.setLastSeenChangelogBuild(com.rrajath.grove.BuildConfig.VERSION_CODE)
     }
 
     private val _whatsNew = MutableStateFlow<List<ChangelogVersion>>(emptyList())
@@ -121,8 +121,8 @@ class AppViewModel(private val app: GroveApplication) : ViewModel() {
      * recorded as seen. Call once onboarding is confirmed done (see [completeOnboarding]).
      */
     fun checkWhatsNew() = viewModelScope.launch(Dispatchers.IO) {
-        val current = com.rrajath.grove.BuildConfig.VERSION_NAME
-        val lastSeen = settings.value?.lastSeenChangelogVersion
+        val current = com.rrajath.grove.BuildConfig.VERSION_CODE
+        val lastSeen = settings.value?.lastSeenChangelogBuild
         if (lastSeen == current) return@launch
         val text = runCatching {
             app.assets.open("CHANGELOG.md").bufferedReader().use { it.readText() }
@@ -132,17 +132,17 @@ class AppViewModel(private val app: GroveApplication) : ViewModel() {
             // diff against, so show just the newest shipped version instead of the full history.
             ChangelogParser.parse(text)
                 .filter { it.subsections.any { s -> s.items.isNotEmpty() } }
-                .firstOrNull { it.versionNumber != null }
+                .firstOrNull { it.buildNumber != null }
                 ?.let { listOf(it) } ?: emptyList()
         } else {
-            ChangelogParser.entriesSince(text, lastSeen, current)
+            ChangelogParser.entriesSince(text, lastSeen)
         }
         if (entries.isNotEmpty()) _whatsNew.value = entries
     }
 
     fun dismissWhatsNew() {
         _whatsNew.value = emptyList()
-        viewModelScope.launch { settingsRepository.setLastSeenChangelogVersion(com.rrajath.grove.BuildConfig.VERSION_NAME) }
+        viewModelScope.launch { settingsRepository.setLastSeenChangelogBuild(com.rrajath.grove.BuildConfig.VERSION_CODE) }
     }
 
     fun setVaultTreeUri(uri: String) =
