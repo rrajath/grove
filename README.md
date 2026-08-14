@@ -18,6 +18,16 @@ Grove edits plain `.org` files in a folder you choose. There is no account, no p
 - **Sync that respects your tools**: change detection by file revision, Syncthing `.sync-conflict-*` detection with a keep-local / keep-remote / keep-both picker, manual through continuous sync modes, `.orgzlyignore` support.
 - **A warm, deliberate design**: IBM Plex Sans/Serif/Mono, an earth-tone palette with full dark mode, and org syntax tokens colored the way an Emacs theme would.
 
+## Screenshots
+
+| Notebooks                                                                           | Outline                                                                         | Read mode                                                                          |
+|-------------------------------------------------------------------------------------|---------------------------------------------------------------------------------|------------------------------------------------------------------------------------|
+| ![Notebooks](fastlane/metadata/android/en-US/images/phoneScreenshots/1.png) | ![Outline](fastlane/metadata/android/en-US/images/phoneScreenshots/2.png) | ![Read mode](fastlane/metadata/android/en-US/images/phoneScreenshots/3.png) |
+
+| Edit mode                                                                          | Agenda                                                                        | Widget                                                                        |
+|------------------------------------------------------------------------------------|-------------------------------------------------------------------------------|-------------------------------------------------------------------------------|
+| ![Edit mode](fastlane/metadata/android/en-US/images/phoneScreenshots/4.png) | ![Agenda](fastlane/metadata/android/en-US/images/phoneScreenshots/5.png) | ![Widget](fastlane/metadata/android/en-US/images/phoneScreenshots/6.png) |
+
 ## Getting started
 
 ### Requirements
