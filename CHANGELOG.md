@@ -46,29 +46,7 @@ the same tag/version and just re-uploads the APKs to the existing release.
 
 ## [Unreleased]
 
-## [1.0.259] - 2026-08-13
-
 ### Fixed
-- The in-app "What's New" modal now tracks the last-seen release by `versionCode` instead of
-  `versionName`. It previously compared `BuildConfig.VERSION_NAME` directly, which worked only
-  because that string used to embed the ever-increasing commit count; now that `versionName` is a
-  manually-bumped SemVer string that can repeat across releases (e.g. several pushes all still
-  `1.0.0`), that comparison would have silently stopped surfacing new changelog entries after the
-  first one. CHANGELOG.md's archived release headers now carry a `(build N)` suffix — the
-  `versionCode` at cut time — and `ChangelogParser`/`SettingsRepository` key off that instead.
-- Shared-link title fetching (PageTitleFetcher) no longer accepts a generic app-shell
-  `<title>` — like YouTube's bare "YouTube" — as a shared link's title. The previous fix for
-  this only special-cased Reddit's known shell titles; the check is now site-agnostic: it
-  derives the shared URL's own brand from its host and rejects a fetched title that reduces to
-  nothing but that brand (alone, or as a short lead-in tagline), falling back to the WebView
-  fetch either way so the real, client-rendered title is used instead.
-- Fixed that brand check still missing YouTube links shared via the native share sheet, which
-  hand over a `youtu.be/<id>` short link: `PageTitleFetcher` was comparing the fetched title
-  against the shortener's own host ("youtu") rather than the real site it redirects to
-  ("youtube"), so the brand never matched and the "YouTube" placeholder slipped through. HTTP
-  fetches now follow redirects manually so the placeholder check runs against the final,
-  post-redirect URL; the WebView fallback's poll loop does the same using `webView.url`.
-  Verified on-device: a shared `youtu.be` link now resolves to the real video title.
 - Fixed the agenda ledger widget permanently showing the system's "Can't show content"
   fallback for vaults containing a SCHEDULED/DEADLINE timestamp with an out-of-range hour or
   minute (e.g. a hand-typo'd `25:00`, or a >24h CLOCK duration cookie that reads like a clock
@@ -102,6 +80,30 @@ the same tag/version and just re-uploads the APKs to the existing release.
   of storing it; favorites, `NoteRef` navigation, and the read/edit-mode note loaders now resolve
   by that id first, falling back to the line number only when there's no id (older favorites, or
   a note that never got one).
+
+## [1.0.259] - 2026-08-13
+
+### Fixed
+- The in-app "What's New" modal now tracks the last-seen release by `versionCode` instead of
+  `versionName`. It previously compared `BuildConfig.VERSION_NAME` directly, which worked only
+  because that string used to embed the ever-increasing commit count; now that `versionName` is a
+  manually-bumped SemVer string that can repeat across releases (e.g. several pushes all still
+  `1.0.0`), that comparison would have silently stopped surfacing new changelog entries after the
+  first one. CHANGELOG.md's archived release headers now carry a `(build N)` suffix — the
+  `versionCode` at cut time — and `ChangelogParser`/`SettingsRepository` key off that instead.
+- Shared-link title fetching (PageTitleFetcher) no longer accepts a generic app-shell
+  `<title>` — like YouTube's bare "YouTube" — as a shared link's title. The previous fix for
+  this only special-cased Reddit's known shell titles; the check is now site-agnostic: it
+  derives the shared URL's own brand from its host and rejects a fetched title that reduces to
+  nothing but that brand (alone, or as a short lead-in tagline), falling back to the WebView
+  fetch either way so the real, client-rendered title is used instead.
+- Fixed that brand check still missing YouTube links shared via the native share sheet, which
+  hand over a `youtu.be/<id>` short link: `PageTitleFetcher` was comparing the fetched title
+  against the shortener's own host ("youtu") rather than the real site it redirects to
+  ("youtube"), so the brand never matched and the "YouTube" placeholder slipped through. HTTP
+  fetches now follow redirects manually so the placeholder check runs against the final,
+  post-redirect URL; the WebView fallback's poll loop does the same using `webView.url`.
+  Verified on-device: a shared `youtu.be` link now resolves to the real video title.
 
 ## [1.0.255] - 2026-08-12
 
