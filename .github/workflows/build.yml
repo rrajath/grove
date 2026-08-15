@@ -72,7 +72,10 @@ jobs:
           SIGNING_KEYSTORE_BASE64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
         run: echo "$SIGNING_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/release.keystore"
 
-      - name: Build debug and release APKs
+      # bundleRelease produces the .aab Play Console requires for submission
+      # (Play no longer accepts a bare APK for new apps); the two assembleX
+      # tasks keep producing the APKs used for GitHub Releases and sideloading.
+      - name: Build debug and release APKs, and release AAB
         env:
           # Empty when no keystore secret is set → build.gradle.kts leaves the
           # release build unsigned.
@@ -80,7 +83,7 @@ jobs:
           SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
           SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
           SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
-        run: ./gradlew assembleDebug assembleRelease
+        run: ./gradlew assembleDebug assembleRelease bundleRelease
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
@@ -94,6 +97,13 @@ jobs:
         with:
           name: app-release
           path: app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+
+      - name: Upload release AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-bundle
+          path: app/build/outputs/bundle/release/*.aab
           if-no-files-found: error
 
       # Nothing to release if nobody added anything under Unreleased since the
@@ -149,7 +159,9 @@ jobs:
           TITLE="v$VERSION (build $VERSION_CODE)"
           NOTES="$(printf '%s\n\n_Commit: %s_' "$RELEASE_NOTES" "${GITHUB_SHA:0:7}")"
           # The release APK is app-release.apk when signed, app-release-unsigned.apk otherwise.
-          ASSETS=$(ls app/build/outputs/apk/debug/*.apk app/build/outputs/apk/release/*.apk)
+          # The AAB is attached too so a signed one is available to upload to Play Console
+          # without a separate local build.
+          ASSETS=$(ls app/build/outputs/apk/debug/*.apk app/build/outputs/apk/release/*.apk app/build/outputs/bundle/release/*.aab)
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" $ASSETS --clobber
           else
