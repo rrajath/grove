@@ -46,13 +46,13 @@ the same tag/version and just re-uploads the APKs to the existing release.
 
 ## [Unreleased]
 
+### Fixed
+- CI stopped publishing new GitHub Releases (breaking Obtainium and anyone else watching Releases) once `versionName` became manually-bumped and started repeating across pushes: the release tag was `v$VERSION` alone, so every push after the first collided with the existing tag and silently clobbered its assets instead of creating a new release. The tag now includes the auto-incrementing `versionCode` (`v$VERSION-$VERSION_CODE`), guaranteeing a fresh tag — and a genuinely new release — on every push with content under `## [Unreleased]`. Release titles stay human-friendly (`v1.0.0 (build 277)`), independent of the tag string.
+
 ## [1.0.0] - 2026-08-15 (build 279)
 
 ### Changed
 - Settings now shows the build number in brackets next to the version name (e.g. "Grove v1.0.0 (277)"), making it possible to tell builds with the same `versionName` apart without pulling `adb shell dumpsys package`.
-
-### Fixed
-- CI stopped publishing new GitHub Releases (breaking Obtainium and anyone else watching Releases) once `versionName` became manually-bumped and started repeating across pushes: the release tag was `v$VERSION` alone, so every push after the first collided with the existing tag and silently clobbered its assets instead of creating a new release. The tag now includes the auto-incrementing `versionCode` (`v$VERSION-$VERSION_CODE`), guaranteeing a fresh tag — and a genuinely new release — on every push with content under `## [Unreleased]`. Release titles stay human-friendly (`v1.0.0 (build 277)`), independent of the tag string.
 
 ## [1.0.0] - 2026-08-15 (build 277)
 
