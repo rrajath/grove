@@ -123,16 +123,30 @@ jobs:
           fi
 
       # Publish a GitHub Release with both APKs, but only when there was
-      # something under Unreleased to publish. The tag is "v$VERSION" — the
-      # same VERSION computed above. Re-runs of the same commit re-upload the
-      # assets instead of failing on an existing tag.
+      # something under Unreleased to publish. The tag is "v$VERSION-$VERSION_CODE"
+      # rather than just "v$VERSION": VERSION (versionName) is now manually bumped
+      # and commonly repeats across many pushes, so a tag keyed on VERSION alone
+      # would collide with the previous release's tag and this step would just
+      # silently clobber that release's assets instead of publishing a new one —
+      # which is exactly what happened to every release between 1.0.0 and this
+      # fix, and is why Obtainium (and anyone else watching Releases) stopped
+      # seeing updates. VERSION_CODE (git commit count) is unique per commit, so
+      # appending it guarantees a fresh tag, and therefore a genuinely new
+      # release, on every release-worthy push. The dash keeps it visually and
+      # semantically distinct from the pre-1.0.0 "v1.0.<N>" auto-versioning tags
+      # (see CHANGELOG.md's "Versioning" section) so it doesn't read as a
+      # reversion to that scheme. The release title is kept human-friendly and
+      # separate from the tag string. Re-runs of the *same* commit recompute the
+      # same VERSION_CODE and therefore the same tag, so they still safely
+      # re-upload assets instead of failing on an existing tag.
       - name: Publish GitHub Release
         if: github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && env.HAS_RELEASE == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          TAG="v$VERSION"
+          TAG="v$VERSION-$VERSION_CODE"
+          TITLE="v$VERSION (build $VERSION_CODE)"
           NOTES="$(printf '%s\n\n_Commit: %s_' "$RELEASE_NOTES" "${GITHUB_SHA:0:7}")"
           # The release APK is app-release.apk when signed, app-release-unsigned.apk otherwise.
           ASSETS=$(ls app/build/outputs/apk/debug/*.apk app/build/outputs/apk/release/*.apk)
@@ -141,7 +155,7 @@ jobs:
           else
             gh release create "$TAG" $ASSETS \
               --target "$GITHUB_SHA" \
-              --title "$TAG" \
+              --title "$TITLE" \
               --notes "$NOTES"
           fi
 
