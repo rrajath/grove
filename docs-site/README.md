@@ -52,14 +52,17 @@ See `docs/ARCHITECTURE.md` for the reasoning behind the routing split, theming a
 
 ## Deployment
 
-This site lives inside the main Grove repo (`docs-site/`) but deploys separately, via Cloudflare Pages:
+This site lives inside the main Grove repo (`docs-site/`) but deploys separately, as a Cloudflare Worker with static assets (see `wrangler.jsonc`):
 
-- **Root directory:** `docs-site`
-- **Build command:** `npm run build`
-- **Build output directory:** `dist`
-- **Build watch paths:** `docs-site/**` — Cloudflare only builds when a push touches this folder.
+```sh
+npm run deploy    # astro build && wrangler deploy
+```
 
-The main app's GitHub Actions workflow (`.github/workflows/build.yml`) ignores `docs-site/**`, so docs-only changes don't trigger an Android build, and app-only changes don't trigger a Cloudflare Pages build.
+`astro build` (via the `@astrojs/cloudflare` adapter) produces `dist/client/` (static assets: HTML, CSS, JS, images) and `dist/server/` (worker code, empty for this fully static site). Wrangler auto-detects the adapter-generated `dist/client/wrangler.json` and deploys from there — the `wrangler.jsonc` at the project root is a starting-point config (`wrangler dev`/`wrangler deploy` will report "Using redirected Wrangler configuration" when this kicks in).
+
+**Image handling:** the `cloudflare()` adapter defaults to transforming `<Image>`/`<Picture>` components at *runtime* via Cloudflare's Images product (each image becomes a `/_image?href=...` request against an `IMAGES` binding). That product has to be separately provisioned on the Cloudflare account, and isn't emulated by `wrangler dev` locally, so unconfigured this silently 404s on every optimized image — the browser then falls back to rendering the `alt` text in place of the image. Since this site has a fixed, known set of screenshots, `astro.config.mjs` sets `adapter: cloudflare({ imageService: 'compile' })`, which switches image optimization back to build time (the normal static behavior) and removes the runtime dependency entirely.
+
+Deploying is currently a manual `npm run deploy`; there's no CI workflow driving it yet. The Android app's GitHub Actions workflow (`.github/workflows/build.yml`) ignores `docs-site/**`, so docs-only changes don't trigger an Android build — but nothing currently auto-triggers a Cloudflare deploy on push either.
 
 ## Known gaps before shipping
 

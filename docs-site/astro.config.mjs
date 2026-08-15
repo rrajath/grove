@@ -3,6 +3,8 @@ import { defineConfig } from 'astro/config';
 
 import starlight from '@astrojs/starlight';
 
+import cloudflare from '@astrojs/cloudflare';
+
 const FONTS_LINK =
   'https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&family=JetBrains+Mono:wght@400;500;700&display=swap';
 
@@ -11,6 +13,7 @@ export default defineConfig({
   server: {
     port: 4321,
   },
+
   integrations: [
     starlight({
       title: 'Grove',
@@ -103,4 +106,11 @@ export default defineConfig({
       ],
     }),
   ],
+
+  // Default is runtime image transforms via Cloudflare Images (a paid,
+  // separately-provisioned product) — every <Image> renders as /_image?...
+  // and 404s unless that's set up. This is a static site with a fixed set of
+  // known screenshots, so optimize them at build time instead; no runtime
+  // dependency needed.
+  adapter: cloudflare({ imageService: 'compile' }),
 });

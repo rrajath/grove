@@ -49,7 +49,10 @@ the same tag/version and just re-uploads the APKs to the existing release.
 ## [1.0.0] - 2026-08-15 (build 271)
 
 ### Changed
-- Moved the docs/landing site (`docs-site/`, Astro + Starlight) into this repo instead of a separate one, so docs can be updated alongside code. The app CI workflow now ignores `docs-site/**`; it deploys separately via Cloudflare Pages.
+- Moved the docs/landing site (`docs-site/`, Astro + Starlight) into this repo instead of a separate one, so docs can be updated alongside code. The app CI workflow now ignores `docs-site/**`; it deploys separately as a Cloudflare Worker with static assets (`docs-site`, `npm run deploy`).
+
+### Fixed
+- `docs-site`: screenshots and other optimized images rendered as alt text instead of the actual image once deployed to Cloudflare. The `@astrojs/cloudflare` adapter defaults to transforming images at runtime via Cloudflare's Images product, which isn't provisioned on the account (and isn't emulated by `wrangler dev`), so every image request 404'd. Fixed by setting `imageService: 'compile'` so images are optimized at build time instead, matching the site's fully static output.
 
 ## [1.0.0] - 2026-08-14 (build 266)
 

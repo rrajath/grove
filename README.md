@@ -72,7 +72,7 @@ app/src/main/java/com/rrajath/grove/
 
 ## Docs site
 
-`docs-site/` is the public landing page and user docs (Astro + Starlight), deployed to Cloudflare Pages. It's a separate npm project — see [docs-site/README.md](docs-site/README.md) for setup. Changes there don't trigger the app CI workflow (`.github/workflows/build.yml` ignores `docs-site/**`); Cloudflare Pages builds it independently, scoped to that path.
+`docs-site/` is the public landing page and user docs (Astro + Starlight), deployed as a Cloudflare Worker with static assets (`npm run deploy`). It's a separate npm project — see [docs-site/README.md](docs-site/README.md) for setup and deployment details. Changes there don't trigger the app CI workflow (`.github/workflows/build.yml` ignores `docs-site/**`).
 
 ## Tech stack
 
