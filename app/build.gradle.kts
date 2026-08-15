@@ -93,6 +93,14 @@ android {
     compileSdk {
         version = release(36)
     }
+    // Pinned so every build environment strips prebuilt native libs (from
+    // dependencies like androidx.datastore/androidx.sqlite-bundled) with the
+    // same NDK, byte-for-byte — otherwise an unpinned/auto-selected NDK
+    // differs between CI and F-Droid's build server, breaking F-Droid's
+    // reproducible-build comparison against the CI-published APK even though
+    // Grove has no native source of its own. Keep in sync with fdroiddata's
+    // `ndk:` build entry for this app.
+    ndkVersion = "27.3.13750724"
 
     defaultConfig {
         applicationId = "com.rrajath.grove"
