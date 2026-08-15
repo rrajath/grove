@@ -46,6 +46,8 @@ the same tag/version and just re-uploads the APKs to the existing release.
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-08-15 (build 277)
+
 ### Fixed
 - Ledger widget: an unbounded section (e.g. an already-corrupted index misclassifying hundreds of notes, as with the prior KILL-keyword cold-start race) could push Glance's `LazyColumn` past Android's ~1MB RemoteViews transaction limit, which surfaced as the host's generic "Can't show content" placeholder with nothing logged. Each section is now capped at 20 rows with a "+N more · view all" row (deep-links to the in-app Agenda screen) when truncated; the section header's count stays the true, untruncated total.
 
