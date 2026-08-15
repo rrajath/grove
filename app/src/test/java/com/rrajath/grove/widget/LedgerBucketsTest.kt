@@ -103,4 +103,41 @@ class LedgerBucketsTest {
         assertEquals(1, sections.first().rows.size)
         assertEquals(null, sections.first().rows.first().keyword)
     }
+
+    @Test
+    fun `truncate keeps everything and reports zero hidden when under the cap`() {
+        val notes = listOf(note("Ancient", scheduled = "<2025-01-01 Wed>"))
+        val rows = LedgerBuckets.build(notes, today, windowDays = 14, settings = settings).first().rows
+        val (visible, hidden) = LedgerBuckets.truncate(rows, max = 20)
+        assertEquals(rows, visible)
+        assertEquals(0, hidden)
+    }
+
+    @Test
+    fun `truncate caps a section that would blow the widget's RemoteViews payload`() {
+        // Regression test: a stale/misclassified index (e.g. the KILL-keyword
+        // cold-start race) can pile hundreds of notes into one section; an
+        // uncapped LazyColumn ships every row inline over a single binder call
+        // and Android's ~1MB transaction limit turns that into a silent
+        // "Can't show content" placeholder with nothing logged.
+        val notes = (1..443).map { note("Overdue #$it", scheduled = "<2025-01-01 Wed>") }
+        val rows = LedgerBuckets.build(notes, today, windowDays = 14, settings = settings).first().rows
+        assertEquals(443, rows.size)
+
+        val (visible, hidden) = LedgerBuckets.truncate(rows, max = 20)
+        assertEquals(20, visible.size)
+        assertEquals(423, hidden)
+        // Truncation keeps the front of the (already-sorted) list, not an
+        // arbitrary subset, so the "+N more" row genuinely refers to what's cut.
+        assertEquals(rows.take(20), visible)
+    }
+
+    @Test
+    fun `truncate at exactly the cap reports zero hidden`() {
+        val notes = (1..20).map { note("Overdue #$it", scheduled = "<2025-01-01 Wed>") }
+        val rows = LedgerBuckets.build(notes, today, windowDays = 14, settings = settings).first().rows
+        val (visible, hidden) = LedgerBuckets.truncate(rows, max = 20)
+        assertEquals(20, visible.size)
+        assertEquals(0, hidden)
+    }
 }

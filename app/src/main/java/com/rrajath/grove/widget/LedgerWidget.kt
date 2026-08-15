@@ -89,6 +89,22 @@ import java.time.LocalDateTime
  */
 private const val TAG = "GroveWidget"
 
+/**
+ * Rows rendered per section before truncating with a "+N more" row. Glance's
+ * `LazyColumn` ships every item inline in the RemoteViews update over a single
+ * binder call (there's no out-of-process adapter like classic AppWidget
+ * ListViews), which Android caps around 1MB; an unbounded section (e.g. a
+ * corrupted index misclassifying hundreds of notes as overdue, see
+ * `GroveApplication.keywords`'s cold-start race) can blow past that and the
+ * whole widget falls back to the host's generic "Can't show content"
+ * placeholder with nothing logged, since the failure happens in Glance's send,
+ * not in this composition. 20 rows is comfortably under that limit even
+ * accounting for icon/text/click-action overhead per row.
+ */
+private const val MAX_ROWS_PER_SECTION = 20
+
+private val AGENDA_URI = "grove://agenda".toUri()
+
 class LedgerWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
@@ -167,8 +183,14 @@ private fun LedgerContent(
                     item(itemId = section.key.hashCode().toLong()) {
                         SectionHeader(colors, section)
                     }
-                    items(section.rows, itemId = { it.fileName.hashCode() * 31L + it.lineIndex }) { row ->
+                    val (visibleRows, hidden) = LedgerBuckets.truncate(section.rows, MAX_ROWS_PER_SECTION)
+                    items(visibleRows, itemId = { it.fileName.hashCode() * 31L + it.lineIndex }) { row ->
                         LedgerRow(context, colors, row)
+                    }
+                    if (hidden > 0) {
+                        item(itemId = ("more-" + section.key).hashCode().toLong()) {
+                            MoreRow(context, colors, hidden)
+                        }
                     }
                 }
             }
@@ -246,6 +268,30 @@ private fun SectionHeader(colors: GroveColors, section: LedgerBuckets.Section) {
                 .height(1.dp)
                 .background(ColorProvider(if (isOverdue) colors.red else colors.line)),
         ) {}
+    }
+}
+
+/**
+ * Terminates a section truncated at [MAX_ROWS_PER_SECTION]: the section header
+ * above still shows the true, untruncated count, so this is what makes the gap
+ * between that number and the visible rows legible instead of the list just
+ * quietly stopping short. Taps deep-link to the in-app Agenda screen, which
+ * renders the same rows with no cap.
+ */
+@Composable
+private fun MoreRow(context: Context, colors: GroveColors, hidden: Int) {
+    val openIntent = Intent(Intent.ACTION_VIEW, AGENDA_URI).setClass(context, MainActivity::class.java)
+    Box(
+        modifier = GlanceModifier
+            .fillMaxWidth()
+            .padding(horizontal = 13.dp, vertical = 9.dp)
+            .clickable(actionStartActivity(openIntent)),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            "+$hidden more · view all",
+            style = TextStyle(color = ColorProvider(colors.accent), fontSize = 12.sp, fontWeight = FontWeight.Medium),
+        )
     }
 }
 

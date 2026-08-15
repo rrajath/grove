@@ -53,6 +53,19 @@ object LedgerBuckets {
         return listOfNotNull(overdueSection) + daySections
     }
 
+    /**
+     * Splits [rows] into what a widget should render (at most [max]) and how many
+     * were cut. Pulled out of [LedgerWidget]'s composition so it stays testable on
+     * the JVM: Glance's `LazyColumn` ships every item inline in a single RemoteViews
+     * binder call (there's no out-of-process adapter like classic AppWidget
+     * ListViews), which Android caps around 1MB, so an unbounded section can take
+     * the whole widget down.
+     */
+    fun truncate(rows: List<AgendaRow>, max: Int): Pair<List<AgendaRow>, Int> {
+        val visible = rows.take(max)
+        return visible to (rows.size - visible.size)
+    }
+
     /** "Today · Aug 5" / "Tomorrow · Aug 6" / plain "Aug 7" past that. */
     fun dayHeader(day: LocalDate, today: LocalDate): String {
         val short = day.format(AgendaBuckets.SHORT_DATE)
