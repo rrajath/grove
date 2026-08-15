@@ -46,6 +46,8 @@ the same tag/version and just re-uploads the APKs to the existing release.
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-08-15 (build 287)
+
 ### Fixed
 - Pinned `android.ndkVersion` (29.0.14206865) so release builds strip bundled native libraries (from dependencies, not Grove's own source) with a consistent NDK across environments. An unpinned NDK let CI and F-Droid's build server pick different versions, producing byte-different `.so` files and failing F-Droid's reproducible-build verification against the CI-published APK.
 
