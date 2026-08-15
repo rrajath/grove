@@ -1,0 +1,49 @@
+---
+title: Privacy Policy
+description: What Grove collects, what it doesn't, and why.
+---
+
+Last updated: 2026-08-14
+
+Grove is a file-first Org-mode notes app. Your notes are plain `.org` files stored in a folder you choose on your own device; Grove does not require an account, and it does not have a server that stores, reads, or backs up your notes.
+
+## What Grove does not collect
+
+Grove has no user accounts, no analytics SDK, and no crash-reporting SDK. Nothing about your notes, your usage of the app, or your device is collected or transmitted automatically in the background.
+
+## Your notes and sync
+
+Notes live as `.org` files in a folder you choose on your device (a local directory, typically kept in sync across your own devices with a tool like Syncthing that you control). Grove reads and writes those files locally. No copy of your notes is ever sent to a server operated by Grove or its developer.
+
+## When Grove uses the network
+
+Grove requests the `INTERNET` permission for two purposes only, both of which happen only when you take a specific action:
+
+**Fetching a page title for a shared link.** When you share or capture a URL into Grove, the app makes a standard web request to that page to read its `<title>` so the captured note gets a readable heading instead of a bare URL. No data about you or your notes is sent as part of that request beyond what any browser sends when loading a page.
+
+**Submitting a bug report (optional).** The Settings screen has a "Report a bug" flow you can choose to use. If you submit a report, Grove sends what you typed, plus (only if you check the "include device info" box) your Android version and device model, to a small relay service (`grove-bug-report.r-rajath.workers.dev`, hosted on Cloudflare Workers) which files it as a **public** issue on Grove's GitHub repository. The report screen itself lists what is never included: your name, email, account ID, location, contacts, or file contents. Because a filed report becomes a public GitHub issue, don't include anything in the description or steps-to-reproduce that you wouldn't want public.
+
+## Permissions
+
+| Permission | Why Grove uses it |
+|---|---|
+| `INTERNET` | Page-title fetching for shared/captured links, and the optional bug-report submission described above. |
+| `POST_NOTIFICATIONS` | Shows reminder notifications for notes with a scheduled or deadline date. |
+| `SCHEDULE_EXACT_ALARM` | Fires reminder notifications at the exact time you scheduled, rather than an approximate one. |
+| `RECEIVE_BOOT_COMPLETED` | Re-schedules pending reminders after your device restarts. |
+
+## Third parties
+
+Grove uses two third-party services, both only as part of the optional bug-report flow described above: Cloudflare (to relay the report) and GitHub (where the filed issue is publicly visible). No third-party service is contacted as part of normal note-taking, reading, or syncing.
+
+## Children's privacy
+
+Grove does not knowingly collect information from anyone, including children, since it collects no personal information as part of normal use.
+
+## Changes to this policy
+
+If this policy changes, the "Last updated" date above will change with it.
+
+## Contact
+
+Questions about this policy or Grove's data handling can be raised as an issue at [github.com/rrajath/grove/issues](https://github.com/rrajath/grove/issues).

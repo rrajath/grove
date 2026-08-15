@@ -103,6 +103,7 @@ export default defineConfig({
             { label: 'Backup (Export / Import)', link: '/features/backup-export-import' },
           ],
         },
+        { label: 'Privacy Policy', link: '/privacy-policy' },
       ],
     }),
   ],
