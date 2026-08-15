@@ -46,6 +46,8 @@ the same tag/version and just re-uploads the APKs to the existing release.
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-08-15 (build 271)
+
 ### Changed
 - Moved the docs/landing site (`docs-site/`, Astro + Starlight) into this repo instead of a separate one, so docs can be updated alongside code. The app CI workflow now ignores `docs-site/**`; it deploys separately via Cloudflare Pages.
 
