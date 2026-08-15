@@ -46,6 +46,8 @@ the same tag/version and just re-uploads the APKs to the existing release.
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-08-15 (build 274)
+
 ### Added
 - `.github/workflows/deploy-docs-site.yml`: deploys `docs-site` to Cloudflare on push to `main`, scoped to `docs-site/**` changes, mirroring the `paths-ignore` on the app's build workflow so a push never triggers both. Requires `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` repo secrets.
 
