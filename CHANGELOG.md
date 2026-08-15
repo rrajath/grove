@@ -46,6 +46,8 @@ the same tag/version and just re-uploads the APKs to the existing release.
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-08-15 (build 290)
+
 ### Fixed
 - Disabled AGP's "Dependency metadata" APK Signing Block entry (`dependenciesInfo.includeInApk`/`includeInBundle = false`), which F-Droid's build scanner rejects as a non-standard signing block, failing the reproducible-build check.
 
