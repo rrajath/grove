@@ -1,0 +1,63 @@
+/*
+  Grove design tokens — single source of truth for both the custom landing
+  page and the Starlight docs reskin. Values copied verbatim from
+  design/README.md and cross-checked against design/reference/Grove Landing 1a.dc.html.
+  Light is the default theme; [data-theme="dark"] overrides.
+*/
+
+:root {
+  --bg: #faf6ee;
+  --bg2: #f3ecdf;
+  --bg3: #ebe2d1;
+  --ink: #2b2620;
+  --ink2: #655b4e;
+  --ink3: #756a5b;
+  --ink4: #9a8d7b;
+  --line: #e2d8c5;
+  --accent: #8f5c1c;
+  --accent-soft: #f2e0c2;
+  --green: #55752f;
+  --green-soft: #e3ecd3;
+  --red: #b04f34;
+  --red-soft: #f7ded3;
+  --blue: #3c6a8c;
+  --blue-soft: #dce8f0;
+  --violet: #7a5a95;
+  --shadow: 0 1px 2px rgba(60, 45, 25, 0.05), 0 12px 32px -12px rgba(60, 45, 25, 0.16);
+
+  --font-serif: 'Source Serif 4', serif;
+  --font-sans: 'Public Sans', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+[data-theme='dark'] {
+  --bg: #12100e;
+  --bg2: #1c1915;
+  --bg3: #262119;
+  --ink: #f0ebe1;
+  --ink2: #b0a89b;
+  --ink3: #8d8376;
+  --ink4: #6a6157;
+  --line: #302a22;
+  --accent: #dfae70;
+  --accent-soft: #3a2f1b;
+  --green: #94c06e;
+  --green-soft: #27351d;
+  --red: #de8a6b;
+  --red-soft: #3a241c;
+  --blue: #74a5c6;
+  --blue-soft: #1c2a33;
+  --violet: #a98bc4;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 16px 40px -14px rgba(0, 0, 0, 0.6);
+}
+
+@keyframes grove-blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}

@@ -1,0 +1,36 @@
+---
+title: Notes Behavior
+description: Custom TODO keyword sets, default priority, checklist states, note IDs, and auto-archiving — Settings → Notes.
+---
+
+Settings → Notes controls how Grove treats note *content* — the org-mode semantics — as opposed to visual theming (see [Themes & Appearance](/features/themes-appearance)).
+
+## Custom TODO keyword sets
+
+Grove's default keyword set is `TODO IN-PROGRESS | DONE CANCELLED`, using standard org-mode syntax: keywords before the `|` are "not done" states, keywords after are "done" states. You can redefine the whole set in this syntax — for example `TODO NEXT WAITING | DONE KILL` — and it propagates everywhere keyword chips are shown (Outline View, Read/Edit mode, the metadata sheet's State picker, Agenda's Show filter).
+
+## Default priority
+
+Sets which priority (none, A, B, or C) new headings start with.
+
+## Notebook display name
+
+Choose whether notebook cards on the home screen show the **Filename** (`tasks.org`) or the file's **Title** (`#+TITLE:` value, if set).
+
+## Checklist states
+
+Configures which checkbox markers (`- [ ]`, `- [X]`, and any intermediate states) Grove recognizes and cycles through.
+
+## Note IDs and timestamps
+
+- **Add ID to new notes** — stamps a unique `:ID:` property on newly created headings, useful for stable `[[id:...]]` links that survive renames
+- **Add CREATED timestamp** — stamps a `:CREATED:` property with the creation time
+
+## Auto-archive
+
+**Auto-archive done items** automatically [refiles](/features/refile) headings to a configured archive location once they're marked DONE, keeping active notebooks from accumulating completed clutter. The archive destination is chosen the same way as a manual Refile target.
+
+## Related
+
+- [Metadata Sheet](/features/metadata-sheet) — where the configured keyword/priority sets show up as tappable chips
+- [Refile](/features/refile) — the mechanism auto-archive uses under the hood

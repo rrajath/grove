@@ -1,0 +1,10 @@
+---
+// Full replacement (not an extension) of Starlight's default ThemeProvider.
+// Runs the exact same boot script as the landing page — same localStorage
+// key, same `data-theme` attribute on <html> — so theme state is shared
+// across the whole site. Starlight's own --sl-color-* tokens already key off
+// `document.documentElement.dataset.theme`, so this is a drop-in replacement.
+import { THEME_BOOT_SCRIPT } from '../../scripts/theme-boot.js';
+---
+
+<script is:inline set:html={THEME_BOOT_SCRIPT} />

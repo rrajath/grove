@@ -1,0 +1,69 @@
+---
+title: Sync
+description: How Grove keeps its index in step with your .org files on disk, and why it pairs with an external tool like Syncthing.
+---
+
+import ThemeShot from '../../../components/ThemeShot.astro';
+import settingsSyncLight from '../assets/light/settings-sync.png';
+import settingsSyncDark from '../assets/dark/settings-sync.png';
+import settingsSyncLogLight from '../assets/light/settings-sync-log.png';
+import settingsSyncLogDark from '../assets/dark/settings-sync-log.png';
+
+Grove's "sync" is really two separate things: getting `.org` files onto your device in the first place (which Grove doesn't do itself), and keeping Grove's in-app index in step with whatever's currently on disk (which Grove does continuously).
+
+## The file-first model
+
+Your `.org` files are the single source of truth, always. Grove points at one folder on the device (chosen via the Android system folder picker, SAF) and treats everything in it as the vault. There's no proprietary format and no database you could lose data by deleting: the SQLite index (Room + FTS5) is entirely rebuildable from the files themselves.
+
+## Getting files onto the device
+
+Grove does not implement its own cloud sync. The recommended approach is **Syncthing** paired with **Local Directory** mode: Syncthing keeps the folder in sync across your devices peer-to-peer (no account limits, no vendor lock-in), and Grove just watches whatever ends up in that folder. WebDAV and Dropbox backends are scaffolded architecturally for a future release but aren't implemented yet.
+
+## What Grove's sync engine actually does
+
+Given a folder, Grove:
+
+1. Diffs file revisions (`mtime:size`) against its last known state
+2. Re-reads and re-indexes anything changed
+3. Removes anything that vanished from disk
+4. Detects Syncthing `.sync-conflict-*` copies and flags them for [conflict resolution](/features/conflict-resolution)
+
+This runs on:
+
+- A **manual** trigger (the refresh icon on Notebooks)
+- **App foreground/background** transitions
+- A **periodic WorkManager job** (every 15+ minutes, respecting Doze)
+- **Continuous polling** every 10 seconds while the app is in the foreground, if Continuous sync mode is enabled (shown as a foreground service notification while active)
+
+## Status indicators
+
+Notebook cards on the home screen show a pill for synced / modified / syncing state, so you can see at a glance whether Grove's index matches disk.
+
+## Sync log
+
+Settings → Sync → **Sync log** shows a history of past sync runs: when they happened, what changed, and whether they succeeded, useful for diagnosing a stale index or confirming a background sync actually ran.
+
+<ThemeShot
+  light={settingsSyncLogLight}
+  dark={settingsSyncLogDark}
+  alt='Sync log listing recent sync runs, including "pulled" entries for each notebook, a detected journal.org sync conflict, and sync started/done events with timestamps'
+  widths={[340, 680]}
+  sizes="340px"
+/>
+
+## Settings
+
+Settings → Sync covers: the folder picker, auto-sync mode (manual / periodic / continuous), the periodic interval, and the link to the sync log.
+
+<ThemeShot
+  light={settingsSyncLight}
+  dark={settingsSyncDark}
+  alt="Sync settings showing the sync Folder path, Auto-sync mode set to On open / close, and a View sync log link"
+  widths={[340, 680]}
+  sizes="340px"
+/>
+
+## Related
+
+- [Conflict Resolution](/features/conflict-resolution): resolving a detected `.sync-conflict-*` copy
+- [Notebooks](/features/notebooks): where sync status pills appear

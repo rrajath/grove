@@ -1,0 +1,205 @@
+---
+import ThemeShot from '../ThemeShot.astro';
+import readModeLight from '../../assets/landing/light/read-mode.png';
+import readModeDark from '../../assets/landing/dark/read-mode.png';
+---
+
+<div class="hero">
+  <div class="hero__left">
+    <div class="hero__keywords">
+      <div>
+        <span class="hero__kw">#+TITLE:</span> <span class="hero__title">Grove</span>
+      </div>
+      <div class="hero__subtitle-line">
+        <span class="hero__kw">#+SUBTITLE:</span> <span class="hero__kw-val">notes and tasks in org-mode, on Android</span>
+      </div>
+      <div>
+        <span class="hero__kw">#+STARTUP:</span> <span class="hero__kw-val">overview</span>
+      </div>
+      <div>
+        <span class="hero__kw">#+FILETAGS:</span> <span class="hero__kw-tags">:plaintext:offline:yours:</span>
+      </div>
+    </div>
+
+    <p class="hero__prose">
+      Your vault is a folder of <span class="hero__inline-code">.org</span> files. Grove reads it, renders it properly,
+      and writes back plain text. No Lisp interpreter in your pocket required, though nobody's stopping you.
+    </p>
+
+    <div class="hero__cta">
+      <a href="https://github.com/rrajath/grove" class="button button--primary">★ Star on GitHub</a>
+    </div>
+    <div class="hero__note">APKs land on GitHub Releases · F-Droid when it's ready</div>
+  </div>
+
+  <div class="hero__right">
+    <div class="hero__labels">
+      <span>what you wrote</span>
+    </div>
+    <div class="hero__cards">
+      <div class="hero__source-card" role="img" aria-label="Org buffer showing a TODO heading with priority, tags, a scheduled date, a properties drawer, and body text ending in a blinking cursor">
+        <div><span class="tok-green">*</span> <span class="tok-ink2">Travel</span></div>
+        <div>
+          <span class="tok-green">**</span> <span class="tok-accent-bold">TODO</span> <span class="tok-red">[#A] </span>
+          <span class="tok-ink">Renew Passport</span>
+        </div>
+        <div><span class="tok-ink3 hero__indent">:admin:</span></div>
+        <div><span class="tok-blue hero__indent">DEADLINE:</span> <span class="tok-blue">&lt;2025-06-27 Thu&gt;</span></div>
+        <div><span class="tok-ink2 hero__indent">Expires in September, apply early.</span><span class="hero__cursor" aria-hidden="true">▌</span></div>
+      </div>
+      <div class="hero__labels">
+        <span>what Grove shows</span>
+      </div>
+      <div class="hero__shot-card">
+        <ThemeShot
+          light={readModeLight}
+          dark={readModeDark}
+          alt={'Grove read mode showing a travel note "Japan: Spring 2025" tagged trip, with folded PROPERTIES drawers, a TODO item "Book Kyoto ryokan", day-by-day itinerary headings, and a DONE "Order JR Rail Pass" item'}
+          widths={[420, 840]}
+          sizes="420px"
+        />
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 420px;
+    gap: 56px;
+    padding: 64px 56px 56px;
+    align-items: start;
+  }
+  .hero__left {
+    display: flex;
+    flex-direction: column;
+    gap: 26px;
+    min-width: 0;
+  }
+  .hero__keywords {
+    font-family: var(--font-mono);
+    font-size: 15px;
+    line-height: 1.6;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .hero__subtitle-line {
+    margin-top: 10px;
+  }
+  .hero__kw {
+    color: var(--ink3);
+  }
+  .hero__kw-val {
+    color: var(--ink2);
+  }
+  .hero__kw-tags {
+    color: var(--green);
+  }
+  .hero__title {
+    color: var(--ink);
+    font-size: 52px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    font-family: var(--font-mono);
+  }
+  .hero__prose {
+    font-family: var(--font-serif);
+    font-size: 22px;
+    line-height: 1.55;
+    color: var(--ink2);
+    max-width: 52ch;
+    text-wrap: pretty;
+    margin: 0;
+  }
+  .hero__inline-code {
+    color: var(--ink);
+    font-weight: 600;
+    font-family: var(--font-mono);
+  }
+  .hero__cta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+    padding-top: 4px;
+  }
+  .hero__note {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--ink3);
+  }
+
+  .hero__right {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .hero__labels {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink3);
+    display: flex;
+    justify-content: space-between;
+  }
+  .hero__cards {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  .hero__source-card {
+    background: var(--bg2);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 18px 20px;
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    line-height: 1.85;
+    /* Preformatted text — never wrap a line, scroll horizontally instead. */
+    white-space: nowrap;
+    overflow-x: auto;
+  }
+  .hero__indent {
+    margin-left: 1.5em;
+  }
+  .hero__cursor {
+    color: var(--accent);
+    animation: grove-blink 1.1s step-end infinite;
+  }
+  .hero__shot-card {
+    /* Layout wrapper only — the bordered/rounded card treatment itself now
+       lives on the shared .shot-card (see ThemeShot.astro), reconciling
+       what used to be a hero-only divergent style. */
+    display: block;
+  }
+  .hero__shot-card :global(.shot-card) {
+    width: 100%;
+  }
+
+  @media (max-width: 1000px) {
+    .hero {
+      grid-template-columns: 1fr;
+    }
+    /* The source/rendered pair moves below the text and sits side by side,
+       rather than the desktop's stacked-in-a-rail layout. */
+    .hero__cards {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+
+  @media (max-width: 700px) {
+    .hero {
+      padding: 24px;
+    }
+    .hero__title {
+      font-size: 36px;
+    }
+    .hero__cards {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

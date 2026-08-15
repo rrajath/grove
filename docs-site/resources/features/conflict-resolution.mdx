@@ -1,0 +1,23 @@
+---
+title: Conflict Resolution
+description: What happens when Syncthing leaves behind a .sync-conflict-* copy, and how to resolve it inside Grove.
+---
+
+When two devices edit the same `.org` file while disconnected, Syncthing resolves the collision by keeping both copies — your device's version, plus a `.sync-conflict-*` file holding the other side's changes. Grove detects these copies during its normal sync pass and surfaces them for resolution rather than silently picking one.
+
+## The conflict screen
+
+Opening a flagged notebook (or choosing **Resolve conflict** from its long-press menu on the Notebooks screen) shows a warning banner and a unified diff between your current file and the conflict copy.
+
+Three choices:
+
+- **Keep current** — discard the conflict copy, keep what's on your device
+- **Keep conflict copy** — replace your device's version with the conflict copy's content
+- **Keep both** — merge the conflict copy's content into your file under a new `* CONFLICT` heading, so nothing is lost and you can manually reconcile the two afterward
+
+There's no automatic merge in v1 — every conflict gets a deliberate choice.
+
+## Related
+
+- [Sync](/features/sync) — how conflict copies get detected in the first place
+- [Notebooks](/features/notebooks) — the long-press **Resolve conflict** entry point

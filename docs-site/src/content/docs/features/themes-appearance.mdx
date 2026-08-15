@@ -1,0 +1,51 @@
+---
+title: Themes & Appearance
+description: 11 built-in color themes, launcher icon theming, font size, and note-display toggles.
+---
+
+import ThemeShot from '../../../components/ThemeShot.astro';
+import settingsAppearanceLight from '../assets/light/settings-appearance.png';
+import settingsAppearanceDark from '../assets/dark/settings-appearance.png';
+
+Settings → Look and Feel is where Grove's visual presentation is configured, separate from note *content* settings like TODO keywords (see [Notes Behavior](/features/notes-behavior)).
+
+<ThemeShot
+  light={settingsAppearanceLight}
+  dark={settingsAppearanceDark}
+  alt="Look and Feel settings showing the Grove Light theme picker, Sync App Icon with Theme toggle, Show preface and Show property drawers toggles, a Small/Medium/Large font size control, and Default note mode set to Read"
+  widths={[340, 680]}
+  sizes="340px"
+/>
+
+## Themes
+
+Grove ships 11 built-in palettes, picked from a dropdown:
+
+**Light themes:** Grove Light, Tokyo Day, Catppuccin Latte, Rosé Pine Dawn
+**Dark themes:** Grove Dark, Tokyo Night, Synthwave, Dracula, Catppuccin Mocha, Nord, Rosé Pine Moon
+
+There's no "follow system" auto option; theme selection is always explicit. Each theme defines a full token set (background, surface, ink/text, accent, and semantic colors for green/amber/red/blue/violet), so every screen in the app (including org-syntax highlighting in the editor) reflects the chosen theme consistently.
+
+## Launcher icon theming
+
+The **Sync App Icon with Theme** toggle swaps the app's launcher icon (and the brand mark in the nav drawer) to match the active theme, using Android's `activity-alias` mechanism. Because of how icon aliasing works on Android, this requires the app to background and restart to take effect; it won't update the icon instantly while Grove is in the foreground. Note: the notification-shade icon can't follow the theme on Android 16+, a platform limitation rather than something Grove controls.
+
+## Font size
+
+A three-way segmented control: **Small / Medium / Large**, applied app-wide.
+
+## Default note mode
+
+Choose whether tapping a note from Outline View opens it in [Read](/features/read-mode) or [Edit](/features/edit-mode) mode by default.
+
+## Note-display toggles
+
+- **Show preface**: whether file-level `#+KEYWORD:` lines render in Read mode
+- **Show property drawers**: whether `:PROPERTIES:` drawers render in Read mode
+
+Both are display-only; turning them off doesn't remove anything from the file, just hides them from the rendered view.
+
+## Related
+
+- [Notes Behavior](/features/notes-behavior): TODO keywords, priorities, and other content-level settings
+- [Edit Mode](/features/edit-mode): where the syntax-highlighting colors from the active theme show up most

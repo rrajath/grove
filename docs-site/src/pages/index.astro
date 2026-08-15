@@ -1,0 +1,184 @@
+---
+import LandingLayout from '../layouts/LandingLayout.astro';
+import BufferBar from '../components/landing/BufferBar.astro';
+import Hero from '../components/landing/Hero.astro';
+import FiletagsBand from '../components/landing/FiletagsBand.astro';
+import FeaturesHeading from '../components/landing/FeaturesHeading.astro';
+import FeatureRow from '../components/landing/FeatureRow.astro';
+import CtaBand from '../components/landing/CtaBand.astro';
+import ThemeShot from '../components/ThemeShot.astro';
+
+import capturePickerLight from '../assets/landing/light/capture-picker.png';
+import capturePickerDark from '../assets/landing/dark/capture-picker.png';
+import captureEditorLight from '../assets/landing/light/capture-editor.png';
+import captureEditorDark from '../assets/landing/dark/capture-editor.png';
+import agendaLight from '../assets/landing/light/agenda.png';
+import agendaDark from '../assets/landing/dark/agenda.png';
+import searchLight from '../assets/landing/light/search.png';
+import searchDark from '../assets/landing/dark/search.png';
+import syncConflictLight from '../assets/landing/light/sync-conflict.png';
+import syncConflictDark from '../assets/landing/dark/sync-conflict.png';
+import outlineLight from '../assets/landing/light/outline.png';
+import outlineDark from '../assets/landing/dark/outline.png';
+import rawEditorLight from '../assets/landing/light/raw-editor.png';
+import rawEditorDark from '../assets/landing/dark/raw-editor.png';
+---
+
+<LandingLayout
+  title="Grove: notes and tasks in org-mode, on Android"
+  description="Grove is a native Android app for notes and tasks on top of plain .org files. Plaintext, offline, yours."
+>
+  <BufferBar />
+  <Hero />
+  <FiletagsBand />
+  <FeaturesHeading />
+
+  <div class="feature-list">
+    <FeatureRow id="cap" title="Capture" tags=":capture:templates:" shotCount={2}>
+      <p slot="prose" class="feature-prose">
+        Pick a template, fill the blanks, done. Grove splices the entry into the right file at the right spot: top,
+        bottom, under a heading, or into a datetree it builds for you.
+      </p>
+      <Fragment slot="bullets">
+        <div><span class="dash">-</span> FAB, share sheet, ongoing notification</div>
+        <div><span class="dash">-</span> <span class="tok-accent">grove://capture</span> deep link + launcher shortcuts</div>
+        <div><span class="dash">-</span> <span class="tok-violet">{'%^{prompt}'}</span> placeholders ask before they expand</div>
+      </Fragment>
+      <div slot="shots" class="feature-shots">
+        <ThemeShot
+          light={capturePickerLight}
+          dark={capturePickerDark}
+          alt={'Capture picker bottom sheet titled "Capture to..." with a Manage link and three template rows: Journal Entry (journal.org · datetree), Quick Note (inbox.org · bottom of file), TODO (inbox.org · bottom of file)'}
+          widths={[300, 600]}
+          sizes="300px"
+        />
+        <ThemeShot
+          light={captureEditorLight}
+          dark={captureEditorDark}
+          alt={'Capture editor for "Journal Entry" showing the auto-created datetree breadcrumb journal.org › 2026 › August › Thu 13, a blank heading with an inline timestamp, and the formatting toolbar'}
+          widths={[300, 600]}
+          sizes="300px"
+        />
+      </div>
+    </FeatureRow>
+
+    <FeatureRow id="ag" title="Agenda" tags=":agenda:planning:" shotCount={1}>
+      <p slot="prose" class="feature-prose">
+        Every <span class="tok-blue hero__mono">SCHEDULED</span> and <span class="tok-red hero__mono">DEADLINE</span> in
+        the vault, collapsed into one day-by-day timeline. Overdue gets its own card, with
+        <span class="tok-ink">Move to today</span> for the mornings you need it.
+      </p>
+      <Fragment slot="bullets">
+        <div><span class="dash">-</span> Group by date, priority, tag or file</div>
+        <div><span class="dash">-</span> Swipe left to schedule, right to finish</div>
+        <div><span class="dash">-</span> Every mutation gets an undo snackbar</div>
+      </Fragment>
+      <div slot="shots" class="feature-shots">
+        <ThemeShot
+          light={agendaLight}
+          dark={agendaDark}
+          alt={'Agenda Today view for Thursday, August 13 with a "4 overdue" card expanded, listing TODO items including "Book Kyoto ryokan" and "Renew passport" with a Move to today action'}
+          widths={[300, 600]}
+          sizes="300px"
+        />
+      </div>
+    </FeatureRow>
+
+    <FeatureRow id="se" title="Search" tags=":search:facets:" shotCount={1}>
+      <p slot="prose" class="feature-prose">
+        A query language, not a search box that shrugs. Facets for tags, keywords, priorities and dates compose the
+        way you'd expect them to.
+      </p>
+      <Fragment slot="bullets">
+        <div>
+          <span class="tok-ink3">t. tag · s. scheduled · d. deadline · p. priority</span>
+        </div>
+        <div>
+          <span class="tok-accent">t.work</span> <span class="tok-ink3">+</span> <span class="tok-accent">s.7d</span>
+          <span class="tok-ink3">→ scheduled this week, tagged work</span>
+        </div>
+        <div>
+          <span class="tok-accent">d.overdue</span> <span class="tok-ink3">+</span> <span class="tok-accent">p.A</span>
+          <span class="tok-ink3">→ the ones that hurt</span>
+        </div>
+      </Fragment>
+      <div slot="shots" class="feature-shots">
+        <ThemeShot
+          light={searchLight}
+          dark={searchDark}
+          alt={'Grove search results for "ramen" showing 2 results across recipes.org and travel.org, with the match highlighted inline'}
+          widths={[300, 600]}
+          sizes="300px"
+        />
+      </div>
+    </FeatureRow>
+
+    <FeatureRow id="sy" title="Sync & conflicts" tags=":sync:syncthing:" shotCount={1}>
+      <p slot="prose" class="feature-prose">
+        Grove watches the folder. When your laptop and your phone both edited the same heading, it says so plainly
+        and shows you both sides, instead of picking a winner and hoping.
+      </p>
+      <Fragment slot="bullets">
+        <div><span class="dash">-</span> Any folder: Syncthing, Nextcloud, a USB cable</div>
+        <div><span class="dash">-</span> Index is a cache; the files are the truth</div>
+        <div><span class="dash">-</span> Nothing leaves the device on its own</div>
+      </Fragment>
+      <div slot="shots" class="feature-shots">
+        <ThemeShot
+          light={syncConflictLight}
+          dark={syncConflictDark}
+          alt="Resolve conflict screen for journal.org showing a diff between the current version and a sync conflict copy, with Keep current, Keep copy, and Keep both actions"
+          widths={[300, 600]}
+          sizes="300px"
+        />
+      </div>
+    </FeatureRow>
+
+    <FeatureRow id="rd" title="Rendered, not dumped" tags=":reading:themes:" shotCount={2} last>
+      <p slot="prose" class="feature-prose">
+        Read mode sets your notes in type: real headings, tag chips, priority badges, drawers folded away until you
+        want them. Edit mode gives the raw text back, syntax-highlighted, whenever you'd rather see the asterisks.
+      </p>
+      <Fragment slot="bullets">
+        <div><span class="dash">-</span> 11 palettes: Grove, Nord, Dracula, Rosé Pine, Catppuccin…</div>
+        <div><span class="dash">-</span> Launcher icon follows the theme</div>
+      </Fragment>
+      <div slot="shots" class="feature-shots">
+        <ThemeShot
+          light={outlineLight}
+          dark={outlineDark}
+          alt='Outline view of travel.org showing a "Japan: Spring 2025" heading with TODO and DONE items, tags, and a scheduled date chip'
+          widths={[300, 600]}
+          sizes="300px"
+        />
+        <ThemeShot
+          light={rawEditorLight}
+          dark={rawEditorDark}
+          alt='Edit mode with raw org text for "Japan: Spring 2025", showing a :PROPERTIES: drawer, TODO/DONE headings, inline highlighted text, and the formatting toolbar'
+          widths={[300, 600]}
+          sizes="300px"
+        />
+      </div>
+    </FeatureRow>
+  </div>
+
+  <CtaBand />
+</LandingLayout>
+
+<style>
+  .feature-list {
+    padding: 0 56px 40px;
+    display: flex;
+    flex-direction: column;
+  }
+  .hero__mono {
+    font-family: var(--font-mono);
+    font-size: 15px;
+  }
+
+  @media (max-width: 700px) {
+    .feature-list {
+      padding: 0 24px 24px;
+    }
+  }
+</style>

@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:'Public Sans',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+img{max-width:100%}
+:root{
+--bg:#faf6ee;--bg2:#f3ecdf;--bg3:#ebe2d1;--ink:#2b2620;--ink2:#655b4e;--ink3:#756a5b;
+--ink4:#9a8d7b;
+--line:#e2d8c5;--accent:#8f5c1c;--accent-soft:#f2e0c2;--green:#55752f;--green-soft:#e3ecd3;
+--red:#b04f34;--red-soft:#f7ded3;--blue:#3c6a8c;--blue-soft:#dce8f0;--violet:#7a5a95;
+--shadow:0 1px 2px rgba(60,45,25,.05),0 12px 32px -12px rgba(60,45,25,.16);
+}
+[data-theme="dark"]{
+--bg:#12100e;--bg2:#1c1915;--bg3:#262119;--ink:#f0ebe1;--ink2:#b0a89b;--ink3:#8d8376;
+--ink4:#6a6157;
+--line:#302a22;--accent:#dfae70;--accent-soft:#3a2f1b;--green:#94c06e;--green-soft:#27351d;
+--red:#de8a6b;--red-soft:#3a241c;--blue:#74a5c6;--blue-soft:#1c2a33;--violet:#a98bc4;
+--shadow:0 1px 2px rgba(0,0,0,.4),0 16px 40px -14px rgba(0,0,0,.6);
+}
+a{color:var(--accent);text-decoration:none}
+a:hover{color:var(--ink);text-decoration:underline;text-underline-offset:3px}
+@keyframes blink{0%,49%{opacity:1}50%,100%{opacity:0}}
+</style>
+</helmet>
+
+<div data-theme="{{ theme }}" style="background:var(--bg);min-height:100vh;color:var(--ink)">
+
+<div style="display:flex;align-items:center;justify-content:space-between;gap:24px;padding:14px 28px;border-bottom:1px solid var(--line);font-family:'JetBrains Mono',monospace;font-size:13px;background:var(--bg2)">
+<div style="display:flex;align-items:center;gap:10px">
+<span style="color:var(--green);font-size:15px">✳</span>
+<span style="color:var(--ink);font-weight:500">grove.org</span>
+<span style="color:var(--ink3)">— 1 of 1 buffers</span>
+</div>
+<div style="display:flex;align-items:center;gap:20px;color:var(--ink2)">
+<a href="#1a" style="color:var(--ink2)">features</a>
+<a href="#1a" style="color:var(--ink2)">docs</a>
+<a href="#1a" style="color:var(--ink2)">source</a>
+<div onClick="{{ toggleTheme }}" style="cursor:pointer;color:var(--accent);border:1px solid var(--line);padding:4px 10px;border-radius:4px;background:var(--bg3)" style-hover="border-color:var(--accent)">M-x <span style="color:var(--ink)">grove-{{ themeLabel }}-theme</span></div>
+</div>
+</div>
+
+<div style="display:grid;grid-template-columns:minmax(0,1fr) 420px;gap:56px;padding:64px 56px 56px;align-items:start">
+<div style="display:flex;flex-direction:column;gap:26px;min-width:0">
+<div style="font-family:'JetBrains Mono',monospace;font-size:15px;line-height:1.6;display:flex;flex-direction:column;gap:2px">
+<div><span style="color:var(--ink3)">#+TITLE:</span> <span style="color:var(--ink);font-size:52px;font-weight:700;letter-spacing:-.02em;line-height:1.1">Grove</span></div>
+<div style="margin-top:10px"><span style="color:var(--ink3)">#+SUBTITLE:</span> <span style="color:var(--ink2)">notes and tasks in org-mode, on Android</span></div>
+<div><span style="color:var(--ink3)">#+STARTUP:</span> <span style="color:var(--ink2)">overview</span></div>
+<div><span style="color:var(--ink3)">#+FILETAGS:</span> <span style="color:var(--green)">:plaintext:offline:yours:</span></div>
+</div>
+
+<div style="font-family:'Source Serif 4',serif;font-size:22px;line-height:1.55;color:var(--ink2);max-width:52ch;text-wrap:pretty">Your vault is a folder of <span style="color:var(--ink);font-weight:600">.org</span> files. Grove reads it, renders it properly, and writes back plain text. No Lisp interpreter in your pocket required — though nobody's stopping you.</div>
+
+<div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;padding-top:4px">
+<a href="#1a" style="font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:500;background:var(--accent);color:var(--bg);padding:13px 22px;border-radius:6px;text-decoration:none" style-hover="opacity:.88;text-decoration:none;color:var(--bg)">★ Star on GitHub</a>
+<div style="display:flex;flex-wrap:nowrap;align-items:center;border:1px solid var(--line);border-radius:6px;background:var(--bg2);overflow:hidden">
+<span style="flex:0 0 auto;font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--ink3);padding:0 4px 0 14px">&gt;</span>
+<input placeholder="you@example.com" style="flex:1 1 auto;min-width:0;font-family:'JetBrains Mono',monospace;font-size:13px;background:transparent;border:0;outline:none;color:var(--ink);padding:13px 10px;width:190px">
+<div style="flex:0 0 auto;white-space:nowrap;font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--accent);padding:13px 16px;border-left:1px solid var(--line);cursor:pointer">notify me</div>
+</div>
+</div>
+<div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--ink3)"># pre-1.0 · APKs land on GitHub Releases · F-Droid when it's ready</div>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:14px">
+<div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);display:flex;justify-content:space-between"><span>what you wrote</span><span>what Grove shows</span></div>
+<div style="display:grid;grid-template-columns:1fr;gap:14px">
+<div style="background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:18px 20px;font-family:'JetBrains Mono',monospace;font-size:12.5px;line-height:1.85;overflow:hidden">
+<div><span style="color:var(--green)">*</span> <span style="color:var(--ink2)">Inbox</span> <span style="color:var(--ink3)">:capture:</span></div>
+<div><span style="color:var(--green)">**</span> <span style="color:var(--accent);font-weight:700">TODO</span> <span style="color:var(--red)">[#A]</span> <span style="color:var(--ink)">Finish Q3 roadmap deck</span></div>
+<div><span style="color:var(--ink3)">&nbsp;&nbsp; :work:planning:</span></div>
+<div><span style="color:var(--blue)">&nbsp;&nbsp; SCHEDULED:</span> <span style="color:var(--blue)">&lt;2026-07-31 Thu&gt;</span></div>
+<div><span style="color:var(--ink4)">&nbsp;&nbsp; :PROPERTIES:</span></div>
+<div><span style="color:var(--ink4)">&nbsp;&nbsp; :CREATED: [2026-07-28 Mon]</span></div>
+<div><span style="color:var(--ink4)">&nbsp;&nbsp; :END:</span></div>
+<div><span style="color:var(--ink2)">&nbsp;&nbsp; Need to lock the slide order</span></div>
+<div><span style="color:var(--ink2)">&nbsp;&nbsp; before the review.</span><span style="color:var(--accent);animation:blink 1.1s step-end infinite">▌</span></div>
+</div>
+<div style="background:#12100e;border:1px solid var(--line);border-radius:8px;padding:10px;box-shadow:var(--shadow)">
+<img src="assets/read-mode.png" alt="Grove read mode showing a rendered TODO note with tag chips, priority, a folded LOGBOOK drawer and a scheduled date" style="display:block;width:100%;height:auto;border-radius:4px">
+</div>
+</div>
+</div>
+</div>
+
+<div style="display:flex;gap:0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--bg2)">
+<div style="flex:1;padding:22px 28px;border-right:1px solid var(--line)"><div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--green);margin-bottom:6px">:plaintext:</div><div style="font-size:14.5px;line-height:1.55;color:var(--ink2)">Files on disk, not rows in a database. The index rebuilds from them.</div></div>
+<div style="flex:1;padding:22px 28px;border-right:1px solid var(--line)"><div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--green);margin-bottom:6px">:offline:</div><div style="font-size:14.5px;line-height:1.55;color:var(--ink2)">No account, no server, no telemetry. Pair it with Syncthing and forget about it.</div></div>
+<div style="flex:1;padding:22px 28px"><div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--green);margin-bottom:6px">:yours:</div><div style="font-size:14.5px;line-height:1.55;color:var(--ink2)">Open source. Delete Grove tomorrow and every note still opens in Emacs.</div></div>
+</div>
+
+<div style="padding:56px 56px 20px;display:flex;flex-direction:column;gap:8px">
+<div style="font-family:'JetBrains Mono',monospace;font-size:26px;font-weight:700;color:var(--ink)"><span style="color:var(--green)">*</span> Features</div>
+<div style="font-family:'JetBrains Mono',monospace;font-size:12.5px;color:var(--ink3)"># TAB folds a headline. It works here too — go on.</div>
+</div>
+
+<div style="padding:0 56px 40px;display:flex;flex-direction:column">
+
+<div style="border-top:1px solid var(--line)">
+<div onClick="{{ foldCap }}" style="display:flex;align-items:baseline;gap:12px;padding:22px 0;cursor:pointer;font-family:'JetBrains Mono',monospace">
+<span style="color:var(--ink3);width:14px;font-size:12px">{{ arrowCap }}</span>
+<span style="color:var(--green);font-size:18px">**</span>
+<span style="font-size:21px;font-weight:500;color:var(--ink)">Capture</span>
+<span style="flex:1"></span>
+<span style="font-size:12.5px;color:var(--ink3)">:capture:templates:</span>
+</div>
+<sc-if value="{{ openCap }}" hint-placeholder-val="{{ true }}">
+<div style="display:grid;grid-template-columns:minmax(0,1fr) 300px 300px;gap:36px;padding:0 0 40px 40px;align-items:start">
+<div style="display:flex;flex-direction:column;gap:16px;min-width:0">
+<div style="font-family:'Source Serif 4',serif;font-size:19px;line-height:1.6;color:var(--ink2);text-wrap:pretty">Pick a template, fill the blanks, done. Grove splices the entry into the right file at the right spot — top, bottom, under a heading, or into a datetree it builds for you.</div>
+<div style="font-family:'JetBrains Mono',monospace;font-size:13px;line-height:2;color:var(--ink2)">
+<div><span style="color:var(--green)">-</span> FAB, share sheet, ongoing notification</div>
+<div><span style="color:var(--green)">-</span> <span style="color:var(--accent)">grove://capture</span> deep link + launcher shortcuts</div>
+<div><span style="color:var(--green)">-</span> <span style="color:var(--violet)">%^{prompt}</span> placeholders ask before they expand</div>
+</div>
+</div>
+<div style="background:#12100e;border-radius:10px;padding:8px"><img src="assets/capture-picker.png" alt="Capture picker bottom sheet listing Journal Entry, Quick Note and TODO templates with their target files" style="display:block;width:100%;height:auto;border-radius:5px"></div>
+<div style="background:#12100e;border-radius:10px;padding:8px"><img src="assets/capture-editor-datetree.png" alt="Capture editor with an auto-created datetree breadcrumb journal.org, 2026, August, Sat 1" style="display:block;width:100%;height:auto;border-radius:5px"></div>
+</div>
+</sc-if>
+</div>
+
+<div style="border-top:1px solid var(--line)">
+<div onClick="{{ foldAg }}" style="display:flex;align-items:baseline;gap:12px;padding:22px 0;cursor:pointer;font-family:'JetBrains Mono',monospace">
+<span style="color:var(--ink3);width:14px;font-size:12px">{{ arrowAg }}</span>
+<span style="color:var(--green);font-size:18px">**</span>
+<span style="font-size:21px;font-weight:500;color:var(--ink)">Agenda</span>
+<span style="flex:1"></span>
+<span style="font-size:12.5px;color:var(--ink3)">:agenda:planning:</span>
+</div>
+<sc-if value="{{ openAg }}" hint-placeholder-val="{{ true }}">
+<div style="display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:36px;padding:0 0 40px 40px;align-items:start">
+<div style="display:flex;flex-direction:column;gap:16px;min-width:0">
+<div style="font-family:'Source Serif 4',serif;font-size:19px;line-height:1.6;color:var(--ink2);text-wrap:pretty">Every <span style="font-family:'JetBrains Mono',monospace;font-size:15px;color:var(--blue)">SCHEDULED</span> and <span style="font-family:'JetBrains Mono',monospace;font-size:15px;color:var(--red)">DEADLINE</span> in the vault, collapsed into one day-by-day timeline. Overdue gets its own card, with <span style="color:var(--ink);font-weight:600">Move to today</span> for the mornings you need it.</div>
+<div style="font-family:'JetBrains Mono',monospace;font-size:13px;line-height:2;color:var(--ink2)">
+<div><span style="color:var(--green)">-</span> Group by date, priority, tag or file</div>
+<div><span style="color:var(--green)">-</span> Swipe left to schedule, right to finish</div>
+<div><span style="color:var(--green)">-</span> Every mutation gets an undo snackbar</div>
+</div>
+</div>
+<div style="background:#12100e;border-radius:10px;padding:8px"><img src="assets/agenda-overdue.png" alt="Agenda Today view with an expanded overdue card and a Move to today action" style="display:block;width:100%;height:auto;border-radius:5px"></div>
+</div>
+</sc-if>
+</div>
+
+<div style="border-top:1px solid var(--line)">
+<div onClick="{{ foldSe }}" style="display:flex;align-items:baseline;gap:12px;padding:22px 0;cursor:pointer;font-family:'JetBrains Mono',monospace">
+<span style="color:var(--ink3);width:14px;font-size:12px">{{ arrowSe }}</span>
+<span style="color:var(--green);font-size:18px">**</span>
+<span style="font-size:21px;font-weight:500;color:var(--ink)">Search</span>
+<span style="flex:1"></span>
+<span style="font-size:12.5px;color:var(--ink3)">:search:facets:</span>
+</div>
+<sc-if value="{{ openSe }}" hint-placeholder-val="{{ true }}">
+<div style="display:grid;grid-template-columns:minmax(0,1fr) 300px 300px;gap:36px;padding:0 0 40px 40px;align-items:start">
+<div style="display:flex;flex-direction:column;gap:16px;min-width:0">
+<div style="font-family:'Source Serif 4',serif;font-size:19px;line-height:1.6;color:var(--ink2);text-wrap:pretty">A query language, not a search box that shrugs. Facets for tags, keywords, priorities and dates compose the way you'd expect them to.</div>
+<div style="font-family:'JetBrains Mono',monospace;font-size:13px;line-height:2;color:var(--ink2)">
+<div><span style="color:var(--accent)">t.work</span> <span style="color:var(--ink3)">+</span> <span style="color:var(--accent)">s.7d</span> <span style="color:var(--ink3)">→ scheduled this week, tagged work</span></div>
+<div><span style="color:var(--accent)">d.overdue</span> <span style="color:var(--ink3)">+</span> <span style="color:var(--accent)">p.A</span> <span style="color:var(--ink3)">→ the ones that hurt</span></div>
+</div>
+</div>
+<div style="background:#12100e;border-radius:10px;padding:8px"><img src="assets/search-results.png" alt="Grove search results screen" style="display:block;width:100%;height:auto;border-radius:5px"></div>
+<div style="background:#12100e;border-radius:10px;padding:8px"><img src="assets/search-filters.png" alt="Grove search filter facets" style="display:block;width:100%;height:auto;border-radius:5px"></div>
+</div>
+</sc-if>
+</div>
+
+<div style="border-top:1px solid var(--line)">
+<div onClick="{{ foldSy }}" style="display:flex;align-items:baseline;gap:12px;padding:22px 0;cursor:pointer;font-family:'JetBrains Mono',monospace">
+<span style="color:var(--ink3);width:14px;font-size:12px">{{ arrowSy }}</span>
+<span style="color:var(--green);font-size:18px">**</span>
+<span style="font-size:21px;font-weight:500;color:var(--ink)">Sync &amp; conflicts</span>
+<span style="flex:1"></span>
+<span style="font-size:12.5px;color:var(--ink3)">:sync:syncthing:</span>
+</div>
+<sc-if value="{{ openSy }}" hint-placeholder-val="{{ true }}">
+<div style="display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:36px;padding:0 0 40px 40px;align-items:start">
+<div style="display:flex;flex-direction:column;gap:16px;min-width:0">
+<div style="font-family:'Source Serif 4',serif;font-size:19px;line-height:1.6;color:var(--ink2);text-wrap:pretty">Grove watches the folder. When your laptop and your phone both edited the same heading, it says so plainly and shows you both sides — instead of picking a winner and hoping.</div>
+<div style="font-family:'JetBrains Mono',monospace;font-size:13px;line-height:2;color:var(--ink2)">
+<div><span style="color:var(--green)">-</span> Any folder: Syncthing, Nextcloud, a USB cable</div>
+<div><span style="color:var(--green)">-</span> Index is a cache; the files are the truth</div>
+<div><span style="color:var(--green)">-</span> Nothing leaves the device on its own</div>
+</div>
+</div>
+<div style="background:#12100e;border-radius:10px;padding:8px"><img src="assets/notebooks-list.png" alt="Notebooks list showing journal.org, reading-list.org, tasks.org and travel.org with note counts" style="display:block;width:100%;height:auto;border-radius:5px"></div>
+</div>
+</sc-if>
+</div>
+
+<div style="border-top:1px solid var(--line);border-bottom:1px solid var(--line)">
+<div onClick="{{ foldRd }}" style="display:flex;align-items:baseline;gap:12px;padding:22px 0;cursor:pointer;font-family:'JetBrains Mono',monospace">
+<span style="color:var(--ink3);width:14px;font-size:12px">{{ arrowRd }}</span>
+<span style="color:var(--green);font-size:18px">**</span>
+<span style="font-size:21px;font-weight:500;color:var(--ink)">Rendered, not dumped</span>
+<span style="flex:1"></span>
+<span style="font-size:12.5px;color:var(--ink3)">:reading:themes:</span>
+</div>
+<sc-if value="{{ openRd }}" hint-placeholder-val="{{ true }}">
+<div style="display:grid;grid-template-columns:minmax(0,1fr) 300px 300px;gap:36px;padding:0 0 40px 40px;align-items:start">
+<div style="display:flex;flex-direction:column;gap:16px;min-width:0">
+<div style="font-family:'Source Serif 4',serif;font-size:19px;line-height:1.6;color:var(--ink2);text-wrap:pretty">Read mode sets your notes in type: real headings, tag chips, priority badges, drawers folded away until you want them. Edit mode gives the raw text back, syntax-highlighted, whenever you'd rather see the asterisks.</div>
+<div style="font-family:'JetBrains Mono',monospace;font-size:13px;line-height:2;color:var(--ink2)">
+<div><span style="color:var(--green)">-</span> 11 palettes — Grove, Nord, Dracula, Rosé Pine, Catppuccin…</div>
+<div><span style="color:var(--green)">-</span> Launcher icon follows the theme</div>
+</div>
+</div>
+<div style="background:#12100e;border-radius:10px;padding:8px"><img src="assets/outline-view.png" alt="Outline view of tasks.org with TODO, NEXT, WAITING and DONE headlines" style="display:block;width:100%;height:auto;border-radius:5px"></div>
+<div style="background:#12100e;border-radius:10px;padding:8px"><img src="assets/edit-mode.png" alt="Edit mode with syntax-highlighted raw org text and a formatting toolbar" style="display:block;width:100%;height:auto;border-radius:5px"></div>
+</div>
+</sc-if>
+</div>
+</div>
+
+<div style="padding:56px;background:var(--bg2);border-top:1px solid var(--line);display:flex;flex-direction:column;gap:22px;align-items:flex-start">
+<div style="font-family:'JetBrains Mono',monospace;font-size:26px;font-weight:700;color:var(--ink)"><span style="color:var(--green)">*</span> Get Grove</div>
+<div style="font-family:'Source Serif 4',serif;font-size:20px;line-height:1.6;color:var(--ink2);max-width:60ch;text-wrap:pretty">Not released yet. The code is open, the builds are coming, and the mailing list is one line long.</div>
+<div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center">
+<a href="#1a" style="font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:500;background:var(--accent);color:var(--bg);padding:13px 22px;border-radius:6px;text-decoration:none" style-hover="opacity:.88;text-decoration:none;color:var(--bg)">★ Star on GitHub</a>
+<a href="#1a" style="font-family:'JetBrains Mono',monospace;font-size:14px;border:1px solid var(--line);color:var(--ink);padding:13px 22px;border-radius:6px;text-decoration:none" style-hover="border-color:var(--accent);text-decoration:none">Read the docs →</a>
+</div>
+<div style="font-family:'JetBrains Mono',monospace;font-size:12.5px;color:var(--ink3);padding-top:14px;border-top:1px solid var(--line);width:100%;line-height:1.9">
+<div>#+END</div>
+</div>
+</div>
+
+</div>
+</x-dc>
+<script data-dc-script data-props='{"defaultTheme":{"editor":"enum","options":["light","dark"],"default":"light","tsType":"'"'"'light'"'"' | '"'"'dark'"'"'","section":"Theme"}}'>
+class Component extends DCLogic {
+  constructor(p) {
+    super(p);
+    this.state = {
+      theme: this.props.defaultTheme || 'light',
+      open: { cap: true, ag: true, se: true, sy: true, rd: true }
+    };
+  }
+  fold(k) {
+    return () => this.setState(s => ({ open: Object.assign({}, s.open, { [k]: !s.open[k] }) }));
+  }
+  renderVals() {
+    const o = this.state.open;
+    const arrow = v => (v ? '\u25be' : '\u25b8');
+    return {
+      theme: this.state.theme,
+      themeLabel: this.state.theme === 'light' ? 'dark' : 'light',
+      toggleTheme: () => this.setState(s => ({ theme: s.theme === 'light' ? 'dark' : 'light' })),
+      foldCap: this.fold('cap'), foldAg: this.fold('ag'), foldSe: this.fold('se'),
+      foldSy: this.fold('sy'), foldRd: this.fold('rd'),
+      openCap: o.cap, openAg: o.ag, openSe: o.se, openSy: o.sy, openRd: o.rd,
+      arrowCap: arrow(o.cap), arrowAg: arrow(o.ag), arrowSe: arrow(o.se),
+      arrowSy: arrow(o.sy), arrowRd: arrow(o.rd)
+    };
+  }
+}
+</script>
+</body>
+</html>

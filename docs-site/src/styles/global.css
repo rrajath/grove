@@ -1,0 +1,116 @@
+/* Base resets for the custom landing page, lifted from the design reference's <style> block. */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+img {
+  max-width: 100%;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* Org-mode semantic color utilities, reused across the hero buffer and feature bodies. */
+.tok-ink {
+  color: var(--ink);
+}
+.tok-ink2 {
+  color: var(--ink2);
+}
+.tok-ink3 {
+  color: var(--ink3);
+}
+.tok-ink4 {
+  color: var(--ink4);
+}
+.tok-green {
+  color: var(--green);
+}
+.tok-accent {
+  color: var(--accent);
+}
+.tok-accent-bold {
+  color: var(--accent);
+  font-weight: 700;
+}
+.tok-red {
+  color: var(--red);
+}
+.tok-blue {
+  color: var(--blue);
+}
+.tok-violet {
+  color: var(--violet);
+}
+
+/* Feature-row prose typography (Source Serif 4 body, JetBrains Mono bullet list). */
+.feature-prose {
+  font-family: var(--font-serif);
+  font-size: 19px;
+  line-height: 1.6;
+  color: var(--ink2);
+  text-wrap: pretty;
+  margin: 0;
+}
+.feature-bullets {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 2;
+  color: var(--ink2);
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+}
+.feature-bullets .dash {
+  color: var(--green);
+}
+
+/* The .shot-card mount itself is styled in ThemeShot.astro (scoped there,
+   not here) since it's shared with the Starlight docs pages, which don't
+   load this stylesheet — see docs/DESIGN_SYSTEM.md. */
+
+.button {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 500;
+  padding: 13px 22px;
+  border-radius: 6px;
+  display: inline-block;
+}
+.button:hover {
+  text-decoration: none;
+}
+.button--primary {
+  background: var(--accent);
+  color: var(--bg);
+}
+.button--primary:hover {
+  opacity: 0.88;
+  color: var(--bg);
+}
+.button--secondary {
+  border: 1px solid var(--line);
+  color: var(--ink);
+}
+.button--secondary:hover {
+  border-color: var(--accent);
+  color: var(--ink);
+}

@@ -70,6 +70,10 @@ app/src/main/java/com/rrajath/grove/
 | [docs/terminology.md](docs/terminology.md) | Glossary of org-mode and Grove-specific terms used throughout the code |
 | [docs/search-syntax.md](docs/search-syntax.md) | Full reference for the search query language |
 
+## Docs site
+
+`docs-site/` is the public landing page and user docs (Astro + Starlight), deployed to Cloudflare Pages. It's a separate npm project — see [docs-site/README.md](docs-site/README.md) for setup. Changes there don't trigger the app CI workflow (`.github/workflows/build.yml` ignores `docs-site/**`); Cloudflare Pages builds it independently, scoped to that path.
+
 ## Tech stack
 
 Kotlin 2.2 · Jetpack Compose (Material 3) · Room (on bundled SQLite, for FTS5) · DataStore · WorkManager · Glance · kotlinx.serialization · JUnit 4

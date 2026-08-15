@@ -1,0 +1,67 @@
+# Grove launch site
+
+The marketing landing page and documentation site for **Grove**, a native Android app for notes and tasks on top of plain `.org` files.
+
+## Purpose
+
+Grove needs a public-facing site before its first public release: a landing page that makes the pitch ("your vault is a folder of `.org` files") and a full documentation section covering every implemented feature, so early adopters and contributors have somewhere to land.
+
+## The problem it solves
+
+Grove's actual product surface — the Android app — has no web presence yet. This site gives it one: a single scrolling landing page styled as an org-mode buffer ("The Buffer" design direction), and a feature-complete docs section built from the team's existing `.mdx` source content, so documentation doesn't have to be re-authored for the web.
+
+## Features
+
+- **Landing page** — hero, "what you wrote / what Grove shows" source-vs-rendered comparison, a filetags band (`:plaintext:` `:offline:` `:yours:`), five foldable feature sections (Capture, Agenda, Search, Sync & conflicts, Rendered-not-dumped), and a closing CTA band. Built to match `design/reference/Grove Landing 1a.dc.html` pixel-for-pixel.
+- **Docs section** (`/features/`) — every feature doc from `resources/features/`, built on [Starlight](https://starlight.astro.build) with a full visual reskin (fonts, color tokens, an org `:PROPERTIES:` drawer rendering each page's frontmatter) so it reads as the same product as the landing page, not a generic docs template.
+- **Shared light/dark theme** — one toggle, one `localStorage` key, used by both the landing page's `M-x grove-<label>-theme` pill and its equivalent in the docs header. No flash of the wrong theme on load.
+- **Keyboard-accessible folding** — the landing page's five feature sections are real `<button>`s with `aria-expanded`/`aria-controls`; `TAB` toggles a focused headline, `Shift+TAB` cycles global fold state, mirroring org-mode's own `TAB` behavior.
+- **Progressive enhancement** — all landing-page sections render open in the HTML; JavaScript only makes them collapsible. The page is fully readable with JavaScript disabled.
+
+## Setup
+
+Requires Node.js ≥ 22.12 and npm.
+
+```sh
+npm install
+npm run dev       # http://localhost:4321
+npm run build     # outputs to ./dist/
+npm run preview   # preview the production build locally
+npm run astro check   # type-check .astro files
+```
+
+### Project structure
+
+```text
+/
+├── design/                        # design handoff: reference HTML, tokens, copy (source of truth for the landing page)
+├── resources/                     # source content for docs: index.mdx, features/*.mdx, assets/*.png
+├── src/
+│   ├── components/landing/        # landing page bands (BufferBar, Hero, FiletagsBand, FeatureRow, CtaBand, ...)
+│   ├── components/starlight-overrides/  # PageTitle / ThemeProvider / ThemeSelect overrides for the docs reskin
+│   ├── content/docs/features/     # docs content collection, copied verbatim from resources/
+│   ├── layouts/LandingLayout.astro
+│   ├── pages/index.astro          # the landing page itself, outside the Starlight collection
+│   ├── scripts/                   # theme boot/toggle scripts shared by both sections
+│   └── styles/                    # tokens.css (design tokens), starlight-overrides.css, global.css
+├── astro.config.mjs               # Starlight config, hand-written sidebar, component overrides
+└── PROGRESS.md                    # milestone tracking (gitignored, not part of the shipped project)
+```
+
+See `docs/ARCHITECTURE.md` for the reasoning behind the routing split, theming approach, and content-sourcing decisions.
+
+## Deployment
+
+This site lives inside the main Grove repo (`docs-site/`) but deploys separately, via Cloudflare Pages:
+
+- **Root directory:** `docs-site`
+- **Build command:** `npm run build`
+- **Build output directory:** `dist`
+- **Build watch paths:** `docs-site/**` — Cloudflare only builds when a push touches this folder.
+
+The main app's GitHub Actions workflow (`.github/workflows/build.yml`) ignores `docs-site/**`, so docs-only changes don't trigger an Android build, and app-only changes don't trigger a Cloudflare Pages build.
+
+## Known gaps before shipping
+
+- No real GitHub repository or production domain yet — placeholders are used in a few places (see `PROGRESS.md`).
+- Not visually verified in a browser in this environment (no Chrome connection available); verified via `astro build`, `astro check`, and structural checks on the rendered HTML instead. See `PROGRESS.md` for details.

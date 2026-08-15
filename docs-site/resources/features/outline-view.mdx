@@ -1,0 +1,52 @@
+---
+title: Outline View
+description: The tree view of a notebook's headings — TODO state, priority, tags, and per-row swipe actions for fast triage.
+---
+
+Opening a notebook from the Notebooks list lands you in Outline View — a flat, scrollable list of every top-level heading in the file, rendered as rich rows rather than raw text.
+
+![Outline view of tasks.org showing a collapsed PREFACE drawer and nine heading rows with TODO/priority/tag chips, dates, and a body preview](../assets/outline-view.png)
+
+## What each row shows
+
+- **Checkbox** — tinted by the heading's priority color; tap to toggle DONE
+- **TODO/keyword chip** — TODO, NEXT, WAITING, DONE, or whatever keyword set you've configured in Settings → Notes
+- **Priority** — `[#A]`, `[#B]`, `[#C]` shown as a bracketed tag next to the keyword
+- **Title**
+- **Tags** — right-aligned, colon-wrapped (`:work:planning:`)
+- **Body preview** — the first line or two of the heading's text content, truncated
+- **Planning chips** — a calendar icon for SCHEDULED, a flag icon for DEADLINE, shown below the title when set
+
+A heading marked DONE renders with strikethrough and dims slightly, but stays in place in the list (Outline doesn't auto-hide completed items the way Agenda's filters can).
+
+## Preface and property drawers
+
+If the file has file-level `#+KEYWORDS:` (like `#+FILETAGS:`) or a heading has a `:PROPERTIES:` drawer, they render as collapsible, monospace, display-only blocks — tap the disclosure triangle to expand. These are controlled by the **Show preface** / **Show property drawers** toggles in Settings → Look and Feel; turn them off if you don't want the visual noise.
+
+## Swipe actions
+
+Swiping a row left or right reveals quick actions without opening the note:
+
+- **State** — opens the same state picker used elsewhere, to cycle the TODO keyword
+- **Schedule** — opens [Planning Dates](/features/planning-dates) to set SCHEDULED/DEADLINE
+- **Note** — appends a timestamped note to the heading's `:LOGBOOK:` via a small dialog, without leaving the outline
+- **Favorite** (★) — toggles the heading as a favorite, surfaced in the nav drawer
+- **Add heading above / below** — inserts a new sibling heading
+- **Add subheading** — inserts a new child heading, nested one level deeper
+- **Refile** — opens the [Refile](/features/refile) picker to move this subtree elsewhere
+
+Every mutation from a swipe action shows an [undo snackbar](/features/undo).
+
+## Narrowing to a subtree
+
+If you arrive at Outline View from a breadcrumb link inside a note (tapping a parent heading), the view can narrow to just that subtree instead of showing the whole file — useful for focusing on one section of a large notebook.
+
+## Opening a note
+
+Tap anywhere on a row's title/body area to open that heading in [Read mode](/features/read-mode).
+
+## Related
+
+- [Read Mode](/features/read-mode) and [Edit Mode](/features/edit-mode) — what opens when you tap a row
+- [Refile](/features/refile) — moving a subtree between notebooks
+- [Undo](/features/undo) — the snackbar pattern for reverting swipe actions

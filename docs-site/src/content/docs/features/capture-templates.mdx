@@ -1,0 +1,57 @@
+---
+title: Capture Templates
+description: "Configure the quick-capture targets shown in the Capture picker: where entries land and what they contain."
+---
+
+import ThemeShot from '../../../components/ThemeShot.astro';
+import settingsCaptureTemplatesLight from '../assets/light/settings-capture-templates.png';
+import settingsCaptureTemplatesDark from '../assets/dark/settings-capture-templates.png';
+import templateEditLight from '../assets/light/template-edit.png';
+import templateEditDark from '../assets/dark/template-edit.png';
+
+Capture Templates define what shows up in the [Capture](/features/capture) picker. Manage them from Settings → Capture Templates, or via the **Manage** link inside the picker itself.
+
+<ThemeShot
+  light={settingsCaptureTemplatesLight}
+  dark={settingsCaptureTemplatesDark}
+  alt="Capture Templates settings listing Journal Entry, Quick Note, and TODO templates with reorder/delete controls, a New template action, and a Capture from notification toggle"
+  widths={[340, 680]}
+  sizes="340px"
+/>
+
+## Creating and editing a template
+
+Each template has:
+
+- **Name** and **icon**: shown as the tile in the Capture picker
+- **Target file**: which notebook the entry gets written to
+- **Insert location**:
+  - **Top of file**: prepended right after any file-level preface
+  - **Bottom of file**: appended at the end
+  - **Under heading**: inserted as a child of a specific heading, matched either by exact heading name or by `CUSTOM_ID` (CUSTOM_ID is the recommended match target, since it survives the heading being renamed)
+  - **Datetree, by date or by date+time**: auto-creates a Year → Month → Day (→ Time) chain of headings if it doesn't already exist, then inserts under today's leaf
+- **Template body**: the org text to insert, including any [placeholder](/features/placeholders) tokens
+
+Templates are reorderable: drag to change the order they appear in the Capture picker.
+
+<ThemeShot
+  light={templateEditLight}
+  dark={templateEditDark}
+  alt='Edit template screen for "Journal Entry" showing its icon, target file journal.org, Insert at options with Datetree (datetime) selected, and a template body of %U %cursor'
+  widths={[340, 680]}
+  sizes="340px"
+/>
+
+## Notification toggle
+
+A separate toggle on this screen turns on an **ongoing capture notification**: a persistent, low-priority notification that opens the Capture picker in one tap, for quick access without unlocking into the app first.
+
+## Shortcut sync
+
+Configured templates automatically stay in sync with Android's long-press launcher shortcuts on the Grove app icon; add or remove a template and the shortcut list updates to match, no separate configuration needed.
+
+## Related
+
+- [Capture](/features/capture): the picker and editor that use these templates
+- [Placeholders](/features/placeholders): the token syntax for template bodies
+- [Widget](/features/widget): another entry point into the same picker

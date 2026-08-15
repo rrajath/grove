@@ -1,0 +1,40 @@
+---
+title: Reminders
+description: System notifications for SCHEDULED/DEADLINE timestamps, a daily digest, and reschedule-without-opening-the-app.
+---
+
+Grove can notify you when a heading's SCHEDULED or DEADLINE timestamp arrives, without you needing to have the app open or even check Agenda proactively.
+
+## Reminder notifications
+
+When a heading's planning date arrives, Grove fires a system notification with two actions:
+
+- **Complete** — marks the heading DONE directly from the notification
+- **Reschedule** — opens [Planning Dates](/features/planning-dates) to set a new date
+
+Tapping the notification body itself deep-links into the note in Read mode.
+
+## Reschedule without opening the app
+
+The Reschedule action opens Planning Dates inside its own transparent, taskless activity — not the main app. That means rescheduling from a notification never actually navigates into Grove; you set the new date and land right back wherever you were (home screen, another app, the lock screen).
+
+## Daily digest
+
+If enabled, Grove sends one daily notification — "You have X tasks due today" — covering overdue items plus anything due today without a specific time-of-day. It fires at your configured default reminder time and deep-links straight to Agenda. If the count would be zero, the digest is suppressed rather than sending an empty notification.
+
+## Permissions
+
+A dismissible banner ([`ReminderPermissionBanner`](/features/reminders)) requests notification and exact-alarm permissions only when Grove first actually needs them — not proactively at first launch — so you're not asked for permissions before you've turned reminders on.
+
+## Surviving a reboot
+
+A boot receiver re-arms all scheduled alarms after the device restarts, and fires any reminder that was due while the device was off but hasn't been seen yet.
+
+## Settings
+
+Settings → Reminders covers: the enable/disable toggle, the default reminder time (used by the daily digest and by any timestamp without an explicit time), and the permission banner.
+
+## Related
+
+- [Planning Dates](/features/planning-dates) — where SCHEDULED/DEADLINE values are set
+- [Agenda](/features/agenda) — the digest notification's deep-link target

@@ -1,0 +1,173 @@
+---
+interface Props {
+  id: string;
+  title: string;
+  tags: string;
+  shotCount: 1 | 2;
+  last?: boolean;
+}
+
+const { id, title, tags, shotCount, last = false } = Astro.props;
+const panelId = `feature-panel-${id}`;
+const buttonId = `feature-button-${id}`;
+---
+
+<div class="feature-row" class:list={{ 'feature-row--last': last }}>
+  <button
+    type="button"
+    class="feature-row__headline"
+    id={buttonId}
+    aria-expanded="true"
+    aria-controls={panelId}
+    data-feature-toggle
+    data-feature-id={id}
+  >
+    <span class="feature-row__arrow" aria-hidden="true" data-feature-arrow>▾</span>
+    <span class="feature-row__stars">**</span>
+    <span class="feature-row__title">{title}</span>
+    <span class="feature-row__spacer"></span>
+    <span class="feature-row__tags">{tags}</span>
+  </button>
+  <div
+    class="feature-row__body"
+    id={panelId}
+    role="region"
+    aria-labelledby={buttonId}
+    data-feature-panel
+    style={`--shot-count: ${shotCount}`}
+  >
+    <div class="feature-row__prose">
+      <slot name="prose" />
+      <div class="feature-bullets">
+        <slot name="bullets" />
+      </div>
+    </div>
+    <slot name="shots" />
+  </div>
+</div>
+
+<style>
+  .feature-row {
+    border-top: 1px solid var(--line);
+  }
+  .feature-row--last {
+    border-bottom: 1px solid var(--line);
+  }
+  .feature-row__headline {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    padding: 22px 0;
+    cursor: pointer;
+    font-family: var(--font-mono);
+    background: none;
+    border: none;
+    width: 100%;
+    text-align: left;
+    color: inherit;
+  }
+  .feature-row__headline:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .feature-row__arrow {
+    color: var(--ink3);
+    font-size: 12px;
+    width: 14px;
+    flex: none;
+  }
+  .feature-row__stars {
+    color: var(--green);
+    font-size: 18px;
+  }
+  .feature-row__title {
+    font-size: 21px;
+    font-weight: 500;
+    color: var(--ink);
+  }
+  .feature-row__spacer {
+    flex: 1;
+  }
+  .feature-row__tags {
+    font-size: 12.5px;
+    color: var(--ink3);
+  }
+  .feature-row__body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) repeat(var(--shot-count), 300px);
+    gap: 36px;
+    padding: 0 0 40px 40px;
+    align-items: start;
+  }
+  .feature-row__body[hidden] {
+    display: none;
+  }
+  .feature-row__prose {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-width: 0;
+  }
+  .feature-row__body :global(.feature-shots) {
+    display: contents;
+  }
+
+  @media (max-width: 1000px) {
+    .feature-row__body {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .feature-row__body :global(.feature-shots) {
+      display: flex;
+      gap: 16px;
+      overflow-x: auto;
+    }
+    .feature-row__body :global(.feature-shots .shot-card) {
+      flex: 0 0 220px;
+    }
+  }
+
+  @media (max-width: 700px) {
+    .feature-row__body {
+      padding-left: 16px;
+    }
+  }
+</style>
+
+<script>
+  function cycleAll(open: boolean) {
+    document.querySelectorAll<HTMLElement>('[data-feature-toggle]').forEach((button) => {
+      setOpen(button, open);
+    });
+  }
+
+  function setOpen(button: HTMLElement, open: boolean) {
+    const panel = document.getElementById(button.getAttribute('aria-controls') ?? '');
+    const arrow = button.querySelector('[data-feature-arrow]');
+    button.setAttribute('aria-expanded', String(open));
+    if (panel) panel.hidden = !open;
+    if (arrow) arrow.textContent = open ? '▾' : '▸';
+  }
+
+  document.querySelectorAll<HTMLElement>('[data-feature-toggle]').forEach((button) => {
+    button.addEventListener('click', () => {
+      setOpen(button, button.getAttribute('aria-expanded') !== 'true');
+    });
+
+    button.addEventListener('keydown', (event) => {
+      // TAB still folds/unfolds, mirroring org-mode's own TAB behavior, but
+      // never blocks focus from moving on — a focused headline must stay a
+      // normal stop in the page's Tab order (WCAG 2.1.2, No Keyboard Trap).
+      // Every feature-row panel is text/image-only with no focusable
+      // descendants, so toggling visibility here doesn't reorder Tab stops.
+      if (event.key === 'Tab' && !event.shiftKey && document.activeElement === button) {
+        setOpen(button, button.getAttribute('aria-expanded') !== 'true');
+      } else if (event.key === 'Tab' && event.shiftKey) {
+        // Shift+TAB cycles global fold state: all open -> all closed -> all open.
+        const anyOpen = Array.from(document.querySelectorAll<HTMLElement>('[data-feature-toggle]')).some(
+          (b) => b.getAttribute('aria-expanded') === 'true'
+        );
+        cycleAll(!anyOpen);
+      }
+    });
+  });
+</script>

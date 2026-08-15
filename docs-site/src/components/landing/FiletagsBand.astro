@@ -1,0 +1,60 @@
+---
+const cells = [
+  { tag: ':plaintext:', copy: 'Files on disk, not rows in a database. The index rebuilds from them.' },
+  { tag: ':offline:', copy: 'No account, no server, no telemetry. Pair it with Syncthing and forget about it.' },
+  { tag: ':yours:', copy: 'Open source. Delete Grove tomorrow and every note still opens in Emacs.' },
+];
+---
+
+<div class="filetags">
+  {
+    cells.map((cell, i) => (
+      <div class="filetags__cell" class:list={{ 'filetags__cell--last': i === cells.length - 1 }}>
+        <div class="filetags__tag">{cell.tag}</div>
+        <div class="filetags__copy">{cell.copy}</div>
+      </div>
+    ))
+  }
+</div>
+
+<style>
+  .filetags {
+    display: flex;
+    gap: 0;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    background: var(--bg2);
+  }
+  .filetags__cell {
+    flex: 1;
+    padding: 22px 28px;
+    border-right: 1px solid var(--line);
+  }
+  .filetags__cell--last {
+    border-right: none;
+  }
+  .filetags__tag {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--green);
+    margin-bottom: 6px;
+  }
+  .filetags__copy {
+    font-size: 14.5px;
+    line-height: 1.55;
+    color: var(--ink2);
+  }
+
+  @media (max-width: 700px) {
+    .filetags {
+      flex-direction: column;
+    }
+    .filetags__cell {
+      border-right: none;
+      border-bottom: 1px solid var(--line);
+    }
+    .filetags__cell--last {
+      border-bottom: none;
+    }
+  }
+</style>

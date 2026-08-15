@@ -1,0 +1,59 @@
+---
+// Mounts a light/dark app-screenshot pair in one bordered, rounded card and
+// toggles which one is visible via the site's own [data-theme] attribute
+// (set by src/scripts/theme-boot.js) — no client JS needed here. `dark` is
+// optional for screens that only have a light capture (e.g. onboarding).
+import { Image } from 'astro:assets';
+
+interface Props {
+  light: ImageMetadata;
+  dark?: ImageMetadata;
+  alt: string;
+  widths: number[];
+  sizes: string;
+}
+
+const { light, dark, alt, widths, sizes } = Astro.props;
+---
+
+<span class="shot-card">
+  <Image src={light} alt={alt} widths={widths} sizes={sizes} class="shot-card__img shot-card__img--light" />
+  {dark && <Image src={dark} alt={alt} widths={widths} sizes={sizes} class="shot-card__img shot-card__img--dark" />}
+</span>
+
+<style>
+  /* Styled here (not in a page-level stylesheet) because this component is
+     shared between the custom landing page (src/styles/global.css) and the
+     Starlight docs (src/styles/starlight-overrides.css) — two different
+     CSS bundles that don't load each other. Keeping the card's own look
+     self-contained means it renders identically in both places. */
+  /* The <img> tags below come from astro:assets' <Image>, a separate
+     component — Astro doesn't stamp its own scope hash onto markup another
+     component renders, so descendant selectors reaching into it need
+     :global() (same pattern already used by Hero.astro's own shot card).
+     [data-theme] lives on <html>, further outside still, so it needs the
+     same treatment as an ancestor. */
+  .shot-card {
+    display: inline-block;
+    background: var(--bg2);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 8px;
+    box-shadow: var(--shadow);
+  }
+  .shot-card :global(img) {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 5px;
+  }
+  .shot-card :global(.shot-card__img--dark) {
+    display: none;
+  }
+  :global([data-theme='dark']) .shot-card :global(.shot-card__img--light) {
+    display: none;
+  }
+  :global([data-theme='dark']) .shot-card :global(.shot-card__img--dark) {
+    display: block;
+  }
+</style>

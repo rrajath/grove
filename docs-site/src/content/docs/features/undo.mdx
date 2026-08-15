@@ -1,0 +1,20 @@
+---
+title: Undo
+description: A consistent undo snackbar behind nearly every mutating action in Grove, so quick gestures stay safe to use.
+---
+
+Because so much of Grove's interaction model is built around fast, low-friction gestures (swipe-to-done, swipe-to-schedule, one-tap "Move to today"), almost every mutating action shows an undo snackbar (or toast, for simpler cases) immediately afterward.
+
+## What's covered
+
+State changes, scheduling changes, archiving, refiling, and bulk actions like Agenda's "Move to today" all snapshot the affected file(s) before mutating them. If you tap **Undo** in the snackbar, Grove restores the pre-mutation content exactly.
+
+For actions that touch multiple files at once (like a bulk overdue reschedule), the snapshot covers every affected file, so a single Undo tap reverts the whole batch, not just one item.
+
+## Why this matters for the gesture-heavy screens
+
+Swipe actions in [Outline View](/features/outline-view), [Agenda](/features/agenda), and [Search](/features/search) are intentionally fast: a single swipe commits immediately rather than asking for confirmation first. Undo is what makes that safe: you get a brief window to reverse a swipe that fired on the wrong row or with the wrong intent, without every gesture needing a confirmation dialog that would slow the whole app down.
+
+## Related
+
+- [Agenda](/features/agenda), [Outline View](/features/outline-view), [Search](/features/search): the screens with swipe-to-commit gestures backed by this pattern

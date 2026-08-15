@@ -46,6 +46,9 @@ the same tag/version and just re-uploads the APKs to the existing release.
 
 ## [Unreleased]
 
+### Changed
+- Moved the docs/landing site (`docs-site/`, Astro + Starlight) into this repo instead of a separate one, so docs can be updated alongside code. The app CI workflow now ignores `docs-site/**`; it deploys separately via Cloudflare Pages.
+
 ## [1.0.0] - 2026-08-14 (build 266)
 
 ### Added

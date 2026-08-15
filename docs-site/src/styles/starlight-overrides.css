@@ -1,0 +1,97 @@
+/*
+  Remaps Starlight's own CSS custom properties onto Grove's design tokens
+  (src/styles/tokens.css), so the built-in sidebar / table of contents /
+  search / prev-next controls read as Grove rather than generic Starlight.
+*/
+/* --bg, --ink2, etc. are themselves theme-reactive (see tokens.css's own
+   :root vs [data-theme="dark"] blocks), so one mapping here is enough — the
+   sl-color-* values follow Grove's tokens through light/dark automatically. */
+:root {
+  --sl-color-bg: var(--bg);
+  --sl-color-bg-nav: var(--bg2);
+  --sl-color-bg-sidebar: var(--bg2);
+  --sl-color-bg-inline-code: var(--bg3);
+  --sl-color-text: var(--ink2);
+  --sl-color-text-accent: var(--accent);
+  --sl-color-white: var(--ink);
+  --sl-color-gray-1: var(--ink);
+  --sl-color-gray-2: var(--ink2);
+  --sl-color-gray-3: var(--ink3);
+  --sl-color-gray-4: var(--line);
+  --sl-color-gray-5: var(--line);
+  --sl-color-gray-6: var(--bg2);
+  --sl-color-hairline: var(--line);
+  --sl-color-hairline-light: var(--line);
+  --sl-color-hairline-shade: var(--line);
+  --sl-color-accent: var(--accent);
+  --sl-color-accent-low: var(--accent-soft);
+  --sl-color-accent-high: var(--accent);
+  /* Text drawn on top of --sl-color-text-accent (the sidebar's current-page
+     highlight, the skip link, search focus ring) — matches the bg/accent
+     pairing button-primary already uses, so it clears AA in both themes
+     instead of falling back to Starlight's own unrelated navy default. */
+  --sl-color-text-invert: var(--bg);
+
+  --sl-font: var(--font-sans);
+  --sl-font-mono: var(--font-mono);
+
+  /* Flat by design (see DESIGN.md's "One Shadow Rule") — Grove's one shadow
+     token is reserved for the hero's screenshot comparison card only, so
+     Starlight's own elevation defaults (e.g. the prev/next footer cards)
+     must not leak through. */
+  --sl-shadow-sm: none;
+  --sl-shadow-md: none;
+  --sl-shadow-lg: none;
+}
+
+/* Page titles use the mono wordmark treatment; body copy reads as the
+   landing page's serif prose voice, code stays mono. Starlight's own
+   <h1> (id="_top", from PageTitle.astro) renders in the page header,
+   outside .sl-markdown-content entirely — target it by id or every doc
+   page's title silently falls back to the base sans font. */
+#_top {
+  font-family: var(--font-mono);
+}
+.sl-markdown-content h1 {
+  font-family: var(--font-mono);
+}
+.sl-markdown-content h2,
+.sl-markdown-content h3,
+.sl-markdown-content h4 {
+  font-family: var(--font-mono);
+  color: var(--ink);
+}
+.sl-markdown-content p,
+.sl-markdown-content li {
+  font-family: var(--font-serif);
+  font-size: 19px;
+  line-height: 1.6;
+}
+.sl-markdown-content code {
+  font-family: var(--font-mono);
+}
+
+/* App screenshots are captured at full device resolution (1280px+ wide);
+   cap them at a fixed, readable width rather than a fraction of the content
+   column (which shrinks/grows unpredictably with viewport width). Themed
+   pairs render via <ThemeShot>, whose own .shot-card already carries the
+   border/radius/shadow — the :not() here skips those so they don't get a
+   second border stacked on top; plain single-theme legacy screenshots (no
+   light/dark pair exists yet) get the same look applied directly. */
+.sl-markdown-content img:not(.shot-card__img) {
+  max-width: 340px;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  display: block;
+  margin-top: 24px;
+}
+
+/* <ThemeShot>'s .shot-card has no margin of its own (it's shared with the
+   landing page's hero, which spaces it via grid gap instead) — give it
+   breathing room from the preceding heading/paragraph here in the docs. */
+.sl-markdown-content .shot-card {
+  margin-top: 24px;
+}

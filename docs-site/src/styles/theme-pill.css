@@ -1,0 +1,18 @@
+/* The "M-x grove-<label>-theme" toggle pill, shared by the landing page's
+   buffer bar and the Starlight docs header (ThemeSelect override). */
+.grove-theme-pill {
+  cursor: pointer;
+  color: var(--accent);
+  border: 1px solid var(--line);
+  padding: 4px 10px;
+  border-radius: 4px;
+  background: var(--bg3);
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+.grove-theme-pill:hover {
+  border-color: var(--accent);
+}
+.grove-theme-pill__label {
+  color: var(--ink);
+}

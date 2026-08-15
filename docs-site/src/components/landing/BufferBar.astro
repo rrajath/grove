@@ -1,0 +1,151 @@
+---
+import '../../styles/theme-pill.css';
+---
+
+<div class="buffer-bar">
+  <div class="buffer-bar__left">
+    <span class="buffer-bar__glyph" aria-hidden="true">✳</span>
+    <span class="buffer-bar__name">grove.org</span>
+    <span class="buffer-bar__count">1 of 1 buffers</span>
+  </div>
+  <div class="buffer-bar__right">
+    <button
+      type="button"
+      class="buffer-bar__menu-toggle"
+      aria-expanded="false"
+      aria-controls="buffer-bar-nav"
+      data-buffer-menu-toggle
+    >
+      ☰
+    </button>
+    <nav class="buffer-bar__nav" id="buffer-bar-nav" aria-label="Primary">
+      <a href="#features">features</a>
+      <a href="/features/">docs</a>
+      <a href="https://github.com/rrajath/grove">source</a>
+    </nav>
+    <button type="button" class="grove-theme-pill" data-grove-theme-toggle>
+      M-x <span class="grove-theme-pill__label" data-grove-theme-label>grove-dark-theme</span>
+    </button>
+  </div>
+</div>
+
+<style>
+  .buffer-bar {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    padding: 14px 28px;
+    border-bottom: 1px solid var(--line);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    background: var(--bg2);
+  }
+  .buffer-bar__left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+  }
+  .buffer-bar__glyph {
+    color: var(--green);
+    font-size: 15px;
+  }
+  .buffer-bar__name {
+    color: var(--ink);
+    font-weight: 500;
+  }
+  .buffer-bar__count {
+    color: var(--ink3);
+  }
+  .buffer-bar__right {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+  .buffer-bar__nav {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    color: var(--ink2);
+  }
+  .buffer-bar__nav a {
+    color: var(--ink2);
+  }
+  .buffer-bar__menu-toggle {
+    display: none;
+    background: none;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    color: var(--ink2);
+    font-family: var(--font-mono);
+    font-size: 15px;
+    line-height: 1;
+    padding: 5px 8px;
+    cursor: pointer;
+  }
+
+  @media (max-width: 700px) {
+    .buffer-bar__count {
+      display: none;
+    }
+    .buffer-bar {
+      padding: 14px 20px;
+    }
+    .buffer-bar__menu-toggle {
+      display: inline-flex;
+    }
+    .buffer-bar__nav {
+      display: none;
+      position: absolute;
+      top: 100%;
+      right: 20px;
+      margin-top: 6px;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 12px;
+      background: var(--bg2);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 14px 18px;
+      z-index: 20;
+    }
+    .buffer-bar__nav.is-open {
+      display: flex;
+    }
+  }
+</style>
+
+<script>
+  import { wireThemeTogglePills } from '../../scripts/theme-toggle.js';
+
+  wireThemeTogglePills();
+
+  const menuToggle = document.querySelector<HTMLButtonElement>('[data-buffer-menu-toggle]');
+  const nav = document.getElementById('buffer-bar-nav');
+
+  function closeNav() {
+    nav?.classList.remove('is-open');
+    menuToggle?.setAttribute('aria-expanded', 'false');
+  }
+
+  menuToggle?.addEventListener('click', () => {
+    const isOpen = nav?.classList.toggle('is-open') ?? false;
+    menuToggle.setAttribute('aria-expanded', String(isOpen));
+  });
+
+  // Close on navigation, outside click, or Escape — otherwise the panel
+  // stays open over whatever the visitor just tapped through to.
+  nav?.querySelectorAll('a').forEach((link) => link.addEventListener('click', closeNav));
+
+  document.addEventListener('click', (event) => {
+    if (!nav?.classList.contains('is-open')) return;
+    const target = event.target as Node;
+    if (!nav.contains(target) && !menuToggle?.contains(target)) closeNav();
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && nav?.classList.contains('is-open')) closeNav();
+  });
+</script>

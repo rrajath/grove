@@ -1,0 +1,31 @@
+---
+// Wraps Starlight's built-in PageTitle (so the <h1> keeps its default id and
+// styling) and adds a rendered :PROPERTIES: drawer beneath it, showing the
+// page's frontmatter the way an org file would — --ink4, per the design
+// handoff's suggestion to carry this idea over from the landing page.
+import Default from '@astrojs/starlight/components/PageTitle.astro';
+
+const { entry } = Astro.locals.starlightRoute;
+const { description } = entry.data;
+---
+
+<Default />
+{
+  description && (
+    <div class="grove-drawer">
+      <div>:PROPERTIES:</div>
+      <div>:DESCRIPTION: {description}</div>
+      <div>:END:</div>
+    </div>
+  )
+}
+
+<style>
+  .grove-drawer {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--ink4);
+    margin: 0.25rem 0 1.5rem;
+  }
+</style>

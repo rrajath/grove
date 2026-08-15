@@ -2,9 +2,16 @@ name: Build & Release
 
 # Build debug and release APKs on every push (and PR). Pushes to the default
 # branch additionally publish a GitHub Release with both APKs attached.
+# docs-site/ is excluded: it's a separate Astro/Starlight site deployed via
+# Cloudflare Pages (which has its own build watch path on docs-site/**), so an
+# app CI run here would be redundant for docs-only changes.
 on:
   push:
+    paths-ignore:
+      - 'docs-site/**'
   pull_request:
+    paths-ignore:
+      - 'docs-site/**'
   workflow_dispatch:
 
 # contents: write is needed to create the release and its tag.

@@ -1,0 +1,70 @@
+---
+---
+
+<div class="cta-band">
+  <div class="cta-band__title"><span class="tok-green">*</span> Get Grove</div>
+  <p class="cta-band__prose">
+    Not released yet. The code is open, the builds are coming, and <code>M-x watch-repo</code> is the only
+    subscription there is.
+  </p>
+  <div class="cta-band__buttons">
+    <a href="https://github.com/rrajath/grove" class="button button--primary">★ Star on GitHub</a>
+    <a href="/features/" class="button button--secondary">Read the docs →</a>
+  </div>
+  <div class="cta-band__footer">
+    <div>#+END</div>
+  </div>
+</div>
+
+<style>
+  .cta-band {
+    padding: 56px;
+    background: var(--bg2);
+    border-top: 1px solid var(--line);
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    align-items: flex-start;
+  }
+  .cta-band__title {
+    font-family: var(--font-mono);
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+  .cta-band__prose {
+    font-family: var(--font-serif);
+    font-size: 20px;
+    line-height: 1.6;
+    color: var(--ink2);
+    max-width: 60ch;
+    text-wrap: pretty;
+    margin: 0;
+  }
+  .cta-band__prose code {
+    color: var(--ink);
+    font-weight: 600;
+    font-family: var(--font-mono);
+  }
+  .cta-band__buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+  }
+  .cta-band__footer {
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    color: var(--ink3);
+    padding-top: 14px;
+    border-top: 1px solid var(--line);
+    width: 100%;
+    line-height: 1.9;
+  }
+
+  @media (max-width: 700px) {
+    .cta-band {
+      padding: 24px;
+    }
+  }
+</style>
