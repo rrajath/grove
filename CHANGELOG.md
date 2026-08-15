@@ -46,6 +46,9 @@ the same tag/version and just re-uploads the APKs to the existing release.
 
 ## [Unreleased]
 
+### Changed
+- Settings now shows the build number in brackets next to the version name (e.g. "Grove v1.0.0 (277)"), making it possible to tell builds with the same `versionName` apart without pulling `adb shell dumpsys package`.
+
 ## [1.0.0] - 2026-08-15 (build 277)
 
 ### Fixed

@@ -101,7 +101,7 @@ fun SettingsScreen(
             }
 
             Text(
-                "Grove v${com.rrajath.grove.BuildConfig.VERSION_NAME}",
+                "Grove v${com.rrajath.grove.BuildConfig.VERSION_NAME} (${com.rrajath.grove.BuildConfig.VERSION_CODE})",
                 fontFamily = PlexMono, fontSize = 11.5.sp, color = c.ink3,
                 textAlign = TextAlign.Center,
                 modifier = Modifier
