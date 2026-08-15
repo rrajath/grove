@@ -1,0 +1,48 @@
+name: Deploy docs-site
+
+# Deploys docs-site/ to Cloudflare (Worker with static assets) on push to
+# main, but only when docs-site/ actually changed. This is the Cloudflare-side
+# counterpart to build.yml's `paths-ignore: docs-site/**` — the two workflows
+# never both run for the same push.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs-site/**'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-docs-site-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: docs-site/package-lock.json
+
+      - name: Install dependencies
+        working-directory: docs-site
+        run: npm ci
+
+      # astro build (via @astrojs/cloudflare) produces dist/client (static
+      # assets) and dist/server (worker code). wrangler deploy below
+      # auto-detects the adapter-generated dist/client/wrangler.json.
+      - name: Build
+        working-directory: docs-site
+        run: npm run build
+
+      - name: Deploy to Cloudflare
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: docs-site
+          command: deploy

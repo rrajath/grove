@@ -62,7 +62,7 @@ npm run deploy    # astro build && wrangler deploy
 
 **Image handling:** the `cloudflare()` adapter defaults to transforming `<Image>`/`<Picture>` components at *runtime* via Cloudflare's Images product (each image becomes a `/_image?href=...` request against an `IMAGES` binding). That product has to be separately provisioned on the Cloudflare account, and isn't emulated by `wrangler dev` locally, so unconfigured this silently 404s on every optimized image — the browser then falls back to rendering the `alt` text in place of the image. Since this site has a fixed, known set of screenshots, `astro.config.mjs` sets `adapter: cloudflare({ imageService: 'compile' })`, which switches image optimization back to build time (the normal static behavior) and removes the runtime dependency entirely.
 
-Deploying is currently a manual `npm run deploy`; there's no CI workflow driving it yet. The Android app's GitHub Actions workflow (`.github/workflows/build.yml`) ignores `docs-site/**`, so docs-only changes don't trigger an Android build — but nothing currently auto-triggers a Cloudflare deploy on push either.
+`.github/workflows/deploy-docs-site.yml` deploys automatically on push to `main`, scoped to `paths: docs-site/**` — it builds and runs `wrangler deploy` in CI, requiring the `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` repo secrets. It can also be run manually via `workflow_dispatch`. The Android app's `.github/workflows/build.yml` ignores `docs-site/**` the other way, so a push never triggers both workflows. Run `npm run deploy` locally for one-off/manual deploys.
 
 ## Known gaps before shipping
 
