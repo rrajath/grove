@@ -102,6 +102,15 @@ android {
     // `ndk:` build entry for this app.
     ndkVersion = "27.3.13750724"
 
+    // AGP embeds a "Dependency metadata" block in the APK Signing Block by
+    // default (Play Console's dependency-transparency feature). F-Droid's
+    // scanner rejects any such non-standard signing block, so it's disabled
+    // here for both the APK and the AAB.
+    dependenciesInfo {
+        includeInApk = false
+        includeInBundle = false
+    }
+
     defaultConfig {
         applicationId = "com.rrajath.grove"
         minSdk = 34
