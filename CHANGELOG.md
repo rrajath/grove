@@ -46,6 +46,12 @@ the same tag/version and just re-uploads the APKs to the existing release.
 
 ## [Unreleased]
 
+### Added
+- Favorited notes: star/unstar from the outline, sidebar, and read view now resolves through the heading's stable `:CUSTOM_ID:`/`:ID:` instead of a raw line number, so favorites survive edits elsewhere in the file.
+
+### Fixed
+- Fixed favorited notes losing their star when a note above them was refiled or deleted: the cleanup that drops favorites inside a removed subtree was comparing a favorite's stale stored line index against the removed range instead of resolving its current position first.
+
 ## [1.0.0] - 2026-08-15 (build 290)
 
 ### Fixed

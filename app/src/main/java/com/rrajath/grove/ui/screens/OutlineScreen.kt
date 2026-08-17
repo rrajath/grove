@@ -5,6 +5,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -65,6 +66,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -87,6 +89,8 @@ import com.rrajath.grove.ui.components.StatePickerSheet
 import com.rrajath.grove.ui.components.SwipeAction
 import com.rrajath.grove.ui.components.SwipeRevealRow
 import com.rrajath.grove.ui.components.annotateOrgInline
+import com.rrajath.grove.data.FavoriteNote
+import com.rrajath.grove.data.matches
 import com.rrajath.grove.ui.components.favoriteIcon
 import com.rrajath.grove.ui.components.searchIcon
 import com.rrajath.grove.ui.theme.PlexMono
@@ -125,9 +129,11 @@ fun OutlineScreen(
     onWiden: () -> Unit = {},
     /** Top-bar ⌕: opens Search with the notebook filter already pinned to this file. */
     onSearchInNotebook: () -> Unit = {},
-    onFavorite: (fileName: String, lineIndex: Int, title: String) -> Unit = { _, _, _ -> },
-    /** Line indices of favorited headlines in this notebook, marked with a ★. */
-    favoriteLines: Set<Int> = emptySet(),
+    /** Adds a favorite; [customId] is resolved (via [DocumentViewModel.ensureCustomId]) before this is called. */
+    onFavorite: (fileName: String, lineIndex: Int, title: String, customId: String?) -> Unit = { _, _, _, _ -> },
+    onUnfavorite: (fileName: String, lineIndex: Int, customId: String?) -> Unit = { _, _, _ -> },
+    /** Favorited headlines in this notebook, matched per-row by customId, marked with a ★. */
+    favorites: List<FavoriteNote> = emptyList(),
     displayFlags: OutlineDisplayFlags = OutlineDisplayFlags(),
     onToggleDisplay: (OutlineToggle, Boolean) -> Unit = { _, _ -> },
     /** Settings toggle: show a collapsible section for file-level `#+` keywords, pinned at the top. */
@@ -425,12 +431,18 @@ fun OutlineScreen(
                             }
                         }
                         items(visible, key = { it.lineIndex }) { h ->
-                            val isFavorite = h.lineIndex in favoriteLines
+                            val isFavorite = favorites.any { it.matches(h) }
                             val toggleFavorite = {
-                                onFavorite(notebookId, h.lineIndex, h.title)
-                                viewModel.showToast(
-                                    if (isFavorite) "Removed favorite" else "★ Added to favorites"
-                                )
+                                if (isFavorite) {
+                                    val existing = favorites.firstOrNull { it.matches(h) }
+                                    onUnfavorite(notebookId, h.lineIndex, existing?.customId)
+                                    viewModel.showToast("Removed favorite")
+                                } else {
+                                    viewModel.ensureCustomId(h) { customId ->
+                                        onFavorite(notebookId, h.lineIndex, h.title, customId)
+                                    }
+                                    viewModel.showToast("★ Added to favorites")
+                                }
                             }
                             SwipeRevealRow(
                                 // Right-swipe panel: state / schedule / note / favorite.
@@ -624,6 +636,10 @@ internal fun NoteDialog(title: String, onDismiss: () -> Unit, onConfirm: (String
                 value = text,
                 onValueChange = { text = it },
                 placeholder = { Text("Note contents", fontFamily = PlexSans, color = c.ink3) },
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Sentences,
+                    autoCorrectEnabled = true,
+                ),
                 minLines = 3,
                 maxLines = 6,
             )

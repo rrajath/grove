@@ -69,6 +69,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.rrajath.grove.data.FavoriteNote
+import com.rrajath.grove.data.matches
 import com.rrajath.grove.org.BlockParser
 import com.rrajath.grove.org.OrgBlock
 import com.rrajath.grove.org.OrgDocument
@@ -125,8 +127,8 @@ fun ReadNoteScreen(
     showPropertyDrawers: Boolean = true,
     /** Settings: how many states tapping a checklist item cycles through. */
     checklistStates: ChecklistStates = ChecklistStates.TWO,
-    /** Line indices of favorited headlines in this file, marked with a ★. */
-    favoriteLines: Set<Int> = emptySet(),
+    /** Favorited headlines in this file, matched per-heading by customId, marked with a ★. */
+    favorites: List<FavoriteNote> = emptyList(),
     viewModel: DocumentViewModel = viewModel(factory = DocumentViewModel.Factory),
 ) {
     val c = MaterialTheme.grove
@@ -246,7 +248,7 @@ fun ReadNoteScreen(
                             onEditAt = onEdit,
                             onToggleCheckbox = { line -> viewModel.toggleChecklistItem(line, checklistStates.marks) },
                             showPropertyDrawers = showPropertyDrawers,
-                            favoriteLines = favoriteLines,
+                            favorites = favorites,
                         )
                         ScrollJumpButtons(
                             scrollState = scrollState,
@@ -357,7 +359,7 @@ private fun NoteContent(
     scrollState: ScrollState,
     modifier: Modifier = Modifier,
     showPropertyDrawers: Boolean = true,
-    favoriteLines: Set<Int> = emptySet(),
+    favorites: List<FavoriteNote> = emptyList(),
 ) {
     val c = MaterialTheme.grove
     val context = LocalContext.current
@@ -447,7 +449,7 @@ private fun NoteContent(
                         ),
                         modifier = Modifier.weight(1f),
                     )
-                    if (headline.lineIndex in favoriteLines) {
+                    if (favorites.any { it.matches(headline) }) {
                         Spacer(Modifier.width(8.dp))
                         FavoriteStar(modifier = Modifier.padding(top = 6.dp), size = 24.dp)
                     }
@@ -542,7 +544,7 @@ private fun NoteContent(
                                 ),
                                 modifier = Modifier.weight(1f),
                             )
-                            if (child.lineIndex in favoriteLines) {
+                            if (favorites.any { it.matches(child) }) {
                                 Spacer(Modifier.width(8.dp))
                                 FavoriteStar(modifier = Modifier.padding(top = 2.dp))
                             }

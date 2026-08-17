@@ -104,6 +104,7 @@ private data class BugPayloadRow(val key: String, val value: String)
 @Serializable
 private data class DeviceInfo(
     val app_version: String,
+    val build_number: String,
     val android_version: String,
     val device_model: String,
     val locale: String,
@@ -252,7 +253,7 @@ fun SettingsBugReportScreen(onBack: () -> Unit) {
         ) {
             Text(
                 "Tell us what happened. Everything below is optional except the description. " +
-                    "Nothing is sent until you tap Send.",
+                    "Nothing gets sent until you tap Send Report.",
                 fontFamily = PlexSans, fontSize = 13.sp, lineHeight = 1.55.em, color = c.ink2,
                 modifier = Modifier.padding(bottom = 18.dp),
             )
@@ -599,6 +600,7 @@ private val ButtonShadowColor = Color(0x668A5A2B)
 
 private fun deviceInfo(): DeviceInfo = DeviceInfo(
     app_version = BuildConfig.VERSION_NAME,
+    build_number = BuildConfig.VERSION_CODE.toString(),
     android_version = Build.VERSION.RELEASE,
     device_model = Build.MODEL,
     locale = Locale.getDefault().toLanguageTag(),
@@ -609,6 +611,7 @@ private fun bugPayload(includeDeviceInfo: Boolean, includeErrorLog: Boolean, err
     if (includeDeviceInfo) {
         val info = deviceInfo()
         rows += BugPayloadRow("app_version", info.app_version)
+        rows += BugPayloadRow("build_number", info.build_number)
         rows += BugPayloadRow("android_version", info.android_version)
         rows += BugPayloadRow("device_model", info.device_model)
         rows += BugPayloadRow("locale", info.locale)

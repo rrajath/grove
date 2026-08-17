@@ -93,7 +93,7 @@ fun SettingsScreen(
             SettingsGroup {
                 SettingsRow(
                     label = "Report a bug",
-                    description = "Send a report to our own crash server",
+                    description = "Creates an issue on GitHub",
                     onClick = onOpenBugReport,
                 ) {
                     Text("›", fontFamily = PlexMono, fontSize = 14.sp, color = c.ink2)

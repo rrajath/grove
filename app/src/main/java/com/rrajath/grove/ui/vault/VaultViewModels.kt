@@ -308,6 +308,40 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
     }
 
     /**
+     * Favoriting needs a stable `:ID:`/`:CUSTOM_ID:` on [headline] so the favorite survives
+     * line drift from later edits; writes a `:CUSTOM_ID:` only when it has neither already
+     * (never overwrites an intentionally-set one). Goes through this class's own [_state]
+     * (like every other mutation here) instead of a standalone vault read/write, so the id
+     * becomes part of the same in-memory document lineage subsequent edits build from —
+     * otherwise the very next outline edit in this session would rebuild its saved text from
+     * a pre-favorite snapshot and silently drop the id (the bug this was written to fix: a
+     * same-session edit right after favoriting was clobbering the just-written CUSTOM_ID).
+     * [onResolved] receives the heading's existing or newly-written id.
+     */
+    fun ensureCustomId(headline: OrgHeadline, onResolved: (String?) -> Unit) {
+        val existing = headline.id ?: headline.customId
+        if (existing != null) {
+            onResolved(existing)
+            return
+        }
+        val loaded = _state.value as? DocumentUiState.Loaded ?: return onResolved(null)
+        val vault = app.vault.value ?: return onResolved(null)
+        viewModelScope.launch {
+            val newId = UUID.randomUUID().toString()
+            val newText = withContext(Dispatchers.Default) {
+                OrgMutations.upsertProperty(loaded.document, headline, "CUSTOM_ID", newId)
+            }
+            val newDoc = withContext(Dispatchers.Default) {
+                OrgParser.parse(newText, loaded.document.keywords)
+            }
+            _state.value = DocumentUiState.Loaded(loaded.fileName, newDoc)
+            vault.save(loaded.fileName, newText)
+            app.syncManager.requestSync("favorite added custom id")
+            onResolved(newId)
+        }
+    }
+
+    /**
      * Apply an undoable single-file mutation: snapshot for undo, publish the
      * in-memory parse immediately, persist and sync in the background.
      * [newFocus] moves the command-bar focus when the headline's line changed.
@@ -362,23 +396,33 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
         applyUndoable(headline, "Note deleted", "", newFocus = { null }) { d, h ->
             OrgMutations.deleteSubtree(d, h) to h.lineIndex
         }
-        dropFavoritesInRange(loaded.fileName, headline.lineIndex until subtreeEnd)
+        dropFavoritesInRange(loaded.document, loaded.fileName, headline.lineIndex until subtreeEnd)
     }
 
     /**
-     * Same-session cleanup for an in-app delete/refile: a favorite whose stored lineIndex falls
-     * in the removed subtree's range is dropped. This is a fast heuristic keyed on the
-     * lineIndex snapshot from *before* this edit (still accurate at this point, since the doc
-     * was just loaded), not the customId-based resolution [OrgDocument.headlineFor] uses
-     * elsewhere: a deleted subtree's CUSTOM_ID heading is gone entirely, so there is nothing to
-     * resolve against anyway. Favorites elsewhere in the file, whose lines shift as a side
-     * effect of this edit, are unaffected here on purpose — they still resolve correctly via
-     * customId the next time they're opened.
+     * Same-session cleanup for an in-app delete/refile: a favorite whose *current* position
+     * falls in the removed subtree's range is dropped. [document] is the pre-edit document
+     * (the mutation hasn't been applied to [_state] yet at the call sites below), so a
+     * favorite's stable customId still resolves against it even though the subtree is about to
+     * be deleted/moved out of the file. Resolving by customId here — instead of trusting the
+     * favorite's stored lineIndex directly — matters because that stored value is only a
+     * snapshot from whenever the favorite was added: any unrelated edit elsewhere in the file
+     * since then (adding/removing lines above it) shifts the note's true line without ever
+     * updating the stored one, so a stale lineIndex can coincidentally land inside a range being
+     * removed even though the favorited note itself isn't part of it. Favorites with no
+     * customId (pre-id favorites) fall back to the raw stored lineIndex, same as elsewhere.
      */
-    private fun dropFavoritesInRange(fileName: String, range: IntRange) {
+    private fun dropFavoritesInRange(document: OrgDocument, fileName: String, range: IntRange) {
         viewModelScope.launch {
             app.favoritesRepository.favorites.first()
-                .filter { it.fileName == fileName && it.lineIndex in range }
+                .filter { it.fileName == fileName }
+                .filter { fav ->
+                    val currentLine = fav.customId
+                        ?.let { document.findByCustomId(it) ?: document.findById(it) }
+                        ?.lineIndex
+                        ?: fav.lineIndex
+                    currentLine in range
+                }
                 .forEach { app.favoritesRepository.removeFavorite(it.fileName, it.lineIndex, it.customId) }
         }
     }
@@ -674,7 +718,7 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
                 loaded, vault, source, target,
                 verb = "Archived", syncReason = "archive", createFileIfMissing = true,
             )
-            dropFavoritesInRange(loaded.fileName, source.lineIndex until sourceEnd)
+            dropFavoritesInRange(loaded.document, loaded.fileName, source.lineIndex until sourceEnd)
         }
     }
 
@@ -692,7 +736,7 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
                 loaded, vault, source, target,
                 verb = "Refiled", syncReason = "refile", createFileIfMissing = false,
             )
-            dropFavoritesInRange(loaded.fileName, source.lineIndex until sourceEnd)
+            dropFavoritesInRange(loaded.document, loaded.fileName, source.lineIndex until sourceEnd)
         }
     }
 
@@ -781,7 +825,7 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
                 showSnack("Refiled to $destLabel › ${target?.title ?: "top level"}")
                 rememberRefileTarget(destFile, headingPath)
             }
-            dropFavoritesInRange(loaded.fileName, source.lineIndex until sourceEnd)
+            dropFavoritesInRange(loaded.document, loaded.fileName, source.lineIndex until sourceEnd)
         }
     }
 

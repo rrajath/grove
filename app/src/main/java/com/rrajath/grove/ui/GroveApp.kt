@@ -107,11 +107,11 @@ fun GroveApp(
     }
 }
 
-/** Line indices of favorited headlines in [fileName]. */
-private fun favoriteLinesFor(
+/** Favorites scoped to [fileName], for resolving each row's ★ by customId rather than raw line index. */
+private fun favoritesFor(
     favorites: List<com.rrajath.grove.data.FavoriteNote>,
     fileName: String,
-): Set<Int> = favorites.filter { it.fileName == fileName }.map { it.lineIndex }.toSet()
+): List<com.rrajath.grove.data.FavoriteNote> = favorites.filter { it.fileName == fileName }
 
 /**
  * The file name of an externally-opened .org file, e.g. from tapping one in a
@@ -290,16 +290,17 @@ private fun GroveNavigation(
                     // A freshly created note opens straight in edit mode (blank heading).
                     onCreateNote = { ref -> navController.navigate(Routes.note(ref.encode(), "edit", isNew = true)) },
                     onSearchInNotebook = { navController.navigate(Routes.search(notebook = notebookId)) },
-                    // Toggle: the outline's ★ swipe action both adds and removes.
-                    onFavorite = { fileName, lineIndex, title ->
-                        val existing = favorites.firstOrNull { it.fileName == fileName && it.lineIndex == lineIndex }
-                        if (existing != null) {
-                            viewModel.removeFavorite(fileName, lineIndex, existing.customId)
-                        } else {
-                            viewModel.addFavorite(fileName, lineIndex, title)
-                        }
+                    // The outline's ★ swipe action: OutlineScreen decides add vs. remove
+                    // itself (it already resolves each row's favorite by customId to draw
+                    // the star correctly) and, for adds, resolves a stable id first via
+                    // viewModel.ensureCustomId before calling onFavorite.
+                    onFavorite = { fileName, lineIndex, title, customId ->
+                        viewModel.addFavorite(fileName, lineIndex, title, customId)
                     },
-                    favoriteLines = favoriteLinesFor(favorites, notebookId),
+                    onUnfavorite = { fileName, lineIndex, customId ->
+                        viewModel.removeFavorite(fileName, lineIndex, customId)
+                    },
+                    favorites = favoritesFor(favorites, notebookId),
                     displayFlags = OutlineDisplayFlags(
                         tags = settings.showTagsInOutline,
                         timestamps = settings.showTimestampsInOutline,
@@ -360,7 +361,7 @@ private fun GroveNavigation(
                             },
                             showPropertyDrawers = settings.showPropertyDrawers,
                             checklistStates = settings.checklistStates,
-                            favoriteLines = favoriteLinesFor(favorites, ref.fileName),
+                            favorites = favoritesFor(favorites, ref.fileName),
                         )
                     }
                 }
