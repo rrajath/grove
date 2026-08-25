@@ -1,5 +1,6 @@
 package com.rrajath.grove.ui.screens.settings
 
+import android.content.ClipData
 import android.content.Intent
 import android.os.Build
 import android.widget.Toast
@@ -53,9 +54,9 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.ClipEntry
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
@@ -68,7 +69,6 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
-import androidx.core.net.toUri
 import com.rrajath.grove.BuildConfig
 import com.rrajath.grove.org.LineEditing
 import com.rrajath.grove.org.TextEdit
@@ -98,16 +98,19 @@ private data class DeviceInfo(
 
 /**
  * Settings § Help → Report a bug (design/Grove.dc.html lines 1811-1881). Send
- * opens the device's mail app with the form details (based on which toggles
- * are on) filled into the subject/body of a new email addressed to
- * [BUG_REPORT_EMAIL], instead of filing anything remotely: there's no
- * server-side component to this feature at all.
+ * copies the form details (based on which toggles are on) to the clipboard
+ * and opens a mail app chooser with the same content filled into the
+ * subject/body of a new email addressed to [BUG_REPORT_EMAIL], instead of
+ * filing anything remotely: there's no server-side component to this
+ * feature at all. The clipboard copy happens unconditionally so the report
+ * survives even if no mail app is available or the user backs out of the
+ * chooser.
  */
 @Composable
 fun SettingsBugReportScreen(onBack: () -> Unit) {
     val c = MaterialTheme.grove
     val context = LocalContext.current
-    val clipboard = LocalClipboardManager.current
+    val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
 
     var description by rememberSaveable { mutableStateOf("") }
@@ -166,8 +169,16 @@ fun SettingsBugReportScreen(onBack: () -> Unit) {
                                     deviceInfo = if (includeDeviceInfo) deviceInfo() else null,
                                     errorLogLines = if (includeErrorLog) freshErrorLog else null,
                                 )
-                                val intent = Intent(Intent.ACTION_SENDTO).apply {
-                                    data = "mailto:".toUri()
+                                // Copied unconditionally so the report is never lost, whether
+                                // or not a mail app is available or the chooser gets dismissed.
+                                clipboard.setClipEntry(ClipEntry(ClipData.newPlainText(BUG_REPORT_SUBJECT, body)))
+                                copied = true
+                                // ACTION_SEND + "message/rfc822" (rather than ACTION_SENDTO +
+                                // a mailto: URI) is the intent shape non-Gmail mail apps
+                                // (Outlook, Yahoo, Samsung Email, …) register a compose-email
+                                // intent-filter for, so the chooser actually lists them too.
+                                val intent = Intent(Intent.ACTION_SEND).apply {
+                                    type = "message/rfc822"
                                     putExtra(Intent.EXTRA_EMAIL, arrayOf(BUG_REPORT_EMAIL))
                                     putExtra(Intent.EXTRA_SUBJECT, BUG_REPORT_SUBJECT)
                                     putExtra(Intent.EXTRA_TEXT, body)
@@ -175,9 +186,9 @@ fun SettingsBugReportScreen(onBack: () -> Unit) {
                                 runCatching {
                                     context.startActivity(Intent.createChooser(intent, "Send bug report"))
                                 }.onSuccess {
-                                    Toast.makeText(context, "Opened your mail app with the report", Toast.LENGTH_LONG).show()
+                                    Toast.makeText(context, "Opened your mail app. Report also copied to clipboard.", Toast.LENGTH_LONG).show()
                                 }.onFailure {
-                                    Toast.makeText(context, "No mail app found. Copy the report instead.", Toast.LENGTH_LONG).show()
+                                    Toast.makeText(context, "No mail app found. Report copied to clipboard instead.", Toast.LENGTH_LONG).show()
                                 }
                                 sending = false
                             }
@@ -196,16 +207,21 @@ fun SettingsBugReportScreen(onBack: () -> Unit) {
                             .clip(RoundedCornerShape(8.dp))
                             .clickable {
                                 copied = true
-                                clipboard.setText(
-                                    AnnotatedString(
-                                        formatBugReportEmail(
-                                            description = description,
-                                            steps = stepsState.text.toString(),
-                                            deviceInfo = if (includeDeviceInfo) deviceInfo() else null,
-                                            errorLogLines = if (includeErrorLog) errorLogLines else null,
+                                scope.launch {
+                                    clipboard.setClipEntry(
+                                        ClipEntry(
+                                            ClipData.newPlainText(
+                                                BUG_REPORT_SUBJECT,
+                                                formatBugReportEmail(
+                                                    description = description,
+                                                    steps = stepsState.text.toString(),
+                                                    deviceInfo = if (includeDeviceInfo) deviceInfo() else null,
+                                                    errorLogLines = if (includeErrorLog) errorLogLines else null,
+                                                ),
+                                            ),
                                         ),
-                                    ),
-                                )
+                                    )
+                                }
                             }
                             .padding(vertical = 4.dp),
                     )

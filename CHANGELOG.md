@@ -27,28 +27,44 @@ locally but nothing was ever tagged or published for them.
 **Cutting a release is manual.** Add your changes under `## [Unreleased]` as
 you go (that part still takes a human; nobody else knows what the change was
 for). Every push to `main` still builds, tests, and uploads the debug/release
-APKs as CI artifacts, but nothing is tagged or published to Releases from a
-push by itself, so several pushes with unrelated fixes can land before you
-choose to ship one. To cut a release, manually run the "Build & Release"
-workflow (Actions tab → Run workflow) against `main`. CI reads the current
-version (`versionCode` from the git commit count, `versionName` from
-`gradle.properties`), and:
-- if `## [Unreleased]` has content, it tags `v<versionName>`, publishes a
-  GitHub Release with both APKs using that content as the release notes, then
-  pushes a follow-up commit renaming `## [Unreleased]` to
-  `## [<versionName>] - <date> (build <versionCode>)` and opening a fresh empty
-  `## [Unreleased]` above it. The `(build N)` suffix is `versionCode`, kept
-  alongside `versionName` because the in-app What's New modal needs a value
-  that's always unique per release, which `versionName` alone no longer is;
-- if `## [Unreleased]` is empty, the run builds and tests as normal but no
+APKs as CI artifacts, but nothing is tagged or published to Releases from an
+ordinary push by itself, so several pushes with unrelated fixes can land
+before you choose to ship one. There are two ways to actually cut a release:
+
+- **Push a version tag** matching `v*.*.*` (e.g. `git tag v1.2.0 && git push
+  origin v1.2.0`). The GitHub Release is tagged and titled from that tag
+  exactly, and `## [Unreleased]` is archived as `## [1.2.0] - <date> (build
+  <versionCode>)` — bump `versionName` in `gradle.properties` to match before
+  tagging, so the app's own What's New modal agrees with what you tagged.
+  If the tag doesn't point at the current tip of `main`, the CHANGELOG.md
+  archive commit is skipped (with a workflow warning) rather than rewinding
+  `main`, though the GitHub Release itself is still published.
+- **Manually run the "Build & Release" workflow** (Actions tab → Run
+  workflow) against `main`. CI reads the current version (`versionCode` from
+  the git commit count, `versionName` from `gradle.properties`) and, if
+  `## [Unreleased]` has content, tags `v<versionName>-<versionCode>` (the
+  `-<versionCode>` suffix guarantees a fresh tag even when `versionName`
+  repeats across releases), publishes a GitHub Release with both APKs and the
+  AAB using that content as the release notes, then pushes a follow-up commit
+  renaming `## [Unreleased]` to `## [<versionName>] - <date> (build
+  <versionCode>)` and opening a fresh empty `## [Unreleased]` above it. If
+  `## [Unreleased]` is empty, the run builds and tests as normal but no
   release is cut.
 
-Nothing needs to be run or renamed by hand for `versionCode`. `versionName`
-does need a manual bump in `gradle.properties` before running a release that
-should carry a new version number; running again without bumping it re-uses
-the same tag/version and just re-uploads the APKs to the existing release.
+Either way, the `(build N)` suffix is `versionCode`, kept alongside
+`versionName`/the tag because the in-app What's New modal needs a value
+that's always unique per release. Nothing needs to be run or renamed by hand
+for `versionCode`. Re-running against the same commit/tag re-uses the same
+tag and just re-uploads the APKs to the existing release instead of failing.
 
 ## [Unreleased]
+
+### Changed
+- "Report a bug"'s Send Report now copies the formatted report to the clipboard immediately, so it's never lost if no mail app is available or the chooser gets dismissed, and builds the email with `ACTION_SEND` + `message/rfc822` instead of `ACTION_SENDTO` + a `mailto:` URI, an intent shape more mail apps besides Gmail register a compose-email handler for.
+- The "Build & Release" workflow can now also be triggered by pushing a version tag matching `v*.*.*` (e.g. `v1.2.0`), publishing a GitHub Release tagged and titled from that exact tag. The manual "Run workflow" dispatch against `main` still works as before.
+
+### Fixed
+- Cleared every warning `kotlinc` printed for `./gradlew testDebugUnitTest`: migrated the bug report screen, Quick Capture's clipboard placeholder, and read mode's Copy Link off the deprecated `LocalClipboardManager` Compose API onto `LocalClipboard`; swapped the outline screen's non-mirrored promote/demote icons for their `AutoMirrored` equivalents; removed a dead null-check in `EditorViewModel.deleteSubtree` that could never be false; and renamed the placeholder-expansion unit tests' `%`-prefixed display names, which were flagged as unsafe on Windows file paths.
 
 ## [1.0.1] - 2026-08-25 (build 294)
 

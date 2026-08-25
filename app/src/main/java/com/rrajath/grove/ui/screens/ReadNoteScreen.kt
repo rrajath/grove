@@ -1,5 +1,6 @@
 package com.rrajath.grove.ui.screens
 
+import android.content.ClipData
 import android.content.Intent
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -44,6 +45,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
@@ -54,7 +56,9 @@ import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.core.net.toUri
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.ClipEntry
+import androidx.compose.ui.platform.LocalClipboard
+import kotlinx.coroutines.launch
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.geometry.Offset
@@ -656,12 +660,13 @@ private fun OrgText(
 @Composable
 private fun LinkActionMenuItems(target: String, onDismiss: () -> Unit) {
     val c = MaterialTheme.grove
-    val clipboard = LocalClipboardManager.current
+    val clipboard = LocalClipboard.current
+    val scope = rememberCoroutineScope()
     val context = LocalContext.current
     DropdownMenuItem(
         text = { Text("Copy link", fontFamily = PlexSans, fontSize = 14.sp, color = c.ink) },
         onClick = {
-            clipboard.setText(AnnotatedString(target))
+            scope.launch { clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("link", target))) }
             onDismiss()
         },
     )

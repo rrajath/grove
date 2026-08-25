@@ -1,15 +1,25 @@
 name: Build & Release
 
 # Build debug and release APKs on every push (and PR); this is CI validation
-# only, so nothing gets tagged or published from a push. A GitHub Release
-# (tag + both APKs + the AAB) is cut only from a manual "Run workflow"
-# dispatch against the default branch, so several pushes with unrelated
-# fixes can land before you choose to cut and distribute a release.
+# only for an ordinary branch push, so nothing gets tagged or published from
+# it. A GitHub Release (tag + both APKs + the AAB) is cut either by pushing a
+# version tag matching v*.*.* (e.g. `git tag v1.2.0 && git push origin
+# v1.2.0`), or from a manual "Run workflow" dispatch against the default
+# branch — so several pushes with unrelated fixes can land before you choose
+# to cut and distribute a release. `branches: ['**']` is listed alongside
+# `tags` below because specifying only `tags` would stop plain branch pushes
+# from triggering this workflow at all.
 # docs-site/ is excluded: it's a separate Astro/Starlight site deployed via
 # Cloudflare Pages (which has its own build watch path on docs-site/**), so an
-# app CI run here would be redundant for docs-only changes.
+# app CI run here would be redundant for docs-only changes. paths-ignore has
+# no effect on tag pushes (GitHub doesn't evaluate path filters for tags), so
+# a version tag always triggers regardless of what it touches.
 on:
   push:
+    branches:
+      - '**'
+    tags:
+      - 'v*.*.*'
     paths-ignore:
       - 'docs-site/**'
   pull_request:
@@ -61,6 +71,18 @@ jobs:
       # the Archive step) since VERSION (versionName) is manually bumped and can
       # repeat across releases; VERSION_CODE stays the one value the What's New
       # modal can rely on for ordering.
+      #
+      # Two ways to reach this workflow with release intent, and each picks its
+      # own release tag / changelog version:
+      #   - A pushed tag (refs/tags/v*.*.*): RELEASE_TAG is exactly the tag you
+      #     pushed, and CHANGELOG_VERSION is that tag with its leading "v"
+      #     stripped — so the git tag, the GitHub Release, and the CHANGELOG.md
+      #     heading always agree, regardless of whether gradle.properties'
+      #     versionName was bumped to match. Bump it anyway before tagging, so
+      #     the app's own About/What's New screens stay in sync.
+      #   - workflow_dispatch on the default branch: unchanged from before —
+      #     RELEASE_TAG is v$VERSION-$VERSION_CODE (versionName + commit count),
+      #     which is what guarantees uniqueness when nobody hand-tagged anything.
       - name: Compute version
         run: |
           set -euo pipefail
@@ -68,6 +90,31 @@ jobs:
           VERSION_CODE="$(./gradlew -q printVersionCode | tail -n1)"
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
           echo "VERSION_CODE=$VERSION_CODE" >> "$GITHUB_ENV"
+          # Local shell vars first, then written to GITHUB_ENV once at the end:
+          # GITHUB_ENV writes only take effect for *later* steps, so the
+          # SHOULD_RELEASE check below can't read IS_TAG_RELEASE back out of it
+          # within this same step.
+          if [ "${{ github.event_name }}" = "push" ] && [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            TAG_NAME="${{ github.ref_name }}"
+            IS_TAG_RELEASE=true
+            RELEASE_TAG="$TAG_NAME"
+            CHANGELOG_VERSION="${TAG_NAME#v}"
+          else
+            IS_TAG_RELEASE=false
+            RELEASE_TAG="v$VERSION-$VERSION_CODE"
+            CHANGELOG_VERSION="$VERSION"
+          fi
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ github.ref }}" = "refs/heads/${{ github.event.repository.default_branch }}" ]; then
+            SHOULD_RELEASE=true
+          elif [ "$IS_TAG_RELEASE" = "true" ]; then
+            SHOULD_RELEASE=true
+          else
+            SHOULD_RELEASE=false
+          fi
+          echo "IS_TAG_RELEASE=$IS_TAG_RELEASE" >> "$GITHUB_ENV"
+          echo "RELEASE_TAG=$RELEASE_TAG" >> "$GITHUB_ENV"
+          echo "CHANGELOG_VERSION=$CHANGELOG_VERSION" >> "$GITHUB_ENV"
+          echo "SHOULD_RELEASE=$SHOULD_RELEASE" >> "$GITHUB_ENV"
 
       - name: Decode release keystore
         if: env.HAS_SIGNING == 'true'
@@ -120,8 +167,12 @@ jobs:
       # not the mere act of dispatching the workflow. Pulls the section
       # content (not the header) into GITHUB_ENV via the multiline heredoc
       # form so later steps can reuse it verbatim as release notes.
+      #
+      # A pushed release tag skips the emptiness gate: pushing v1.2.0 is
+      # already an explicit "release this now," so an empty Unreleased
+      # section just means "no changelog notes," not "skip the release."
       - name: Read Unreleased section from CHANGELOG.md
-        if: github.event_name == 'workflow_dispatch' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        if: env.SHOULD_RELEASE == 'true'
         run: |
           set -euo pipefail
           NOTES="$(awk '
@@ -129,11 +180,14 @@ jobs:
             found && /^## \[/ { exit }
             found { print }
           ' CHANGELOG.md | awk 'NF{p=1} p')"
-          if [ -z "$NOTES" ]; then
+          if [ -z "$NOTES" ] && [ "$IS_TAG_RELEASE" != "true" ]; then
             echo "HAS_RELEASE=false" >> "$GITHUB_ENV"
             echo "No content under '## [Unreleased]' in CHANGELOG.md — skipping release for this push."
           else
             echo "HAS_RELEASE=true" >> "$GITHUB_ENV"
+            if [ -z "$NOTES" ]; then
+              NOTES="(no changelog entry)"
+            fi
             {
               echo "RELEASE_NOTES<<CHANGELOG_EOF"
               echo "$NOTES"
@@ -142,30 +196,38 @@ jobs:
           fi
 
       # Publish a GitHub Release with both APKs, but only when there was
-      # something under Unreleased to publish. The tag is "v$VERSION-$VERSION_CODE"
-      # rather than just "v$VERSION": VERSION (versionName) is now manually bumped
-      # and commonly repeats across many pushes, so a tag keyed on VERSION alone
-      # would collide with the previous release's tag and this step would just
-      # silently clobber that release's assets instead of publishing a new one —
-      # which is exactly what happened to every release between 1.0.0 and this
-      # fix, and is why Obtainium (and anyone else watching Releases) stopped
-      # seeing updates. VERSION_CODE (git commit count) is unique per commit, so
-      # appending it guarantees a fresh tag, and therefore a genuinely new
-      # release, on every release-worthy push. The dash keeps it visually and
-      # semantically distinct from the pre-1.0.0 "v1.0.<N>" auto-versioning tags
-      # (see CHANGELOG.md's "Versioning" section) so it doesn't read as a
-      # reversion to that scheme. The release title is kept human-friendly and
-      # separate from the tag string. Re-runs of the *same* commit recompute the
-      # same VERSION_CODE and therefore the same tag, so they still safely
-      # re-upload assets instead of failing on an existing tag.
+      # something under Unreleased to publish (or a release tag was pushed —
+      # see the Read Unreleased step above). The dispatch-triggered tag is
+      # "v$VERSION-$VERSION_CODE" rather than just "v$VERSION": VERSION
+      # (versionName) is manually bumped and commonly repeats across many
+      # pushes, so a tag keyed on VERSION alone would collide with the
+      # previous release's tag and this step would just silently clobber that
+      # release's assets instead of publishing a new one — which is exactly
+      # what happened to every release between 1.0.0 and this fix, and is why
+      # Obtainium (and anyone else watching Releases) stopped seeing updates.
+      # VERSION_CODE (git commit count) is unique per commit, so appending it
+      # guarantees a fresh tag, and therefore a genuinely new release, on
+      # every release-worthy dispatch. A pushed release tag doesn't need any
+      # of that: RELEASE_TAG is just the tag you pushed, since you're the one
+      # guaranteeing its uniqueness by choosing not to reuse it. The dash in
+      # the dispatch-computed tag keeps it visually and semantically distinct
+      # from the pre-1.0.0 "v1.0.<N>" auto-versioning tags (see CHANGELOG.md's
+      # "Versioning" section) so it doesn't read as a reversion to that
+      # scheme. Re-runs of the *same* commit/tag recompute the same
+      # RELEASE_TAG, so they still safely re-upload assets instead of failing
+      # on an existing tag.
       - name: Publish GitHub Release
-        if: github.event_name == 'workflow_dispatch' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && env.HAS_RELEASE == 'true'
+        if: env.SHOULD_RELEASE == 'true' && env.HAS_RELEASE == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          TAG="v$VERSION-$VERSION_CODE"
-          TITLE="v$VERSION (build $VERSION_CODE)"
+          TAG="$RELEASE_TAG"
+          if [ "$IS_TAG_RELEASE" = "true" ]; then
+            TITLE="$RELEASE_TAG (build $VERSION_CODE)"
+          else
+            TITLE="v$VERSION (build $VERSION_CODE)"
+          fi
           NOTES="$(printf '%s\n\n_Commit: %s_' "$RELEASE_NOTES" "${GITHUB_SHA:0:7}")"
           # The release APK is app-release.apk when signed, app-release-unsigned.apk otherwise.
           # The AAB is attached too so a signed one is available to upload to Play Console
@@ -181,17 +243,35 @@ jobs:
           fi
 
       # Moves what was just released out of Unreleased and into its own
-      # "## [$VERSION] - <date>" heading, then pushes that as a follow-up
-      # commit — this is the step that removes the manual
+      # "## [$CHANGELOG_VERSION] - <date>" heading, then pushes that as a
+      # follow-up commit — this is the step that removes the manual
       # `./gradlew -q printVersionName` + hand-editing CHANGELOG.md
       # previously required before every release-worthy push. [skip ci] stops
       # this bot commit from triggering (and re-releasing on) itself.
+      #
+      # A pushed release tag can point anywhere, not just at the default
+      # branch's tip — `git push origin HEAD:<default>` would silently rewind
+      # that branch to whatever the tag's commit was if we ran it
+      # unconditionally. So for a tag release this step first confirms the
+      # tag's commit *is* the default branch's current tip (via a plain
+      # ls-remote, since checkout doesn't necessarily leave a local
+      # origin/<default> ref lying around for a tag-triggered run) and skips
+      # the commit+push with a warning otherwise. workflow_dispatch already
+      # required running on that tip via its own condition above, so it never
+      # needs this check.
       - name: Archive released version in CHANGELOG.md
-        if: github.event_name == 'workflow_dispatch' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && env.HAS_RELEASE == 'true'
+        if: env.SHOULD_RELEASE == 'true' && env.HAS_RELEASE == 'true'
         run: |
           set -euo pipefail
+          if [ "$IS_TAG_RELEASE" = "true" ]; then
+            DEFAULT_SHA="$(git ls-remote origin "refs/heads/${{ github.event.repository.default_branch }}" | cut -f1)"
+            if [ "$DEFAULT_SHA" != "$GITHUB_SHA" ]; then
+              echo "::warning::$RELEASE_TAG does not point at the tip of ${{ github.event.repository.default_branch }} ($DEFAULT_SHA) — skipping the CHANGELOG.md archive commit so this doesn't rewrite that branch. Archive it by hand if needed."
+              exit 0
+            fi
+          fi
           DATE="$(date -u +%Y-%m-%d)"
-          awk -v ver="$VERSION" -v date="$DATE" -v code="$VERSION_CODE" '
+          awk -v ver="$CHANGELOG_VERSION" -v date="$DATE" -v code="$VERSION_CODE" '
             /^## \[Unreleased\]$/ && !done {
               print
               print ""
@@ -205,5 +285,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add CHANGELOG.md
-          git commit -m "chore: cut CHANGELOG.md entry for $VERSION [skip ci]"
+          git commit -m "chore: cut CHANGELOG.md entry for $CHANGELOG_VERSION [skip ci]"
           git push origin "HEAD:${{ github.event.repository.default_branch }}"

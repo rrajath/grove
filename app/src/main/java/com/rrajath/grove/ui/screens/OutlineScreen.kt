@@ -30,8 +30,8 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckBox
 import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.FormatIndentDecrease
-import androidx.compose.material.icons.filled.FormatIndentIncrease
+import androidx.compose.material.icons.automirrored.filled.FormatIndentDecrease
+import androidx.compose.material.icons.automirrored.filled.FormatIndentIncrease
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.outlined.CalendarMonth
@@ -697,8 +697,8 @@ private fun StructureCommandBar(
             )
             CommandButton(Icons.Default.KeyboardArrowUp, "Move up", c.ink) { resolve()?.let(viewModel::moveUp) }
             CommandButton(Icons.Default.KeyboardArrowDown, "Move down", c.ink) { resolve()?.let(viewModel::moveDown) }
-            CommandButton(Icons.Default.FormatIndentDecrease, "Promote", c.ink) { resolve()?.let(viewModel::promote) }
-            CommandButton(Icons.Default.FormatIndentIncrease, "Demote", c.ink) { resolve()?.let(viewModel::demote) }
+            CommandButton(Icons.AutoMirrored.Filled.FormatIndentDecrease, "Promote", c.ink) { resolve()?.let(viewModel::promote) }
+            CommandButton(Icons.AutoMirrored.Filled.FormatIndentIncrease, "Demote", c.ink) { resolve()?.let(viewModel::demote) }
             CommandButton(Icons.Default.Delete, "Delete", c.red) { confirmDelete = true }
             Spacer(Modifier.width(2.dp))
             Box(

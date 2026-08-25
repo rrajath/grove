@@ -48,7 +48,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
@@ -78,6 +78,7 @@ import com.rrajath.grove.ui.editor.AutoSaveTimestamp
 import com.rrajath.grove.ui.editor.EditorToolbar
 import com.rrajath.grove.ui.editor.MetadataSheet
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
 import com.rrajath.grove.ui.editor.orgInputTransformation
 import com.rrajath.grove.ui.editor.OrgSyntaxHighlight
 import com.rrajath.grove.ui.editor.applyEdit
@@ -109,7 +110,7 @@ fun CaptureEditorScreen(
     val c = MaterialTheme.grove
     val templates by viewModel.templates.collectAsStateWithLifecycle()
     val saveState by viewModel.saveState.collectAsStateWithLifecycle()
-    val clipboard = LocalClipboardManager.current
+    val clipboard = LocalClipboard.current
     val template = templates.firstOrNull { it.id == templateId }
     val app = androidx.compose.ui.platform.LocalContext.current.applicationContext
             as com.rrajath.grove.GroveApplication
@@ -143,7 +144,18 @@ fun CaptureEditorScreen(
         // Android 13+ shows a system toast on every clipboard read, so reading
         // unconditionally would confuse users whose templates don't need it.
         val clipboardText =
-            if (template.template.contains("%clipboard")) clipboard.getText()?.text ?: "" else ""
+            if (template.template.contains("%clipboard")) {
+                // getClipEntry() has no real suspension point on Android (it's a
+                // synchronous Binder call under the hood), so runBlocking here
+                // just reads it inline instead of introducing an async gap that
+                // could race with textState below reading a stale, clipboard-less
+                // CaptureContext.
+                runBlocking { clipboard.getClipEntry() }?.clipData?.let { data ->
+                    if (data.itemCount > 0) data.getItemAt(0)?.text?.toString() else null
+                } ?: ""
+            } else {
+                ""
+            }
         CaptureContext(
             now = now,
             clipboard = clipboardText,

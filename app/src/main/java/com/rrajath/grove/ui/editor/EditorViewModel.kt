@@ -408,10 +408,8 @@ class EditorViewModel(private val app: GroveApplication) : ViewModel() {
             val headline = doc.headlines.firstOrNull { it.lineIndex == s.lineIndex }
             if (headline != null) {
                 val newText = OrgMutations.deleteSubtree(doc, headline)
-                if (newText != null) {
-                    vault.save(s.fileName, newText)
-                    app.syncManager.requestSync("empty note discarded")
-                }
+                vault.save(s.fileName, newText)
+                app.syncManager.requestSync("empty note discarded")
             }
             onDeleted()
         }

@@ -20,68 +20,68 @@ class PlaceholderDocumentationTest {
 
     private fun expand(key: String) = PlaceholderExpander.expand(key, ctx).text
 
-    @Test fun `%U expands to active datetime stamp`() {
+    @Test fun `percent-U expands to active datetime stamp`() {
         assertEquals("<2025-06-11 Wed 14:32>", expand("%U"))
     }
 
-    @Test fun `%u expands to inactive datetime stamp`() {
+    @Test fun `percent-u expands to inactive datetime stamp`() {
         assertEquals("[2025-06-11 Wed 14:32]", expand("%u"))
     }
 
-    @Test fun `%T expands to active date stamp`() {
+    @Test fun `percent-T expands to active date stamp`() {
         assertEquals("<2025-06-11 Wed>", expand("%T"))
     }
 
-    @Test fun `%t expands to inactive date stamp`() {
+    @Test fun `percent-t expands to inactive date stamp`() {
         assertEquals("[2025-06-11 Wed]", expand("%t"))
     }
 
-    @Test fun `%date expands to ISO date`() {
+    @Test fun `percent-date expands to ISO date`() {
         assertEquals("2025-06-11", expand("%date"))
     }
 
-    @Test fun `%time expands to HH colon MM`() {
+    @Test fun `percent-time expands to HH colon MM`() {
         assertEquals("14:32", expand("%time"))
     }
 
-    @Test fun `%day expands to day name`() {
+    @Test fun `percent-day expands to day name`() {
         assertEquals("Wednesday", expand("%day"))
     }
 
-    @Test fun `%month expands to month name`() {
+    @Test fun `percent-month expands to month name`() {
         assertEquals("June", expand("%month"))
     }
 
-    @Test fun `%year expands to 4-digit year`() {
+    @Test fun `percent-year expands to 4-digit year`() {
         assertEquals("2025", expand("%year"))
     }
 
-    @Test fun `%clipboard expands to clipboard text`() {
+    @Test fun `percent-clipboard expands to clipboard text`() {
         assertEquals("clipboard text", expand("%clipboard"))
     }
 
-    @Test fun `%shared_text expands to shared text`() {
+    @Test fun `percent-shared_text expands to shared text`() {
         assertEquals("shared text", expand("%shared_text"))
     }
 
-    @Test fun `%shared_url expands to shared URL`() {
+    @Test fun `percent-shared_url expands to shared URL`() {
         assertEquals("https://example.com", expand("%shared_url"))
     }
 
-    @Test fun `%cursor produces empty text with cursor at 0`() {
+    @Test fun `percent-cursor produces empty text with cursor at 0`() {
         val result = PlaceholderExpander.expand("%cursor", ctx)
         assertEquals("", result.text)
         assertEquals(0, result.cursorOffset)
     }
 
-    @Test fun `%? is an alias for %cursor`() {
+    @Test fun `percent-question-mark is an alias for percent-cursor`() {
         val cursor = PlaceholderExpander.expand("%cursor", ctx)
         val question = PlaceholderExpander.expand("%?", ctx)
         assertEquals(cursor.text, question.text)
         assertEquals(cursor.cursorOffset, question.cursorOffset)
     }
 
-    @Test fun `%^{Prompt} is replaced by provided prompt value`() {
+    @Test fun `percent-caret-Prompt is replaced by provided prompt value`() {
         val ctxWithPrompt = ctx.copy(promptValues = mapOf("Prompt" to "answer"))
         val result = PlaceholderExpander.expand("%^{Prompt}", ctxWithPrompt)
         assertEquals("answer", result.text)
