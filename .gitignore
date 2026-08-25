@@ -26,3 +26,4 @@ graft/
 
 # Internal readiness/compliance reports — not for public distribution.
 internal-docs/
+.claude
