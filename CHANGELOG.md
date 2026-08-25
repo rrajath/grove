@@ -50,6 +50,8 @@ the same tag/version and just re-uploads the APKs to the existing release.
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-08-25 (build 294)
+
 ### Added
 - Favorited notes: star/unstar from the outline, sidebar, and read view now resolves through the heading's stable `:CUSTOM_ID:`/`:ID:` instead of a raw line number, so favorites survive edits elsewhere in the file.
 - Quick Capture's top bar now has a hamburger menu opening the same metadata sheet as the note editor (state, priority, tags, scheduled/deadline dates) and a Read/Edit toggle that previews the draft's org-formatted rendering in place, with no save required to preview.
