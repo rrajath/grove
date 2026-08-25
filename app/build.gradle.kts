@@ -119,8 +119,6 @@ android {
         versionName = manualVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-
-        buildConfigField("String", "BUG_REPORT_ENDPOINT", "\"https://grove-bug-report.r-rajath.workers.dev\"")
     }
 
     signingConfigs {
@@ -212,10 +210,6 @@ dependencies {
     // a packaged baseline profile at app startup once one is generated.
     implementation(libs.androidx.profileinstaller)
     implementation(libs.java.diff.utils)
-    implementation(libs.ktor.client.core)
-    implementation(libs.ktor.client.cio)
-    implementation(libs.ktor.client.content.negotiation)
-    implementation(libs.ktor.serialization.kotlinx.json)
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(libs.androidx.junit)

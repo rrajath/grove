@@ -81,6 +81,7 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rrajath.grove.org.PlanningKind
+import com.rrajath.grove.search.QuickStartOverrides
 import com.rrajath.grove.search.SavedSearch
 import com.rrajath.grove.search.Snippets
 import com.rrajath.grove.ui.components.CustomDateRangePicker
@@ -607,6 +608,11 @@ private fun BlankState(
     onDeleteSaved: (id: String) -> Unit,
 ) {
     val c = MaterialTheme.grove
+    // A card whose id has been overwritten (star button, save dropdown) runs its
+    // saved query text via onQuickQuery instead of building one dynamically, so
+    // "overwrite" changes what the card itself searches for. See
+    // [QuickStartOverrides].
+    fun overrideQuery(id: String): String? = savedSearches.firstOrNull { it.id == id }?.query
     val cards = listOf(
         // "Overdue" is open tasks whose scheduled OR deadline date has
         // passed: an OR across two different fields (and across every active
@@ -615,7 +621,7 @@ private fun BlankState(
         // "(i.KW1 OR i.KW2 OR …) AND (s.overdue OR d.overdue)", expanded into
         // the grammar's flat OR-of-AND-groups since it has no parens.
         QuickCard(Icons.Filled.PriorityHigh, "Overdue", "${quickCounts.overdue} past their date", c.red, c.redSoft) {
-            val expr = if (activeStates.isEmpty()) {
+            val expr = overrideQuery(QuickStartOverrides.OVERDUE_ID) ?: if (activeStates.isEmpty()) {
                 "s.overdue OR d.overdue"
             } else {
                 activeStates.flatMap { kw -> listOf("i.$kw s.overdue", "i.$kw d.overdue") }.joinToString(" OR ")
@@ -623,23 +629,33 @@ private fun BlankState(
             onQuickQuery(expr)
         },
         QuickCard(Icons.Filled.Schedule, "Today", "${quickCounts.today} scheduled or due", c.amber, c.amberSoft) {
-            onQuick(SearchFilters(scheduled = DatePreset.TODAY))
+            val override = overrideQuery(QuickStartOverrides.TODAY_ID)
+            if (override != null) onQuickQuery(override) else onQuick(SearchFilters(scheduled = DatePreset.TODAY))
         },
         QuickCard(
             Icons.Filled.CheckBoxOutlineBlank, "Open tasks",
             "${quickCounts.openTasks} ${if (quickCounts.openTasks == 1) "TODO item" else "TODO items"}",
             c.blue, c.blueSoft,
         ) {
-            onQuick(SearchFilters(states = activeStates.toSet()))
+            val override = overrideQuery(QuickStartOverrides.OPEN_TASKS_ID)
+            if (override != null) onQuickQuery(override) else onQuick(SearchFilters(states = activeStates.toSet()))
         },
         QuickCard(
             Icons.Filled.EventBusy, "Unscheduled",
             "${quickCounts.unscheduled} without a date",
             c.synTag, c.accentSoft,
         ) {
-            onQuick(SearchFilters(states = activeStates.toSet(), scheduled = DatePreset.NO_DATE, deadline = DatePreset.NO_DATE))
+            val override = overrideQuery(QuickStartOverrides.UNSCHEDULED_ID)
+            if (override != null) {
+                onQuickQuery(override)
+            } else {
+                onQuick(SearchFilters(states = activeStates.toSet(), scheduled = DatePreset.NO_DATE, deadline = DatePreset.NO_DATE))
+            }
         },
     )
+    // Override rows are surfaced only through their Quick Start card above, not
+    // as a second entry in the list below.
+    val listedSavedSearches = remember(savedSearches) { savedSearches.filterNot { it.id in QuickStartOverrides.ids } }
     var menuTarget by remember { mutableStateOf<SavedSearch?>(null) }
     var renameTarget by remember { mutableStateOf<SavedSearch?>(null) }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 14.dp, vertical = 4.dp)) {
@@ -658,13 +674,13 @@ private fun BlankState(
             QuickCardView(cards[3], Modifier.weight(1f))
         }
 
-        if (savedSearches.isNotEmpty()) {
+        if (listedSavedSearches.isNotEmpty()) {
             Text(
                 "SAVED SEARCHES",
                 fontFamily = PlexSans, fontWeight = FontWeight.SemiBold, fontSize = 11.sp, letterSpacing = 0.07.em, color = c.ink3,
                 modifier = Modifier.padding(top = 18.dp, bottom = 6.dp),
             )
-            savedSearches.forEach { saved ->
+            listedSavedSearches.forEach { saved ->
                 Box {
                     Row(
                         Modifier

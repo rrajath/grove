@@ -66,6 +66,8 @@ fun MetadataSheet(
     onAddNote: (String) -> Unit,
     onRefile: () -> Unit,
     onDismiss: () -> Unit,
+    /** Hidden for an unsaved capture draft: nothing exists on disk yet to refile. */
+    showRefile: Boolean = true,
 ) {
     val c = MaterialTheme.grove
     var planningOpen by remember { mutableStateOf(false) }
@@ -219,15 +221,17 @@ fun MetadataSheet(
                         .clickable { noteDialogOpen = true }
                         .padding(vertical = 6.dp),
                 )
-                Text(
-                    "→ Refile",
-                    fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
-                    fontSize = 13.sp, color = c.accent,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .clickable(onClick = onRefile)
-                        .padding(vertical = 6.dp),
-                )
+                if (showRefile) {
+                    Text(
+                        "→ Refile",
+                        fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
+                        fontSize = 13.sp, color = c.accent,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable(onClick = onRefile)
+                            .padding(vertical = 6.dp),
+                    )
+                }
             }
         }
     }

@@ -24,33 +24,45 @@ The three entries marked *(local build, no GitHub Release)* predate commit 54,
 which is when the release workflow was first added; those changes shipped
 locally but nothing was ever tagged or published for them.
 
-**Cutting a release is fully automatic for `versionCode`.** Add your changes
-under `## [Unreleased]` as you go (that part still takes a human; nobody else
-knows what the change was for). On push to `main`, CI reads the current
+**Cutting a release is manual.** Add your changes under `## [Unreleased]` as
+you go (that part still takes a human; nobody else knows what the change was
+for). Every push to `main` still builds, tests, and uploads the debug/release
+APKs as CI artifacts, but nothing is tagged or published to Releases from a
+push by itself, so several pushes with unrelated fixes can land before you
+choose to ship one. To cut a release, manually run the "Build & Release"
+workflow (Actions tab → Run workflow) against `main`. CI reads the current
 version (`versionCode` from the git commit count, `versionName` from
 `gradle.properties`), and:
 - if `## [Unreleased]` has content, it tags `v<versionName>`, publishes a
   GitHub Release with both APKs using that content as the release notes, then
   pushes a follow-up commit renaming `## [Unreleased]` to
   `## [<versionName>] - <date> (build <versionCode>)` and opening a fresh empty
-  `## [Unreleased]` above it — the `(build N)` suffix is `versionCode`, kept
+  `## [Unreleased]` above it. The `(build N)` suffix is `versionCode`, kept
   alongside `versionName` because the in-app What's New modal needs a value
   that's always unique per release, which `versionName` alone no longer is;
-- if `## [Unreleased]` is empty, the push builds and tests as normal but no
+- if `## [Unreleased]` is empty, the run builds and tests as normal but no
   release is cut.
 
 Nothing needs to be run or renamed by hand for `versionCode`. `versionName`
-does need a manual bump in `gradle.properties` before pushing a release that
-should carry a new version number — pushing again without bumping it re-uses
+does need a manual bump in `gradle.properties` before running a release that
+should carry a new version number; running again without bumping it re-uses
 the same tag/version and just re-uploads the APKs to the existing release.
 
 ## [Unreleased]
 
 ### Added
 - Favorited notes: star/unstar from the outline, sidebar, and read view now resolves through the heading's stable `:CUSTOM_ID:`/`:ID:` instead of a raw line number, so favorites survive edits elsewhere in the file.
+- Quick Capture's top bar now has a hamburger menu opening the same metadata sheet as the note editor (state, priority, tags, scheduled/deadline dates) and a Read/Edit toggle that previews the draft's org-formatted rendering in place, with no save required to preview.
+
+### Changed
+- Overwriting one of Search's four Quick Start cards (Overdue, Today, Open tasks, Unscheduled) from the star button's save dropdown now updates that card's own query in place instead of creating a separate saved search.
+- "Report a bug" now sends the report as an email to the developer instead of filing a public GitHub issue through a relay service: tapping Send Report opens your mail app with the form's details filled in, and nothing is sent until you send that email yourself.
+- The "Build & Release" GitHub Actions workflow no longer publishes a GitHub Release automatically on every push to `main`. Every push still builds, tests, and uploads APKs as CI artifacts; a release (tag + APKs + AAB) is now only cut by manually running the workflow against `main`.
 
 ### Fixed
 - Fixed favorited notes losing their star when a note above them was refiled or deleted: the cleanup that drops favorites inside a removed subtree was comparing a favorite's stale stored line index against the removed range instead of resolving its current position first.
+- The default "TODO" quick capture template no longer adds a SCHEDULED date; captured TODOs now start undated.
+- Fixed a Quick Start card's result count staying frozen on its old value after overwriting the card's query (even across an app restart): the count now recomputes from the overridden query instead of always using the card's built-in preset.
 
 ## [1.0.0] - 2026-08-15 (build 290)
 

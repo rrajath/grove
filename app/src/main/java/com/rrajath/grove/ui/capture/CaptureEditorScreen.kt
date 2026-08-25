@@ -4,6 +4,7 @@ import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -12,12 +13,14 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
@@ -62,11 +65,18 @@ import com.rrajath.grove.capture.CaptureTemplate
 import com.rrajath.grove.capture.PlaceholderExpander
 import com.rrajath.grove.capture.TargetLocation
 import com.rrajath.grove.org.LineEditing
+import com.rrajath.grove.org.OrgDocument
+import com.rrajath.grove.org.OrgHeadline
+import com.rrajath.grove.org.OrgMutations
+import com.rrajath.grove.org.OrgParser
 import com.rrajath.grove.org.OrgTimestamp
 import com.rrajath.grove.ui.components.GroveTopBar
 import com.rrajath.grove.ui.components.Pill
+import com.rrajath.grove.ui.components.SegmentedControl
+import com.rrajath.grove.ui.components.annotateOrgInline
 import com.rrajath.grove.ui.editor.AutoSaveTimestamp
 import com.rrajath.grove.ui.editor.EditorToolbar
+import com.rrajath.grove.ui.editor.MetadataSheet
 import kotlinx.coroutines.delay
 import com.rrajath.grove.ui.editor.orgInputTransformation
 import com.rrajath.grove.ui.editor.OrgSyntaxHighlight
@@ -74,9 +84,12 @@ import com.rrajath.grove.ui.editor.applyEdit
 import com.rrajath.grove.ui.editor.insertAtCursor
 import com.rrajath.grove.ui.editor.insertLinkTemplate
 import com.rrajath.grove.ui.editor.wrapSelection
+import com.rrajath.grove.ui.screens.IconGlyph
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
+import com.rrajath.grove.ui.theme.PlexSerif
 import com.rrajath.grove.ui.theme.grove
+import com.rrajath.grove.ui.theme.priorityColor
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -163,6 +176,27 @@ fun CaptureEditorScreen(
 
     var showDiscardDialog by remember { mutableStateOf(false) }
     var showEmptyHeadingAlert by remember { mutableStateOf(false) }
+    var metadataOpen by remember { mutableStateOf(false) }
+    var readMode by remember { mutableStateOf(false) }
+    val allTags by viewModel.allTags.collectAsStateWithLifecycle()
+
+    // The draft is always a single heading (withHeadingStars above guarantees
+    // it starts with a "* " line), so this is what the metadata sheet and the
+    // read-mode preview both edit/render.
+    val draftHeadline = remember(draftText, keywords) { OrgParser.parse(draftText, keywords).headlines.firstOrNull() }
+
+    /** Metadata-sheet edits: parse the draft, apply an [OrgMutations] transform,
+     *  write the result back into the field. No auto-archive path (unlike
+     *  EditorViewModel.changeKeyword): the entry isn't saved anywhere yet, so
+     *  marking it done has nothing to archive. */
+    fun mutateDraft(block: (OrgDocument, OrgHeadline) -> String) {
+        textState.applyEdit { tfv ->
+            val doc = OrgParser.parse(tfv.text, keywords)
+            val headline = doc.headlines.firstOrNull() ?: return@applyEdit null
+            val newText = block(doc, headline)
+            if (newText == tfv.text) null else TextFieldValue(newText, TextRange(tfv.selection.start.coerceAtMost(newText.length)))
+        }
+    }
 
     // Mirrors the note editor's auto-save indicator: a tappable save (floppy)
     // icon in the top bar, shown once the draft has been edited or saved at
@@ -254,7 +288,15 @@ fun CaptureEditorScreen(
                         color = c.ink,
                     )
                 },
-                actions = {},
+                actions = {
+                    IconGlyph("☰", onClick = { metadataOpen = true })
+                    SegmentedControl(
+                        options = listOf("Read", "Edit"),
+                        selectedIndex = if (readMode) 0 else 1,
+                        onSelect = { readMode = it == 0 },
+                        modifier = Modifier.width(140.dp),
+                    )
+                },
             )
         },
     ) { padding ->
@@ -275,30 +317,43 @@ fun CaptureEditorScreen(
                 )
             }
             Box(Modifier.weight(1f).fillMaxWidth()) {
-                // The field owns its own vertical scrolling (rather than being
-                // wrapped in Modifier.verticalScroll): that is what lets Compose
-                // auto-scroll while a selection handle is dragged past the top or
-                // bottom edge, and keeps the cursor visible when the keyboard
-                // shrinks the viewport.
-                BasicTextField(
-                    state = textState,
-                    inputTransformation = remember(keywords) { orgInputTransformation(keywords) },
-                    outputTransformation = remember(c, keywords) { OrgSyntaxHighlight(c, keywords) },
-                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-                    lineLimits = TextFieldLineLimits.MultiLine(),
-                    textStyle = TextStyle(
-                        fontFamily = PlexMono, fontSize = 14.sp,
-                        lineHeight = 1.9.em, color = c.ink,
-                    ),
-                    cursorBrush = SolidColor(c.accent),
-                    scrollState = scrollState,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(start = 20.dp, top = 20.dp, end = 20.dp, bottom = 80.dp)
-                        .focusRequester(focusRequester),
-                )
+                if (readMode) {
+                    if (draftHeadline != null) {
+                        DraftPreview(
+                            doc = remember(draftText, keywords) { OrgParser.parse(draftText, keywords) },
+                            headline = draftHeadline,
+                            modifier = Modifier.fillMaxSize().padding(bottom = 80.dp),
+                        )
+                    }
+                } else {
+                    // The field owns its own vertical scrolling (rather than being
+                    // wrapped in Modifier.verticalScroll): that is what lets Compose
+                    // auto-scroll while a selection handle is dragged past the top or
+                    // bottom edge, and keeps the cursor visible when the keyboard
+                    // shrinks the viewport.
+                    BasicTextField(
+                        state = textState,
+                        inputTransformation = remember(keywords) { orgInputTransformation(keywords) },
+                        outputTransformation = remember(c, keywords) { OrgSyntaxHighlight(c, keywords) },
+                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                        lineLimits = TextFieldLineLimits.MultiLine(),
+                        textStyle = TextStyle(
+                            fontFamily = PlexMono, fontSize = 14.sp,
+                            lineHeight = 1.9.em, color = c.ink,
+                        ),
+                        cursorBrush = SolidColor(c.accent),
+                        scrollState = scrollState,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(start = 20.dp, top = 20.dp, end = 20.dp, bottom = 80.dp)
+                            .focusRequester(focusRequester),
+                    )
+                }
                 // Save floats bottom-right: above the keyboard while it's up
                 // (the column is ime-padded), at the screen's bottom otherwise.
+                // Stays available in Read mode too, so a metadata-only capture
+                // (state/dates/tags set from the sheet, no further typing) can be
+                // saved without switching back to Edit.
                 Box(
                     Modifier
                         .align(Alignment.BottomEnd)
@@ -317,7 +372,7 @@ fun CaptureEditorScreen(
                     )
                 }
             }
-            EditorToolbar(
+            if (!readMode) EditorToolbar(
                 onWrap = { marker -> textState.applyEdit { wrapSelection(it, marker) } },
                 onInsert = { snippet -> textState.applyEdit { insertAtCursor(it, snippet) } },
                 onLink = { textState.applyEdit(::insertLinkTemplate) },
@@ -393,6 +448,105 @@ fun CaptureEditorScreen(
                 }
             },
         )
+    }
+
+    if (metadataOpen) {
+        MetadataSheet(
+            headline = draftHeadline,
+            keywords = keywords,
+            allTags = allTags,
+            onChangeKeyword = { kw ->
+                mutateDraft { d, h -> OrgMutations.changeKeyword(d, h, kw, d.keywords, LocalDateTime.now()) }
+            },
+            onSetPriority = { p -> mutateDraft { d, h -> OrgMutations.setPriority(d, h, p) } },
+            onSetTags = { tags -> mutateDraft { d, h -> OrgMutations.setTags(d, h, tags) } },
+            onSetPlanningDates = { sched, dead ->
+                mutateDraft { d, h -> OrgMutations.setPlanningDates(d, h, sched, dead) }
+            },
+            onAddNote = { note ->
+                val stamp = LocalDateTime.now().let {
+                    OrgTimestamp(it.toLocalDate(), time = it.toLocalTime().withSecond(0).withNano(0), active = false)
+                }
+                mutateDraft { d, h -> OrgMutations.appendLogbookNote(d, h, note.trim(), stamp) }
+            },
+            onRefile = {},
+            showRefile = false,
+            onDismiss = { metadataOpen = false },
+        )
+    }
+}
+
+/**
+ * Read mode's inline preview (design spec §8 hamburger/read-edit toggle): a
+ * lighter render of the draft than [com.rrajath.grove.ui.screens.ReadNoteScreen]'s
+ * NoteContent, since a capture draft has no file/vault identity yet to
+ * navigate from (links, checkbox-toggle-writes-to-disk, refile all assume a
+ * saved note). Body lines get inline org markup via [annotateOrgInline]; block
+ * structure (lists, tables, code blocks) renders as plain lines.
+ */
+@Composable
+private fun DraftPreview(doc: OrgDocument, headline: OrgHeadline, modifier: Modifier = Modifier) {
+    val c = MaterialTheme.grove
+    Column(
+        modifier
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp, vertical = 16.dp),
+    ) {
+        val tags = doc.inheritedTags(headline)
+        if (tags.isNotEmpty()) {
+            Row {
+                tags.forEach { tag ->
+                    Pill(tag, fg = c.accent, bg = c.accentSoft, outline = true)
+                    Spacer(Modifier.width(7.dp))
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            headline.keyword?.let { kw ->
+                val (fg, bg) = if (doc.keywords.isDone(kw)) c.green to c.greenSoft else c.amber to c.amberSoft
+                Pill(kw, fg = fg, bg = bg)
+                Spacer(Modifier.width(8.dp))
+            }
+            headline.priority?.let { p ->
+                Text(
+                    "[#$p]", fontFamily = PlexMono, fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp, color = c.priorityColor(p),
+                )
+                Spacer(Modifier.width(8.dp))
+            }
+        }
+        Text(
+            annotateOrgInline(headline.title.ifBlank { "(no heading yet)" }, c),
+            fontFamily = PlexSerif, fontWeight = FontWeight.SemiBold,
+            fontSize = 22.sp, color = if (headline.title.isBlank()) c.ink3 else c.ink, lineHeight = 1.3.em,
+        )
+        if (headline.planning.scheduled != null || headline.planning.deadline != null) {
+            Spacer(Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                headline.planning.scheduled?.let {
+                    Pill("SCHEDULED " + it.formatHuman(), fg = c.blue, bg = c.blueSoft)
+                }
+                headline.planning.deadline?.let {
+                    Pill("DEADLINE " + it.formatHuman(), fg = c.red, bg = c.redSoft)
+                }
+            }
+        }
+        val body = doc.bodyOf(headline)
+        if (body.any { it.isNotBlank() }) {
+            Spacer(Modifier.height(16.dp))
+            body.forEach { line ->
+                if (line.isBlank()) {
+                    Spacer(Modifier.height(8.dp))
+                } else {
+                    Text(
+                        annotateOrgInline(line, c),
+                        fontFamily = PlexSans, fontSize = 14.sp, color = c.ink, lineHeight = 1.5.em,
+                        modifier = Modifier.padding(vertical = 2.dp),
+                    )
+                }
+            }
+        }
     }
 }
 

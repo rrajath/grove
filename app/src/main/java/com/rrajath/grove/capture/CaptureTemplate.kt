@@ -100,7 +100,7 @@ object DefaultTemplates {
             icon = "✓",
             targetFile = "inbox.org",
             location = TargetLocation.BottomOfFile,
-            template = "* TODO %^{Title}\nSCHEDULED: %T\n%cursor",
+            template = "* TODO %^{Title}\n%cursor",
         ),
     )
 }

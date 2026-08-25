@@ -38,6 +38,23 @@ class CaptureViewModel(private val app: GroveApplication) : ViewModel() {
     private val _saveState = MutableStateFlow<SaveState>(SaveState.Idle)
     val saveState: StateFlow<SaveState> = _saveState
 
+    // Snapshot for the metadata sheet's tag autocomplete, loaded once per screen
+    // visit (same as EditorViewModel.load), not kept live: a capture draft is
+    // short-lived, so a tag added by another edit mid-capture is not worth the
+    // cost of a reactive query here.
+    private val _allTags = MutableStateFlow<List<String>>(emptyList())
+    val allTags: StateFlow<List<String>> = _allTags
+
+    init {
+        viewModelScope.launch {
+            _allTags.value = app.database.indexDao().allTagStrings()
+                .flatMap { it.split(':') }
+                .filter { it.isNotEmpty() }
+                .distinct()
+                .sorted()
+        }
+    }
+
     fun template(id: String): CaptureTemplate? = templates.value.firstOrNull { it.id == id }
 
     // Tracks the currently autosaved draft (if any) so the next autosave or the

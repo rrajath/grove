@@ -19,6 +19,7 @@ import com.rrajath.grove.search.NoteCandidateQuery
 import com.rrajath.grove.search.NoteMeta
 import com.rrajath.grove.search.QueryMatcher
 import com.rrajath.grove.search.QueryParser
+import com.rrajath.grove.search.QuickStartOverrides
 import com.rrajath.grove.search.SavedSearch
 import com.rrajath.grove.search.SearchQuery
 import com.rrajath.grove.search.Snippets
@@ -221,12 +222,19 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
 
     init {
         viewModelScope.launch {
-            app.database.indexDao().noteFacets()
-                .map { rows -> rows.map { it.toFacets() } }
-                .flowOn(Dispatchers.Default)
-                .collect { rows ->
+            // Also keyed on savedSearches so a Quick Start override (see
+            // QuickStartOverrides) recomputes that card's own count immediately,
+            // instead of the card's subtitle staying frozen on the old preset's
+            // count until some unrelated index change happens to fire next.
+            combine(
+                app.database.indexDao().noteFacets()
+                    .map { rows -> rows.map { it.toFacets() } }
+                    .flowOn(Dispatchers.Default),
+                app.searchRepository.savedSearches,
+            ) { rows, saved -> rows to saved }
+                .collect { (rows, saved) ->
                     facets.value = rows
-                    updateCatalogAndCounts(rows)
+                    updateCatalogAndCounts(rows, saved)
                 }
         }
         @OptIn(FlowPreview::class)
@@ -270,14 +278,21 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
     }
 
     /** Star-button dropdown: saves the current query under [name], updating an
-     *  existing saved search in place (by exact case-insensitive name match,
-     *  which may be a quick-start card's label) rather than creating a
-     *  duplicate, so "overwrite" behaves like the confirmation dialog implies. */
+     *  existing saved search in place (by exact case-insensitive name match)
+     *  rather than creating a duplicate, so "overwrite" behaves like the
+     *  confirmation dialog implies. A Quick Start card's label (see
+     *  [QuickStartOverrides]) instead updates that card's own reserved
+     *  override row, so overwriting it changes what the card itself runs. */
     fun saveOrOverwriteSearch(name: String) {
         val query = _state.value.query
         val trimmedName = name.trim()
         if (query.isBlank() || trimmedName.isBlank()) return
+        val quickStartId = QuickStartOverrides.idForName(trimmedName)
         viewModelScope.launch {
+            if (quickStartId != null) {
+                app.searchRepository.setQuickStartOverride(quickStartId, trimmedName, query.trim())
+                return@launch
+            }
             val existing = app.searchRepository.savedSearches.first()
                 .firstOrNull { it.name.equals(trimmedName, ignoreCase = true) }
             if (existing != null) app.searchRepository.updateSearchQuery(existing.id, query.trim())
@@ -680,8 +695,12 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
 
     /** Recomputed from the whole vault (not the active filters), so the
      *  Filters panel's chip catalog and the blank-state quick-start counts
-     *  stay stable while the user is actively narrowing results. */
-    private fun updateCatalogAndCounts(notes: List<NoteFacets>) {
+     *  stay stable while the user is actively narrowing results. A card with a
+     *  Quick Start override (see [QuickStartOverrides]) gets its count from
+     *  actually running that override's query instead of the card's built-in
+     *  preset predicate, so the subtitle reflects what overwriting the card
+     *  changed it to search for. */
+    private suspend fun updateCatalogAndCounts(notes: List<NoteFacets>, savedSearches: List<SavedSearch>) {
         val today = LocalDate.now()
         val keywords = app.keywords.value
         val tags = notes.flatMap { it.inheritedTags }.distinct().sorted()
@@ -689,12 +708,16 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
         // then done-type, "no state" last.
         val states = keywords.active + keywords.done + NO_STATE
         val notebooks = notes.map { it.fileName }.distinct().sorted()
-        val overdue = notes.count {
+        val overrides = savedSearches.filter { it.id in QuickStartOverrides.ids }.associateBy { it.id }
+
+        val overdue = overrides[QuickStartOverrides.OVERDUE_ID]?.let { overrideCount(it.query) } ?: notes.count {
             !it.isDone && ((it.scheduledDate?.isBefore(today) == true) || (it.deadlineDate?.isBefore(today) == true))
         }
-        val dueToday = notes.count { it.scheduledDate == today || it.deadlineDate == today }
-        val openTasks = notes.count { it.keyword != null && !it.isDone }
-        val unscheduled = notes.count {
+        val dueToday = overrides[QuickStartOverrides.TODAY_ID]?.let { overrideCount(it.query) }
+            ?: notes.count { it.scheduledDate == today || it.deadlineDate == today }
+        val openTasks = overrides[QuickStartOverrides.OPEN_TASKS_ID]?.let { overrideCount(it.query) }
+            ?: notes.count { it.keyword != null && !it.isDone }
+        val unscheduled = overrides[QuickStartOverrides.UNSCHEDULED_ID]?.let { overrideCount(it.query) } ?: notes.count {
             it.keyword != null && !it.isDone && it.scheduledDate == null && it.deadlineDate == null
         }
         vaultNoteCount = notes.size
@@ -704,6 +727,17 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
             quickCounts = QuickCounts(overdue, dueToday, openTasks, unscheduled),
             activeStates = keywords.active,
         )
+    }
+
+    /** Runs [query] through the same candidate-load + match pipeline as a real
+     *  search (with no facet filters applied) and returns how many notes it
+     *  matches, for an overridden Quick Start card's count. */
+    private suspend fun overrideCount(query: String): Int {
+        val textQuery = if (query.isBlank()) null else QueryParser.parse(query)
+        val notes = loadCandidates(textQuery, SearchFilters())
+        return withContext(Dispatchers.Default) {
+            textQuery?.let { QueryMatcher.filter(notes, it, LocalDate.now()).size } ?: notes.size
+        }
     }
 
     /** Facet projection with its planning dates already parsed. */

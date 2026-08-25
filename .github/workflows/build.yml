@@ -1,7 +1,10 @@
 name: Build & Release
 
-# Build debug and release APKs on every push (and PR). Pushes to the default
-# branch additionally publish a GitHub Release with both APKs attached.
+# Build debug and release APKs on every push (and PR); this is CI validation
+# only, so nothing gets tagged or published from a push. A GitHub Release
+# (tag + both APKs + the AAB) is cut only from a manual "Run workflow"
+# dispatch against the default branch, so several pushes with unrelated
+# fixes can land before you choose to cut and distribute a release.
 # docs-site/ is excluded: it's a separate Astro/Starlight site deployed via
 # Cloudflare Pages (which has its own build watch path on docs-site/**), so an
 # app CI run here would be redundant for docs-only changes.
@@ -106,13 +109,19 @@ jobs:
           path: app/build/outputs/bundle/release/*.aab
           if-no-files-found: error
 
+      # Releases are manual-only: dispatching this workflow from any other ref
+      # just builds and tests, same as a push does, with no release step.
+      - name: Warn if dispatched off the default branch
+        if: github.event_name == 'workflow_dispatch' && github.ref != format('refs/heads/{0}', github.event.repository.default_branch)
+        run: echo "::warning::Manually run from '${{ github.ref_name }}', not the default branch. Building and testing only, no release will be published."
+
       # Nothing to release if nobody added anything under Unreleased since the
-      # last cut — that's the signal for "this push doesn't need a release,"
-      # not the mere act of pushing. Pulls the section content (not the
-      # header) into GITHUB_ENV via the multiline heredoc form so later steps
-      # can reuse it verbatim as release notes.
+      # last cut, that's the signal for "this run doesn't need a release,"
+      # not the mere act of dispatching the workflow. Pulls the section
+      # content (not the header) into GITHUB_ENV via the multiline heredoc
+      # form so later steps can reuse it verbatim as release notes.
       - name: Read Unreleased section from CHANGELOG.md
-        if: github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        if: github.event_name == 'workflow_dispatch' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
         run: |
           set -euo pipefail
           NOTES="$(awk '
@@ -150,7 +159,7 @@ jobs:
       # same VERSION_CODE and therefore the same tag, so they still safely
       # re-upload assets instead of failing on an existing tag.
       - name: Publish GitHub Release
-        if: github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && env.HAS_RELEASE == 'true'
+        if: github.event_name == 'workflow_dispatch' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && env.HAS_RELEASE == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -178,7 +187,7 @@ jobs:
       # previously required before every release-worthy push. [skip ci] stops
       # this bot commit from triggering (and re-releasing on) itself.
       - name: Archive released version in CHANGELOG.md
-        if: github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && env.HAS_RELEASE == 'true'
+        if: github.event_name == 'workflow_dispatch' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && env.HAS_RELEASE == 'true'
         run: |
           set -euo pipefail
           DATE="$(date -u +%Y-%m-%d)"

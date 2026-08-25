@@ -3,7 +3,7 @@ title: Privacy Policy
 description: What Grove collects, what it doesn't, and why.
 ---
 
-Last updated: 2026-08-14
+Last updated: 2026-08-24
 
 Grove is a file-first Org-mode notes app. Your notes are plain `.org` files stored in a folder you choose on your own device; Grove does not require an account, and it does not have a server that stores, reads, or backs up your notes.
 
@@ -17,24 +17,24 @@ Notes live as `.org` files in a folder you choose on your device (a local direct
 
 ## When Grove uses the network
 
-Grove requests the `INTERNET` permission for two purposes only, both of which happen only when you take a specific action:
+Grove requests the `INTERNET` permission for one purpose only, which happens only when you take a specific action:
 
 **Fetching a page title for a shared link.** When you share or capture a URL into Grove, the app makes a standard web request to that page to read its `<title>` so the captured note gets a readable heading instead of a bare URL. No data about you or your notes is sent as part of that request beyond what any browser sends when loading a page.
 
-**Submitting a bug report (optional).** The Settings screen has a "Report a bug" flow you can choose to use. If you submit a report, Grove sends what you typed, plus (only if you check the "include device info" box) your Android version and device model, to a small relay service (`grove-bug-report.r-rajath.workers.dev`, hosted on Cloudflare Workers) which files it as a **public** issue on Grove's GitHub repository. The report screen itself lists what is never included: your name, email, account ID, location, contacts, or file contents. Because a filed report becomes a public GitHub issue, don't include anything in the description or steps-to-reproduce that you wouldn't want public.
+**Submitting a bug report (optional)** doesn't use the network at all. The Settings screen has a "Report a bug" flow you can choose to use; tapping Send Report opens your device's own mail app with a draft addressed to the developer, pre-filled with what you typed, plus (only if you check the "include device info" box) your Android version and device model. Nothing is sent until you send that email yourself, and it goes directly to the developer rather than anywhere public. The report screen itself lists what is never included: your name, email, account ID, location, contacts, or file contents.
 
 ## Permissions
 
 | Permission | Why Grove uses it |
 |---|---|
-| `INTERNET` | Page-title fetching for shared/captured links, and the optional bug-report submission described above. |
+| `INTERNET` | Page-title fetching for shared/captured links, described above. |
 | `POST_NOTIFICATIONS` | Shows reminder notifications for notes with a scheduled or deadline date. |
 | `SCHEDULE_EXACT_ALARM` | Fires reminder notifications at the exact time you scheduled, rather than an approximate one. |
 | `RECEIVE_BOOT_COMPLETED` | Re-schedules pending reminders after your device restarts. |
 
 ## Third parties
 
-Grove uses two third-party services, both only as part of the optional bug-report flow described above: Cloudflare (to relay the report) and GitHub (where the filed issue is publicly visible). No third-party service is contacted as part of normal note-taking, reading, or syncing.
+Grove does not contact any third-party service as part of normal note-taking, reading, syncing, or bug reporting. Submitting a bug report hands off to your own device's mail app, which is your choice of provider, not a service Grove talks to directly.
 
 ## Children's privacy
 

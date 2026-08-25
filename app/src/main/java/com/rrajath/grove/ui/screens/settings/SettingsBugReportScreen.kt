@@ -29,19 +29,13 @@ import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -84,52 +78,30 @@ import com.rrajath.grove.ui.screens.IconGlyph
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
-import io.ktor.client.HttpClient
-import io.ktor.client.call.body
-import io.ktor.client.engine.cio.CIO
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.client.request.post
-import io.ktor.client.request.setBody
-import io.ktor.http.ContentType
-import io.ktor.http.contentType
-import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.launch
-import kotlinx.serialization.Serializable
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 import java.util.Locale
 
+private const val BUG_REPORT_EMAIL = "r.rajath@gmail.com"
+private const val BUG_REPORT_SUBJECT = "Grove Bug Report"
+
 private data class BugPayloadRow(val key: String, val value: String)
 
-@Serializable
 private data class DeviceInfo(
-    val app_version: String,
-    val build_number: String,
-    val android_version: String,
-    val device_model: String,
+    val appVersion: String,
+    val buildNumber: String,
+    val androidVersion: String,
+    val deviceModel: String,
     val locale: String,
-)
-
-@Serializable
-private data class BugReportPayload(
-    val description: String,
-    val steps: String? = null,
-    val device_info: DeviceInfo? = null,
-    val error_log: String? = null,
-    val report_time: String,
-)
-
-@Serializable
-private data class BugReportResponse(
-    val received: Boolean = false,
-    val issue_url: String? = null,
 )
 
 /**
  * Settings § Help → Report a bug (design/Grove.dc.html lines 1811-1881). Send
- * posts the real form payload to the bug-report Worker (see
- * internal-docs/report-bugs/PLAN.md), which files a GitHub issue on
- * rrajath/grove (Phase 3), then shows a popup linking to the filed issue.
+ * opens the device's mail app with the form details (based on which toggles
+ * are on) filled into the subject/body of a new email addressed to
+ * [BUG_REPORT_EMAIL], instead of filing anything remotely: there's no
+ * server-side component to this feature at all.
  */
 @Composable
 fun SettingsBugReportScreen(onBack: () -> Unit) {
@@ -137,14 +109,6 @@ fun SettingsBugReportScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
     val scope = rememberCoroutineScope()
-    val httpClient = remember {
-        HttpClient(CIO) {
-            install(ContentNegotiation) { json() }
-        }
-    }
-    DisposableEffect(Unit) {
-        onDispose { httpClient.close() }
-    }
 
     var description by rememberSaveable { mutableStateOf("") }
     val stepsState = rememberTextFieldState()
@@ -152,10 +116,7 @@ fun SettingsBugReportScreen(onBack: () -> Unit) {
     var includeErrorLog by rememberSaveable { mutableStateOf(false) }
     var previewOpen by rememberSaveable { mutableStateOf(false) }
     var sending by rememberSaveable { mutableStateOf(false) }
-    var sent by rememberSaveable { mutableStateOf(false) }
     var copied by rememberSaveable { mutableStateOf(false) }
-    var issueUrl by rememberSaveable { mutableStateOf<String?>(null) }
-    var showSentDialog by rememberSaveable { mutableStateOf(false) }
 
     // Not rememberSaveable: a captured log is only meaningful for the current process's
     // session, so it's fine (and correct) for this to reset on process death.
@@ -191,41 +152,40 @@ fun SettingsBugReportScreen(onBack: () -> Unit) {
                     SendReportButton(
                         enabled = canSend,
                         sending = sending,
-                        sent = sent,
                         onClick = {
                             sending = true
                             scope.launch {
+                                // Re-capture right before sending (rather than reusing
+                                // errorLogLines) so the log reflects everything up to the
+                                // moment of the tap, not just when the toggle was flipped on.
+                                val freshErrorLog = if (includeErrorLog) captureRecentErrorLog(maxLines = 50) else null
+                                errorLogLines = freshErrorLog
+                                val body = formatBugReportEmail(
+                                    description = description,
+                                    steps = stepsState.text.toString(),
+                                    deviceInfo = if (includeDeviceInfo) deviceInfo() else null,
+                                    errorLogLines = if (includeErrorLog) freshErrorLog else null,
+                                )
+                                val intent = Intent(Intent.ACTION_SENDTO).apply {
+                                    data = "mailto:".toUri()
+                                    putExtra(Intent.EXTRA_EMAIL, arrayOf(BUG_REPORT_EMAIL))
+                                    putExtra(Intent.EXTRA_SUBJECT, BUG_REPORT_SUBJECT)
+                                    putExtra(Intent.EXTRA_TEXT, body)
+                                }
                                 runCatching {
-                                    // Re-capture right before sending (rather than reusing
-                                    // errorLogLines) so the log reflects everything up to the
-                                    // moment of the tap, not just when the toggle was flipped on.
-                                    val freshErrorLog = if (includeErrorLog) captureRecentErrorLog(maxLines = 50) else null
-                                    errorLogLines = freshErrorLog
-                                    val body = BugReportPayload(
-                                        description = description.trim(),
-                                        steps = stepsState.text.toString().trim().ifBlank { null },
-                                        device_info = if (includeDeviceInfo) deviceInfo() else null,
-                                        error_log = freshErrorLog?.joinToString("\n"),
-                                        report_time = Instant.now().truncatedTo(ChronoUnit.SECONDS).toString(),
-                                    )
-                                    httpClient.post(BuildConfig.BUG_REPORT_ENDPOINT) {
-                                        contentType(ContentType.Application.Json)
-                                        setBody(body)
-                                    }.body<BugReportResponse>()
-                                }.onSuccess { response ->
-                                    sent = true
-                                    issueUrl = response.issue_url
-                                    showSentDialog = true
-                                }.onFailure { error ->
-                                    Toast.makeText(context, "Couldn't reach the bug-report Worker: ${error.message}", Toast.LENGTH_LONG).show()
+                                    context.startActivity(Intent.createChooser(intent, "Send bug report"))
+                                }.onSuccess {
+                                    Toast.makeText(context, "Opened your mail app with the report", Toast.LENGTH_LONG).show()
+                                }.onFailure {
+                                    Toast.makeText(context, "No mail app found. Copy the report instead.", Toast.LENGTH_LONG).show()
                                 }
                                 sending = false
                             }
                         },
                     )
                     Text(
-                        if (copied) "Copied. Paste it into a GitHub issue."
-                        else "Copy as text to attach to a GitHub issue",
+                        if (copied) "Copied. Paste it wherever you'd like."
+                        else "Copy as text instead",
                         fontFamily = PlexSans, fontSize = 12.sp,
                         color = if (copied) c.ink2 else c.synLink,
                         textDecoration = if (copied) null else TextDecoration.Underline,
@@ -236,7 +196,16 @@ fun SettingsBugReportScreen(onBack: () -> Unit) {
                             .clip(RoundedCornerShape(8.dp))
                             .clickable {
                                 copied = true
-                                clipboard.setText(AnnotatedString(formatBugReportText(description, stepsState.text.toString(), payload)))
+                                clipboard.setText(
+                                    AnnotatedString(
+                                        formatBugReportEmail(
+                                            description = description,
+                                            steps = stepsState.text.toString(),
+                                            deviceInfo = if (includeDeviceInfo) deviceInfo() else null,
+                                            errorLogLines = if (includeErrorLog) errorLogLines else null,
+                                        ),
+                                    ),
+                                )
                             }
                             .padding(vertical = 4.dp),
                     )
@@ -253,7 +222,7 @@ fun SettingsBugReportScreen(onBack: () -> Unit) {
         ) {
             Text(
                 "Tell us what happened. Everything below is optional except the description. " +
-                    "Nothing gets sent until you tap Send Report.",
+                    "Tapping Send Report opens your mail app with a draft; nothing is sent until you send that email.",
                 fontFamily = PlexSans, fontSize = 13.sp, lineHeight = 1.55.em, color = c.ink2,
                 modifier = Modifier.padding(bottom = 18.dp),
             )
@@ -302,13 +271,6 @@ fun SettingsBugReportScreen(onBack: () -> Unit) {
             PrivacyNote()
         }
     }
-
-    if (showSentDialog) {
-        IssueFiledDialog(
-            issueUrl = issueUrl,
-            onDismiss = { showSentDialog = false },
-        )
-    }
 }
 
 /**
@@ -335,41 +297,6 @@ private fun stepsListInputTransformation() = InputTransformation {
         replace(0, length, result.text)
         selection = TextRange(result.cursor)
     }
-}
-
-@Composable
-private fun IssueFiledDialog(issueUrl: String?, onDismiss: () -> Unit) {
-    val c = MaterialTheme.grove
-    val context = LocalContext.current
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = c.surface,
-        title = {
-            Text("Issue filed successfully", fontFamily = PlexSans, fontWeight = FontWeight.SemiBold, color = c.ink)
-        },
-        text = {
-            Text(
-                issueUrl ?: "The issue was filed, but no link came back from the server.",
-                fontFamily = PlexMono, fontSize = 12.sp, lineHeight = 1.5.em,
-                color = if (issueUrl != null) c.synLink else c.ink3,
-                textDecoration = if (issueUrl != null) TextDecoration.Underline else null,
-            )
-        },
-        confirmButton = {
-            TextButton(
-                enabled = issueUrl != null,
-                onClick = {
-                    issueUrl?.let { url -> runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri())) } }
-                    onDismiss()
-                },
-            ) {
-                Text("Go to Issue", color = c.accent, fontWeight = FontWeight.SemiBold)
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Dismiss", color = c.ink2) }
-        },
-    )
 }
 
 @Composable
@@ -546,27 +473,23 @@ private fun PrivacyNote() {
         Text("⚿", fontSize = 14.sp, color = c.accent, modifier = Modifier.padding(top = 1.dp))
         Spacer(Modifier.width(10.dp))
         Text(
-            "Filed as a public GitHub issue on our open-source repo. Never sent to Google or a third party.",
+            "Sent as an email straight to the developer. Never sent to Google or filed anywhere public.",
             fontFamily = PlexSans, fontSize = 11.5.sp, lineHeight = 1.6.em, color = c.ink2,
         )
     }
 }
 
 @Composable
-private fun SendReportButton(enabled: Boolean, sending: Boolean, sent: Boolean, onClick: () -> Unit) {
+private fun SendReportButton(enabled: Boolean, sending: Boolean, onClick: () -> Unit) {
     val c = MaterialTheme.grove
-    val bg = when {
-        sent -> c.green
-        enabled || sending -> c.accent
-        else -> c.surface3
-    }
-    val fg = if (enabled || sending || sent) c.accentInk else c.ink3
+    val bg = if (enabled || sending) c.accent else c.surface3
+    val fg = if (enabled || sending) c.accentInk else c.ink3
     val shape = RoundedCornerShape(14.dp)
     Box(
         Modifier
             .fillMaxWidth()
             .then(
-                if (enabled && !sent) {
+                if (enabled) {
                     Modifier.shadow(6.dp, shape, clip = false, ambientColor = ButtonShadowColor, spotColor = ButtonShadowColor)
                 } else {
                     Modifier
@@ -578,31 +501,20 @@ private fun SendReportButton(enabled: Boolean, sending: Boolean, sent: Boolean, 
             .padding(vertical = 14.dp),
         contentAlignment = Alignment.Center,
     ) {
-        if (sent) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    "Report sent",
-                    fontFamily = PlexSans, fontWeight = FontWeight.SemiBold, fontSize = 14.5.sp, color = fg,
-                )
-                Spacer(Modifier.width(6.dp))
-                Icon(Icons.Default.Check, contentDescription = null, tint = fg, modifier = Modifier.size(16.dp))
-            }
-        } else {
-            Text(
-                if (sending) "Sending…" else "Send report",
-                fontFamily = PlexSans, fontWeight = FontWeight.SemiBold, fontSize = 14.5.sp, color = fg,
-            )
-        }
+        Text(
+            if (sending) "Opening mail app…" else "Send report",
+            fontFamily = PlexSans, fontWeight = FontWeight.SemiBold, fontSize = 14.5.sp, color = fg,
+        )
     }
 }
 
 private val ButtonShadowColor = Color(0x668A5A2B)
 
 private fun deviceInfo(): DeviceInfo = DeviceInfo(
-    app_version = BuildConfig.VERSION_NAME,
-    build_number = BuildConfig.VERSION_CODE.toString(),
-    android_version = Build.VERSION.RELEASE,
-    device_model = Build.MODEL,
+    appVersion = BuildConfig.VERSION_NAME,
+    buildNumber = BuildConfig.VERSION_CODE.toString(),
+    androidVersion = Build.VERSION.RELEASE,
+    deviceModel = Build.MODEL,
     locale = Locale.getDefault().toLanguageTag(),
 )
 
@@ -610,38 +522,62 @@ private fun bugPayload(includeDeviceInfo: Boolean, includeErrorLog: Boolean, err
     val rows = mutableListOf<BugPayloadRow>()
     if (includeDeviceInfo) {
         val info = deviceInfo()
-        rows += BugPayloadRow("app_version", info.app_version)
-        rows += BugPayloadRow("build_number", info.build_number)
-        rows += BugPayloadRow("android_version", info.android_version)
-        rows += BugPayloadRow("device_model", info.device_model)
-        rows += BugPayloadRow("locale", info.locale)
+        rows += BugPayloadRow("App version", info.appVersion)
+        rows += BugPayloadRow("Build number", info.buildNumber)
+        rows += BugPayloadRow("Android version", info.androidVersion)
+        rows += BugPayloadRow("Device model", info.deviceModel)
+        rows += BugPayloadRow("Locale", info.locale)
     }
-    rows += BugPayloadRow("report_time", Instant.now().truncatedTo(ChronoUnit.SECONDS).toString())
+    rows += BugPayloadRow("Report time", Instant.now().truncatedTo(ChronoUnit.SECONDS).toString())
     if (includeErrorLog) {
         rows += when {
-            errorLogLines == null -> BugPayloadRow("error_log", "couldn't capture (unavailable on this device)")
-            errorLogLines.isEmpty() -> BugPayloadRow("error_log", "captured, but this session has no log lines yet")
+            errorLogLines == null -> BugPayloadRow("Error log", "couldn't capture (unavailable on this device)")
+            errorLogLines.isEmpty() -> BugPayloadRow("Error log", "captured, but this session has no log lines yet")
             else -> {
                 val n = errorLogLines.size
-                BugPayloadRow("error_log", "$n line${if (n == 1) "" else "s"} captured from this session")
+                BugPayloadRow("Error log", "$n line${if (n == 1) "" else "s"} captured from this session")
             }
         }
     }
     return rows
 }
 
-private fun formatBugReportText(description: String, steps: String, payload: List<BugPayloadRow>): String = buildString {
-    appendLine("Grove bug report")
-    appendLine()
-    appendLine("Description:")
+/** Builds the email body (and the "copy as text" fallback) from exactly the
+ *  toggles the user has on, with blank lines between sections for readability. */
+private fun formatBugReportEmail(
+    description: String,
+    steps: String,
+    deviceInfo: DeviceInfo?,
+    errorLogLines: List<String>?,
+): String = buildString {
+    appendLine("Description")
     appendLine(description.trim())
+
     if (steps.isNotBlank()) {
         appendLine()
-        appendLine("Steps to reproduce:")
+        appendLine("Steps to reproduce")
         appendLine(steps.trim())
     }
-    if (payload.isNotEmpty()) {
+
+    if (deviceInfo != null) {
         appendLine()
-        payload.forEach { appendLine("${it.key}: ${it.value}") }
+        appendLine("Device & app info")
+        appendLine("App version: ${deviceInfo.appVersion}")
+        appendLine("Build number: ${deviceInfo.buildNumber}")
+        appendLine("Android version: ${deviceInfo.androidVersion}")
+        appendLine("Device model: ${deviceInfo.deviceModel}")
+        appendLine("Locale: ${deviceInfo.locale}")
     }
+
+    if (errorLogLines != null) {
+        appendLine()
+        appendLine("Recent error log")
+        when {
+            errorLogLines.isEmpty() -> appendLine("(captured, but this session has no log lines yet)")
+            else -> errorLogLines.forEach { appendLine(it) }
+        }
+    }
+
+    appendLine()
+    appendLine("Report time: ${Instant.now().truncatedTo(ChronoUnit.SECONDS)}")
 }.trim()
