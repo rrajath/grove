@@ -1,14 +1,20 @@
 name: Build & Release
 
-# Build debug and release APKs on every push (and PR); this is CI validation
-# only for an ordinary branch push, so nothing gets tagged or published from
-# it. A GitHub Release (tag + both APKs + the AAB) is cut either by pushing a
-# version tag matching v*.*.* (e.g. `git tag v1.2.0 && git push origin
-# v1.2.0`), or from a manual "Run workflow" dispatch against the default
-# branch — so several pushes with unrelated fixes can land before you choose
-# to cut and distribute a release. `branches: ['**']` is listed alongside
-# `tags` below because specifying only `tags` would stop plain branch pushes
-# from triggering this workflow at all.
+# What runs depends on the trigger, cheapest first:
+#   - Any push (any branch) or PR: unit tests + assembleDebug only. This is
+#     the regression net; the expensive release/bundle/R8 work is skipped.
+#     The debug APK is still uploaded as a CI artifact for sideload testing.
+#   - Push to the default branch: the above PLUS assembleRelease (no bundle,
+#     no publish). R8/ProGuard and signing-config breakage is caught here, at
+#     merge time, instead of only when a release is cut.
+#   - Push a version tag matching v*.*.* (e.g. `git tag v1.2.0 && git push
+#     origin v1.2.0`), or a manual "Run workflow" dispatch against the default
+#     branch: the full path — assembleRelease + bundleRelease + publish a
+#     GitHub Release (tag + both APKs + the AAB).
+# So several pushes with unrelated fixes can land before you choose to cut and
+# distribute a release. `branches: ['**']` is listed alongside `tags` below
+# because specifying only `tags` would stop plain branch pushes from
+# triggering this workflow at all.
 # docs-site/ is excluded: it's a separate Astro/Starlight site deployed via
 # Cloudflare Pages (which has its own build watch path on docs-site/**), so an
 # app CI run here would be redundant for docs-only changes. paths-ignore has
@@ -111,21 +117,41 @@ jobs:
           else
             SHOULD_RELEASE=false
           fi
+          # assembleRelease (R8 + signing config) also runs on a plain push to
+          # the default branch, even though nothing is published then — it's
+          # the cheapest place to catch release-only breakage before a tag is
+          # cut. bundleRelease and the publish stay gated on SHOULD_RELEASE.
+          if [ "$SHOULD_RELEASE" = "true" ]; then
+            BUILD_RELEASE=true
+          elif [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref }}" = "refs/heads/${{ github.event.repository.default_branch }}" ]; then
+            BUILD_RELEASE=true
+          else
+            BUILD_RELEASE=false
+          fi
           echo "IS_TAG_RELEASE=$IS_TAG_RELEASE" >> "$GITHUB_ENV"
           echo "RELEASE_TAG=$RELEASE_TAG" >> "$GITHUB_ENV"
           echo "CHANGELOG_VERSION=$CHANGELOG_VERSION" >> "$GITHUB_ENV"
           echo "SHOULD_RELEASE=$SHOULD_RELEASE" >> "$GITHUB_ENV"
+          echo "BUILD_RELEASE=$BUILD_RELEASE" >> "$GITHUB_ENV"
 
       - name: Decode release keystore
-        if: env.HAS_SIGNING == 'true'
+        if: env.HAS_SIGNING == 'true' && env.BUILD_RELEASE == 'true'
         env:
           SIGNING_KEYSTORE_BASE64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
         run: echo "$SIGNING_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/release.keystore"
 
-      # bundleRelease produces the .aab Play Console requires for submission
-      # (Play no longer accepts a bare APK for new apps); the two assembleX
-      # tasks keep producing the APKs used for GitHub Releases and sideloading.
-      - name: Build debug and release APKs, and release AAB
+      # Always built: the regression net, and the artifact used for sideload
+      # testing a branch.
+      - name: Build debug APK
+        run: ./gradlew assembleDebug
+
+      # assembleRelease runs R8 / resource shrinking against the ProGuard keep
+      # rules and exercises the signing config — the release-only failure modes
+      # (e.g. R8 dropping a reflectively-constructed class). BUILD_RELEASE is
+      # true on any push to the default branch, so this is caught at merge
+      # time, not only when a release tag is pushed.
+      - name: Build release APK
+        if: env.BUILD_RELEASE == 'true'
         env:
           # Empty when no keystore secret is set → build.gradle.kts leaves the
           # release build unsigned.
@@ -133,7 +159,19 @@ jobs:
           SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
           SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
           SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
-        run: ./gradlew assembleDebug assembleRelease bundleRelease
+        run: ./gradlew assembleRelease
+
+      # bundleRelease produces the .aab Play Console requires for submission
+      # (Play no longer accepts a bare APK for new apps). Only needed on the
+      # release path, so it's gated on SHOULD_RELEASE rather than BUILD_RELEASE.
+      - name: Build release AAB
+        if: env.SHOULD_RELEASE == 'true'
+        env:
+          SIGNING_KEYSTORE_PATH: ${{ env.HAS_SIGNING == 'true' && format('{0}/release.keystore', runner.temp) || '' }}
+          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+        run: ./gradlew bundleRelease
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
@@ -143,6 +181,7 @@ jobs:
           if-no-files-found: error
 
       - name: Upload release APK
+        if: env.BUILD_RELEASE == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: app-release
@@ -150,6 +189,7 @@ jobs:
           if-no-files-found: error
 
       - name: Upload release AAB
+        if: env.SHOULD_RELEASE == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: app-release-bundle

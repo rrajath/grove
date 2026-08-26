@@ -26,10 +26,13 @@ locally but nothing was ever tagged or published for them.
 
 **Cutting a release is manual.** Add your changes under `## [Unreleased]` as
 you go (that part still takes a human; nobody else knows what the change was
-for). Every push to `main` still builds, tests, and uploads the debug/release
-APKs as CI artifacts, but nothing is tagged or published to Releases from an
-ordinary push by itself, so several pushes with unrelated fixes can land
-before you choose to ship one. There are two ways to actually cut a release:
+for). Every push (any branch) and PR runs the unit tests and builds the debug
+APK, uploaded as a CI artifact; a push to `main` additionally builds the
+release APK (running R8 and the signing config, so release-only breakage is
+caught at merge time). Nothing is tagged, bundled, or published to Releases
+from an ordinary push by itself, so several pushes with unrelated fixes can
+land before you choose to ship one. There are two ways to actually cut a
+release:
 
 - **Push a version tag** matching `v*.*.*` (e.g. `git tag v1.2.0 && git push
   origin v1.2.0`). The GitHub Release is tagged and titled from that tag
@@ -72,6 +75,7 @@ tag and just re-uploads the APKs to the existing release instead of failing.
 - The built-in **TODO** capture template now files into `tasks.org` instead of `inbox.org`.
 - "Report a bug"'s Send Report now copies the formatted report to the clipboard immediately, so it's never lost if no mail app is available or the chooser gets dismissed, and builds the email with `ACTION_SEND` + `message/rfc822` instead of `ACTION_SENDTO` + a `mailto:` URI, an intent shape more mail apps besides Gmail register a compose-email handler for.
 - The "Build & Release" workflow can now also be triggered by pushing a version tag matching `v*.*.*` (e.g. `v1.2.0`), publishing a GitHub Release tagged and titled from that exact tag. The manual "Run workflow" dispatch against `main` still works as before.
+- The "Build & Release" workflow no longer builds the release APK or AAB on every push. An ordinary push (any branch) and PRs now run the unit tests and build only the debug APK; a push to `main` also builds the release APK (so R8 and signing-config breakage is still caught at merge time); the release AAB and the GitHub Release are built only on the release path (a pushed `v*.*.*` tag or a manual dispatch against `main`). This drops the expensive R8/bundle work from routine feature-branch pushes.
 
 ### Removed
 - docs-site: deleted the `docs-site/resources/` folder (a second copy of the feature `.mdx` docs plus unused screenshot originals). It had diverged from the built copy under `src/content/docs/`, was referenced by no build step, and only `src/content/docs/features/` is ever shipped. That directory is now the single source for the docs.
