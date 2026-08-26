@@ -178,6 +178,7 @@ fun NotebooksScreen(
                                     items(s.notebooks, key = { it.fileName }) { nb ->
                                         NotebookRow(
                                             notebook = nb,
+                                            showFileIcon = s.showFileIcons,
                                             onClick = { onOpenNotebook(nb.fileName) },
                                             onOpenConflict = { onOpenConflict(nb.fileName) },
                                             onRename = { renameTarget = nb.fileName },
@@ -423,6 +424,7 @@ private fun notebookStyle(
 @Composable
 private fun NotebookRow(
     notebook: NotebookItem,
+    showFileIcon: Boolean,
     onClick: () -> Unit,
     onOpenConflict: () -> Unit,
     onRename: () -> Unit,
@@ -447,16 +449,18 @@ private fun NotebookRow(
                 .padding(horizontal = 8.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(
-                Modifier
-                    .size(42.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(bg),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(glyph, fontFamily = PlexMono, fontWeight = FontWeight.SemiBold, fontSize = 17.sp, color = fg)
+            if (showFileIcon) {
+                Box(
+                    Modifier
+                        .size(42.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(bg),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(glyph, fontFamily = PlexMono, fontWeight = FontWeight.SemiBold, fontSize = 17.sp, color = fg)
+                }
+                Spacer(Modifier.width(12.dp))
             }
-            Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(
                     notebook.displayName,

@@ -94,11 +94,14 @@ class AppViewModel(private val app: GroveApplication) : ViewModel() {
     fun setDefaultNoteOpenMode(mode: NoteOpenMode) =
         viewModelScope.launch { settingsRepository.setDefaultNoteOpenMode(mode) }
 
+    fun setShowNotebookFileIcons(enabled: Boolean) =
+        viewModelScope.launch { settingsRepository.setShowNotebookFileIcons(enabled) }
+
     fun completeOnboarding() = viewModelScope.launch {
-        settingsRepository.setOnboardingDone(true)
         // A brand-new install has nothing "new" to report: stamp the current build as
-        // already seen so the What's New modal never fires for someone who just onboarded.
-        settingsRepository.setLastSeenChangelogBuild(com.rrajath.grove.BuildConfig.VERSION_CODE)
+        // already seen, in the same write that flips onboardingDone, so the What's New
+        // modal never fires for someone who just onboarded (see setOnboardingDone).
+        settingsRepository.setOnboardingDone(true, com.rrajath.grove.BuildConfig.VERSION_CODE)
     }
 
     private val _whatsNew = MutableStateFlow<List<ChangelogVersion>>(emptyList())
@@ -110,7 +113,11 @@ class AppViewModel(private val app: GroveApplication) : ViewModel() {
      */
     fun checkWhatsNew() = viewModelScope.launch(Dispatchers.IO) {
         val current = com.rrajath.grove.BuildConfig.VERSION_CODE
-        val lastSeen = settings.value?.lastSeenChangelogBuild
+        // Read straight from the store rather than settings.value: this runs off a
+        // recomposition triggered by onboardingDone flipping, and the cached
+        // StateFlow value can still be a step behind the transaction that also
+        // stamped lastSeenChangelogBuild on a fresh install.
+        val lastSeen = settingsRepository.settings.first().lastSeenChangelogBuild
         if (lastSeen == current) return@launch
         val text = runCatching {
             app.assets.open("CHANGELOG.md").bufferedReader().use { it.readText() }

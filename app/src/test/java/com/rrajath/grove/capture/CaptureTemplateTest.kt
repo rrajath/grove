@@ -33,7 +33,10 @@ class CaptureTemplateTest {
         assertEquals(3, byName.size)
         assertEquals("journal.org", byName["Journal Entry"]!!.targetFile)
         assertTrue(byName["Journal Entry"]!!.location.isDatetree)
+        assertEquals("inbox.org", byName["Quick Note"]!!.targetFile)
         assertEquals(TargetLocation.BottomOfFile, byName["Quick Note"]!!.location)
+        assertEquals("* %cursor", byName["Quick Note"]!!.template)
+        assertEquals("tasks.org", byName["TODO"]!!.targetFile)
         assertTrue(byName["TODO"]!!.template.startsWith("* TODO %^{Title}"))
         assertTrue(!byName["TODO"]!!.template.contains("SCHEDULED"))
     }

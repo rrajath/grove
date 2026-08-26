@@ -92,13 +92,15 @@ object DefaultTemplates {
             icon = "✷",
             targetFile = "inbox.org",
             location = TargetLocation.BottomOfFile,
-            template = "* %^{Title}\n%cursor",
+            // Bare heading marker; the cursor lands right after it so the
+            // heading text is the first thing typed.
+            template = "* %cursor",
         ),
         CaptureTemplate(
             id = "builtin-todo",
             name = "TODO",
             icon = "✓",
-            targetFile = "inbox.org",
+            targetFile = "tasks.org",
             location = TargetLocation.BottomOfFile,
             template = "* TODO %^{Title}\n%cursor",
         ),

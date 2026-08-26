@@ -61,6 +61,8 @@ data class GroveSettings(
     val showPropertyDrawers: Boolean = true,
     /** Notebook list label: raw file name, or the `#+TITLE:` cached in the index. */
     val notebookDisplayNameMode: NotebookDisplayNameMode = NotebookDisplayNameMode.FILENAME,
+    /** Notebook list: show the per-file icon tile at the start of each row. */
+    val showNotebookFileIcons: Boolean = true,
     /** Destination file of the most recent successful refile; null until one has happened. */
     val lastRefileFile: String? = null,
     /** '/'-separated heading path within [lastRefileFile]; empty = top level. */
@@ -135,6 +137,7 @@ class SettingsRepository(private val context: Context) {
         val showPreface = booleanPreferencesKey("show_preface")
         val showPropertyDrawers = booleanPreferencesKey("show_property_drawers")
         val notebookDisplayNameMode = stringPreferencesKey("notebook_display_name_mode")
+        val showNotebookFileIcons = booleanPreferencesKey("show_notebook_file_icons")
         val lastRefileFile = stringPreferencesKey("last_refile_file")
         val lastRefileHeadingPath = stringPreferencesKey("last_refile_heading_path")
         val autoArchiveDoneItems = booleanPreferencesKey("auto_archive_done_items")
@@ -184,6 +187,7 @@ class SettingsRepository(private val context: Context) {
             showPreface = prefs[Keys.showPreface] ?: true,
             showPropertyDrawers = prefs[Keys.showPropertyDrawers] ?: true,
             notebookDisplayNameMode = NotebookDisplayNameMode.fromStorage(prefs[Keys.notebookDisplayNameMode]),
+            showNotebookFileIcons = prefs[Keys.showNotebookFileIcons] ?: true,
             lastRefileFile = prefs[Keys.lastRefileFile],
             lastRefileHeadingPath = prefs[Keys.lastRefileHeadingPath] ?: "",
             autoArchiveDoneItems = prefs[Keys.autoArchiveDoneItems] ?: false,
@@ -264,6 +268,7 @@ class SettingsRepository(private val context: Context) {
             p[Keys.showPreface] = s.showPreface
             p[Keys.showPropertyDrawers] = s.showPropertyDrawers
             p[Keys.notebookDisplayNameMode] = s.notebookDisplayNameMode.storageKey
+            p[Keys.showNotebookFileIcons] = s.showNotebookFileIcons
             p[Keys.checklistStates] = s.checklistStates.storageKey
             p[Keys.remindersEnabled] = s.remindersEnabled
             p[Keys.morningBriefEnabled] = s.morningBriefEnabled
@@ -305,8 +310,19 @@ class SettingsRepository(private val context: Context) {
         context.settingsDataStore.edit { it[Keys.noteOpenMode] = mode.storageKey }
     }
 
-    suspend fun setOnboardingDone(done: Boolean) {
-        context.settingsDataStore.edit { it[Keys.onboardingDone] = done }
+    /**
+     * [seenChangelogBuild], when given, is stamped in the *same* transaction as
+     * [onboardingDone]. Onboarding completion is the one moment we want both flags
+     * to flip together: the What's New check keys off `onboardingDone` becoming
+     * true, and a fresh install has nothing "new" to report, so writing them
+     * separately leaves a window where the check sees `onboardingDone == true` but
+     * `lastSeenChangelogBuild == null` and wrongly pops the modal.
+     */
+    suspend fun setOnboardingDone(done: Boolean, seenChangelogBuild: Int? = null) {
+        context.settingsDataStore.edit {
+            it[Keys.onboardingDone] = done
+            if (seenChangelogBuild != null) it[Keys.lastSeenChangelogBuild] = seenChangelogBuild
+        }
     }
 
     suspend fun setLastSeenChangelogBuild(build: Int) {
@@ -374,6 +390,10 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setNotebookDisplayNameMode(mode: NotebookDisplayNameMode) {
         context.settingsDataStore.edit { it[Keys.notebookDisplayNameMode] = mode.storageKey }
+    }
+
+    suspend fun setShowNotebookFileIcons(enabled: Boolean) {
+        context.settingsDataStore.edit { it[Keys.showNotebookFileIcons] = enabled }
     }
 
     suspend fun setChecklistStates(states: ChecklistStates) {

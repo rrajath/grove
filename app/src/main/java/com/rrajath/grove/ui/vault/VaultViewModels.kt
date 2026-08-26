@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -59,6 +60,8 @@ sealed class NotebooksUiState {
         val lastSyncAt: Long?,
         /** Reminders waiting on POST_NOTIFICATIONS/exact-alarm access (permission banner). */
         val remindersPendingPermission: Int = 0,
+        /** Settings § Look and Feel toggle: draw the per-file icon tile on each row. */
+        val showFileIcons: Boolean = true,
     ) : NotebooksUiState()
 }
 
@@ -94,12 +97,17 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
             )
     }.distinctUntilChanged()
 
+    private val showFileIcons = app.settingsRepository.settings
+        .map { it.showNotebookFileIcons }
+        .distinctUntilChanged()
+
     val state: StateFlow<NotebooksUiState> = combine(
         notebookItems,
         app.syncManager.state,
         app.syncManager.lastResult,
         app.database.reminderDao().pendingCountFlow(System.currentTimeMillis()),
-    ) { notebooks, syncState, lastResult, remindersPending ->
+        showFileIcons,
+    ) { notebooks, syncState, lastResult, remindersPending, showFileIcons ->
         if (notebooks == null) {
             NotebooksUiState.NoVault
         } else {
@@ -108,6 +116,7 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
                 syncState = syncState,
                 lastSyncAt = lastResult?.completedAt,
                 remindersPendingPermission = remindersPending,
+                showFileIcons = showFileIcons,
             )
         }
     }.stateIn(viewModelScope, SharingStarted.Eagerly, NotebooksUiState.NoVault)
@@ -117,7 +126,10 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
     fun saveVaultUri(uri: String) {
         viewModelScope.launch {
             app.settingsRepository.setVaultTreeUri(uri)
-            app.settingsRepository.setOnboardingDone(true)
+            // Picking a folder from the empty-vault state also completes onboarding;
+            // stamp the current build as seen in the same write so the What's New
+            // modal doesn't fire on this first run (see setOnboardingDone).
+            app.settingsRepository.setOnboardingDone(true, com.rrajath.grove.BuildConfig.VERSION_CODE)
         }
     }
 

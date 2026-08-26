@@ -40,6 +40,7 @@ fun SettingsAppearanceScreen(
     onSetSyncAppIconWithTheme: (Boolean) -> Unit,
     onSetShowPreface: (Boolean) -> Unit,
     onSetShowPropertyDrawers: (Boolean) -> Unit,
+    onSetShowNotebookFileIcons: (Boolean) -> Unit,
     onSetFontSize: (FontSizePreference) -> Unit,
     onSetNoteOpenMode: (NoteOpenMode) -> Unit,
 ) {
@@ -78,6 +79,13 @@ fun SettingsAppearanceScreen(
                 description = "Display :PROPERTIES: drawers in org files",
                 checked = settings.showPropertyDrawers,
                 onToggle = onSetShowPropertyDrawers,
+            )
+            RowDivider()
+            ToggleRow(
+                label = "Show file icons in notebooks",
+                description = "Display the icon tile on each row of the notebooks list",
+                checked = settings.showNotebookFileIcons,
+                onToggle = onSetShowNotebookFileIcons,
             )
             RowDivider()
             SettingsRow(label = "Font size") {

@@ -59,11 +59,17 @@ tag and just re-uploads the APKs to the existing release instead of failing.
 
 ## [Unreleased]
 
+### Added
+- Settings → Look and Feel has a new **Show file icons in notebooks** toggle (on by default). Turned off, the per-file icon tile is dropped from every row of the notebooks list, leaving just the name and metadata line. The setting travels with Import/Export Settings.
+
 ### Changed
+- The built-in **Quick Note** capture template is now `* %cursor` (a bare heading marker with the cursor right after it) instead of prompting for a title first.
+- The built-in **TODO** capture template now files into `tasks.org` instead of `inbox.org`.
 - "Report a bug"'s Send Report now copies the formatted report to the clipboard immediately, so it's never lost if no mail app is available or the chooser gets dismissed, and builds the email with `ACTION_SEND` + `message/rfc822` instead of `ACTION_SENDTO` + a `mailto:` URI, an intent shape more mail apps besides Gmail register a compose-email handler for.
 - The "Build & Release" workflow can now also be triggered by pushing a version tag matching `v*.*.*` (e.g. `v1.2.0`), publishing a GitHub Release tagged and titled from that exact tag. The manual "Run workflow" dispatch against `main` still works as before.
 
 ### Fixed
+- The What's New modal no longer flashes on a fresh install. Completing onboarding now stamps the current build as already-seen in the *same* write that marks onboarding done, closing a race where the check could see onboarding finished before that stamp landed and pop the modal once.
 - Cleared every warning `kotlinc` printed for `./gradlew testDebugUnitTest`: migrated the bug report screen, Quick Capture's clipboard placeholder, and read mode's Copy Link off the deprecated `LocalClipboardManager` Compose API onto `LocalClipboard`; swapped the outline screen's non-mirrored promote/demote icons for their `AutoMirrored` equivalents; removed a dead null-check in `EditorViewModel.deleteSubtree` that could never be false; and renamed the placeholder-expansion unit tests' `%`-prefixed display names, which were flagged as unsafe on Windows file paths.
 
 ## [1.0.1] - 2026-08-25 (build 294)

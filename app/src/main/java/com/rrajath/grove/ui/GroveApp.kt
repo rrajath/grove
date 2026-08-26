@@ -476,6 +476,7 @@ private fun GroveNavigation(
                     onSetSyncAppIconWithTheme = viewModel::setSyncAppIconWithTheme,
                     onSetShowPreface = viewModel::setShowPreface,
                     onSetShowPropertyDrawers = viewModel::setShowPropertyDrawers,
+                    onSetShowNotebookFileIcons = viewModel::setShowNotebookFileIcons,
                     onSetFontSize = viewModel::setFontSize,
                     onSetNoteOpenMode = viewModel::setDefaultNoteOpenMode,
                 )

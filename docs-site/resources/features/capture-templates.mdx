@@ -20,6 +20,16 @@ Each template has:
 
 Templates are reorderable — drag to change the order they appear in the Capture picker.
 
+## Built-in templates
+
+Grove ships with three, all editable or deletable like any other:
+
+| Name | Target file | Location | Body |
+|---|---|---|---|
+| Journal Entry | `journal.org` | Datetree (date + time) | `%U %cursor` |
+| Quick Note | `inbox.org` | Bottom of file | `* %cursor` |
+| TODO | `tasks.org` | Bottom of file | `* TODO %^{Title}` then `%cursor` |
+
 ## Notification toggle
 
 A separate toggle on this screen turns on an **ongoing capture notification**: a persistent, low-priority notification that opens the Capture picker in one tap, for quick access without unlocking into the app first.
