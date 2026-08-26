@@ -62,6 +62,8 @@ tag and just re-uploads the APKs to the existing release instead of failing.
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-08-26 (build 304)
+
 ### Added
 - Settings → Look and Feel has a new **Show file icons in notebooks** toggle (on by default). Turned off, the per-file monogram tile is dropped from every row of the notebooks list, leaving just the name and metadata line. The setting travels with Import/Export Settings.
 
