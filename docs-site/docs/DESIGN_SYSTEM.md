@@ -108,6 +108,8 @@ Full replacements (not extensions) of three Starlight components, registered in 
 - **`ThemeProvider.astro`** — runs the shared boot script (`src/scripts/theme-boot.js`) instead of Starlight's own theme init, so state is shared with the landing page.
 - **`ThemeSelect.astro`** — the same `.grove-theme-pill` used on the landing page, instead of Starlight's default 3-way select.
 
+The header logo is not an override — it's the stock Starlight `SiteTitle`, fed a light/dark logo pair via `astro.config.mjs`'s `logo` option (`src/assets/grove-icon-{light,dark}.svg`). `replacesTitle` stays off, so the "Grove" wordmark still renders beside the mark.
+
 `src/styles/starlight-overrides.css` remaps Starlight's own `--sl-color-*`/`--sl-font*` variables onto Grove's tokens and applies the type scale to `.sl-markdown-content`. It also caps any plain markdown `<img>` (feature screenshots in `src/content/docs/assets/` are full device-resolution captures, 1280px+ wide, with no per-image sizing in the `.mdx`) at a fixed `340px` max-width plus the same border/radius/shadow treatment as `.shot-card`, so legacy single-theme screenshots (no light/dark pair captured yet) still read consistently with the ones mounted via `<ThemeShot>`. The rule excludes `.shot-card__img` (`:not(.shot-card__img)`) so `ThemeShot`'s own card isn't double-bordered.
 
 ## Responsive breakpoints
@@ -122,5 +124,5 @@ When adding a new section, reuse these two breakpoints rather than introducing a
 ## What's deliberately *not* in this system
 
 - No SVG illustrations anywhere (matches the design handoff's explicit "by design" note).
-- One icon only: the Grove app icon. It appears as the browser favicon (`public/favicon.svg`, `public/favicon.ico`) and as the buffer-bar wordmark mark (`public/grove-icon-light.svg` / `public/grove-icon-dark.svg`, an 18px superellipse "squircle" tile carrying the five-spoke org asterisk, swapped by `[data-theme]`). This supersedes the original handoff's "`✳` glyph only, no logo" note. No other logo, icon set, or illustration — treat any further icon work as a separate design task.
+- One icon only: the Grove app icon. It appears as the browser favicon (`public/favicon.svg`, `public/favicon.ico`), as the buffer-bar wordmark mark on the landing page (`public/grove-icon-light.svg` / `public/grove-icon-dark.svg`, an 18px superellipse "squircle" tile carrying the five-spoke org asterisk, swapped by `[data-theme]`), and as the Starlight docs-section header logo beside the "Grove" wordmark (`src/assets/grove-icon-light.svg` / `src/assets/grove-icon-dark.svg` — same artwork, kept as a `src/` copy because Starlight's `logo` config needs an Astro-processed asset path; sized to the nav-bar height and swapped by theme). This supersedes the original handoff's "`✳` glyph only, no logo" note. No other logo, icon set, or illustration — treat any further icon work as a separate design task.
 - No component library / UI framework — everything is hand-authored `.astro` + scoped CSS, intentionally, to keep 1:1 fidelity with the reference HTML.

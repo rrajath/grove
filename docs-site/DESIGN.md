@@ -109,7 +109,7 @@ Light is the default theme (friendlier to first-time visitors), even though the 
 - Serif for reading, monospace for structure — a strict two-voice split
 - Flat by default; the one shadow token exists solely to lift screenshot cards
 - Hairline borders (`1px var(--line)`) as the only structural divider, everywhere
-- No illustration, no icon set; the only mark is the Grove app icon (favicon + buffer-bar wordmark), a squircle tile carrying the five-spoke org asterisk
+- No illustration, no icon set; the only mark is the Grove app icon (favicon, landing buffer-bar wordmark, and Starlight docs-header logo), a squircle tile carrying the five-spoke org asterisk
 
 ## Colors
 
@@ -234,6 +234,6 @@ The five foldable feature sections are the site's signature interactive pattern 
 - **Don't** lighten Org Amber, Moss Olive, Warm Umber, or Faded Umber back toward the Android app's brighter in-product values — the light-mode versions were deliberately darkened during design review specifically to clear WCAG AA (4.5:1).
 - **Don't** reach for `var(--shadow)` to add polish to a new card or panel; it exists solely to lift the hero's rendered-screenshot card off the page ("The One Shadow Rule").
 - **Don't** treat Moss Olive, Terracotta Red, Slate Blue, or Dusty Plum as general-purpose accent colors — each one is reserved org-syntax semantics (headline stars/tags, priority/deadline, scheduled timestamps, template placeholders), not a decorative palette to pick from ("The One Amber Rule").
-- **Don't** add SVG illustrations or any logo/icon beyond the Grove app icon (favicon + buffer-bar wordmark mark). The original handoff said "`✳` glyph only"; the app icon replaced it site-wide. Anything further is a separate design task.
+- **Don't** add SVG illustrations or any logo/icon beyond the Grove app icon (favicon, buffer-bar wordmark mark, and Starlight docs-header logo). The original handoff said "`✳` glyph only"; the app icon replaced it site-wide. Anything further is a separate design task.
 - **Don't** introduce a component library or UI framework; every component here is intentionally hand-authored `.astro` + scoped CSS, to preserve 1:1 fidelity with the reference prototype.
 - **Don't** treat the hero comparison card's `18px` radius / borderless-then-1px-edge-border treatment as a second valid card language — it's a flagged, temporary divergence pending reconciliation back to the standard `10px`/`5px` screenshot-card treatment.

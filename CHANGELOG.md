@@ -65,6 +65,8 @@ tag and just re-uploads the APKs to the existing release instead of failing.
 ### Changed
 - Deleting a capture template (Settings → Capture Templates, the `✕` on a row) now asks for confirmation first, matching how deleting a note works. Previously the tap deleted the template immediately with no undo.
 - docs-site: the buffer-bar wordmark next to `grove.org` is now the Grove app icon (an 18px squircle tile carrying the org asterisk, with separate light and dark variants) instead of a plain green `✳` glyph.
+- docs-site: the Starlight docs-section header now shows the Grove app icon beside the "Grove" wordmark (it was plain text before), matching the landing page's buffer bar. Light and dark variants swap with the theme.
+- docs-site: recaptured the Capture-picker and Notebooks-list screenshots (landing page and feature docs, both themes) so they show the new monogram tiles instead of the retired glyph set.
 - Notebook and capture-template icons are now **monograms**: a colored tile showing the first letter of the name. For a notebook that's its `#+TITLE:` when the display name is set to "Title" (falling back to the file name), otherwise the file name; for a template it's the template name, updated live as you type. The old curated glyph set (`✦ ✶ ✸ …`) and its picker are gone; a notebook's long-press menu now offers **Change icon color**, a color-only picker with the six theme swatches, and long-pressing the monogram tile on the template edit screen opens the same picker. Any per-notebook glyph you had picked before is dropped the next time that notebook's color is changed or it's renamed.
 - The built-in **Quick Note** capture template is now `* %cursor` (a bare heading marker with the cursor right after it) instead of prompting for a title first.
 - The built-in **TODO** capture template now files into `tasks.org` instead of `inbox.org`.
@@ -73,6 +75,7 @@ tag and just re-uploads the APKs to the existing release instead of failing.
 
 ### Removed
 - docs-site: deleted the `docs-site/resources/` folder (a second copy of the feature `.mdx` docs plus unused screenshot originals). It had diverged from the built copy under `src/content/docs/`, was referenced by no build step, and only `src/content/docs/features/` is ever shipped. That directory is now the single source for the docs.
+- docs-site: pruned unreferenced screenshot files — `src/assets/landing/old/` and `src/assets/landing/dark-mode/`, every loose top-level PNG under `src/assets/landing/` and the dead ones under `src/content/docs/assets/`, plus the empty `internal-docs/` directory. Only images actually imported by a page remain.
 
 ### Fixed
 - Several dialogs and text fields rendered their placeholder or typed text in the platform default font (Roboto, or a serif) instead of IBM Plex: the Search screen's "Name this search" box, the rename-saved-search and rename-notebook dialogs, the quick "Add note" dialog, the capture-template prompt dialog, the notebook-name field, and Read mode's error / "Note not found" messages. All now use the app's own type.
