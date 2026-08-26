@@ -217,7 +217,7 @@ fun ReadNoteScreen(
                 Modifier.fillMaxSize().padding(padding),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(s.message, color = c.ink2)
+                Text(s.message, fontFamily = PlexSans, color = c.ink2)
             }
 
             is DocumentUiState.Loaded -> {
@@ -227,7 +227,7 @@ fun ReadNoteScreen(
                     Box(
                         Modifier.fillMaxSize().padding(padding),
                         contentAlignment = Alignment.Center,
-                    ) { Text("Note not found", color = c.ink2) }
+                    ) { Text("Note not found", fontFamily = PlexSans, color = c.ink2) }
                 } else {
                     val scrollState = rememberScrollState()
                     Box(Modifier.fillMaxSize().padding(padding)) {

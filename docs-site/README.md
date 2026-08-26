@@ -13,7 +13,7 @@ Grove's actual product surface — the Android app — has no web presence yet. 
 ## Features
 
 - **Landing page** — hero, "what you wrote / what Grove shows" source-vs-rendered comparison, a filetags band (`:plaintext:` `:offline:` `:yours:`), five foldable feature sections (Capture, Agenda, Search, Sync & conflicts, Rendered-not-dumped), and a closing CTA band. Built to match `design/reference/Grove Landing 1a.dc.html` pixel-for-pixel.
-- **Docs section** (`/features/`) — every feature doc from `resources/features/`, built on [Starlight](https://starlight.astro.build) with a full visual reskin (fonts, color tokens, an org `:PROPERTIES:` drawer rendering each page's frontmatter) so it reads as the same product as the landing page, not a generic docs template.
+- **Docs section** (`/features/`) — every feature doc lives in `src/content/docs/features/`, built on [Starlight](https://starlight.astro.build) with a full visual reskin (fonts, color tokens, an org `:PROPERTIES:` drawer rendering each page's frontmatter) so it reads as the same product as the landing page, not a generic docs template.
 - **Shared light/dark theme** — one toggle, one `localStorage` key, used by both the landing page's `M-x grove-<label>-theme` pill and its equivalent in the docs header. No flash of the wrong theme on load.
 - **Keyboard-accessible folding** — the landing page's five feature sections are real `<button>`s with `aria-expanded`/`aria-controls`; `TAB` toggles a focused headline, `Shift+TAB` cycles global fold state, mirroring org-mode's own `TAB` behavior.
 - **Progressive enhancement** — all landing-page sections render open in the HTML; JavaScript only makes them collapsible. The page is fully readable with JavaScript disabled.
@@ -35,11 +35,10 @@ npm run astro check   # type-check .astro files
 ```text
 /
 ├── design/                        # design handoff: reference HTML, tokens, copy (source of truth for the landing page)
-├── resources/                     # source content for docs: index.mdx, features/*.mdx, assets/*.png
 ├── src/
 │   ├── components/landing/        # landing page bands (BufferBar, Hero, FiletagsBand, FeatureRow, CtaBand, ...)
 │   ├── components/starlight-overrides/  # PageTitle / ThemeProvider / ThemeSelect overrides for the docs reskin
-│   ├── content/docs/features/     # docs content collection, copied verbatim from resources/
+│   ├── content/docs/features/     # docs content collection — the single source for every feature doc
 │   ├── layouts/LandingLayout.astro
 │   ├── pages/index.astro          # the landing page itself, outside the Starlight collection
 │   ├── scripts/                   # theme boot/toggle scripts shared by both sections

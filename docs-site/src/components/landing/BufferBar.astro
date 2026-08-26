@@ -4,7 +4,22 @@ import '../../styles/theme-pill.css';
 
 <div class="buffer-bar">
   <div class="buffer-bar__left">
-    <span class="buffer-bar__glyph" aria-hidden="true">✳</span>
+    <img
+      class="buffer-bar__icon buffer-bar__icon--light"
+      src="/grove-icon-light.svg"
+      alt=""
+      width="18"
+      height="18"
+      aria-hidden="true"
+    />
+    <img
+      class="buffer-bar__icon buffer-bar__icon--dark"
+      src="/grove-icon-dark.svg"
+      alt=""
+      width="18"
+      height="18"
+      aria-hidden="true"
+    />
     <span class="buffer-bar__name">grove.org</span>
     <span class="buffer-bar__count">1 of 1 buffers</span>
   </div>
@@ -48,9 +63,20 @@ import '../../styles/theme-pill.css';
     gap: 10px;
     min-width: 0;
   }
-  .buffer-bar__glyph {
-    color: var(--green);
-    font-size: 15px;
+  .buffer-bar__icon {
+    display: block;
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+  }
+  .buffer-bar__icon--dark {
+    display: none;
+  }
+  :global([data-theme='dark']) .buffer-bar__icon--light {
+    display: none;
+  }
+  :global([data-theme='dark']) .buffer-bar__icon--dark {
+    display: block;
   }
   .buffer-bar__name {
     color: var(--ink);

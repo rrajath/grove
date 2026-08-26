@@ -14,12 +14,17 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -222,6 +227,7 @@ internal fun TemplateSettingsRow(
     onDelete: () -> Unit,
 ) {
     val c = MaterialTheme.grove
+    var confirmDelete by remember { mutableStateOf(false) }
     Row(
         Modifier
             .fillMaxWidth()
@@ -254,7 +260,37 @@ internal fun TemplateSettingsRow(
         }
         SmallAction("↑", enabled = onMoveUp != null) { onMoveUp?.invoke() }
         SmallAction("↓", enabled = onMoveDown != null) { onMoveDown?.invoke() }
-        SmallAction("✕", enabled = true, onClick = onDelete)
+        SmallAction("✕", enabled = true, onClick = { confirmDelete = true })
+    }
+
+    if (confirmDelete) {
+        AlertDialog(
+            onDismissRequest = { confirmDelete = false },
+            containerColor = c.surface,
+            title = {
+                Text(
+                    "Delete “${template.name}”?",
+                    fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
+                    fontSize = 16.sp, color = c.ink,
+                )
+            },
+            text = {
+                Text(
+                    "This removes the capture template. Notes you already captured with it are not affected.",
+                    fontFamily = PlexSans, fontSize = 14.sp, color = c.ink2,
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { confirmDelete = false; onDelete() }) {
+                    Text("Delete", color = c.red, fontWeight = FontWeight.SemiBold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmDelete = false }) {
+                    Text("Cancel", color = c.ink2)
+                }
+            },
+        )
     }
 }
 

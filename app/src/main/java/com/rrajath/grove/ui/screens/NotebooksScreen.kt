@@ -53,6 +53,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -489,6 +490,7 @@ private fun NameDialog(
                 onValueChange = { name = it },
                 singleLine = true,
                 placeholder = { Text("notebook.org", fontFamily = PlexMono, color = c.ink3) },
+                textStyle = TextStyle(fontFamily = PlexMono, color = c.ink),
             )
         },
         confirmButton = {

@@ -634,6 +634,7 @@ private fun PromptDialog(
                         value = values[prompt].orEmpty(),
                         onValueChange = { values = values + (prompt to it) },
                         singleLine = true,
+                        textStyle = TextStyle(fontFamily = PlexSans, color = c.ink),
                         keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                         modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
                     )

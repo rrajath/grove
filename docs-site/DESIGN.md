@@ -109,7 +109,7 @@ Light is the default theme (friendlier to first-time visitors), even though the 
 - Serif for reading, monospace for structure — a strict two-voice split
 - Flat by default; the one shadow token exists solely to lift screenshot cards
 - Hairline borders (`1px var(--line)`) as the only structural divider, everywhere
-- No illustration, no logo beyond a single `✳` glyph, no icon set
+- No illustration, no icon set; the only mark is the Grove app icon (favicon + buffer-bar wordmark), a squircle tile carrying the five-spoke org asterisk
 
 ## Colors
 
@@ -214,7 +214,7 @@ Every component reads as precise and typewriter-restrained: small mono labels, s
 - **Internal padding:** `8px` on the generic screenshot mount.
 
 ### Navigation
-- **Buffer bar** (top strip, `Aged Paper` background, `1px solid var(--line)` bottom border, `14px 28px` padding): wordmark (`✳ grove.org`) left, nav links + theme pill right. Nav links are Warm Umber, no visible active state (the site is a single scroll, not a multi-page nav). Below `700px`, the inline nav collapses behind a `☰` toggle into an absolutely-positioned dropdown panel (`6px` radius, `Aged Paper` background, same hairline border).
+- **Buffer bar** (top strip, `Aged Paper` background, `1px solid var(--line)` bottom border, `14px 28px` padding): wordmark (`grove.org` preceded by the 18px Grove app icon — `grove-icon-light.svg` / `grove-icon-dark.svg`, swapped by `[data-theme]`) left, nav links + theme pill right. Nav links are Warm Umber, no visible active state (the site is a single scroll, not a multi-page nav). Below `700px`, the inline nav collapses behind a `☰` toggle into an absolutely-positioned dropdown panel (`6px` radius, `Aged Paper` background, same hairline border).
 - **Starlight docs sidebar:** inherits Grove's tokens via `starlight-overrides.css` remapping `--sl-color-*`/`--sl-font*` onto Grove's own variables — it is not a bespoke component, it is Starlight's stock sidebar re-skinned to the same palette/type system.
 
 ### Feature Row (signature component)
@@ -234,6 +234,6 @@ The five foldable feature sections are the site's signature interactive pattern 
 - **Don't** lighten Org Amber, Moss Olive, Warm Umber, or Faded Umber back toward the Android app's brighter in-product values — the light-mode versions were deliberately darkened during design review specifically to clear WCAG AA (4.5:1).
 - **Don't** reach for `var(--shadow)` to add polish to a new card or panel; it exists solely to lift the hero's rendered-screenshot card off the page ("The One Shadow Rule").
 - **Don't** treat Moss Olive, Terracotta Red, Slate Blue, or Dusty Plum as general-purpose accent colors — each one is reserved org-syntax semantics (headline stars/tags, priority/deadline, scheduled timestamps, template placeholders), not a decorative palette to pick from ("The One Amber Rule").
-- **Don't** add SVG illustrations or any logo/icon beyond the single `✳` glyph — explicitly out of scope per the original design handoff.
+- **Don't** add SVG illustrations or any logo/icon beyond the Grove app icon (favicon + buffer-bar wordmark mark). The original handoff said "`✳` glyph only"; the app icon replaced it site-wide. Anything further is a separate design task.
 - **Don't** introduce a component library or UI framework; every component here is intentionally hand-authored `.astro` + scoped CSS, to preserve 1:1 fidelity with the reference prototype.
 - **Don't** treat the hero comparison card's `18px` radius / borderless-then-1px-edge-border treatment as a second valid card language — it's a flagged, temporary divergence pending reconciliation back to the standard `10px`/`5px` screenshot-card treatment.

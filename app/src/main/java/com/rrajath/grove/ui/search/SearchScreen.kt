@@ -365,7 +365,7 @@ private fun SaveSearchDropdown(
                 value = typed,
                 onValueChange = { typed = it },
                 singleLine = true,
-                placeholder = { Text("Name this search", color = c.ink3, fontSize = 13.sp) },
+                placeholder = { Text("Name this search", fontFamily = PlexSans, color = c.ink3, fontSize = 13.sp) },
                 textStyle = TextStyle(fontFamily = PlexSans, fontSize = 13.sp, color = c.ink),
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -696,7 +696,7 @@ private fun BlankState(
                         // level with the title.
                         verticalAlignment = Alignment.Top,
                     ) {
-                        Text("★", fontSize = 14.sp, color = c.accent)
+                        Text("★", fontFamily = PlexSans, fontSize = 14.sp, color = c.accent)
                         Spacer(Modifier.width(11.dp))
                         Column(Modifier.weight(1f)) {
                             Text(saved.name, fontFamily = PlexSans, fontWeight = FontWeight.Medium, fontSize = 14.sp, color = c.ink)
@@ -738,7 +738,8 @@ private fun BlankState(
                 OutlinedTextField(
                     value = name, onValueChange = { name = it },
                     singleLine = true,
-                    placeholder = { Text("Name", color = c.ink3) },
+                    placeholder = { Text("Name", fontFamily = PlexSans, color = c.ink3) },
+                    textStyle = TextStyle(fontFamily = PlexSans, color = c.ink),
                 )
             },
             confirmButton = {

@@ -11,7 +11,9 @@ Astro 7 with the `@astrojs/starlight` integration. No UI framework (React/Vue/et
 Starlight only claims routes that exist inside its content collection (`src/content/docs/`) — it does not reserve `/` unless a file is placed there. This site uses that to run two independent sections side by side:
 
 - **`/`** — `src/pages/index.astro`, a fully custom Astro page entirely outside Starlight's collection. Hand-built to match `design/reference/Grove Landing 1a.dc.html`.
-- **`/features/...`** — the docs section, built on Starlight. Content lives at `src/content/docs/features/*.mdx`, nested one level under `features/` specifically so the resulting URLs (`/features/<slug>`) match every internal link already present in the source `resources/*.mdx` files verbatim. This was a deliberate trade-off: URL convention (`/docs/`) was sacrificed for link fidelity (zero rewriting across 23 source files, zero risk of a missed link). `src/content/docs/features/index.mdx` (from `resources/index.mdx`) is the docs landing page at `/features/`.
+- **`/features/...`** — the docs section, built on Starlight. Content lives at `src/content/docs/features/*.mdx`, nested one level under `features/` specifically so the resulting URLs (`/features/<slug>`) match every internal cross-link inside those `.mdx` files verbatim. This was a deliberate trade-off: URL convention (`/docs/`) was sacrificed for link fidelity (zero rewriting across the corpus, zero risk of a missed link). `src/content/docs/features/index.mdx` is the docs landing page at `/features/`.
+
+  The feature docs began as a copy of a hand-authored `.mdx` set that lived in `docs-site/resources/`. That staging folder has since been deleted: the two copies had diverged (the built set gained `<ThemeShot>` components, light/dark screenshot pairs, and copy edits), only `src/content/docs/` is ever built, and keeping a second copy in sync bought nothing. `src/content/docs/features/` is now the sole source — edit it directly.
 
 ## Design tokens — one source of truth
 
@@ -44,13 +46,13 @@ All three overrides are registered in `astro.config.mjs`'s `components` option a
 
 `src/content.config.ts` defines the `docs` collection using Starlight's own `docsLoader()`/`docsSchema()` — no custom frontmatter fields, since every source file uses only `title`/`description`.
 
-Images are colocated at `src/content/docs/assets/` — a sibling of `src/content/docs/features/`, mirroring `resources/`'s own `features/` + `assets/` sibling structure exactly. This means every `../assets/*.png` reference inside the 23 source `.mdx` files resolves unchanged; Astro's content-collection Markdown pipeline auto-optimizes these relative image references without any frontmatter `image()` schema needed (confirmed in the built output: each renders as a responsive `.webp` with explicit `width`/`height`).
+Images are colocated at `src/content/docs/assets/` — a sibling of `src/content/docs/features/`. This means every `../assets/*.png` reference inside the `.mdx` files resolves unchanged; Astro's content-collection Markdown pipeline auto-optimizes these relative image references without any frontmatter `image()` schema needed (confirmed in the built output: each renders as a responsive `.webp` with explicit `width`/`height`). Light/dark screenshot pairs live under `assets/light/` and `assets/dark/` and are mounted through the shared `<ThemeShot>` component.
 
 Landing-page screenshots are a separate, smaller set (`src/assets/landing/`), imported explicitly and rendered via `astro:assets`' `<Image>` component in `.astro` files — a different mechanism from the docs' auto-optimized Markdown images, appropriate to where each is used.
 
 ## The Widget page
 
-The design handoff explicitly excludes the not-yet-shipped Widget feature from navigation. This is implemented as: the file `src/content/docs/features/widget.mdx` exists and is fully reachable at `/features/widget`, but it has no entry in `astro.config.mjs`'s hand-written `sidebar` array and no link from the copied docs index page (`features/index.mdx`). Other pages' existing inline cross-references to it (e.g. `capture.mdx`'s "Entry points" list) were left untouched and continue to resolve correctly.
+The design handoff explicitly excludes the not-yet-shipped Widget feature from navigation. This is implemented as: the file `src/content/docs/features/widget.mdx` exists and is fully reachable at `/features/widget`, but it has no entry in `astro.config.mjs`'s hand-written `sidebar` array and no link from the docs index page (`features/index.mdx`). Other pages' existing inline cross-references to it (e.g. `capture.mdx`'s "Entry points" list) were left untouched and continue to resolve correctly.
 
 ## Landing page component structure
 

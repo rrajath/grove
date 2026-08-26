@@ -65,6 +65,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextDecoration
@@ -223,7 +224,7 @@ fun OutlineScreen(
                                     .padding(horizontal = 10.dp, vertical = 8.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
-                                Text("←", fontSize = 19.sp, color = c.ink)
+                                Text("←", fontFamily = PlexMono, fontSize = 19.sp, color = c.ink)
                                 Spacer(Modifier.width(6.dp))
                                 Text(
                                     "widen",
@@ -636,6 +637,7 @@ internal fun NoteDialog(title: String, onDismiss: () -> Unit, onConfirm: (String
                 value = text,
                 onValueChange = { text = it },
                 placeholder = { Text("Note contents", fontFamily = PlexSans, color = c.ink3) },
+                textStyle = TextStyle(fontFamily = PlexSans, color = c.ink),
                 keyboardOptions = KeyboardOptions(
                     capitalization = KeyboardCapitalization.Sentences,
                     autoCorrectEnabled = true,

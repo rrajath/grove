@@ -23,7 +23,7 @@ This repo is the public-facing launch site for **Grove**, a native Android app f
 ## Operating Context
 
 - Grove (the app) is native Android; this site is a standalone web project (Astro + Starlight) that markets it and hosts its docs.
-- Documentation is sourced verbatim from `resources/` (`.mdx` feature docs + real app screenshots) rather than re-authored for the web, so the docs section must stay a faithful transcription, not a rewrite.
+- The feature docs began as a transcription of the app team's own `.mdx` notes rather than web-original copy, and should stay close to that: describe real app behavior, don't editorialize. They now live only in `src/content/docs/features/` (the earlier `resources/` staging copy was deleted once the two diverged).
 - The org-mode vocabulary (headline stars, `TODO`/priority keywords, `:tags:`, `SCHEDULED:`/`DEADLINE:`, `:PROPERTIES:` drawers, `%^{prompt}` placeholders) is literal UI language on the landing page, not decoration — it must stay syntactically accurate to real org-mode.
 - Shared light/dark theme across landing page and docs, one `localStorage` key, no flash of wrong theme.
 - Landing page must remain readable and functional with JavaScript disabled (progressive enhancement); folding is a JS enhancement over content that renders open by default.
@@ -46,8 +46,8 @@ This repo is the public-facing launch site for **Grove**, a native Android app f
 
 ## Evidence on Hand
 
-- Real screenshots from the app itself, one per documented feature, in `resources/assets/` (mirrored into `src/content/docs/assets/` and `src/assets/landing/`).
-- Every currently implemented app feature has a corresponding `.mdx` doc in `resources/features/`.
+- Real screenshots from the app itself, one per documented feature, in `src/content/docs/assets/` (docs) and `src/assets/landing/` (landing page).
+- Every currently implemented app feature has a corresponding `.mdx` doc in `src/content/docs/features/`.
 - No testimonials, case studies, press, pricing, or usage benchmarks exist — none should be fabricated.
 - A high-fidelity design reference prototype exists at `design/reference/Grove Landing 1a.dc.html` (with `design/README.md` as its written spec) — the source of truth the current landing page was built to match pixel-for-pixel.
 
