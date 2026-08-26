@@ -38,9 +38,7 @@ data class NotebookItem(
     val noteCount: Int,
     val lastModified: Long,
     val hasConflict: Boolean,
-    /** User-chosen list glyph; null = derive one from the file name. */
-    val icon: String? = null,
-    /** User-chosen icon palette key; null = derive one from the file name. */
+    /** User-chosen monogram palette key; null = derive one from the file name. */
     val color: String? = null,
     /** Position in the pinned list (0 = topmost). -1 means not pinned. */
     val pinnedIndex: Int = -1,
@@ -81,7 +79,6 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
                     noteCount = it.noteCount,
                     lastModified = it.lastModified,
                     hasConflict = it.conflictFileName != null,
-                    icon = settings.notebookIcons[it.fileName],
                     color = settings.notebookColors[it.fileName],
                     pinnedIndex = settings.pinnedNotebooks.indexOf(it.fileName),
                     displayName = if (
@@ -163,10 +160,6 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
             }
             app.syncManager.requestSync("notebook deleted")
         }
-    }
-
-    fun setNotebookIcon(fileName: String, glyph: String) {
-        viewModelScope.launch { app.settingsRepository.setNotebookIcon(fileName, glyph) }
     }
 
     fun setNotebookColor(fileName: String, colorKey: String) {

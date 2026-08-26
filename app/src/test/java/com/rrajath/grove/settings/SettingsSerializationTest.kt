@@ -20,7 +20,6 @@ class SettingsSerializationTest {
         addIdToNewNotes = true,
         addCreatedToNewNotes = false,
         notebookModes = mapOf("work.org" to "edit"),
-        notebookIcons = mapOf("work.org" to "✦"),
         notebookColors = mapOf("work.org" to "green"),
         captureNotification = true,
         shareTargetFile = "capture.org",
@@ -71,7 +70,6 @@ class SettingsSerializationTest {
         assertEquals(sample.addIdToNewNotes, restored.addIdToNewNotes)
         assertEquals(sample.addCreatedToNewNotes, restored.addCreatedToNewNotes)
         assertEquals(sample.notebookModes, restored.notebookModes)
-        assertEquals(sample.notebookIcons, restored.notebookIcons)
         assertEquals(sample.notebookColors, restored.notebookColors)
         assertEquals(sample.captureNotification, restored.captureNotification)
         assertEquals(sample.shareTargetFile, restored.shareTargetFile)

@@ -52,8 +52,11 @@ sealed class TargetLocation {
 data class CaptureTemplate(
     val id: String,
     val name: String,
-    /** Glyph shown in the picker tile. */
-    val icon: String = "✶",
+    /**
+     * Monogram palette key ("green", "blue", …) for the template's icon tile; null
+     * derives one from the id. The glyph itself is the first letter of [name].
+     */
+    val color: String? = null,
     val targetFile: String,
     val location: TargetLocation,
     val template: String,
@@ -79,7 +82,6 @@ object DefaultTemplates {
         CaptureTemplate(
             id = "builtin-journal",
             name = "Journal Entry",
-            icon = "✶",
             targetFile = "journal.org",
             location = TargetLocation.DatetreeDatetime,
             // First line of the entry is its heading; the cursor lands right
@@ -89,7 +91,6 @@ object DefaultTemplates {
         CaptureTemplate(
             id = "builtin-quick-note",
             name = "Quick Note",
-            icon = "✷",
             targetFile = "inbox.org",
             location = TargetLocation.BottomOfFile,
             // Bare heading marker; the cursor lands right after it so the
@@ -99,7 +100,6 @@ object DefaultTemplates {
         CaptureTemplate(
             id = "builtin-todo",
             name = "TODO",
-            icon = "✓",
             targetFile = "tasks.org",
             location = TargetLocation.BottomOfFile,
             template = "* TODO %^{Title}\n%cursor",

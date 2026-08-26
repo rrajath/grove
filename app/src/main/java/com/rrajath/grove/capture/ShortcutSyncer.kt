@@ -12,6 +12,7 @@ import androidx.core.content.pm.ShortcutManagerCompat
 import androidx.core.graphics.drawable.IconCompat
 import com.rrajath.grove.icon.AppIconManager
 import com.rrajath.grove.settings.ThemePreference
+import com.rrajath.grove.ui.components.monogramLetter
 import com.rrajath.grove.ui.theme.GroveLightColors
 import com.rrajath.grove.ui.theme.groveColorsFor
 
@@ -60,7 +61,7 @@ object ShortcutSyncer {
         return ShortcutInfoCompat.Builder(context, template.id)
             .setShortLabel(template.name)
             .setLongLabel("New ${template.name}")
-            .setIcon(IconCompat.createWithBitmap(glyphBitmap(template.icon, bg, fg)))
+            .setIcon(IconCompat.createWithBitmap(glyphBitmap(monogramLetter(template.name), bg, fg)))
             .setIntent(intent)
             .setActivity(ownerAlias)
             .build()

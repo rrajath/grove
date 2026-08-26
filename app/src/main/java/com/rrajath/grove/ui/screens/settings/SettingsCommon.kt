@@ -32,7 +32,10 @@ import com.rrajath.grove.capture.TemplateValidator
 import com.rrajath.grove.settings.AgendaSwipeAction
 import com.rrajath.grove.settings.ChecklistStates
 import com.rrajath.grove.ui.components.GroveTopBar
+import com.rrajath.grove.ui.components.MonogramTile
 import com.rrajath.grove.ui.components.Pill
+import com.rrajath.grove.ui.components.monogramLetter
+import com.rrajath.grove.ui.components.nameHashPaletteKey
 import com.rrajath.grove.ui.screens.IconGlyph
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
@@ -226,7 +229,12 @@ internal fun TemplateSettingsRow(
             .padding(horizontal = 15.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(template.icon, fontFamily = PlexMono, fontSize = 15.sp, color = c.accent)
+        MonogramTile(
+            letter = monogramLetter(template.name),
+            colorKey = template.color ?: nameHashPaletteKey(template.id),
+            size = 30.dp,
+            cornerRadius = 9.dp,
+        )
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(

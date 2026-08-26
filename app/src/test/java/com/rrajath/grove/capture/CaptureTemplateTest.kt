@@ -12,7 +12,7 @@ class CaptureTemplateTest {
                 CaptureTemplate(
                     id = "custom",
                     name = "Meeting",
-                    icon = "◎",
+                    color = "blue",
                     targetFile = "work.org",
                     location = TargetLocation.UnderHeading(customId = "meetings", appendLast = true),
                     template = "* %^{Topic}\n%U\n%cursor",

@@ -7,7 +7,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
@@ -59,12 +58,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rrajath.grove.sync.SyncState
+import com.rrajath.grove.ui.components.ChangeIconColorDialog
 import com.rrajath.grove.ui.components.GroveTopBar
+import com.rrajath.grove.ui.components.MonogramTile
 import com.rrajath.grove.ui.components.Pill
 import com.rrajath.grove.ui.components.ReminderPermissionBanner
 import com.rrajath.grove.ui.components.ScrollJumpButtons
+import com.rrajath.grove.ui.components.monogramLetter
+import com.rrajath.grove.ui.components.nameHashPaletteKey
 import com.rrajath.grove.ui.components.searchIcon
-import com.rrajath.grove.ui.theme.GroveColors
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
@@ -234,97 +236,20 @@ fun NotebooksScreen(
         if (notebook == null) {
             styleTarget = null
         } else {
-            IconStyleDialog(
-                notebook = notebook,
-                onDismiss = { styleTarget = null },
-                onPickIcon = { glyph -> viewModel.setNotebookIcon(target, glyph) },
+            ChangeIconColorDialog(
+                name = notebook.displayName,
+                hint = if (notebook.displayName == notebook.fileName) {
+                    "Letter follows the file name"
+                } else {
+                    "Letter follows the title"
+                },
+                letter = monogramLetter(notebook.displayName),
+                currentColorKey = notebook.color ?: nameHashPaletteKey(notebook.fileName),
                 onPickColor = { key -> viewModel.setNotebookColor(target, key) },
+                onDismiss = { styleTarget = null },
             )
         }
     }
-}
-
-@Composable
-private fun IconStyleDialog(
-    notebook: NotebookItem,
-    onDismiss: () -> Unit,
-    onPickIcon: (String) -> Unit,
-    onPickColor: (String) -> Unit,
-) {
-    val c = MaterialTheme.grove
-    val hash = nameHash(notebook.fileName)
-    val currentGlyph = notebook.icon ?: GLYPHS[hash % GLYPHS.size]
-    val currentColor = notebook.color ?: PALETTE_KEYS[hash % PALETTE_KEYS.size]
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = c.surface,
-        title = {
-            Text(
-                "Icon for ${notebook.fileName}",
-                fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
-                fontSize = 16.sp, color = c.ink,
-            )
-        },
-        text = {
-            Column {
-                Row {
-                    GLYPHS.forEach { glyph ->
-                        val selected = glyph == currentGlyph
-                        Box(
-                            Modifier
-                                .padding(end = 6.dp)
-                                .size(38.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(if (selected) c.accentSoft else c.surface2)
-                                .border(
-                                    1.dp,
-                                    if (selected) c.accent else c.line,
-                                    RoundedCornerShape(12.dp),
-                                )
-                                .clickable { onPickIcon(glyph) },
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Text(
-                                glyph,
-                                fontFamily = PlexMono, fontWeight = FontWeight.SemiBold,
-                                fontSize = 17.sp, color = if (selected) c.accent else c.ink2,
-                            )
-                        }
-                    }
-                }
-                Spacer(Modifier.height(12.dp))
-                Row {
-                    PALETTE_KEYS.forEach { key ->
-                        val (fg, bg) = palette(c, key)
-                        val selected = key == currentColor
-                        Box(
-                            Modifier
-                                .padding(end = 6.dp)
-                                .size(38.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(bg)
-                                .border(
-                                    if (selected) 2.dp else 1.dp,
-                                    if (selected) fg else c.line,
-                                    RoundedCornerShape(12.dp),
-                                )
-                                .clickable { onPickColor(key) },
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Text(
-                                if (selected) currentGlyph else "",
-                                fontFamily = PlexMono, fontWeight = FontWeight.SemiBold,
-                                fontSize = 17.sp, color = fg,
-                            )
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text("Done", color = c.accent, fontWeight = FontWeight.SemiBold) }
-        },
-    )
 }
 
 /**
@@ -391,35 +316,6 @@ private fun SyncStatusIcon(state: NotebooksUiState.Loaded, context: android.cont
     }
 }
 
-private val GLYPHS = listOf("✦", "✶", "✸", "✺", "❋", "✷")
-
-/** Palette keys persisted in settings; resolved against the current theme. */
-private val PALETTE_KEYS = listOf("green", "accent", "blue", "red")
-
-private fun palette(
-    c: GroveColors,
-    key: String,
-): Pair<androidx.compose.ui.graphics.Color, androidx.compose.ui.graphics.Color> = when (key) {
-    "green" -> c.green to c.greenSoft
-    "blue" -> c.blue to c.blueSoft
-    "red" -> c.red to c.redSoft
-    else -> c.accent to c.accentSoft
-}
-
-private fun nameHash(name: String): Int =
-    name.hashCode().let { if (it == Int.MIN_VALUE) 0 else kotlin.math.abs(it) }
-
-private fun notebookStyle(
-    c: GroveColors,
-    name: String,
-    iconOverride: String? = null,
-    colorOverride: String? = null,
-): Triple<String, androidx.compose.ui.graphics.Color, androidx.compose.ui.graphics.Color> {
-    val hash = nameHash(name)
-    val (fg, bg) = palette(c, colorOverride ?: PALETTE_KEYS[hash % PALETTE_KEYS.size])
-    return Triple(iconOverride ?: GLYPHS[hash % GLYPHS.size], fg, bg)
-}
-
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun NotebookRow(
@@ -435,9 +331,8 @@ private fun NotebookRow(
     onUnpin: () -> Unit,
 ) {
     val c = MaterialTheme.grove
-    val (glyph, fg, bg) = remember(notebook.fileName, notebook.icon, notebook.color, c) {
-        notebookStyle(c, notebook.fileName, notebook.icon, notebook.color)
-    }
+    val letter = monogramLetter(notebook.displayName)
+    val colorKey = notebook.color ?: nameHashPaletteKey(notebook.fileName)
     var menuOpen by remember { mutableStateOf(false) }
 
     Box {
@@ -450,15 +345,7 @@ private fun NotebookRow(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (showFileIcon) {
-                Box(
-                    Modifier
-                        .size(42.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(bg),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(glyph, fontFamily = PlexMono, fontWeight = FontWeight.SemiBold, fontSize = 17.sp, color = fg)
-                }
+                MonogramTile(letter = letter, colorKey = colorKey, size = 42.dp)
                 Spacer(Modifier.width(12.dp))
             }
             Column(Modifier.weight(1f)) {
@@ -508,7 +395,7 @@ private fun NotebookRow(
                 onClick = { menuOpen = false; onRename() },
             )
             DropdownMenuItem(
-                text = { Text("Icon & color", fontFamily = PlexSans, color = c.ink) },
+                text = { Text("Change icon color", fontFamily = PlexSans, color = c.ink) },
                 onClick = { menuOpen = false; onChangeIcon() },
             )
             DropdownMenuItem(

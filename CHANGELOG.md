@@ -60,9 +60,10 @@ tag and just re-uploads the APKs to the existing release instead of failing.
 ## [Unreleased]
 
 ### Added
-- Settings → Look and Feel has a new **Show file icons in notebooks** toggle (on by default). Turned off, the per-file icon tile is dropped from every row of the notebooks list, leaving just the name and metadata line. The setting travels with Import/Export Settings.
+- Settings → Look and Feel has a new **Show file icons in notebooks** toggle (on by default). Turned off, the per-file monogram tile is dropped from every row of the notebooks list, leaving just the name and metadata line. The setting travels with Import/Export Settings.
 
 ### Changed
+- Notebook and capture-template icons are now **monograms**: a colored tile showing the first letter of the name. For a notebook that's its `#+TITLE:` when the display name is set to "Title" (falling back to the file name), otherwise the file name; for a template it's the template name, updated live as you type. The old curated glyph set (`✦ ✶ ✸ …`) and its picker are gone; a notebook's long-press menu now offers **Change icon color**, a color-only picker with the six theme swatches, and long-pressing the monogram tile on the template edit screen opens the same picker. Any per-notebook glyph you had picked before is dropped the next time that notebook's color is changed or it's renamed.
 - The built-in **Quick Note** capture template is now `* %cursor` (a bare heading marker with the cursor right after it) instead of prompting for a title first.
 - The built-in **TODO** capture template now files into `tasks.org` instead of `inbox.org`.
 - "Report a bug"'s Send Report now copies the formatted report to the clipboard immediately, so it's never lost if no mail app is available or the chooser gets dismissed, and builds the email with `ACTION_SEND` + `message/rfc822` instead of `ACTION_SENDTO` + a `mailto:` URI, an intent shape more mail apps besides Gmail register a compose-email handler for.

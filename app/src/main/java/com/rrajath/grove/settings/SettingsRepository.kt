@@ -42,9 +42,7 @@ data class GroveSettings(
     val addCreatedToNewNotes: Boolean = true,
     /** Per-notebook last-used note mode overrides: "file.org" → "read"/"edit". */
     val notebookModes: Map<String, String> = emptyMap(),
-    /** Per-notebook list glyph overrides: "file.org" → "✦". */
-    val notebookIcons: Map<String, String> = emptyMap(),
-    /** Per-notebook icon color overrides: "file.org" → palette key ("green"…). */
+    /** Per-notebook monogram color overrides: "file.org" → palette key ("green"…). */
     val notebookColors: Map<String, String> = emptyMap(),
     val captureNotification: Boolean = false,
     /** .org file that receives content shared into Grove from other apps. */
@@ -126,6 +124,11 @@ class SettingsRepository(private val context: Context) {
         val addIdToNewNotes = booleanPreferencesKey("add_id_to_new_notes")
         val addCreatedToNewNotes = booleanPreferencesKey("add_created_to_new_notes")
         val notebookModes = stringPreferencesKey("notebook_modes")
+
+        /**
+         * Retired: per-notebook glyph picks from before monogram icons. Kept only so
+         * notebook-style writes can purge any value a pre-monogram install left behind.
+         */
         val notebookIcons = stringPreferencesKey("notebook_icons")
         val notebookColors = stringPreferencesKey("notebook_colors")
         val captureNotification = booleanPreferencesKey("capture_notification")
@@ -176,7 +179,6 @@ class SettingsRepository(private val context: Context) {
             addIdToNewNotes = prefs[Keys.addIdToNewNotes] ?: false,
             addCreatedToNewNotes = prefs[Keys.addCreatedToNewNotes] ?: true,
             notebookModes = decodeModes(prefs[Keys.notebookModes]),
-            notebookIcons = decodeModes(prefs[Keys.notebookIcons]),
             notebookColors = decodeModes(prefs[Keys.notebookColors]),
             captureNotification = prefs[Keys.captureNotification] ?: false,
             shareTargetFile = prefs[Keys.shareTargetFile] ?: GroveSettings.DEFAULT_SHARE_TARGET,
@@ -257,8 +259,8 @@ class SettingsRepository(private val context: Context) {
             p[Keys.addIdToNewNotes] = s.addIdToNewNotes
             p[Keys.addCreatedToNewNotes] = s.addCreatedToNewNotes
             p[Keys.notebookModes] = encodeModes(s.notebookModes)
-            p[Keys.notebookIcons] = encodeModes(s.notebookIcons)
             p[Keys.notebookColors] = encodeModes(s.notebookColors)
+            p.remove(Keys.notebookIcons)
             p[Keys.captureNotification] = s.captureNotification
             p[Keys.shareTargetFile] = s.shareTargetFile
             p[Keys.showTagsInOutline] = s.showTagsInOutline
@@ -474,19 +476,13 @@ class SettingsRepository(private val context: Context) {
         }
     }
 
-    suspend fun setNotebookIcon(fileName: String, glyph: String) {
-        setMapEntry(Keys.notebookIcons, fileName, glyph)
-    }
-
     suspend fun setNotebookColor(fileName: String, colorKey: String) {
-        setMapEntry(Keys.notebookColors, fileName, colorKey)
-    }
-
-    private suspend fun setMapEntry(key: Preferences.Key<String>, mapKey: String, value: String) {
         context.settingsDataStore.edit { prefs ->
-            val current = decodeModes(prefs[key]).toMutableMap()
-            current[mapKey] = value
-            prefs[key] = encodeModes(current)
+            val current = decodeModes(prefs[Keys.notebookColors]).toMutableMap()
+            current[fileName] = colorKey
+            prefs[Keys.notebookColors] = encodeModes(current)
+            // Monogram icons replaced the glyph picker; drop any leftover glyph pick.
+            prefs.remove(Keys.notebookIcons)
         }
     }
 
@@ -509,15 +505,16 @@ class SettingsRepository(private val context: Context) {
         }
     }
 
-    /** Keep a chosen icon, color, and pin position attached to a notebook across renames. */
+    /** Keep the chosen monogram color and pin position attached to a notebook across renames. */
     suspend fun moveNotebookStyle(oldFileName: String, newFileName: String) {
         context.settingsDataStore.edit { prefs ->
-            for (key in listOf(Keys.notebookIcons, Keys.notebookColors)) {
-                val current = decodeModes(prefs[key]).toMutableMap()
-                val value = current.remove(oldFileName) ?: continue
-                current[newFileName] = value
-                prefs[key] = encodeModes(current)
+            val colors = decodeModes(prefs[Keys.notebookColors]).toMutableMap()
+            colors.remove(oldFileName)?.let { value ->
+                colors[newFileName] = value
+                prefs[Keys.notebookColors] = encodeModes(colors)
             }
+            // Monogram icons replaced the glyph picker; drop any leftover glyph pick.
+            prefs.remove(Keys.notebookIcons)
             val pinned = decodePinnedList(prefs[Keys.pinnedNotebooks]).toMutableList()
             val pinIdx = pinned.indexOf(oldFileName)
             if (pinIdx >= 0) {

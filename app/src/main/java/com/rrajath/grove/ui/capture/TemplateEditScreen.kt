@@ -1,7 +1,9 @@
 package com.rrajath.grove.ui.capture
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -29,6 +31,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalFocusManager
@@ -42,9 +45,13 @@ import com.rrajath.grove.capture.CaptureTemplate
 import com.rrajath.grove.capture.FilenameValidation
 import com.rrajath.grove.capture.PlaceholderExpander
 import com.rrajath.grove.capture.TargetLocation
+import com.rrajath.grove.ui.components.ChangeIconColorDialog
 import com.rrajath.grove.ui.components.GroveTopBar
+import com.rrajath.grove.ui.components.MonogramTile
 import com.rrajath.grove.ui.components.NotebookFileField
 import com.rrajath.grove.ui.components.SegmentedControl
+import com.rrajath.grove.ui.components.monogramLetter
+import com.rrajath.grove.ui.components.nameHashPaletteKey
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
@@ -62,6 +69,7 @@ private fun locationIndex(location: TargetLocation): Int = when (location) {
 }
 
 /** Template editor (design spec / PRD §7.6). templateId "new" creates one. */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun TemplateEditScreen(
     templateId: String,
@@ -77,9 +85,13 @@ fun TemplateEditScreen(
     val templates by viewModel.templates.collectAsStateWithLifecycle()
     val notebooks by viewModel.notebooks.collectAsStateWithLifecycle()
     val existing = templates.firstOrNull { it.id == templateId }
+    // Fixed for this editor session so the monogram colour stays stable while the
+    // name is still being typed, and so a new template's id matches what is saved.
+    val editingId = remember(existing) { existing?.id ?: viewModel.newId() }
 
     var name by remember(existing) { mutableStateOf(existing?.name ?: "") }
-    var icon by remember(existing) { mutableStateOf(existing?.icon ?: "✶") }
+    var colorKey by remember(existing) { mutableStateOf(existing?.color) }
+    var showColorDialog by remember { mutableStateOf(false) }
     var targetFile by remember(existing) { mutableStateOf(existing?.targetFile ?: "inbox.org") }
     val targetFileError = FilenameValidation.errorFor(targetFile)
     var locationIdx by remember(existing) {
@@ -135,9 +147,9 @@ fun TemplateEditScreen(
                             .clickable(enabled = canSave) {
                                 viewModel.upsert(
                                     CaptureTemplate(
-                                        id = existing?.id ?: viewModel.newId(),
+                                        id = editingId,
                                         name = name.trim(),
-                                        icon = icon.ifBlank { "✶" },
+                                        color = colorKey,
                                         targetFile = targetFile.trim(),
                                         location = buildLocation(),
                                         template = templateText,
@@ -166,10 +178,16 @@ fun TemplateEditScreen(
                 .padding(horizontal = 16.dp),
         ) {
             FieldLabel("Name")
-            Row {
-                OutlinedTextField(
-                    value = icon, onValueChange = { icon = it.take(2) },
-                    singleLine = true, modifier = Modifier.width(72.dp),
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                MonogramTile(
+                    letter = monogramLetter(name),
+                    colorKey = colorKey ?: nameHashPaletteKey(editingId),
+                    size = 56.dp,
+                    cornerRadius = 12.dp,
+                    modifier = Modifier.combinedClickable(
+                        onClick = { showColorDialog = true },
+                        onLongClick = { showColorDialog = true },
+                    ),
                 )
                 Spacer(Modifier.width(10.dp))
                 OutlinedTextField(
@@ -263,6 +281,17 @@ fun TemplateEditScreen(
 
     if (showPlaceholderHelp) {
         PlaceholderInfoDialog(onDismiss = { showPlaceholderHelp = false })
+    }
+
+    if (showColorDialog) {
+        ChangeIconColorDialog(
+            name = name.ifBlank { "New template" },
+            hint = "Letter follows the template name",
+            letter = monogramLetter(name),
+            currentColorKey = colorKey ?: nameHashPaletteKey(editingId),
+            onPickColor = { colorKey = it },
+            onDismiss = { showColorDialog = false },
+        )
     }
 }
 

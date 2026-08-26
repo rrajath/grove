@@ -1,14 +1,11 @@
 package com.rrajath.grove.ui.capture
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -29,7 +26,10 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rrajath.grove.capture.CaptureTemplate
 import com.rrajath.grove.capture.TemplateValidator
+import com.rrajath.grove.ui.components.MonogramTile
 import com.rrajath.grove.ui.components.Pill
+import com.rrajath.grove.ui.components.monogramLetter
+import com.rrajath.grove.ui.components.nameHashPaletteKey
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
@@ -94,13 +94,6 @@ fun CapturePickerSheet(
 @Composable
 private fun TemplateRow(template: CaptureTemplate, onClick: () -> Unit) {
     val c = MaterialTheme.grove
-    val tileColors = listOf(
-        c.accent to c.accentSoft,
-        c.green to c.greenSoft,
-        c.amber to c.amberSoft,
-        c.blue to c.blueSoft,
-    )
-    val (fg, bg) = tileColors[kotlin.math.abs(template.id.hashCode()) % tileColors.size]
     Row(
         Modifier
             .fillMaxWidth()
@@ -108,15 +101,12 @@ private fun TemplateRow(template: CaptureTemplate, onClick: () -> Unit) {
             .padding(horizontal = 22.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(
-            Modifier
-                .size(44.dp)
-                .clip(RoundedCornerShape(13.dp))
-                .background(bg),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(template.icon, fontFamily = PlexMono, fontSize = 17.sp, color = fg)
-        }
+        MonogramTile(
+            letter = monogramLetter(template.name),
+            colorKey = template.color ?: nameHashPaletteKey(template.id),
+            size = 44.dp,
+            cornerRadius = 13.dp,
+        )
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(
