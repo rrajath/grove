@@ -98,6 +98,15 @@ data class GroveSettings(
     val agendaWidgetTransparency: Float = 0f,
     /** How many days ahead the Agenda ledger widget shows, beyond Overdue/Today. */
     val agendaWidgetDaysAhead: Int = 14,
+    /**
+     * Notebooks screen: directory paths whose folder rows are expanded in the
+     * inline tree. Device-specific view state, like [onboardingDone] — deliberately
+     * left out of [com.rrajath.grove.settings.SettingsSerialization] and
+     * [applyImported].
+     */
+    val expandedFolders: Set<String> = emptySet(),
+    /** True once the first-open folder-expansion heuristic has run for this vault. */
+    val notebooksTreeDefaultsApplied: Boolean = false,
 ) {
     companion object {
         const val DEFAULT_TODO_KEYWORDS = "TODO IN-PROGRESS | DONE CANCELLED"
@@ -161,6 +170,8 @@ class SettingsRepository(private val context: Context) {
         val agendaShowFile = booleanPreferencesKey("agenda_show_file")
         val agendaWidgetTransparency = floatPreferencesKey("agenda_widget_transparency")
         val agendaWidgetDaysAhead = intPreferencesKey("agenda_widget_days_ahead")
+        val expandedFolders = stringPreferencesKey("expanded_folders")
+        val notebooksTreeDefaultsApplied = booleanPreferencesKey("notebooks_tree_defaults_applied")
     }
 
     val settings: Flow<GroveSettings> = context.settingsDataStore.data.map { prefs ->
@@ -214,8 +225,14 @@ class SettingsRepository(private val context: Context) {
             agendaShowFile = prefs[Keys.agendaShowFile] ?: false,
             agendaWidgetTransparency = prefs[Keys.agendaWidgetTransparency] ?: 0f,
             agendaWidgetDaysAhead = prefs[Keys.agendaWidgetDaysAhead] ?: GroveSettings.DEFAULT_AGENDA_WIDGET_DAYS_AHEAD,
+            expandedFolders = decodeFolderSet(prefs[Keys.expandedFolders]),
+            notebooksTreeDefaultsApplied = prefs[Keys.notebooksTreeDefaultsApplied] ?: false,
         )
     }
+
+    /** `;`-joined directory paths; `;` can't appear in a path, `/` is the separator. */
+    private fun decodeFolderSet(raw: String?): Set<String> =
+        raw?.split(';')?.filter { it.isNotEmpty() }?.toSet() ?: emptySet()
 
     private fun decodeTime(raw: String?): LocalTime =
         raw?.let { runCatching { LocalTime.parse(it) }.getOrNull() } ?: GroveSettings.DEFAULT_REMINDER_TIME
@@ -242,8 +259,9 @@ class SettingsRepository(private val context: Context) {
 
     /**
      * Bulk-write an imported settings document in one transaction. Leaves the
-     * device-specific vault URI and onboarding flag alone: those don't travel
-     * with an export (see [SettingsSerialization]).
+     * device-specific vault URI, onboarding flag, and Notebooks tree view state
+     * ([expandedFolders] / [notebooksTreeDefaultsApplied]) alone: those don't
+     * travel with an export (see [SettingsSerialization]).
      */
     suspend fun applyImported(s: GroveSettings) {
         context.settingsDataStore.edit { p ->
@@ -456,6 +474,28 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setAgendaWidgetDaysAhead(days: Int) {
         context.settingsDataStore.edit { it[Keys.agendaWidgetDaysAhead] = days.coerceAtLeast(2) }
+    }
+
+    /** Replace the whole expanded-folder set (expand-all / collapse-all). */
+    suspend fun setExpandedFolders(dirs: Set<String>) {
+        context.settingsDataStore.edit { it[Keys.expandedFolders] = dirs.joinToString(";") }
+    }
+
+    /** Flip one folder row's expansion state. */
+    suspend fun toggleExpandedFolder(dir: String) {
+        context.settingsDataStore.edit { prefs ->
+            val current = decodeFolderSet(prefs[Keys.expandedFolders]).toMutableSet()
+            if (!current.add(dir)) current.remove(dir)
+            prefs[Keys.expandedFolders] = current.joinToString(";")
+        }
+    }
+
+    /** First-open heuristic result: seed the expanded set and mark the pass done, in one write. */
+    suspend fun applyNotebooksTreeDefaults(expanded: Set<String>) {
+        context.settingsDataStore.edit {
+            it[Keys.expandedFolders] = expanded.joinToString(";")
+            it[Keys.notebooksTreeDefaultsApplied] = true
+        }
     }
 
     suspend fun setLastRefileTarget(fileName: String, headingPath: List<String>) {

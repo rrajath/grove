@@ -62,8 +62,14 @@ re-uploads the APKs to the existing release instead of failing.
 ### Added
 - The vault can now contain subfolders. Grove reads `.org` files from nested
   directories, not just the top level, and skips dot-directories like
-  Syncthing's `.stversions`. Folder-aware browsing on the Notebooks screen
-  lands in a following change.
+  Syncthing's `.stversions`.
+- The Notebooks screen shows nested folders as an inline tree. Folder rows
+  carry a colour dot, a recursive file/sub-folder count, and a warning glyph
+  when a file inside has a sync conflict; tapping one expands it in place.
+  A new top-bar button expands or collapses every folder at once, expansion is
+  remembered per folder, and on a vault's first open any folder holding a
+  scheduled or deadline task starts expanded. Pinned notebooks move to their
+  own strip above the tree.
 
 ## [1.0.5] - 2026-08-28
 

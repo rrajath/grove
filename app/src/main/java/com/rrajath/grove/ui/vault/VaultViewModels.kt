@@ -29,7 +29,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -38,6 +37,7 @@ import java.time.format.DateTimeFormatter
 import java.util.UUID
 
 data class NotebookItem(
+    /** Vault-relative path with `/` separators, e.g. `projects/clients/acme.org`. */
     val fileName: String,
     val noteCount: Int,
     val lastModified: Long,
@@ -46,18 +46,30 @@ data class NotebookItem(
     val color: String? = null,
     /** Position in the pinned list (0 = topmost). -1 means not pinned. */
     val pinnedIndex: Int = -1,
-    /** Label to show in the notebooks list: the file name or the cached `#+TITLE:`. */
+    /** Label to show in the notebooks list: the base file name or the cached `#+TITLE:`. */
     val displayName: String = fileName,
     /** False while this is a discovery stub whose content hasn't been parsed yet. */
     val isIndexed: Boolean = true,
 ) {
     val isPinned: Boolean get() = pinnedIndex >= 0
+
+    /** Parent directory of [fileName], or `""` for a root-level file. */
+    val dir: String get() = fileName.substringBeforeLast('/', "")
 }
 
 sealed class NotebooksUiState {
     data object NoVault : NotebooksUiState()
     data class Loaded(
+        /** Every notebook, flat and sorted — for the top-bar sync icon and the row dialogs. */
         val notebooks: List<NotebookItem>,
+        /** Pinned notebooks, pin order; rendered as a flat strip above the tree. */
+        val pinned: List<NotebookItem> = emptyList(),
+        /** The inline tree (variant 1a), flattened to display rows for the current expansion. */
+        val rows: List<NotebookTreeRow> = emptyList(),
+        /** True when the tree contains at least one folder (gates the expand/collapse-all button). */
+        val hasFolders: Boolean = false,
+        /** True when no folder is expanded (picks the expand-all vs collapse-all icon). */
+        val allFoldersCollapsed: Boolean = true,
         val syncState: SyncState,
         val lastSyncAt: Long?,
         /** Reminders waiting on POST_NOTIFICATIONS/exact-alarm access (permission banner). */
@@ -69,60 +81,101 @@ sealed class NotebooksUiState {
 
 class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
 
+    private data class TreeInputs(
+        val items: List<NotebookItem>,
+        val showFileIcons: Boolean,
+        val expandedFolders: Set<String>,
+    )
+
     // Built separately from the sync banner inputs: syncManager.state ticks once
-    // per pulled file during a sync, and must not re-map/re-sort the whole list.
-    private val notebookItems = combine(
+    // per pulled file during a sync, and must not re-map/re-group the whole tree.
+    private val treeInputs = combine(
         app.vault,
         app.database.indexDao().notebooksFlow(),
         app.settingsRepository.settings,
     ) { vault, notebooks, settings ->
-        if (vault == null) null else notebooks
-            .map {
-                NotebookItem(
-                    fileName = it.fileName,
-                    noteCount = it.noteCount,
-                    lastModified = it.lastModified,
-                    hasConflict = it.conflictFileName != null,
-                    color = settings.notebookColors[it.fileName],
-                    pinnedIndex = settings.pinnedNotebooks.indexOf(it.fileName),
-                    displayName = if (
-                        settings.notebookDisplayNameMode == NotebookDisplayNameMode.TITLE &&
-                        !it.title.isNullOrBlank()
-                    ) it.title else it.fileName,
-                    isIndexed = it.isIndexed,
-                )
-            }
-            .sortedWith(
-                compareBy<NotebookItem> { if (it.isPinned) it.pinnedIndex else Int.MAX_VALUE }
-                    .thenBy { it.displayName.lowercase() }
+        if (vault == null) return@combine null
+        val items = notebooks.map {
+            NotebookItem(
+                fileName = it.fileName,
+                noteCount = it.noteCount,
+                lastModified = it.lastModified,
+                hasConflict = it.conflictFileName != null,
+                color = settings.notebookColors[it.fileName],
+                pinnedIndex = settings.pinnedNotebooks.indexOf(it.fileName),
+                displayName = if (
+                    settings.notebookDisplayNameMode == NotebookDisplayNameMode.TITLE &&
+                    !it.title.isNullOrBlank()
+                ) it.title else it.fileName.substringAfterLast('/'),
+                isIndexed = it.isIndexed,
             )
+        }
+        TreeInputs(items, settings.showNotebookFileIcons, settings.expandedFolders)
     }.distinctUntilChanged()
 
-    private val showFileIcons = app.settingsRepository.settings
-        .map { it.showNotebookFileIcons }
-        .distinctUntilChanged()
-
     val state: StateFlow<NotebooksUiState> = combine(
-        notebookItems,
+        treeInputs,
         app.syncManager.state,
         app.syncManager.lastResult,
         app.database.reminderDao().pendingCountFlow(System.currentTimeMillis()),
-        showFileIcons,
-    ) { notebooks, syncState, lastResult, remindersPending, showFileIcons ->
-        if (notebooks == null) {
+    ) { inputs, syncState, lastResult, remindersPending ->
+        if (inputs == null) {
             NotebooksUiState.NoVault
         } else {
+            val flat = inputs.items.sortedWith(
+                compareBy<NotebookItem> { if (it.isPinned) it.pinnedIndex else Int.MAX_VALUE }
+                    .thenBy { it.displayName.lowercase() }
+            )
+            val pinned = inputs.items.filter { it.isPinned }.sortedBy { it.pinnedIndex }
+            val pinnedPaths = pinned.mapTo(mutableSetOf()) { it.fileName }
+            val treeItems = inputs.items.filterNot { it.fileName in pinnedPaths }
+            val folderDirs = allFolderDirs(treeItems)
             NotebooksUiState.Loaded(
-                notebooks = notebooks,
+                notebooks = flat,
+                pinned = pinned,
+                rows = buildNotebookTree(treeItems, inputs.expandedFolders),
+                hasFolders = folderDirs.isNotEmpty(),
+                allFoldersCollapsed = folderDirs.none { it in inputs.expandedFolders },
                 syncState = syncState,
                 lastSyncAt = lastResult?.completedAt,
                 remindersPendingPermission = remindersPending,
-                showFileIcons = showFileIcons,
+                showFileIcons = inputs.showFileIcons,
             )
         }
     }.stateIn(viewModelScope, SharingStarted.Eagerly, NotebooksUiState.NoVault)
 
+    init {
+        // First open of a vault: expand every folder that recursively contains a
+        // SCHEDULED/DEADLINE note, collapse the rest, then never re-run (a vault
+        // that starts fully collapsed reads as empty). Waits for the index to
+        // hold something so a pre-first-sync launch doesn't stamp an empty set.
+        viewModelScope.launch {
+            if (app.settingsRepository.settings.first().notebooksTreeDefaultsApplied) return@launch
+            app.database.indexDao().notebooksFlow().first { it.isNotEmpty() }
+            val planned = app.database.indexDao().plannedNotes().first()
+            app.settingsRepository.applyNotebooksTreeDefaults(
+                firstOpenExpandedDirs(planned.map { it.fileName })
+            )
+        }
+    }
+
     fun requestSync() = app.syncManager.requestSync("manual")
+
+    /** Folder row tap: flip that folder's expansion state (persisted for process-death survival). */
+    fun toggleFolder(dir: String) {
+        viewModelScope.launch { app.settingsRepository.toggleExpandedFolder(dir) }
+    }
+
+    /** Top-bar expand/collapse-all: [expand] every folder in the current tree, or none. */
+    fun setAllFoldersExpanded(expand: Boolean) {
+        val loaded = state.value as? NotebooksUiState.Loaded ?: return
+        val dirs = if (expand) {
+            allFolderDirs(loaded.notebooks.filterNot { it.isPinned })
+        } else {
+            emptySet()
+        }
+        viewModelScope.launch { app.settingsRepository.setExpandedFolders(dirs) }
+    }
 
     fun saveVaultUri(uri: String) {
         viewModelScope.launch {
