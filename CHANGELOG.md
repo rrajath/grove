@@ -59,6 +59,8 @@ re-uploads the APKs to the existing release instead of failing.
 
 ## [Unreleased]
 
+## [1.0.5] - 2026-08-28
+
 ### Fixed
 - Read mode no longer hangs for a few seconds when opening a heading with a
   large or deeply-nested subtree, and scrolling such a note is smooth again.
