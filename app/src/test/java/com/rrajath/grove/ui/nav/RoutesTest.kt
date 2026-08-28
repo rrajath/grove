@@ -1,5 +1,6 @@
 package com.rrajath.grove.ui.nav
 
+import com.rrajath.grove.ui.vault.NoteRef
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Test
@@ -42,6 +43,44 @@ class RoutesTest {
             }
         }
         return bytes.toByteArray().toString(Charsets.UTF_8)
+    }
+
+    @Test
+    fun `nested notebook path round-trips through the outline path arg`() {
+        // The vault is a tree now: ids like "projects/clients/acme.org" flow
+        // through outline/{notebookId}. Every "/" must survive as %2F and come
+        // back intact through androidx.navigation's Uri.decode.
+        val id = "projects/clients/acme.org"
+        val route = Routes.outline(id)
+        assertEquals("outline/projects%2Fclients%2Facme.org", route)
+        assertFalse(route.removePrefix("outline/").contains('/'))
+        assertEquals(id, uriStyleDecode(route.removePrefix("outline/")))
+    }
+
+    @Test
+    fun `nested note composite round-trips and NoteRef decodes it`() {
+        val noteId = "projects/clients/acme.org@42"
+        val route = Routes.note(noteId)
+        assertEquals("note/projects%2Fclients%2Facme.org%4042?mode=read&isNew=false", route)
+
+        val arg = route.removePrefix("note/").substringBefore('?')
+        val decodedArg = uriStyleDecode(arg)
+        assertEquals(noteId, decodedArg)
+
+        val ref = NoteRef.decode(decodedArg)!!
+        assertEquals("projects/clients/acme.org", ref.fileName)
+        assertEquals(42, ref.lineIndex)
+    }
+
+    @Test
+    fun `nested note composite with a custom id round-trips`() {
+        val noteId = "a/b/c.org@7#my-heading"
+        val decodedArg = uriStyleDecode(Routes.note(noteId).removePrefix("note/").substringBefore('?'))
+        assertEquals(noteId, decodedArg)
+        val ref = NoteRef.decode(decodedArg)!!
+        assertEquals("a/b/c.org", ref.fileName)
+        assertEquals(7, ref.lineIndex)
+        assertEquals("my-heading", ref.customId)
     }
 
     @Test

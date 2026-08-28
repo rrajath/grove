@@ -33,9 +33,19 @@ fun vaultPath(dir: String, name: String): String =
  * case-insensitively since providers don't agree on casing. Pure Kotlin so
  * this is JVM-unit-testable independent of the Uri/ContentResolver plumbing
  * that resolves [requestedFileName] on the Android side.
+ *
+ * Now that the vault is a tree, [requestedFileName] (usually a bare name from a
+ * foreign provider) can match several notebooks in different folders. Order of
+ * preference: an exact vault-relative-path match, then a unique basename match,
+ * then — if the basename is ambiguous — the first such notebook in list order.
  */
-fun matchOpenedFileToNotebook(requestedFileName: String, notebooks: List<Notebook>): Notebook? =
-    notebooks.firstOrNull { it.fileName.equals(requestedFileName, ignoreCase = true) }
+fun matchOpenedFileToNotebook(requestedFileName: String, notebooks: List<Notebook>): Notebook? {
+    notebooks.firstOrNull { it.fileName.equals(requestedFileName, ignoreCase = true) }?.let { return it }
+    val wantedBase = requestedFileName.substringAfterLast('/')
+    return notebooks.firstOrNull {
+        it.fileName.substringAfterLast('/').equals(wantedBase, ignoreCase = true)
+    }
+}
 
 /**
  * Vault facade over a [FileStore]: lists notebooks (applying ignore rules),

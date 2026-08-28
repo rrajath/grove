@@ -39,4 +39,30 @@ class MatchOpenedFileToNotebookTest {
     fun `returns null when the file is not in the vault`() {
         assertNull(matchOpenedFileToNotebook("elsewhere.org", notebooks))
     }
+
+    @Test
+    fun `matches a bare name against a notebook nested in a folder`() {
+        val nested = listOf(
+            Notebook("projects/clients/acme.org", noteCount = 1, lastModified = 0L),
+        )
+        assertEquals("projects/clients/acme.org", matchOpenedFileToNotebook("acme.org", nested)?.fileName)
+    }
+
+    @Test
+    fun `prefers an exact path match over a basename match elsewhere`() {
+        val nested = listOf(
+            Notebook("archive/acme.org", noteCount = 1, lastModified = 0L),
+            Notebook("acme.org", noteCount = 1, lastModified = 0L),
+        )
+        assertEquals("acme.org", matchOpenedFileToNotebook("acme.org", nested)?.fileName)
+    }
+
+    @Test
+    fun `an ambiguous basename resolves to the first notebook in list order`() {
+        val nested = listOf(
+            Notebook("work/acme.org", noteCount = 1, lastModified = 0L),
+            Notebook("personal/acme.org", noteCount = 1, lastModified = 0L),
+        )
+        assertEquals("work/acme.org", matchOpenedFileToNotebook("acme.org", nested)?.fileName)
+    }
 }
