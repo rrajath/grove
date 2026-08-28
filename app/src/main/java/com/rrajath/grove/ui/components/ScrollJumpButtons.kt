@@ -17,11 +17,13 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -30,6 +32,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.rrajath.grove.ui.theme.grove
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 /**
@@ -62,10 +65,13 @@ fun ScrollJumpButtons(
     modifier: Modifier = Modifier,
     minScrollDeltaPx: Float = 0f,
 ) {
-    val hasOverflow = scrollState.maxValue > 0
-    val visible = rememberScrollOffsetActivityVisible(scrollState.value, minScrollDeltaPx)
-    val atTop = scrollState.value <= 0
-    val atBottom = scrollState.value >= scrollState.maxValue
+    // Read scroll position through derivedStateOf so this composable only
+    // recomposes when one of these booleans actually flips, not on every
+    // scrolled pixel (Android Lint: FrequentlyChangingValue).
+    val hasOverflow by remember(scrollState) { derivedStateOf { scrollState.maxValue > 0 } }
+    val atTop by remember(scrollState) { derivedStateOf { scrollState.value <= 0 } }
+    val atBottom by remember(scrollState) { derivedStateOf { scrollState.value >= scrollState.maxValue } }
+    val visible = rememberScrollOffsetActivityVisible(scrollState, minScrollDeltaPx)
     val scope = rememberCoroutineScope()
 
     ScrollJumpButtonsRow(
@@ -85,8 +91,7 @@ fun ScrollJumpButtons(
     modifier: Modifier = Modifier,
 ) {
     val hasOverflow = listState.canScrollForward || listState.canScrollBackward
-    val positionKey = listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset
-    val visible = rememberScrollActivityVisible(positionKey)
+    val visible = rememberScrollActivityVisible(listState)
     val atTop = !listState.canScrollBackward
     val atBottom = !listState.canScrollForward
     val scope = rememberCoroutineScope()
@@ -108,23 +113,29 @@ fun ScrollJumpButtons(
 
 /**
  * Tracks whether jump buttons should be visible based on scroll activity: becomes
- * true the moment [positionKey] changes (i.e. the user scrolled), then flips back
- * to false after 3 seconds without further changes. Does not show on first
- * composition; only once actual scroll movement is observed.
+ * true the moment [listState]'s first-visible position changes (i.e. the user
+ * scrolled), then flips back to false after 3 seconds without further changes.
+ * Does not show on first composition; only once actual scroll movement is
+ * observed. The position is watched via [snapshotFlow] inside the effect rather
+ * than read in composition, so a scroll doesn't recompose the caller every frame
+ * (Android Lint: FrequentlyChangingValue).
  */
 @Composable
-private fun <T> rememberScrollActivityVisible(positionKey: T): Boolean {
+private fun rememberScrollActivityVisible(listState: LazyListState): Boolean {
     var visible by remember { mutableStateOf(false) }
-    var previous by remember { mutableStateOf<T?>(null) }
 
-    LaunchedEffect(positionKey) {
-        val prior = previous
-        if (prior != null && prior != positionKey) {
-            visible = true
-        }
-        previous = positionKey
-        delay(3000)
-        visible = false
+    LaunchedEffect(listState) {
+        var previous: Pair<Int, Int>? = null
+        snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
+            .collectLatest { positionKey ->
+                val prior = previous
+                if (prior != null && prior != positionKey) {
+                    visible = true
+                }
+                previous = positionKey
+                delay(3000)
+                visible = false
+            }
     }
 
     return visible
@@ -132,29 +143,33 @@ private fun <T> rememberScrollActivityVisible(positionKey: T): Boolean {
 
 /**
  * Like [rememberScrollActivityVisible], but only flips to visible once
- * [offsetPx] has drifted more than [minDeltaPx] away from wherever it last
- * settled: small back-and-forth jitter (e.g. the cursor-follow scroll while
- * typing) never crosses that threshold, so it doesn't flash the buttons.
+ * [scrollState]'s offset has drifted more than [minDeltaPx] away from wherever
+ * it last settled: small back-and-forth jitter (e.g. the cursor-follow scroll
+ * while typing) never crosses that threshold, so it doesn't flash the buttons.
  * Once visible, any further movement keeps it up and resets the idle timer,
  * same as the plain scroll-activity tracker; the baseline resets to the
- * current offset each time it goes idle again.
+ * current offset each time it goes idle again. The offset is watched via
+ * [snapshotFlow] inside the effect rather than read in composition, so a scroll
+ * doesn't recompose the caller every frame (Android Lint: FrequentlyChangingValue).
  */
 @Composable
-private fun rememberScrollOffsetActivityVisible(offsetPx: Int, minDeltaPx: Float): Boolean {
+private fun rememberScrollOffsetActivityVisible(scrollState: ScrollState, minDeltaPx: Float): Boolean {
     var visible by remember { mutableStateOf(false) }
-    var baseline by remember { mutableStateOf<Int?>(null) }
 
-    LaunchedEffect(offsetPx) {
-        val base = baseline
-        if (base == null) {
-            baseline = offsetPx
-        } else if (!visible && kotlin.math.abs(offsetPx - base) > minDeltaPx) {
-            visible = true
-        }
-        if (visible) {
-            delay(3000)
-            visible = false
-            baseline = offsetPx
+    LaunchedEffect(scrollState, minDeltaPx) {
+        var baseline: Int? = null
+        snapshotFlow { scrollState.value }.collectLatest { offsetPx ->
+            val base = baseline
+            if (base == null) {
+                baseline = offsetPx
+            } else if (!visible && kotlin.math.abs(offsetPx - base) > minDeltaPx) {
+                visible = true
+            }
+            if (visible) {
+                delay(3000)
+                visible = false
+                baseline = offsetPx
+            }
         }
     }
 
