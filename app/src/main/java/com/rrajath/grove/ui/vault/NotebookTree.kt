@@ -34,6 +34,13 @@ data class FolderNode(
     val hasConflictDescendant: Boolean,
 )
 
+/**
+ * A folder whose recursive `.org` count is over this becomes a drill target on
+ * the inline tree (variant 1b): tapping its row pushes the drill-down view
+ * instead of expanding it in place (nested-folders plan §5).
+ */
+const val FOLDER_DRILL_THRESHOLD = 20
+
 /** A single flattened display row: either a folder header or a file. */
 sealed interface NotebookTreeRow {
     /** 0 for a root file, 1 for a top-level folder or a file one level deep, ... */
@@ -105,6 +112,32 @@ fun buildNotebookTree(items: List<NotebookItem>, expanded: Set<String>): List<No
 
     emitLevel("")
     return rows
+}
+
+/**
+ * One directory's contents for the drill-down view (variant 1b): its immediate
+ * child folders and the `.org` files that live directly in it, each sorted
+ * folders-first-then-files exactly as the inline tree sorts a level. Rows never
+ * indent in 1b, so no depth is carried.
+ */
+data class DrillLevel(
+    val dir: String,
+    val childFolders: List<FolderNode>,
+    val files: List<NotebookItem>,
+)
+
+/** Build the [DrillLevel] for [dir] (`""` = the vault root) from the flat [items]. */
+fun drillLevel(items: List<NotebookItem>, dir: String): DrillLevel {
+    val nodes = buildFolderNodes(items)
+    return DrillLevel(
+        dir = dir,
+        childFolders = nodes.values
+            .filter { parentOf(it.dir) == dir }
+            .sortedBy { it.name.lowercase() },
+        files = items
+            .filter { it.dir == dir }
+            .sortedBy { it.displayName.lowercase() },
+    )
 }
 
 /**

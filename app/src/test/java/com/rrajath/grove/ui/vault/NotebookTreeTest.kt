@@ -150,6 +150,44 @@ class NotebookTreeTest {
     }
 
     @Test
+    fun `drillLevel returns a directory's own sub-folders and files, folders-first alphabetical`() {
+        val root = drillLevel(vault, "")
+        assertEquals(listOf("archive", "areas", "projects"), root.childFolders.map { it.name })
+        assertEquals(listOf("inbox.org", "journal.org", "recipes.org"), root.files.map { it.fileName })
+
+        val projects = drillLevel(vault, "projects")
+        assertEquals(listOf("clients"), projects.childFolders.map { it.name })
+        assertEquals(
+            listOf("projects/grove.org", "projects/website.org"),
+            projects.files.map { it.fileName },
+        )
+
+        val clients = drillLevel(vault, "projects/clients")
+        assertTrue(clients.childFolders.isEmpty())
+        assertEquals(
+            listOf("projects/clients/acme.org", "projects/clients/northwind.org"),
+            clients.files.map { it.fileName },
+        )
+    }
+
+    @Test
+    fun `drillLevel sub-folder nodes keep their recursive counts for the drill affordance`() {
+        val projects = drillLevel(vault, "projects").childFolders.single()
+        assertEquals("projects/clients", projects.dir)
+        assertEquals(2, projects.recursiveOrgCount)
+    }
+
+    @Test
+    fun `only a folder over the drill threshold is a drill target`() {
+        val big = (1..FOLDER_DRILL_THRESHOLD + 1).map { item("archive/note$it.org") }
+        val node = buildFolderNodes(big).getValue("archive")
+        assertTrue(node.recursiveOrgCount > FOLDER_DRILL_THRESHOLD)
+
+        val small = (1..FOLDER_DRILL_THRESHOLD).map { item("areas/note$it.org") }
+        assertFalse(buildFolderNodes(small).getValue("areas").recursiveOrgCount > FOLDER_DRILL_THRESHOLD)
+    }
+
+    @Test
     fun `a flat vault with no folders produces only file rows`() {
         val flat = listOf(item("a.org"), item("b.org"))
         val rows = buildNotebookTree(flat, expanded = emptySet())

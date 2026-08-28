@@ -1,5 +1,7 @@
 package com.rrajath.grove.ui.vault
 
+import android.net.Uri
+import android.provider.DocumentsContract
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -36,6 +38,22 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.UUID
 
+/**
+ * The vault folder's own name, from its SAF tree URI — e.g. a URI whose tree
+ * document id is `primary:Documents/org` yields `org`. Used as the breadcrumb
+ * root in the drill-down view; falls back to "Notebooks" when there's no vault
+ * or the id can't be read.
+ */
+private fun vaultDisplayName(treeUri: String?): String {
+    if (treeUri.isNullOrEmpty()) return "Notebooks"
+    return runCatching {
+        DocumentsContract.getTreeDocumentId(Uri.parse(treeUri))
+            .substringAfterLast('/')
+            .substringAfterLast(':')
+            .ifEmpty { "Notebooks" }
+    }.getOrDefault("Notebooks")
+}
+
 data class NotebookItem(
     /** Vault-relative path with `/` separators, e.g. `projects/clients/acme.org`. */
     val fileName: String,
@@ -70,6 +88,8 @@ sealed class NotebooksUiState {
         val hasFolders: Boolean = false,
         /** True when no folder is expanded (picks the expand-all vs collapse-all icon). */
         val allFoldersCollapsed: Boolean = true,
+        /** The vault folder's own display name — the breadcrumb root in the drill-down view (1b). */
+        val vaultDisplayName: String = "Notebooks",
         val syncState: SyncState,
         val lastSyncAt: Long?,
         /** Reminders waiting on POST_NOTIFICATIONS/exact-alarm access (permission banner). */
@@ -85,6 +105,7 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
         val items: List<NotebookItem>,
         val showFileIcons: Boolean,
         val expandedFolders: Set<String>,
+        val vaultDisplayName: String,
     )
 
     // Built separately from the sync banner inputs: syncManager.state ticks once
@@ -110,7 +131,12 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
                 isIndexed = it.isIndexed,
             )
         }
-        TreeInputs(items, settings.showNotebookFileIcons, settings.expandedFolders)
+        TreeInputs(
+            items,
+            settings.showNotebookFileIcons,
+            settings.expandedFolders,
+            vaultDisplayName(settings.vaultTreeUri),
+        )
     }.distinctUntilChanged()
 
     val state: StateFlow<NotebooksUiState> = combine(
@@ -136,6 +162,7 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
                 rows = buildNotebookTree(treeItems, inputs.expandedFolders),
                 hasFolders = folderDirs.isNotEmpty(),
                 allFoldersCollapsed = folderDirs.none { it in inputs.expandedFolders },
+                vaultDisplayName = inputs.vaultDisplayName,
                 syncState = syncState,
                 lastSyncAt = lastResult?.completedAt,
                 remindersPendingPermission = remindersPending,

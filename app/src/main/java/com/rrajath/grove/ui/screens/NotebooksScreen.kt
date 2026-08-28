@@ -3,11 +3,14 @@ package com.rrajath.grove.ui.screens
 import android.content.Intent
 import android.text.format.DateUtils
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,6 +29,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
@@ -52,6 +56,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -79,9 +84,11 @@ import com.rrajath.grove.ui.components.searchIcon
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
+import com.rrajath.grove.ui.vault.FOLDER_DRILL_THRESHOLD
 import com.rrajath.grove.ui.vault.FolderNode
 import com.rrajath.grove.ui.vault.NotebookItem
 import com.rrajath.grove.ui.vault.NotebookTreeRow
+import com.rrajath.grove.ui.vault.drillLevel
 import com.rrajath.grove.ui.vault.NotebooksUiState
 import com.rrajath.grove.ui.vault.NotebooksViewModel
 
@@ -102,6 +109,15 @@ fun NotebooksScreen(
     var showCreateDialog by remember { mutableStateOf(false) }
     var renameTarget by remember { mutableStateOf<String?>(null) }
     var styleTarget by remember { mutableStateOf<String?>(null) }
+    // Drill-down view (variant 1b): the folder currently being browsed as a full
+    // screen, or null for the inline tree. A folder with more than
+    // FOLDER_DRILL_THRESHOLD files opens here instead of expanding in place.
+    var drillDir by rememberSaveable { mutableStateOf<String?>(null) }
+    fun drillUp() {
+        drillDir = drillDir?.substringBeforeLast('/', "")?.ifEmpty { null }
+    }
+
+    BackHandler(enabled = drillDir != null) { drillUp() }
 
     val folderPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocumentTree()
@@ -118,57 +134,84 @@ fun NotebooksScreen(
     Scaffold(
         containerColor = c.bg,
         topBar = {
-            GroveTopBar(
-                leading = { IconGlyph("☰", onClick = onOpenDrawer) },
-                title = {
-                    Text(
-                        "Notebooks",
-                        style = MaterialTheme.typography.titleLarge,
-                        color = c.ink,
-                        modifier = Modifier.padding(start = 4.dp),
-                    )
-                },
-                actions = {
-                    val loadedState = state as? NotebooksUiState.Loaded
-                    if (loadedState != null) {
-                        IconGlyph("＋", onClick = { showCreateDialog = true })
-                        if (loadedState.hasFolders) {
-                            IconGlyph(
-                                if (loadedState.allFoldersCollapsed) Icons.Default.UnfoldMore
-                                else Icons.Default.UnfoldLess,
-                                contentDescription = if (loadedState.allFoldersCollapsed) {
-                                    "Expand all folders"
-                                } else {
-                                    "Collapse all folders"
-                                },
-                                onClick = {
-                                    viewModel.setAllFoldersExpanded(loadedState.allFoldersCollapsed)
-                                },
-                            )
+            val loadedState = state as? NotebooksUiState.Loaded
+            val currentDrill = drillDir
+            if (loadedState != null && currentDrill != null) {
+                GroveTopBar(
+                    leading = { IconGlyph("←", onClick = { drillUp() }) },
+                    title = {
+                        Text(
+                            currentDrill.substringAfterLast('/'),
+                            style = MaterialTheme.typography.titleLarge,
+                            color = c.ink,
+                            modifier = Modifier.padding(start = 4.dp),
+                        )
+                    },
+                    subtitle = {
+                        Breadcrumb(
+                            vaultName = loadedState.vaultDisplayName,
+                            dir = currentDrill,
+                            onExit = { drillDir = null },
+                            onNavigate = { drillDir = it },
+                        )
+                    },
+                )
+            } else {
+                GroveTopBar(
+                    leading = { IconGlyph("☰", onClick = onOpenDrawer) },
+                    title = {
+                        Text(
+                            "Notebooks",
+                            style = MaterialTheme.typography.titleLarge,
+                            color = c.ink,
+                            modifier = Modifier.padding(start = 4.dp),
+                        )
+                    },
+                    actions = {
+                        if (loadedState != null) {
+                            IconGlyph("＋", onClick = { showCreateDialog = true })
+                            if (loadedState.hasFolders) {
+                                IconGlyph(
+                                    if (loadedState.allFoldersCollapsed) Icons.Default.UnfoldMore
+                                    else Icons.Default.UnfoldLess,
+                                    contentDescription = if (loadedState.allFoldersCollapsed) {
+                                        "Expand all folders"
+                                    } else {
+                                        "Collapse all folders"
+                                    },
+                                    onClick = {
+                                        viewModel.setAllFoldersExpanded(loadedState.allFoldersCollapsed)
+                                    },
+                                )
+                            }
+                            SyncStatusIcon(loadedState, context)
                         }
-                        SyncStatusIcon(loadedState, context)
-                    }
-                    IconGlyph(searchIcon(), contentDescription = "Search", onClick = onOpenSearch)
-                },
-            )
+                        IconGlyph(searchIcon(), contentDescription = "Search", onClick = onOpenSearch)
+                    },
+                )
+            }
         },
         floatingActionButton = {
-            Row(
-                Modifier
-                    .height(54.dp)
-                    .clip(RoundedCornerShape(17.dp))
-                    .background(c.accent)
-                    .clickable(onClick = onOpenCapture)
-                    .padding(horizontal = 20.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text("+", fontFamily = PlexSans, fontSize = 21.sp, color = c.accentInk)
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    "Capture",
-                    fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
-                    fontSize = 15.sp, color = c.accentInk,
-                )
+            // The Capture FAB belongs to the tree view; the drill-down is a
+            // navigation surface, so it hides while browsing a folder.
+            if (drillDir == null) {
+                Row(
+                    Modifier
+                        .height(54.dp)
+                        .clip(RoundedCornerShape(17.dp))
+                        .background(c.accent)
+                        .clickable(onClick = onOpenCapture)
+                        .padding(horizontal = 20.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text("+", fontFamily = PlexSans, fontSize = 21.sp, color = c.accentInk)
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        "Capture",
+                        fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
+                        fontSize = 15.sp, color = c.accentInk,
+                    )
+                }
             }
         },
     ) { padding ->
@@ -184,74 +227,112 @@ fun NotebooksScreen(
 
                 is NotebooksUiState.Loaded -> {
                     ReminderPermissionBanner(pendingCount = s.remindersPendingPermission)
-                    val isRefreshing = s.syncState is SyncState.Checking || s.syncState is SyncState.Pulling
-                    PullToRefreshBox(
-                        isRefreshing = isRefreshing,
-                        onRefresh = { viewModel.requestSync() },
-                        modifier = Modifier.fillMaxSize(),
-                    ) {
-                        if (s.notebooks.isEmpty()) {
-                            CenterMessage("✦", "No .org files here yet", "Capture a note or create a notebook with ＋")
-                        } else {
-                            val listState = rememberLazyListState()
-                            Box(Modifier.fillMaxSize()) {
-                                LazyColumn(
-                                    state = listState,
-                                    modifier = Modifier.fillMaxSize().testTag("notebooks_list"),
-                                    // Bottom inset so the last row scrolls clear of
-                                    // the FAB instead of sitting underneath it.
-                                    contentPadding = PaddingValues(bottom = 86.dp),
-                                ) {
-                                    @Composable
-                                    fun fileRow(nb: NotebookItem, depth: Int, showPath: Boolean) {
-                                        FileRow(
-                                            notebook = nb,
-                                            showFileIcon = s.showFileIcons,
-                                            depth = depth,
-                                            showPathSubtitle = showPath,
-                                            onClick = { onOpenNotebook(nb.fileName) },
-                                            onOpenConflict = { onOpenConflict(nb.fileName) },
-                                            onRename = { renameTarget = nb.fileName },
-                                            onChangeIcon = { styleTarget = nb.fileName },
-                                            onDelete = { viewModel.trashNotebook(nb.fileName) },
-                                            onForceReload = { viewModel.forceReload(nb.fileName) },
-                                            onPin = { viewModel.pinNotebook(nb.fileName) },
-                                            onUnpin = { viewModel.unpinNotebook(nb.fileName) },
-                                        )
-                                    }
 
-                                    if (s.pinned.isNotEmpty()) {
-                                        item(key = "strip:pinned") { StripLabel("Pinned") }
-                                        items(s.pinned, key = { "pin:${it.fileName}" }) { nb ->
-                                            fileRow(nb, depth = 0, showPath = true)
-                                        }
-                                    }
-                                    items(
-                                        s.rows,
-                                        key = { row ->
-                                            when (row) {
-                                                is NotebookTreeRow.Folder -> "dir:${row.node.dir}"
-                                                is NotebookTreeRow.File -> "file:${row.item.fileName}"
-                                            }
-                                        },
-                                    ) { row ->
-                                        when (row) {
-                                            is NotebookTreeRow.Folder -> FolderRow(
-                                                node = row.node,
-                                                expanded = row.expanded,
-                                                onToggle = { viewModel.toggleFolder(row.node.dir) },
-                                            )
-                                            is NotebookTreeRow.File ->
-                                                fileRow(row.item, row.depth, showPath = false)
-                                        }
-                                    }
+                    @Composable
+                    fun fileRow(nb: NotebookItem, depth: Int, showPath: Boolean, flat: Boolean = false) {
+                        FileRow(
+                            notebook = nb,
+                            showFileIcon = s.showFileIcons,
+                            depth = depth,
+                            showPathSubtitle = showPath,
+                            flat = flat,
+                            onClick = { onOpenNotebook(nb.fileName) },
+                            onOpenConflict = { onOpenConflict(nb.fileName) },
+                            onRename = { renameTarget = nb.fileName },
+                            onChangeIcon = { styleTarget = nb.fileName },
+                            onDelete = { viewModel.trashNotebook(nb.fileName) },
+                            onForceReload = { viewModel.forceReload(nb.fileName) },
+                            onPin = { viewModel.pinNotebook(nb.fileName) },
+                            onUnpin = { viewModel.unpinNotebook(nb.fileName) },
+                        )
+                    }
+
+                    val currentDrill = drillDir
+                    if (currentDrill != null) {
+                        // Variant 1b: one folder as a full screen, rows never indent.
+                        val level = remember(s.notebooks, currentDrill) {
+                            drillLevel(s.notebooks, currentDrill)
+                        }
+                        if (level.childFolders.isEmpty() && level.files.isEmpty()) {
+                            CenterMessage("✦", "Nothing in this folder yet")
+                        } else {
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize().testTag("notebooks_drill_list"),
+                                contentPadding = PaddingValues(top = 4.dp, bottom = 24.dp),
+                            ) {
+                                items(level.childFolders, key = { "dir:${it.dir}" }) { node ->
+                                    FolderRow(
+                                        node = node,
+                                        expanded = false,
+                                        flat = true,
+                                        onClick = { drillDir = node.dir },
+                                    )
                                 }
-                                ScrollJumpButtons(
-                                    listState = listState,
-                                    modifier = Modifier
-                                        .align(Alignment.BottomEnd)
-                                        .padding(bottom = 86.dp, end = 16.dp),
-                                )
+                                items(level.files, key = { "file:${it.fileName}" }) { nb ->
+                                    fileRow(nb, depth = 0, showPath = false, flat = true)
+                                }
+                            }
+                        }
+                    } else {
+                        val isRefreshing = s.syncState is SyncState.Checking || s.syncState is SyncState.Pulling
+                        PullToRefreshBox(
+                            isRefreshing = isRefreshing,
+                            onRefresh = { viewModel.requestSync() },
+                            modifier = Modifier.fillMaxSize(),
+                        ) {
+                            if (s.notebooks.isEmpty()) {
+                                CenterMessage("✦", "No .org files here yet", "Capture a note or create a notebook with ＋")
+                            } else {
+                                val listState = rememberLazyListState()
+                                Box(Modifier.fillMaxSize()) {
+                                    LazyColumn(
+                                        state = listState,
+                                        modifier = Modifier.fillMaxSize().testTag("notebooks_list"),
+                                        // Bottom inset so the last row scrolls clear of
+                                        // the FAB instead of sitting underneath it.
+                                        contentPadding = PaddingValues(bottom = 86.dp),
+                                    ) {
+                                        if (s.pinned.isNotEmpty()) {
+                                            item(key = "strip:pinned") { StripLabel("Pinned") }
+                                            items(s.pinned, key = { "pin:${it.fileName}" }) { nb ->
+                                                fileRow(nb, depth = 0, showPath = true)
+                                            }
+                                        }
+                                        items(
+                                            s.rows,
+                                            key = { row ->
+                                                when (row) {
+                                                    is NotebookTreeRow.Folder -> "dir:${row.node.dir}"
+                                                    is NotebookTreeRow.File -> "file:${row.item.fileName}"
+                                                }
+                                            },
+                                        ) { row ->
+                                            when (row) {
+                                                is NotebookTreeRow.Folder -> {
+                                                    val drillTarget =
+                                                        row.node.recursiveOrgCount > FOLDER_DRILL_THRESHOLD
+                                                    FolderRow(
+                                                        node = row.node,
+                                                        expanded = row.expanded,
+                                                        chevron = drillTarget,
+                                                        onClick = {
+                                                            if (drillTarget) drillDir = row.node.dir
+                                                            else viewModel.toggleFolder(row.node.dir)
+                                                        },
+                                                    )
+                                                }
+                                                is NotebookTreeRow.File ->
+                                                    fileRow(row.item, row.depth, showPath = false)
+                                            }
+                                        }
+                                    }
+                                    ScrollJumpButtons(
+                                        listState = listState,
+                                        modifier = Modifier
+                                            .align(Alignment.BottomEnd)
+                                            .padding(bottom = 86.dp, end = 16.dp),
+                                    )
+                                }
                             }
                         }
                     }
@@ -414,41 +495,109 @@ private fun StripLabel(text: String) {
 }
 
 /**
- * A folder row in the inline tree (variant 1a): rotating caret, a 34dp tile
- * holding a small square of the folder's derived palette colour (no letter), the
- * folder name, a recursive-count meta line, and — where a descendant file has a
- * sync conflict — a non-interactive amber warning glyph on the right.
+ * Drill-down breadcrumb (variant 1b): the vault folder's name, then one crumb
+ * per path segment. Tapping the root name returns to the inline tree; tapping a
+ * segment jumps to that folder. The last crumb is the current folder, highlighted.
  */
 @Composable
-private fun FolderRow(node: FolderNode, expanded: Boolean, onToggle: () -> Unit) {
+private fun Breadcrumb(
+    vaultName: String,
+    dir: String,
+    onExit: () -> Unit,
+    onNavigate: (String) -> Unit,
+) {
     val c = MaterialTheme.grove
-    val (dotColor, _) = monogramPalette(c, node.colorKey)
-    TreeRowContainer(depth = node.depth) {
+    val segments = dir.split('/').filter { it.isNotEmpty() }
+
+    @Composable
+    fun crumb(label: String, current: Boolean, onClick: () -> Unit) {
+        Text(
+            label,
+            fontFamily = PlexMono,
+            fontSize = 12.sp,
+            color = if (current) c.ink else c.ink3,
+            fontWeight = if (current) FontWeight.SemiBold else FontWeight.Normal,
+            modifier = Modifier
+                .clip(RoundedCornerShape(6.dp))
+                .then(if (current) Modifier.background(c.surface2) else Modifier)
+                .clickable(onClick = onClick)
+                .padding(horizontal = 6.dp, vertical = 3.dp),
+        )
+    }
+
+    Row(
+        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        crumb(vaultName, current = segments.isEmpty(), onClick = onExit)
+        segments.forEachIndexed { i, seg ->
+            Text(
+                "/",
+                fontFamily = PlexMono, fontSize = 12.sp, color = c.ink3,
+                modifier = Modifier.padding(horizontal = 1.dp),
+            )
+            val path = segments.subList(0, i + 1).joinToString("/")
+            crumb(seg, current = i == segments.lastIndex, onClick = { onNavigate(path) })
+        }
+    }
+}
+
+/**
+ * A folder row. In the inline tree (variant 1a) it carries a rotating caret and
+ * indents under its parent; a folder over [FOLDER_DRILL_THRESHOLD] files shows a
+ * static `›` ([chevron]) instead, since tapping it opens the drill-down view. In
+ * that drill-down view ([flat]) rows never indent and the `›` sits on the right.
+ *
+ * The tile is a 42dp rounded square (matching the file monogram tiles) with the
+ * folder's palette colour: soft-tint fill, a tinted border, and a `▪` glyph. A
+ * descendant sync conflict shows a non-interactive amber warning glyph.
+ *
+ * The top-level folder row sits flush with the root files (no rail): its indent
+ * rail belongs to its *children*, so the container depth is one less than the
+ * folder's own nesting level.
+ */
+@Composable
+private fun FolderRow(
+    node: FolderNode,
+    expanded: Boolean,
+    chevron: Boolean = false,
+    flat: Boolean = false,
+    onClick: () -> Unit,
+) {
+    val c = MaterialTheme.grove
+    val (fg, bg) = monogramPalette(c, node.colorKey)
+    TreeRowContainer(depth = if (flat) 0 else node.depth - 1) {
         Row(
             Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(13.dp))
-                .clickable(onClick = onToggle)
+                .clickable(onClick = onClick)
                 .padding(start = 8.dp, end = 8.dp, top = 10.dp, bottom = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                "▸",
-                fontFamily = PlexMono,
-                fontSize = 11.sp,
-                color = c.ink3,
-                modifier = Modifier.width(12.dp).rotate(if (expanded) 90f else 0f),
-            )
-            Spacer(Modifier.width(9.dp))
-            Box(Modifier.size(34.dp), contentAlignment = Alignment.Center) {
-                Box(
-                    Modifier
-                        .size(16.dp)
-                        .clip(RoundedCornerShape(5.dp))
-                        .background(dotColor),
+            if (!flat) {
+                Text(
+                    if (chevron) "›" else "▸",
+                    fontFamily = PlexMono,
+                    fontSize = if (chevron) 15.sp else 11.sp,
+                    color = c.ink3,
+                    modifier = Modifier
+                        .width(12.dp)
+                        .rotate(if (!chevron && expanded) 90f else 0f),
                 )
+                Spacer(Modifier.width(9.dp))
             }
-            Spacer(Modifier.width(9.dp))
+            Box(
+                Modifier
+                    .size(42.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(bg)
+                    .border(1.dp, fg.copy(alpha = 0.4f), RoundedCornerShape(12.dp)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text("▪", fontFamily = PlexMono, fontSize = 15.sp, color = fg)
+            }
+            Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(
                     node.name,
@@ -477,6 +626,10 @@ private fun FolderRow(node: FolderNode, expanded: Boolean, onToggle: () -> Unit)
                     modifier = Modifier.size(16.dp),
                 )
             }
+            if (flat) {
+                Spacer(Modifier.width(8.dp))
+                Text("›", fontFamily = PlexMono, fontSize = 17.sp, color = c.ink3)
+            }
         }
     }
 }
@@ -488,6 +641,7 @@ private fun FileRow(
     showFileIcon: Boolean,
     depth: Int,
     showPathSubtitle: Boolean,
+    flat: Boolean = false,
     onClick: () -> Unit,
     onOpenConflict: () -> Unit,
     onRename: () -> Unit,
@@ -502,10 +656,10 @@ private fun FileRow(
     val colorKey = notebook.color ?: nameHashPaletteKey(notebook.fileName)
     var menuOpen by remember { mutableStateOf(false) }
     // In-tree files sit one caret-width in so they line up under folder names;
-    // the flat pinned strip has no caret column.
-    val leadingInset = if (showPathSubtitle) 0.dp else 21.dp
+    // the flat pinned strip and the drill-down view have no caret column.
+    val leadingInset = if (showPathSubtitle || flat) 0.dp else 21.dp
 
-    TreeRowContainer(depth = depth) {
+    TreeRowContainer(depth = if (flat) 0 else depth) {
       Box {
         Row(
             Modifier

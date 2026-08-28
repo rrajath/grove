@@ -64,12 +64,17 @@ re-uploads the APKs to the existing release instead of failing.
   directories, not just the top level, and skips dot-directories like
   Syncthing's `.stversions`.
 - The Notebooks screen shows nested folders as an inline tree. Folder rows
-  carry a colour dot, a recursive file/sub-folder count, and a warning glyph
-  when a file inside has a sync conflict; tapping one expands it in place.
-  A new top-bar button expands or collapses every folder at once, expansion is
-  remembered per folder, and on a vault's first open any folder holding a
-  scheduled or deadline task starts expanded. Pinned notebooks move to their
-  own strip above the tree.
+  carry a colour-tinted icon tile, a recursive file/sub-folder count, and a
+  warning glyph when a file inside has a sync conflict; tapping one expands it
+  in place, with its contents drawn under an indent rail. A new top-bar button
+  expands or collapses every folder at once, expansion is remembered per
+  folder, and on a vault's first open any folder holding a scheduled or
+  deadline task starts expanded. Pinned notebooks move to their own strip
+  above the tree.
+- A folder with more than 20 files opens as its own screen instead of
+  expanding in place: a back arrow, a tappable breadcrumb back to the vault
+  root, and a flat file list. Sub-folders inside drill deeper; the system back
+  button steps back up one level at a time.
 
 ## [1.0.5] - 2026-08-28
 
