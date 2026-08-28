@@ -88,12 +88,16 @@ fun GroveApp(
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_STOP) {
-                AppIconManager.applyIcon(context, syncIcon, iconTheme)
-                // Dynamic shortcuts published while the old alias was still
-                // enabled are now stranded on it; republish against whichever
-                // alias applyIcon just switched to.
                 val app = context.applicationContext as GroveApplication
                 app.appScope.launch {
+                    // Off the main thread: applyIcon does synchronous Binder IPC
+                    // and ON_STOP runs on the main thread (PERFORMANCE_AUDIT #5).
+                    // Runs before the shortcut re-sync, which binds shortcuts to
+                    // whichever alias applyIcon enables.
+                    AppIconManager.applyIcon(context, syncIcon, iconTheme)
+                    // Dynamic shortcuts published while the old alias was still
+                    // enabled are now stranded on it; republish against whichever
+                    // alias applyIcon just switched to.
                     val templates = app.templatesRepository.templates.first()
                     ShortcutSyncer.sync(app, templates, iconTheme, syncIcon)
                 }

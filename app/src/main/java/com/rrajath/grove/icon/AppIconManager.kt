@@ -89,6 +89,16 @@ object AppIconManager {
     fun targetAlias(enabled: Boolean, theme: ThemePreference): String =
         if (enabled) THEME_ALIASES[theme] ?: DEFAULT_ALIAS else DEFAULT_ALIAS
 
+    /**
+     * Whether [applyIcon] has any launcher-alias work to do given the alias
+     * [currentAlias] currently enabled. False whenever it already matches the
+     * target for (enabled, theme) — the common case on every app-backgrounding,
+     * where the icon theme hasn't changed since last time. Split out pure so the
+     * skip is JVM-testable without a PackageManager. See PERFORMANCE_AUDIT_2026-08-27 #5.
+     */
+    fun iconChangeNeeded(currentAlias: String, enabled: Boolean, theme: ThemePreference): Boolean =
+        currentAlias != targetAlias(enabled, theme)
+
     // Per-theme adaptive-icon mipmaps (`res/mipmap-anydpi/ic_launcher_<key>.xml`),
     // for surfaces that need the actual icon image rather than just its mark
     // color (e.g. the Ledger widget's header tile) — everything else here only
@@ -152,6 +162,12 @@ object AppIconManager {
      */
     fun applyIcon(context: Context, enabled: Boolean, theme: ThemePreference) {
         val target = targetAlias(enabled, theme)
+        // ON_STOP fires on every backgrounding, but the icon theme rarely
+        // changed since the last apply. Bail before touching PackageManager at
+        // all when the currently-enabled alias is already the target, instead of
+        // pushing one no-op Binder IPC per alias every time (PERFORMANCE_AUDIT #5).
+        val currentAlias = currentAliasComponent(context).className.removePrefix(MANIFEST_PACKAGE)
+        if (!iconChangeNeeded(currentAlias, enabled, theme)) return
         val pm = context.packageManager
         for (alias in ALL_ALIASES) {
             val state = if (alias == target) {

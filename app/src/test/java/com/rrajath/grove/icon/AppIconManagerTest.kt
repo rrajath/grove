@@ -2,6 +2,7 @@ package com.rrajath.grove.icon
 
 import com.rrajath.grove.settings.ThemePreference
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -62,6 +63,28 @@ class AppIconManagerTest {
     fun `every theme has a distinct mipmap so no theme silently falls back`() {
         val themedMipmaps = ThemePreference.entries.map { AppIconManager.mipmapRes(enabled = true, theme = it) }
         assertEquals(ThemePreference.entries.size, themedMipmaps.toSet().size)
+    }
+
+    // --- skip-when-unchanged guard (PERFORMANCE_AUDIT_2026-08-27 #5) ---
+
+    @Test
+    fun `iconChangeNeeded is false when the enabled alias already matches the target`() {
+        // Sync off, default alias already active: nothing to do on ON_STOP.
+        assertFalse(
+            AppIconManager.iconChangeNeeded(AppIconManager.DEFAULT_ALIAS, enabled = false, theme = ThemePreference.DARK),
+        )
+        // Sync on, the theme's own alias already active: still nothing to do.
+        for (theme in ThemePreference.entries) {
+            val active = AppIconManager.targetAlias(enabled = true, theme = theme)
+            assertFalse("change wrongly flagged for $theme", AppIconManager.iconChangeNeeded(active, enabled = true, theme = theme))
+        }
+    }
+
+    @Test
+    fun `iconChangeNeeded is true when the enabled alias differs from the target`() {
+        assertTrue(AppIconManager.iconChangeNeeded(AppIconManager.DEFAULT_ALIAS, enabled = true, theme = ThemePreference.DARK))
+        assertTrue(AppIconManager.iconChangeNeeded(".IconLight", enabled = true, theme = ThemePreference.DARK))
+        assertTrue(AppIconManager.iconChangeNeeded(".IconLight", enabled = false, theme = ThemePreference.LIGHT))
     }
 
     @Test
