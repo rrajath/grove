@@ -59,6 +59,12 @@ re-uploads the APKs to the existing release instead of failing.
 
 ## [Unreleased]
 
+### Added
+- The vault can now contain subfolders. Grove reads `.org` files from nested
+  directories, not just the top level, and skips dot-directories like
+  Syncthing's `.stversions`. Folder-aware browsing on the Notebooks screen
+  lands in a following change.
+
 ## [1.0.5] - 2026-08-28
 
 ### Fixed

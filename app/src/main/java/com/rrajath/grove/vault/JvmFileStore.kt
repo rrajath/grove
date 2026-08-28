@@ -4,27 +4,41 @@ import java.io.File
 
 /**
  * Plain java.io implementation. Used by JVM unit tests, and reusable for any
- * future direct-filesystem vault location.
+ * future direct-filesystem vault location. Recurses into subdirectories,
+ * skipping dot-directories (see [isSkippedVaultDir]).
  */
 class JvmFileStore(private val root: File) : FileStore {
 
     override suspend fun list(): List<FileEntry> =
-        root.listFiles { f: File -> f.isFile }
-            ?.map { FileEntry(it.name, it.lastModified(), it.length()) }
-            ?.sortedBy { it.name }
-            ?: emptyList()
+        root.walkTopDown()
+            .onEnter { it == root || !isSkippedVaultDir(it.name) }
+            .filter { it.isFile }
+            .map {
+                FileEntry(
+                    it.relativeTo(root).invariantSeparatorsPath,
+                    it.lastModified(),
+                    it.length(),
+                )
+            }
+            .sortedBy { it.name }
+            .toList()
 
     override suspend fun read(name: String): String = resolve(name).readText()
 
     override suspend fun write(name: String, content: String) {
-        resolve(name).writeText(content)
+        resolve(name).apply { parentFile?.mkdirs() }.writeText(content)
     }
 
-    override suspend fun create(name: String): Boolean = resolve(name).createNewFile()
+    override suspend fun create(name: String): Boolean {
+        val target = resolve(name)
+        target.parentFile?.mkdirs()
+        return target.createNewFile()
+    }
 
     override suspend fun rename(oldName: String, newName: String): Boolean {
         val target = resolve(newName)
         if (target.exists()) return false
+        target.parentFile?.mkdirs()
         return resolve(oldName).renameTo(target)
     }
 
@@ -33,7 +47,8 @@ class JvmFileStore(private val root: File) : FileStore {
     override suspend fun exists(name: String): Boolean = resolve(name).exists()
 
     private fun resolve(name: String): File {
-        require(!name.contains('/') && !name.contains('\\')) { "Vault is flat: $name" }
+        require(name.isNotBlank()) { "Empty vault path" }
+        require(name.split('/').none { it == ".." }) { "Vault path must not contain '..': $name" }
         return File(root, name)
     }
 }
