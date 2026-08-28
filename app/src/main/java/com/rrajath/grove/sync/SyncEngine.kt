@@ -166,4 +166,24 @@ class SyncEngine(
             null
         }
     }
+
+    /**
+     * Re-index a single already-known file the caller just wrote, skipping the
+     * whole-directory [list] + revision diff [sync] does. Reads only this file's
+     * metadata via [FileStore.stat] (which [com.rrajath.grove.vault.SafFileStore]
+     * serves as a targeted single-document query, not a full enumeration), so the
+     * cost is independent of vault size. For the in-app single-note save path,
+     * where the changed file and its new text are already in hand.
+     * See PERFORMANCE_AUDIT_2026-08-27 #1. No-op if the file has since vanished.
+     */
+    suspend fun reindexOne(fileName: String, text: String, conflictFileName: String?) {
+        val stat = store.stat(fileName) ?: return
+        index.indexNotebook(
+            fileName = fileName,
+            revision = revision(stat),
+            text = text,
+            lastModified = stat.lastModified,
+            conflictFileName = conflictFileName,
+        )
+    }
 }

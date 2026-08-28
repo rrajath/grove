@@ -92,6 +92,38 @@ class SyncManager(
     }
 
     /**
+     * Reindex a single file the caller just wrote to the vault, straight into
+     * Room, skipping the full SAF directory list + per-file revision diff that
+     * [requestSync] runs. For the local single-note save path (the editor, and
+     * any other in-app edit that already knows exactly which one file changed):
+     * a full [requestSync] there pays O(vault size) to rediscover the one file
+     * it was just handed (PERFORMANCE_AUDIT_2026-08-27 #1).
+     *
+     * Runs under the same [mutex] as [requestSync] so it can't interleave with
+     * an in-flight full sync's delete+reinsert of the same rows, and still fires
+     * the sync log + [onSyncCompleted] catch-up (overdue reminders, widget
+     * refresh) a full pass would. Unlike [GroveApplication.reindexNow] (widget
+     * path, deliberately mutex-free so it works before [attach]), this is only
+     * safe to call once a store is attached.
+     */
+    fun requestReindex(fileName: String, text: String, reason: String) {
+        val engine = engine ?: return
+        scope.launch {
+            mutex.withLock {
+                log("reindex started ($reason): $fileName")
+                try {
+                    engine.reindexOne(fileName, text, database.indexDao().conflictFileNameFor(fileName))
+                    log("reindexed $fileName")
+                } catch (e: Exception) {
+                    log("reindex failed for $fileName: ${e.message}")
+                }
+                database.syncLogDao().trim()
+                onSyncCompleted()
+            }
+        }
+    }
+
+    /**
      * Wipe the index and rebuild it from scratch (todo-keyword config changed,
      * which affects how every file parses). Clearing under the same mutex as
      * [requestSync] keeps it from racing an in-flight sync's [SyncEngine.sync],

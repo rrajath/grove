@@ -376,7 +376,9 @@ class EditorViewModel(private val app: GroveApplication) : ViewModel() {
         } ?: return false
         vault.save(s.fileName, newText)
         val newRevision = vault.revision(s.fileName)
-        app.syncManager.requestSync("note saved")
+        // Only this one file changed and we hold its new text: reindex it
+        // directly instead of a full-vault list+diff (PERFORMANCE_AUDIT #1).
+        app.syncManager.requestReindex(s.fileName, newText, "note saved")
         _state.update { current ->
             current.copy(
                 // Still dirty if the user typed while the write was in flight:
@@ -409,7 +411,7 @@ class EditorViewModel(private val app: GroveApplication) : ViewModel() {
             if (headline != null) {
                 val newText = OrgMutations.deleteSubtree(doc, headline)
                 vault.save(s.fileName, newText)
-                app.syncManager.requestSync("empty note discarded")
+                app.syncManager.requestReindex(s.fileName, newText, "empty note discarded")
             }
             onDeleted()
         }

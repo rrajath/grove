@@ -1,6 +1,9 @@
 package com.rrajath.grove.sync
 
+import com.rrajath.grove.vault.FileEntry
+import com.rrajath.grove.vault.FileStore
 import com.rrajath.grove.vault.JvmFileStore
+import java.io.File
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -9,6 +12,36 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
+
+/**
+ * [FileStore] that counts whole-directory [list] calls vs. targeted [stat]
+ * calls, and (like `SafFileStore`) serves [stat] as a single-file lookup rather
+ * than falling through to [list]. Used to prove the single-file reindex path
+ * never enumerates the vault.
+ */
+private class CountingStore(private val root: File) : FileStore {
+    var listCalls = 0
+    var statCalls = 0
+    private val inner = JvmFileStore(root)
+
+    override suspend fun list(): List<FileEntry> {
+        listCalls++
+        return inner.list()
+    }
+
+    override suspend fun stat(name: String): FileEntry? {
+        statCalls++
+        val f = File(root, name)
+        return if (f.isFile) FileEntry(f.name, f.lastModified(), f.length()) else null
+    }
+
+    override suspend fun read(name: String) = inner.read(name)
+    override suspend fun write(name: String, content: String) = inner.write(name, content)
+    override suspend fun create(name: String) = inner.create(name)
+    override suspend fun rename(oldName: String, newName: String) = inner.rename(oldName, newName)
+    override suspend fun delete(name: String) = inner.delete(name)
+    override suspend fun exists(name: String) = inner.exists(name)
+}
 
 /** In-memory NoteIndex fake recording engine interactions. */
 private class FakeIndex : NoteIndex {
@@ -201,5 +234,63 @@ class SyncEngineTest {
         val e = engine()
         val result = e.sync()
         assertEquals(SyncState.Done(result!!), e.state.value)
+    }
+
+    // --- single-file reindex (PERFORMANCE_AUDIT_2026-08-27 #1) ---
+
+    @Test
+    fun `reindexOne indexes only the named file and never lists the directory`() = runTest {
+        val a = tmp.newFile("a.org").apply { writeText("* A") }
+        tmp.newFile("b.org").writeText("* B")
+        val store = CountingStore(tmp.root)
+        val e = SyncEngine(store, index) { now }
+        e.sync()
+        index.indexedOrder.clear()
+        val listCallsBefore = store.listCalls
+
+        a.writeText("* A edited")
+        a.setLastModified(a.lastModified() + 5000)
+        e.reindexOne("a.org", "* A edited", conflictFileName = null)
+
+        // Only a.org is touched; b.org (and the rest of a growing vault) is not.
+        assertEquals(listOf("a.org"), index.indexedOrder)
+        assertEquals("* A edited", index.texts["a.org"])
+        // The whole point of #1: no full directory list, just this file's stat.
+        assertEquals(listCallsBefore, store.listCalls)
+        assertEquals(1, store.statCalls)
+    }
+
+    @Test
+    fun `reindexOne records the current on-disk revision`() = runTest {
+        val a = tmp.newFile("a.org").apply { writeText("* A") }
+        val store = CountingStore(tmp.root)
+        val e = SyncEngine(store, index) { now }
+
+        a.writeText("* A v2")
+        a.setLastModified(123_000)
+        e.reindexOne("a.org", "* A v2", conflictFileName = null)
+
+        assertEquals("123000:${"* A v2".toByteArray().size}", index.revisions["a.org"])
+    }
+
+    @Test
+    fun `reindexOne carries the conflict marker through`() = runTest {
+        tmp.newFile("a.org").writeText("* A")
+        val store = CountingStore(tmp.root)
+        val e = SyncEngine(store, index) { now }
+
+        e.reindexOne("a.org", "* A", conflictFileName = "a.sync-conflict-x.org")
+
+        assertEquals("a.sync-conflict-x.org", index.conflicts["a.org"])
+    }
+
+    @Test
+    fun `reindexOne on a vanished file is a no-op`() = runTest {
+        val store = CountingStore(tmp.root)
+        val e = SyncEngine(store, index) { now }
+
+        e.reindexOne("ghost.org", "* nope", conflictFileName = null)
+
+        assertTrue(index.indexedOrder.isEmpty())
     }
 }
