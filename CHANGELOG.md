@@ -59,6 +59,8 @@ re-uploads the APKs to the existing release instead of failing.
 
 ## [Unreleased]
 
+## [1.0.4] - 2026-08-28
+
 ### Changed
 - `versionCode` is now the numeric form of `versionName` (`MAJOR*10000 + MINOR*100 + PATCH`, so `1.2.3` becomes `10203`) instead of the git commit count. Keep `versionName`'s minor and patch segments within 0-99.
 - GitHub Release titles are now just `v<version>` (e.g. `v1.0.4`); the `(build N)` suffix is gone, and newly archived CHANGELOG.md headings drop it too. The in-app What's New modal now derives each release's ordering key from its version heading.
