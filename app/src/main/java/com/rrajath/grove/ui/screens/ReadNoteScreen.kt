@@ -15,17 +15,20 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarMonth
@@ -40,6 +43,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.material3.DropdownMenu
@@ -90,7 +94,6 @@ import com.rrajath.grove.ui.editor.MetadataSheet
 import com.rrajath.grove.ui.components.Pill
 import com.rrajath.grove.ui.components.SegmentedControl
 import com.rrajath.grove.ui.components.annotateOrgInline
-import com.rrajath.grove.ui.components.autoScrollWhileSelecting
 import com.rrajath.grove.ui.components.doubleTapToEdit
 import com.rrajath.grove.ui.components.linkPressHandler
 import com.rrajath.grove.ui.components.orgInlineLinks
@@ -100,6 +103,7 @@ import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.PlexSerif
 import com.rrajath.grove.ui.theme.grove
 import com.rrajath.grove.ui.theme.priorityColor
+import com.rrajath.grove.ui.util.IntSetSaver
 import com.rrajath.grove.ui.vault.DocumentUiState
 import com.rrajath.grove.ui.vault.DocumentViewModel
 import com.rrajath.grove.ui.vault.NoteRef
@@ -229,12 +233,12 @@ fun ReadNoteScreen(
                         contentAlignment = Alignment.Center,
                     ) { Text("Note not found", fontFamily = PlexSans, color = c.ink2) }
                 } else {
-                    val scrollState = rememberScrollState()
+                    val listState = rememberLazyListState()
                     Box(Modifier.fillMaxSize().padding(padding)) {
                         NoteContent(
                             doc = doc,
                             headline = headline,
-                            scrollState = scrollState,
+                            listState = listState,
                             modifier = Modifier
                                 .fillMaxSize()
                                 // Fallback: double-tap on blank space (not over any
@@ -255,7 +259,7 @@ fun ReadNoteScreen(
                             favorites = favorites,
                         )
                         ScrollJumpButtons(
-                            scrollState = scrollState,
+                            listState = listState,
                             modifier = Modifier
                                 .align(Alignment.BottomEnd)
                                 .padding(16.dp),
@@ -360,7 +364,7 @@ private fun NoteContent(
     onOpenNote: (NoteRef) -> Unit,
     onEditAt: (Int?) -> Unit,
     onToggleCheckbox: (Int) -> Unit,
-    scrollState: ScrollState,
+    listState: LazyListState,
     modifier: Modifier = Modifier,
     showPropertyDrawers: Boolean = true,
     favorites: List<FavoriteNote> = emptyList(),
@@ -388,206 +392,272 @@ private fun NoteContent(
     }
 
     // O(document) traversals, computed once per document instead of per
-    // recomposition. Children are paired with their body lines up front so the
-    // lazy items below stay cheap.
+    // recomposition. Body lines are resolved per-row inside the LazyColumn
+    // items below, so only on-screen headings pay that cost.
     val tags = remember(doc, headline) { doc.inheritedTags(headline) }
     val ownBody = remember(doc, headline) { doc.bodyOf(headline) }
-    val children = remember(doc, headline) {
-        doc.subtree(headline).map { it to doc.bodyOf(it) }
+    val subtree = remember(doc, headline) { doc.subtree(headline) }
+
+    // A heading whose subtree is huge or very deep (e.g. a 2000-heading "note")
+    // used to render every descendant heading + body eagerly in one scrolling
+    // Column, which janked the open, the scroll and the back navigation. Such
+    // notes now open with their inner headings folded, so only the note body +
+    // a one-level section list mount; small notes still open fully expanded.
+    var collapsed by rememberSaveable(fileName, headline.lineIndex, stateSaver = IntSetSaver) {
+        mutableStateOf(emptySet<Int>())
     }
+    var defaultCollapseApplied by rememberSaveable(fileName, headline.lineIndex) { mutableStateOf(false) }
+    LaunchedEffect(fileName, headline.lineIndex) {
+        if (!defaultCollapseApplied) {
+            defaultReadCollapse(doc, subtree).takeIf { it.isNotEmpty() }?.let { collapsed = it }
+            defaultCollapseApplied = true
+        }
+    }
+    val visibleRows = remember(subtree, collapsed) { visibleReadRows(subtree, collapsed) }
 
     Box(
-        Modifier
-            .onGloballyPositioned { boxCoords = it }
-            .autoScrollWhileSelecting(scrollState)
+        Modifier.onGloballyPositioned { boxCoords = it }
     ) {
-        // One SelectionContainer for the whole note, placed *outside* the
-        // scrolling Column. Both parts matter: a single container lets a
-        // selection run from the note's own body into its subtree, and keeping
-        // it outside the scroll means Compose resolves a drag against
-        // viewport-fixed coordinates, so auto-scrolling under a held finger
-        // keeps extending the selection instead of pinning it to one character.
-        SelectionContainer(modifier) {
-            Column(
-                Modifier
-                    .verticalScroll(scrollState)
-                    .padding(horizontal = 24.dp),
-            ) {
-                Spacer(Modifier.height(8.dp))
-
-                // Tag chips
-                if (tags.isNotEmpty()) {
-                    Row {
-                        tags.forEach { tag ->
-                            Pill(tag, fg = c.accent, bg = c.accentSoft, outline = true)
-                            Spacer(Modifier.width(7.dp))
-                        }
-                    }
-                    Spacer(Modifier.height(12.dp))
-                }
-
-                // Title
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    headline.keyword?.let { kw ->
-                        val (fg, bg) = if (doc.keywords.isDone(kw)) c.green to c.greenSoft
-                        else c.amber to c.amberSoft
-                        Pill(kw, fg = fg, bg = bg)
-                        Spacer(Modifier.width(8.dp))
-                    }
-                    headline.priority?.let { p ->
-                        Text(
-                            "[#$p]",
-                            fontFamily = PlexMono, fontWeight = FontWeight.Bold,
-                            fontSize = 12.sp, color = c.priorityColor(p),
-                        )
-                        Spacer(Modifier.width(8.dp))
-                    }
-                }
-                Row(verticalAlignment = Alignment.Top) {
-                    OrgText(
-                        headline.title, onOpenLink = openLink, onLinkLongPress = onLinkLongPress,
-                        onDoubleTapAt = { onEditAt(null) },
-                        style = TextStyle(
-                            fontFamily = PlexSerif, fontWeight = FontWeight.SemiBold,
-                            fontSize = 25.sp, color = c.ink, lineHeight = 1.3.em,
-                        ),
-                        modifier = Modifier.weight(1f),
-                    )
-                    if (favorites.any { it.matches(headline) }) {
-                        Spacer(Modifier.width(8.dp))
-                        FavoriteStar(modifier = Modifier.padding(top = 6.dp), size = 24.dp)
-                    }
-                }
-
-                // Planning line (SCHEDULED/DEADLINE) is immediately after the
-                // heading in the raw org file, before any drawers, so it
-                // renders first here too, matching edit mode's line order.
-                // Both chips share a row and wrap to a second line only if
-                // they don't fit side by side.
-                if (headline.planning.scheduled != null || headline.planning.deadline != null) {
-                    Spacer(Modifier.height(6.dp))
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp),
-                    ) {
-                        headline.planning.scheduled?.let {
-                            PlanningChip(it.formatHuman(), icon = Icons.Outlined.CalendarMonth, fg = c.blue, bg = c.blueSoft)
-                        }
-                        headline.planning.deadline?.let {
-                            PlanningChip(it.formatHuman(), icon = Icons.Filled.Flag, fg = c.red, bg = c.redSoft)
-                        }
-                    }
-                }
-
-                // Note's own :PROPERTIES: and :LOGBOOK: drawers (CREATED lives
-                // in :PROPERTIES:, shown there only, not as a separate line).
-                if (showPropertyDrawers && (headline.properties.isNotEmpty() || headline.logbook.isNotEmpty())) {
-                    Spacer(Modifier.height(10.dp))
-                    if (headline.properties.isNotEmpty()) {
-                        CollapsibleKvSection(
-                            label = ":PROPERTIES:",
-                            entries = headline.properties.map { (k, v) -> ":$k:" to v },
-                            expanded = collapsibleExpanded["own"] == true,
-                            onToggle = {
-                                collapsibleExpanded["own"] = collapsibleExpanded["own"] != true
-                            },
-                        )
-                    }
-                    if (headline.logbook.isNotEmpty()) {
-                        if (headline.properties.isNotEmpty()) Spacer(Modifier.height(6.dp))
-                        CollapsibleLogSection(
-                            label = ":LOGBOOK:",
-                            lines = headline.logbook,
-                            expanded = collapsibleExpanded["own-logbook"] == true,
-                            onToggle = {
-                                collapsibleExpanded["own-logbook"] = collapsibleExpanded["own-logbook"] != true
-                            },
-                        )
-                    }
-                    Spacer(Modifier.height(20.dp))
-                }
-                Spacer(Modifier.height(16.dp))
-
-                // Own body
-                BodyBlocks(ownBody, headline.bodyStart, onToggleCheckbox, openLink, onLinkLongPress) { onEditAt(null) }
-
-                // Subtree rendered inline, headings sized by relative depth
-                children.forEach { (child, body) ->
+        // One SelectionContainer per section (the note's own body, then each
+        // visible heading). Cross-section selection was given up so the subtree
+        // could stop being one eager Column and virtualize: a drag-select now
+        // stays within a section.
+        LazyColumn(
+            state = listState,
+            modifier = modifier,
+            contentPadding = PaddingValues(start = 24.dp, end = 24.dp, top = 8.dp, bottom = 48.dp),
+        ) {
+            item(key = "own") {
+                SelectionContainer {
                     Column {
-                        Spacer(Modifier.height(20.dp))
-                        val rel = (child.level - headline.level).coerceAtLeast(1)
-                        // Top-aligned so the keyword pill stays on the first line
-                        // when the title wraps.
-                        Row(verticalAlignment = Alignment.Top) {
-                            child.keyword?.let { kw ->
+                        // Tag chips
+                        if (tags.isNotEmpty()) {
+                            Row {
+                                tags.forEach { tag ->
+                                    Pill(tag, fg = c.accent, bg = c.accentSoft, outline = true)
+                                    Spacer(Modifier.width(7.dp))
+                                }
+                            }
+                            Spacer(Modifier.height(12.dp))
+                        }
+
+                        // Title
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            headline.keyword?.let { kw ->
                                 val (fg, bg) = if (doc.keywords.isDone(kw)) c.green to c.greenSoft
                                 else c.amber to c.amberSoft
                                 Pill(kw, fg = fg, bg = bg)
                                 Spacer(Modifier.width(8.dp))
                             }
-                            child.priority?.let { p ->
+                            headline.priority?.let { p ->
                                 Text(
                                     "[#$p]",
                                     fontFamily = PlexMono, fontWeight = FontWeight.Bold,
                                     fontSize = 12.sp, color = c.priorityColor(p),
-                                    modifier = Modifier.padding(top = 2.dp),
                                 )
                                 Spacer(Modifier.width(8.dp))
                             }
+                        }
+                        Row(verticalAlignment = Alignment.Top) {
                             OrgText(
-                                child.title, onOpenLink = openLink, onLinkLongPress = onLinkLongPress,
-                                onDoubleTapAt = { onEditAt(child.lineIndex) },
+                                headline.title, onOpenLink = openLink, onLinkLongPress = onLinkLongPress,
+                                onDoubleTapAt = { onEditAt(null) },
                                 style = TextStyle(
                                     fontFamily = PlexSerif, fontWeight = FontWeight.SemiBold,
-                                    fontSize = when (rel) {
-                                        1 -> 19.sp
-                                        2 -> 17.sp
-                                        else -> 16.sp
-                                    },
-                                    color = c.ink,
+                                    fontSize = 25.sp, color = c.ink, lineHeight = 1.3.em,
                                 ),
                                 modifier = Modifier.weight(1f),
                             )
-                            if (favorites.any { it.matches(child) }) {
+                            if (favorites.any { it.matches(headline) }) {
                                 Spacer(Modifier.width(8.dp))
-                                FavoriteStar(modifier = Modifier.padding(top = 2.dp))
+                                FavoriteStar(modifier = Modifier.padding(top = 6.dp), size = 24.dp)
                             }
                         }
-                        if (showPropertyDrawers && (child.properties.isNotEmpty() || child.logbook.isNotEmpty())) {
+
+                        // Planning line (SCHEDULED/DEADLINE) is immediately after the
+                        // heading in the raw org file, before any drawers, so it
+                        // renders first here too, matching edit mode's line order.
+                        // Both chips share a row and wrap to a second line only if
+                        // they don't fit side by side.
+                        if (headline.planning.scheduled != null || headline.planning.deadline != null) {
+                            Spacer(Modifier.height(6.dp))
+                            FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp),
+                            ) {
+                                headline.planning.scheduled?.let {
+                                    PlanningChip(it.formatHuman(), icon = Icons.Outlined.CalendarMonth, fg = c.blue, bg = c.blueSoft)
+                                }
+                                headline.planning.deadline?.let {
+                                    PlanningChip(it.formatHuman(), icon = Icons.Filled.Flag, fg = c.red, bg = c.redSoft)
+                                }
+                            }
+                        }
+
+                        // Note's own :PROPERTIES: and :LOGBOOK: drawers (CREATED lives
+                        // in :PROPERTIES:, shown there only, not as a separate line).
+                        if (showPropertyDrawers && (headline.properties.isNotEmpty() || headline.logbook.isNotEmpty())) {
                             Spacer(Modifier.height(10.dp))
-                            if (child.properties.isNotEmpty()) {
+                            if (headline.properties.isNotEmpty()) {
                                 CollapsibleKvSection(
                                     label = ":PROPERTIES:",
-                                    entries = child.properties.map { (k, v) -> ":$k:" to v },
-                                    expanded = collapsibleExpanded["child:${child.lineIndex}"] == true,
+                                    entries = headline.properties.map { (k, v) -> ":$k:" to v },
+                                    expanded = collapsibleExpanded["own"] == true,
                                     onToggle = {
-                                        val key = "child:${child.lineIndex}"
-                                        collapsibleExpanded[key] = collapsibleExpanded[key] != true
+                                        collapsibleExpanded["own"] = collapsibleExpanded["own"] != true
                                     },
                                 )
                             }
-                            if (child.logbook.isNotEmpty()) {
-                                if (child.properties.isNotEmpty()) Spacer(Modifier.height(6.dp))
+                            if (headline.logbook.isNotEmpty()) {
+                                if (headline.properties.isNotEmpty()) Spacer(Modifier.height(6.dp))
                                 CollapsibleLogSection(
                                     label = ":LOGBOOK:",
-                                    lines = child.logbook,
-                                    expanded = collapsibleExpanded["child-logbook:${child.lineIndex}"] == true,
+                                    lines = headline.logbook,
+                                    expanded = collapsibleExpanded["own-logbook"] == true,
                                     onToggle = {
-                                        val key = "child-logbook:${child.lineIndex}"
-                                        collapsibleExpanded[key] = collapsibleExpanded[key] != true
+                                        collapsibleExpanded["own-logbook"] = collapsibleExpanded["own-logbook"] != true
                                     },
                                 )
                             }
-                            Spacer(Modifier.height(14.dp))
-                        } else {
-                            Spacer(Modifier.height(8.dp))
+                            Spacer(Modifier.height(20.dp))
                         }
-                        BodyBlocks(body, child.bodyStart, onToggleCheckbox, openLink, onLinkLongPress) { onEditAt(child.lineIndex) }
+                        Spacer(Modifier.height(16.dp))
+
+                        // Own body
+                        BodyBlocks(ownBody, headline.bodyStart, onToggleCheckbox, openLink, onLinkLongPress) { onEditAt(null) }
                     }
                 }
-
-                Spacer(Modifier.height(40.dp))
             }
+
+            // Subtree, one item per visible heading, sized by relative depth.
+            // Headings nested under a folded ancestor aren't in `visibleRows`
+            // at all, so they never compose.
+            items(visibleRows, key = { it.lineIndex }) { child ->
+                val body = remember(doc, child) { doc.bodyOf(child) }
+                val foldable = remember(doc, child) { doc.hasDescendants(child) }
+                val childCollapsed = child.lineIndex in collapsed
+                val rel = (child.level - headline.level).coerceAtLeast(1)
+                Column {
+                    Spacer(Modifier.height(20.dp))
+                    SelectionContainer {
+                        Column {
+                            // Top-aligned so the keyword pill stays on the first line
+                            // when the title wraps.
+                            Row(verticalAlignment = Alignment.Top) {
+                                // Disclosure control: a tap folds/unfolds this
+                                // heading's subtree. Drawn like the outline's caret.
+                                // Only foldable headings reserve the space, so leaf
+                                // headings stay flush with the body like before.
+                                if (foldable) {
+                                    Box(
+                                        Modifier
+                                            .size(22.dp)
+                                            .clip(RoundedCornerShape(6.dp))
+                                            .clickable {
+                                                collapsed = if (childCollapsed) collapsed - child.lineIndex
+                                                else collapsed + child.lineIndex
+                                            },
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        Canvas(Modifier.size(9.dp)) {
+                                            val path = if (childCollapsed) {
+                                                Path().apply {
+                                                    moveTo(0f, 0f); lineTo(0f, size.height)
+                                                    lineTo(size.width, size.height / 2f); close()
+                                                }
+                                            } else {
+                                                Path().apply {
+                                                    moveTo(0f, 0f); lineTo(size.width, 0f)
+                                                    lineTo(size.width / 2f, size.height); close()
+                                                }
+                                            }
+                                            drawPath(path, color = c.ink3)
+                                        }
+                                    }
+                                    Spacer(Modifier.width(6.dp))
+                                }
+                                child.keyword?.let { kw ->
+                                    val (fg, bg) = if (doc.keywords.isDone(kw)) c.green to c.greenSoft
+                                    else c.amber to c.amberSoft
+                                    Pill(kw, fg = fg, bg = bg)
+                                    Spacer(Modifier.width(8.dp))
+                                }
+                                child.priority?.let { p ->
+                                    Text(
+                                        "[#$p]",
+                                        fontFamily = PlexMono, fontWeight = FontWeight.Bold,
+                                        fontSize = 12.sp, color = c.priorityColor(p),
+                                        modifier = Modifier.padding(top = 2.dp),
+                                    )
+                                    Spacer(Modifier.width(8.dp))
+                                }
+                                OrgText(
+                                    child.title, onOpenLink = openLink, onLinkLongPress = onLinkLongPress,
+                                    onDoubleTapAt = { onEditAt(child.lineIndex) },
+                                    style = TextStyle(
+                                        fontFamily = PlexSerif, fontWeight = FontWeight.SemiBold,
+                                        fontSize = when (rel) {
+                                            1 -> 19.sp
+                                            2 -> 17.sp
+                                            else -> 16.sp
+                                        },
+                                        color = c.ink,
+                                    ),
+                                    modifier = Modifier.weight(1f),
+                                )
+                                if (childCollapsed && foldable) {
+                                    Spacer(Modifier.width(6.dp))
+                                    Text(
+                                        "… ${doc.directChildren(child).size}",
+                                        fontFamily = PlexMono, fontSize = 12.sp, color = c.ink3,
+                                        modifier = Modifier.padding(top = 3.dp),
+                                    )
+                                }
+                                if (favorites.any { it.matches(child) }) {
+                                    Spacer(Modifier.width(8.dp))
+                                    FavoriteStar(modifier = Modifier.padding(top = 2.dp))
+                                }
+                            }
+                            if (showPropertyDrawers && (child.properties.isNotEmpty() || child.logbook.isNotEmpty())) {
+                                Spacer(Modifier.height(10.dp))
+                                if (child.properties.isNotEmpty()) {
+                                    CollapsibleKvSection(
+                                        label = ":PROPERTIES:",
+                                        entries = child.properties.map { (k, v) -> ":$k:" to v },
+                                        expanded = collapsibleExpanded["child:${child.lineIndex}"] == true,
+                                        onToggle = {
+                                            val key = "child:${child.lineIndex}"
+                                            collapsibleExpanded[key] = collapsibleExpanded[key] != true
+                                        },
+                                    )
+                                }
+                                if (child.logbook.isNotEmpty()) {
+                                    if (child.properties.isNotEmpty()) Spacer(Modifier.height(6.dp))
+                                    CollapsibleLogSection(
+                                        label = ":LOGBOOK:",
+                                        lines = child.logbook,
+                                        expanded = collapsibleExpanded["child-logbook:${child.lineIndex}"] == true,
+                                        onToggle = {
+                                            val key = "child-logbook:${child.lineIndex}"
+                                            collapsibleExpanded[key] = collapsibleExpanded[key] != true
+                                        },
+                                    )
+                                }
+                                Spacer(Modifier.height(14.dp))
+                            } else {
+                                Spacer(Modifier.height(8.dp))
+                            }
+                            // A folded heading shows only its title + "… N"; its
+                            // body and descendants stay unmounted.
+                            if (!childCollapsed) {
+                                BodyBlocks(body, child.bodyStart, onToggleCheckbox, openLink, onLinkLongPress) { onEditAt(child.lineIndex) }
+                            }
+                        }
+                    }
+                }
+            }
+
+            item(key = "bottom-spacer") { Spacer(Modifier.height(40.dp)) }
         }
 
         // Zero-size anchor Box at the press location; DropdownMenu anchors to it
@@ -606,6 +676,46 @@ private fun NoteContent(
             }
         }
     }
+}
+
+/**
+ * A note whose subtree has more than this many headings opens with its inner
+ * headings folded, so only the note body + a one-level section list mount.
+ * Below it, the read view opens fully expanded (no behavior change).
+ */
+internal const val LARGE_SUBTREE_THRESHOLD = 60
+
+/**
+ * Line indices to fold when the note first opens: for a large subtree, every
+ * descendant heading that itself has descendants, so the reader lands on the
+ * note body + a one-level section list. Empty for a small subtree (opens fully
+ * expanded, unchanged behavior).
+ */
+internal fun defaultReadCollapse(doc: OrgDocument, subtree: List<OrgHeadline>): Set<Int> =
+    if (subtree.size > LARGE_SUBTREE_THRESHOLD) {
+        subtree.asSequence().filter { doc.hasDescendants(it) }.map { it.lineIndex }.toSet()
+    } else {
+        emptySet()
+    }
+
+/**
+ * The subset of [subtree] to actually render: every heading except those nested
+ * under a folded ancestor. Same document-order walk as the outline's
+ * `visibleHeadlines`.
+ */
+internal fun visibleReadRows(subtree: List<OrgHeadline>, collapsed: Set<Int>): List<OrgHeadline> {
+    val result = ArrayList<OrgHeadline>(subtree.size)
+    var hideDeeperThan: Int? = null
+    for (h in subtree) {
+        val hide = hideDeeperThan
+        if (hide != null) {
+            if (h.level > hide) continue
+            hideDeeperThan = null
+        }
+        result.add(h)
+        if (h.lineIndex in collapsed) hideDeeperThan = h.level
+    }
+    return result
 }
 
 /** Text that renders org inline markup and hands link taps/long-presses to [onOpenLink]/[onLinkLongPress]. */

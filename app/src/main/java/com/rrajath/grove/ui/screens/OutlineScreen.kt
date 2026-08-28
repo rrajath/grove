@@ -52,7 +52,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -99,6 +98,7 @@ import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
 import com.rrajath.grove.ui.theme.priorityColor
 import com.rrajath.grove.ui.theme.starColor
+import com.rrajath.grove.ui.util.IntSetSaver
 import com.rrajath.grove.ui.vault.DocumentUiState
 import com.rrajath.grove.ui.vault.DocumentViewModel
 import com.rrajath.grove.ui.vault.NoteRef
@@ -109,9 +109,6 @@ data class OutlineDisplayFlags(
     val timestamps: Boolean = true,
     val keywords: Boolean = true,
 )
-
-/** Persist the collapsed line-index set across navigation (Set isn't saveable by default). */
-private val IntSetSaver = listSaver<Set<Int>, Int>(save = { it.toList() }, restore = { it.toSet() })
 
 /** Outline view per design spec §4: collapsible heading tree with node ops. */
 @OptIn(ExperimentalMaterial3Api::class)
