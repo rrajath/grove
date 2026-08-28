@@ -62,6 +62,8 @@ tag and just re-uploads the APKs to the existing release instead of failing.
 
 ## [Unreleased]
 
+## [1.0.3] - 2026-08-28 (build 316)
+
 ### Fixed
 - Performance: state holders backing scroll offsets, swipe accumulators and "load more" counters on the auto-scroll helper, the planning-dates calendar, the search filter sheet and the capture-template editor now use the primitive `mutableIntStateOf`/`mutableFloatStateOf` instead of `mutableStateOf`, dropping an int/float autoboxing allocation on every update (Android Lint: `AutoboxingStateCreation`).
 - Performance: the Agenda screen's lever-toggle knob animates with the lambda `Modifier.offset { }` overload, so its position updates run in the placement phase instead of triggering a full recomposition and relayout on every animation frame (Android Lint: `UseOfNonLambdaOffsetOverload`).
