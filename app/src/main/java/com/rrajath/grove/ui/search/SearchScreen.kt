@@ -55,6 +55,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -966,8 +967,8 @@ private fun FilterPanel(
     // Hundreds of tags/notebooks would otherwise flood the sheet: each section
     // starts at 10 and grows by 10 per "Load more" tap; reset whenever the
     // panel is freshly opened since it's recomposed from scratch each time.
-    var visibleNotebooks by remember(catalog.notebooks) { mutableStateOf(minOf(10, catalog.notebooks.size)) }
-    var visibleTags by remember(catalog.tags) { mutableStateOf(minOf(10, catalog.tags.size)) }
+    var visibleNotebooks by remember(catalog.notebooks) { mutableIntStateOf(minOf(10, catalog.notebooks.size)) }
+    var visibleTags by remember(catalog.tags) { mutableIntStateOf(minOf(10, catalog.tags.size)) }
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         containerColor = c.surface,

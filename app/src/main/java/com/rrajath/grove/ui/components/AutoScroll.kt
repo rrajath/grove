@@ -7,6 +7,7 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -87,7 +88,7 @@ private suspend fun ScrollState.nudge(urgency: Float) {
 fun Modifier.autoScrollWhileSelecting(scrollState: ScrollState, edgeSize: Dp = 56.dp): Modifier = composed {
     val density = LocalDensity.current
     val edgePx = with(density) { edgeSize.toPx() }
-    var viewportHeight by remember { mutableStateOf(0) }
+    var viewportHeight by remember { mutableIntStateOf(0) }
     // Non-null only while a drag classified as a selection is in progress.
     var selectionPointerY by remember { mutableStateOf<Float?>(null) }
 

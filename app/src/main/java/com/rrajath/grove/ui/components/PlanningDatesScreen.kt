@@ -46,6 +46,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -516,7 +517,7 @@ private fun BothDatesCalendar(
     // acted on per-move so a single swipe only ever changes one month.
     val density = LocalDensity.current
     val swipeThresholdPx = remember(density) { with(density) { 56.dp.toPx() } }
-    var dragAccum by remember { mutableStateOf(0f) }
+    var dragAccum by remember { mutableFloatStateOf(0f) }
 
     Column(
         Modifier

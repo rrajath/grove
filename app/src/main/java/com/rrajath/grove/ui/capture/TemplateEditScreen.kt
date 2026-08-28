@@ -28,6 +28,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -95,7 +96,7 @@ fun TemplateEditScreen(
     var targetFile by remember(existing) { mutableStateOf(existing?.targetFile ?: "inbox.org") }
     val targetFileError = FilenameValidation.errorFor(targetFile)
     var locationIdx by remember(existing) {
-        mutableStateOf(existing?.location?.let { locationIndex(it) } ?: 1)
+        mutableIntStateOf(existing?.location?.let { locationIndex(it) } ?: 1)
     }
     var headingTitle by remember(existing) {
         mutableStateOf((existing?.location as? TargetLocation.UnderHeading)?.title ?: "")
