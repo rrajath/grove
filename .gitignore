@@ -27,3 +27,6 @@ graft/
 # Internal readiness/compliance reports — not for public distribution.
 internal-docs/
 .claude
+
+# Working docs for the android-dev-workflow skill (plans, audits, learnings).
+internal/
