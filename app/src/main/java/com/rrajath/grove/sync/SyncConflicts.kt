@@ -5,7 +5,11 @@ import com.github.difflib.DiffUtils
 /**
  * Syncthing conflict-copy handling. When both sides change a file, Syncthing
  * keeps the newer content in place and writes the loser as
- * `name.sync-conflict-YYYYMMDD-HHMMSS-DEVICEID.org`.
+ * `name.sync-conflict-YYYYMMDD-HHMMSS-DEVICEID.org` in the same directory.
+ *
+ * Names here are vault-relative paths. The `(.+)` head of [CONFLICT] spans the
+ * directory prefix too, so `projects/acme.sync-conflict-….org` maps back to the
+ * base `projects/acme.org` in its own directory.
  */
 object SyncConflicts {
 

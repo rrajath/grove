@@ -32,7 +32,7 @@ private class CountingStore(private val root: File) : FileStore {
     override suspend fun stat(name: String): FileEntry? {
         statCalls++
         val f = File(root, name)
-        return if (f.isFile) FileEntry(f.name, f.lastModified(), f.length()) else null
+        return if (f.isFile) FileEntry(name, f.lastModified(), f.length()) else null
     }
 
     override suspend fun read(name: String) = inner.read(name)
@@ -179,6 +179,56 @@ class SyncEngineTest {
 
         val result = engine().sync()!!
         assertEquals(listOf("keep.org"), result.pulled)
+    }
+
+    @Test
+    fun `discovers nested files and indexes them by vault-relative path`() = runTest {
+        tmp.newFile("root.org").writeText("* R")
+        File(tmp.root, "projects/clients").mkdirs()
+        File(tmp.root, "projects/notes.org").writeText("* N")
+        File(tmp.root, "projects/clients/acme.org").writeText("* A")
+
+        val result = engine().sync()!!
+        assertEquals(
+            listOf("projects/clients/acme.org", "projects/notes.org", "root.org"),
+            result.pulled.sorted(),
+        )
+        assertEquals("* A", index.texts["projects/clients/acme.org"])
+    }
+
+    @Test
+    fun `a file moved between directories is one removed plus one added`() = runTest {
+        val file = File(tmp.root, "inbox.org").apply { writeText("* Task") }
+        val e = engine()
+        e.sync()
+        index.indexedOrder.clear()
+
+        File(tmp.root, "archive/2026").mkdirs()
+        file.renameTo(File(tmp.root, "archive/2026/inbox.org"))
+
+        val result = e.sync()!!
+        assertEquals(listOf("inbox.org"), result.removed)
+        assertEquals(listOf("archive/2026/inbox.org"), result.pulled)
+        assertNull(index.texts["inbox.org"])
+        assertEquals("* Task", index.texts["archive/2026/inbox.org"])
+    }
+
+    @Test
+    fun `conflict copy in a subdirectory maps to its base in that directory`() = runTest {
+        File(tmp.root, "projects/clients").mkdirs()
+        File(tmp.root, "projects/clients/acme.org").writeText("* current")
+        File(tmp.root, "projects/clients/acme.sync-conflict-20250611-143200-DEVICE.org")
+            .writeText("* other")
+
+        val result = engine().sync()!!
+        assertEquals(
+            mapOf(
+                "projects/clients/acme.org" to
+                    "projects/clients/acme.sync-conflict-20250611-143200-DEVICE.org",
+            ),
+            result.conflicts,
+        )
+        assertEquals(listOf("projects/clients/acme.org"), result.pulled)
     }
 
     @Test

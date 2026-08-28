@@ -367,6 +367,10 @@ interface ReminderDao {
 
 @Database(
     entities = [NotebookEntity::class, NoteEntity::class, SyncLogEntity::class, ReminderEntity::class],
+    // v10: NotebookEntity.fileName / NoteEntity.fileName / notes_fts.fileName are
+    // now vault-relative paths ("projects/acme.org"), not bare names, since the
+    // vault can contain subfolders. No column change; destructive migration just
+    // re-syncs the (rebuildable) index from the .org files under the new keys.
     // v9: added ReminderEntity.leadTime (Settings › Reminders › "Notify me" lead
     // time, baked into each row at scheduling time);
     // v8: added ReminderEntity.hasExplicitTime (date-only reminders now bundle into
@@ -377,7 +381,7 @@ interface ReminderDao {
     // v5: added NotebookEntity.isIndexed (stub vs fully-parsed notebook rows);
     // v4: added NotebookEntity.title (cached #+TITLE: preamble value). Destructive
     // migration drops the index so the next sync rebuilds it from the .org files.
-    version = 9,
+    version = 10,
     exportSchema = false,
 )
 abstract class GroveDatabase : RoomDatabase() {

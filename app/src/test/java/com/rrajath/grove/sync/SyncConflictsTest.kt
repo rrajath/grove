@@ -64,6 +64,17 @@ class SyncConflictsTest {
     }
 
     @Test
+    fun `conflict names keep their vault-relative directory prefix`() {
+        val nested = "projects/clients/acme.sync-conflict-20250611-143200-ABCDEF7.org"
+        assertTrue(SyncConflicts.isConflictFile(nested))
+        assertEquals("projects/clients/acme.org", SyncConflicts.baseName(nested))
+        assertEquals(
+            mapOf("projects/clients/acme.org" to nested),
+            SyncConflicts.detect(listOf("projects/clients/acme.org", nested, "root.org")),
+        )
+    }
+
+    @Test
     fun `label formats the timestamp`() {
         assertEquals("2025-06-11 14:32", SyncConflicts.label(copy))
     }

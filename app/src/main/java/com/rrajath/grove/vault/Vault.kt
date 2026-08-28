@@ -4,14 +4,25 @@ import com.rrajath.grove.org.OrgDocument
 import com.rrajath.grove.org.OrgKeywords
 import com.rrajath.grove.org.OrgParser
 
-/** A notebook = one .org file in the vault. */
+/**
+ * A notebook = one .org file in the vault. [fileName] is the identity: a
+ * vault-relative path like `projects/acme.org` (bare name for a root file).
+ */
 data class Notebook(
     val fileName: String,
     val noteCount: Int,
     val lastModified: Long,
 ) {
-    val displayName: String get() = fileName.removeSuffix(".org")
+    /** Vault-relative directory holding this file; "" for a root-level file. */
+    val dir: String get() = fileName.substringBeforeLast('/', "")
+
+    /** File name without its directory or `.org` extension. */
+    val displayName: String get() = fileName.substringAfterLast('/').removeSuffix(".org")
 }
+
+/** Join a vault-relative directory and a file name into a path. "" dir → bare name. */
+fun vaultPath(dir: String, name: String): String =
+    if (dir.isBlank()) name else "${dir.trim('/')}/$name"
 
 /**
  * Matches an externally-opened .org file (tapped in a file manager, or
@@ -67,18 +78,43 @@ class Vault(
         return document(entry)
     }
 
-    /** Create an empty notebook file. Returns false if the name is taken. */
-    suspend fun createNotebook(name: String): Boolean {
-        val fileName = if (name.endsWith(".org")) name else "$name.org"
+    /**
+     * Create an empty notebook file, in [dir] (a vault-relative directory, ""
+     * for the vault root). [name] may itself contain `/` segments, which are
+     * appended under [dir]. Missing directories are created. Returns false if
+     * the resulting path is already taken.
+     */
+    suspend fun createNotebook(name: String, dir: String = ""): Boolean {
+        val leaf = if (name.endsWith(".org")) name else "$name.org"
+        val fileName = vaultPath(dir, leaf)
         if (store.exists(fileName)) return false
         return store.create(fileName)
     }
 
+    /**
+     * Rename and/or move a notebook. [newName] may be a bare name (kept in the
+     * same directory) or a full vault-relative path (moved). Returns false if
+     * the target exists or the source is missing.
+     */
     suspend fun renameNotebook(oldName: String, newName: String): Boolean {
         val target = if (newName.endsWith(".org")) newName else "$newName.org"
         val ok = store.rename(oldName, target)
         if (ok) cache.keys.removeAll { it.name == oldName }
         return ok
+    }
+
+    /**
+     * Move a notebook to a different directory, keeping its file name. [newDir]
+     * is a vault-relative directory ("" for the root). Returns the new path on
+     * success, or null if the move failed or was a no-op.
+     */
+    suspend fun moveNotebook(path: String, newDir: String): String? {
+        val leaf = path.substringAfterLast('/')
+        val target = vaultPath(newDir, leaf)
+        if (target == path) return null
+        val ok = store.rename(path, target)
+        if (ok) cache.keys.removeAll { it.name == path }
+        return if (ok) target else null
     }
 
     /**

@@ -283,7 +283,11 @@ private fun SyncStatusIcon(state: NotebooksUiState.Loaded, context: android.cont
         is SyncState.Pulling -> {
             IconButton(
                 onClick = {
-                    Toast.makeText(context, "Syncing ${sync.fileName}…", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(
+                        context,
+                        "Syncing ${sync.fileName.substringAfterLast('/')}…",
+                        Toast.LENGTH_SHORT,
+                    ).show()
                 },
             ) {
                 Icon(Icons.Default.Sync, contentDescription = "Syncing", tint = c.ink2)

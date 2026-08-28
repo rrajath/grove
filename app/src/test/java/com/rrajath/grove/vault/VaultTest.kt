@@ -81,4 +81,46 @@ class VaultTest {
     fun `display name strips extension`() {
         assertEquals("journal", Notebook("journal.org", 0, 0L).displayName)
     }
+
+    @Test
+    fun `display name and dir are derived from a nested path`() {
+        val nb = Notebook("projects/clients/acme.org", 0, 0L)
+        assertEquals("acme", nb.displayName)
+        assertEquals("projects/clients", nb.dir)
+        assertEquals("", Notebook("root.org", 0, 0L).dir)
+    }
+
+    @Test
+    fun `notebooks lists files from subdirectories by path`() = runTest {
+        tmp.newFile("root.org").writeText("* R")
+        tmp.newFolder("projects", "clients")
+        tmp.root.resolve("projects/notes.org").writeText("* N\n* M")
+        tmp.root.resolve("projects/clients/acme.org").writeText("* A")
+
+        val notebooks = vault().notebooks()
+        assertEquals(
+            listOf("projects/clients/acme.org", "projects/notes.org", "root.org"),
+            notebooks.map { it.fileName },
+        )
+        assertEquals(listOf(1, 2, 1), notebooks.map { it.noteCount })
+    }
+
+    @Test
+    fun `createNotebook into a directory creates missing folders`() = runTest {
+        val v = vault()
+        assertTrue(v.createNotebook("tasks", dir = "work/2026"))
+        assertTrue(tmp.root.resolve("work/2026/tasks.org").exists())
+        assertFalse(v.createNotebook("tasks.org", dir = "work/2026"))
+    }
+
+    @Test
+    fun `moveNotebook relocates the file keeping its name`() = runTest {
+        tmp.newFile("acme.org").writeText("* A")
+        val v = vault()
+
+        assertEquals("clients/acme.org", v.moveNotebook("acme.org", "clients"))
+        assertFalse(tmp.root.resolve("acme.org").exists())
+        assertEquals("* A", tmp.root.resolve("clients/acme.org").readText())
+        assertNull(v.moveNotebook("clients/acme.org", "clients"))
+    }
 }
