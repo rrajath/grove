@@ -129,7 +129,7 @@ class AppViewModel(private val app: GroveApplication) : ViewModel() {
             // diff against, so show just the newest shipped version instead of the full history.
             ChangelogParser.parse(text)
                 .filter { it.subsections.any { s -> s.items.isNotEmpty() } }
-                .firstOrNull { it.buildNumber != null }
+                .firstOrNull { it.versionCode != null }
                 ?.let { listOf(it) } ?: emptyList()
         } else {
             ChangelogParser.entriesSince(text, lastSeen)

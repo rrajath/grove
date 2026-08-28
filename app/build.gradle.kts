@@ -8,26 +8,27 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
-// versionCode is derived from git at build time: nothing is hardcoded or
-// written back into the repo, so every commit yields a unique, monotonically
-// increasing build number. versionName is the opposite — a manually-bumped
-// SemVer string read as-is from the `versionName` key in gradle.properties;
-// nothing here computes or increments it.
-fun gitOutput(args: List<String>): String? {
-    val out = providers.exec {
-        commandLine(listOf("git") + args)
-        isIgnoreExitValue = true
-    }
-    return if (out.result.get().exitValue == 0)
-        out.standardOutput.asText.get().trim().ifEmpty { null }
-    else null
-}
-
-// Number of commits reachable from HEAD. CI must check out full history
-// (actions/checkout fetch-depth: 0) or a shallow clone undercounts. Falls back
-// to 1 outside a git checkout (e.g. a source archive).
-val gitCommitCount = gitOutput(listOf("rev-list", "--count", "HEAD"))?.toIntOrNull() ?: 1
+// versionName is the single source of truth for the app's version: a
+// manually-bumped SemVer string read as-is from the `versionName` key in
+// gradle.properties. versionCode is derived from it numerically —
+// MAJOR * 10000 + MINOR * 100 + PATCH — so "1.2.3" becomes 10203. Minor and
+// patch therefore each occupy two decimal digits and must stay within 0-99.
+// Nothing is read from git or written back into the repo; bumping versionName
+// in gradle.properties is the only action a release needs.
 val manualVersionName = providers.gradleProperty("versionName").get()
+
+val derivedVersionCode: Int = run {
+    val segments = manualVersionName.trim().split(".")
+    require(segments.size == 3) { "versionName '$manualVersionName' must be MAJOR.MINOR.PATCH" }
+    val (major, minor, patch) = segments.map {
+        it.toIntOrNull() ?: error("versionName '$manualVersionName' has a non-numeric segment: '$it'")
+    }
+    require(minor in 0..99 && patch in 0..99) {
+        "versionName '$manualVersionName': minor and patch must each be 0-99 " +
+            "(they occupy two decimal digits each in versionCode)"
+    }
+    major * 10000 + minor * 100 + patch
+}
 
 // Bundles the repo's CHANGELOG.md into the APK as a raw asset (read at runtime by the
 // What's New modal) instead of hand-duplicating its content into a resource: this keeps
@@ -115,7 +116,7 @@ android {
         applicationId = "com.rrajath.grove"
         minSdk = 34
         targetSdk = 36
-        versionCode = gitCommitCount
+        versionCode = derivedVersionCode
         versionName = manualVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -234,11 +235,10 @@ tasks.register("printVersionName") {
     doLast { println(manualVersionName) }
 }
 
-// Print just the versionCode (`./gradlew -q printVersionCode` → "262") so CI can
-// stamp it into the CHANGELOG.md release header alongside versionName. Since
-// versionName is now manually bumped and can repeat across releases, versionCode
-// is the only value still guaranteed unique and increasing per release — the
-// What's New modal (see ChangelogParser) keys off it for that reason.
+// Print just the versionCode (`./gradlew -q printVersionCode` → "10203"): the
+// numeric form of versionName (MAJOR*10000 + MINOR*100 + PATCH) stamped into the
+// APK. Kept as a convenience for tooling that wants the resolved number without
+// recomputing it.
 tasks.register("printVersionCode") {
-    doLast { println(gitCommitCount) }
+    doLast { println(derivedVersionCode) }
 }

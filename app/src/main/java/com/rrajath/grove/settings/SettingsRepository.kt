@@ -25,9 +25,9 @@ data class GroveSettings(
     /**
      * `BuildConfig.VERSION_CODE` last shown by the What's New modal; device-specific like
      * [onboardingDone], so deliberately left out of [com.rrajath.grove.settings.SettingsSerialization].
-     * Keyed on versionCode rather than versionName because versionName is manually bumped and can
-     * repeat across releases (see CHANGELOG.md's "Versioning" section), while versionCode always
-     * increases.
+     * Keyed on versionCode (the numeric form of versionName, see CHANGELOG.md's "Versioning"
+     * section) rather than the version string so the "seen since" comparison stays plain integer
+     * ordering.
      */
     val lastSeenChangelogBuild: Int? = null,
     /** Persisted SAF tree URI of the sync folder; null until the user picks one. */

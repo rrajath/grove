@@ -39,7 +39,7 @@ fun WhatsNewDialog(versions: List<ChangelogVersion>, onDismiss: () -> Unit) {
                 versions.forEachIndexed { index, version ->
                     if (index > 0) Spacer(Modifier.height(16.dp))
                     Text(
-                        if (version.buildNumber != null) "v${version.title}" else "Latest changes",
+                        if (version.versionCode != null) "v${version.title}" else "Latest changes",
                         fontFamily = PlexSans, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = c.accent,
                     )
                     version.subsections.forEach { section ->

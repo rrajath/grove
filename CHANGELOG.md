@@ -4,19 +4,21 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-**Versioning:** `versionCode` and `versionName` are decoupled.
-- `versionCode` is still fully automatic: it's the number of commits reachable
-  from the release commit (`git rev-list --count HEAD`), so it keeps
-  incrementing on every push with no action needed.
-- `versionName` is a manually-controlled SemVer string (`major.minor.patch`),
-  set in the `versionName` key in `gradle.properties`. CI reads it as-is via
-  `./gradlew -q printVersionName` and never computes or bumps it. Bump it by
-  hand whenever a release should carry a new version number: major = breaking
-  change, minor = new feature, patch = fix/tweak.
-- `1.0.0` marks the point this project switched from the old auto `1.0.<N>`
-  scheme (`N` = commit count) to manual SemVer, coinciding with the first
-  public release. Entries below that predate the switch keep the `1.0.<N>`
-  values they were actually released under.
+**Versioning:** `versionName` is the single source of truth. It's a
+manually-controlled SemVer string (`major.minor.patch`) set in the
+`versionName` key in `gradle.properties`. Bump it by hand whenever a release
+should carry a new number: major = breaking change, minor = new feature,
+patch = fix/tweak. `versionCode` is derived from it automatically as
+`MAJOR*10000 + MINOR*100 + PATCH` (so `1.2.3` → `10203`); keep minor and patch
+each within 0-99. CI reads `versionName` via `./gradlew -q printVersionName`
+and never bumps it.
+
+Two eras of historical entries below use different schemes: entries titled
+`1.0.<N>` below the `1.0.0` line predate mid-2026, when `versionName` was an
+auto `1.0.<commit-count>` string; entries between `1.0.0` and `1.0.2` carry a
+`(build N)` suffix from a later era when `versionCode` was still the git
+commit count. Both are frozen as they shipped. Current entries are just
+`## [<version>] - <date>`.
 
 Every entry below still corresponds 1:1 to a real GitHub Release.
 
@@ -36,31 +38,32 @@ release:
 
 - **Push a version tag** matching `v*.*.*` (e.g. `git tag v1.2.0 && git push
   origin v1.2.0`). The GitHub Release is tagged and titled from that tag
-  exactly, and `## [Unreleased]` is archived as `## [1.2.0] - <date> (build
-  <versionCode>)` — bump `versionName` in `gradle.properties` to match before
-  tagging, so the app's own What's New modal agrees with what you tagged.
-  If the tag doesn't point at the current tip of `main`, the CHANGELOG.md
-  archive commit is skipped (with a workflow warning) rather than rewinding
-  `main`, though the GitHub Release itself is still published.
+  exactly, and `## [Unreleased]` is archived as `## [1.2.0] - <date>` — bump
+  `versionName` in `gradle.properties` to match before tagging, so the app's
+  own What's New modal agrees with what you tagged. If the tag doesn't point
+  at the current tip of `main`, the CHANGELOG.md archive commit is skipped
+  (with a workflow warning) rather than rewinding `main`, though the GitHub
+  Release itself is still published.
 - **Manually run the "Build & Release" workflow** (Actions tab → Run
-  workflow) against `main`. CI reads the current version (`versionCode` from
-  the git commit count, `versionName` from `gradle.properties`) and, if
-  `## [Unreleased]` has content, tags `v<versionName>-<versionCode>` (the
-  `-<versionCode>` suffix guarantees a fresh tag even when `versionName`
-  repeats across releases), publishes a GitHub Release with both APKs and the
-  AAB using that content as the release notes, then pushes a follow-up commit
-  renaming `## [Unreleased]` to `## [<versionName>] - <date> (build
-  <versionCode>)` and opening a fresh empty `## [Unreleased]` above it. If
-  `## [Unreleased]` is empty, the run builds and tests as normal but no
-  release is cut.
+  workflow) against `main`. If `## [Unreleased]` has content, CI tags
+  `v<versionName>`, publishes a GitHub Release with both APKs and the AAB
+  using that content as the release notes, then pushes a follow-up commit
+  archiving `## [Unreleased]` as `## [<versionName>] - <date>` and opening a
+  fresh empty `## [Unreleased]` above it. Re-dispatching without first
+  bumping `versionName` re-uses the tag and re-uploads assets to the existing
+  release. If `## [Unreleased]` is empty, the run builds and tests as normal
+  but no release is cut.
 
-Either way, the `(build N)` suffix is `versionCode`, kept alongside
-`versionName`/the tag because the in-app What's New modal needs a value
-that's always unique per release. Nothing needs to be run or renamed by hand
-for `versionCode`. Re-running against the same commit/tag re-uses the same
-tag and just re-uploads the APKs to the existing release instead of failing.
+Re-running against the same commit/tag re-uses the same tag and just
+re-uploads the APKs to the existing release instead of failing.
 
 ## [Unreleased]
+
+### Changed
+- `versionCode` is now the numeric form of `versionName` (`MAJOR*10000 + MINOR*100 + PATCH`, so `1.2.3` becomes `10203`) instead of the git commit count. Keep `versionName`'s minor and patch segments within 0-99.
+- GitHub Release titles are now just `v<version>` (e.g. `v1.0.4`); the `(build N)` suffix is gone, and newly archived CHANGELOG.md headings drop it too. The in-app What's New modal now derives each release's ordering key from its version heading.
+- Settings' footer now reads just `Grove v<version>`; the parenthetical build number is dropped since it's now the same information as the version.
+- The manual "Run workflow" release path tags `v<version>` instead of `v<version>-<commitcount>`. Re-dispatching a release without first bumping `versionName` now re-uploads assets to the existing release rather than creating a new tag.
 
 ## [1.0.3] - 2026-08-28 (build 316)
 

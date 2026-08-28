@@ -46,7 +46,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      # versionCode = git commit count, so the full history must be present.
+      # Full history (fetch-depth: 0 below) is kept so the CHANGELOG.md archive
+      # step can push a follow-up commit back to the default branch.
       # Signing only kicks in once the keystore secret is configured AND the
       # alias/passwords are valid; otherwise the release build stays unsigned
       # (build.gradle.kts validates and degrades gracefully) and CI stays green.
@@ -73,10 +74,6 @@ jobs:
         run: ./gradlew testDebugUnitTest
 
       # Computed once here and reused for the GitHub Release tag/title below.
-      # VERSION_CODE is also stamped into the archived CHANGELOG.md header (see
-      # the Archive step) since VERSION (versionName) is manually bumped and can
-      # repeat across releases; VERSION_CODE stays the one value the What's New
-      # modal can rely on for ordering.
       #
       # Two ways to reach this workflow with release intent, and each picks its
       # own release tag / changelog version:
@@ -86,16 +83,14 @@ jobs:
       #     heading always agree, regardless of whether gradle.properties'
       #     versionName was bumped to match. Bump it anyway before tagging, so
       #     the app's own About/What's New screens stay in sync.
-      #   - workflow_dispatch on the default branch: unchanged from before —
-      #     RELEASE_TAG is v$VERSION-$VERSION_CODE (versionName + commit count),
-      #     which is what guarantees uniqueness when nobody hand-tagged anything.
+      #   - workflow_dispatch on the default branch: RELEASE_TAG is v$VERSION
+      #     (versionName). Re-dispatching without first bumping versionName
+      #     re-uses that tag and re-uploads assets to the existing release.
       - name: Compute version
         run: |
           set -euo pipefail
           VERSION="$(./gradlew -q printVersionName | tail -n1)"
-          VERSION_CODE="$(./gradlew -q printVersionCode | tail -n1)"
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
-          echo "VERSION_CODE=$VERSION_CODE" >> "$GITHUB_ENV"
           # Local shell vars first, then written to GITHUB_ENV once at the end:
           # GITHUB_ENV writes only take effect for *later* steps, so the
           # SHOULD_RELEASE check below can't read IS_TAG_RELEASE back out of it
@@ -107,7 +102,7 @@ jobs:
             CHANGELOG_VERSION="${TAG_NAME#v}"
           else
             IS_TAG_RELEASE=false
-            RELEASE_TAG="v$VERSION-$VERSION_CODE"
+            RELEASE_TAG="v$VERSION"
             CHANGELOG_VERSION="$VERSION"
           fi
           if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ github.ref }}" = "refs/heads/${{ github.event.repository.default_branch }}" ]; then
@@ -235,27 +230,14 @@ jobs:
             } >> "$GITHUB_ENV"
           fi
 
-      # Publish a GitHub Release with both APKs, but only when there was
-      # something under Unreleased to publish (or a release tag was pushed —
-      # see the Read Unreleased step above). The dispatch-triggered tag is
-      # "v$VERSION-$VERSION_CODE" rather than just "v$VERSION": VERSION
-      # (versionName) is manually bumped and commonly repeats across many
-      # pushes, so a tag keyed on VERSION alone would collide with the
-      # previous release's tag and this step would just silently clobber that
-      # release's assets instead of publishing a new one — which is exactly
-      # what happened to every release between 1.0.0 and this fix, and is why
-      # Obtainium (and anyone else watching Releases) stopped seeing updates.
-      # VERSION_CODE (git commit count) is unique per commit, so appending it
-      # guarantees a fresh tag, and therefore a genuinely new release, on
-      # every release-worthy dispatch. A pushed release tag doesn't need any
-      # of that: RELEASE_TAG is just the tag you pushed, since you're the one
-      # guaranteeing its uniqueness by choosing not to reuse it. The dash in
-      # the dispatch-computed tag keeps it visually and semantically distinct
-      # from the pre-1.0.0 "v1.0.<N>" auto-versioning tags (see CHANGELOG.md's
-      # "Versioning" section) so it doesn't read as a reversion to that
-      # scheme. Re-runs of the *same* commit/tag recompute the same
-      # RELEASE_TAG, so they still safely re-upload assets instead of failing
-      # on an existing tag.
+      # Publish a GitHub Release with both APKs and the AAB, but only when there
+      # was something under Unreleased to publish (or a release tag was pushed —
+      # see the Read Unreleased step above). RELEASE_TAG is the tag you pushed
+      # for a tag release, or "v$VERSION" (versionName) for a dispatch. Bump
+      # versionName between releases so each dispatch produces a fresh tag;
+      # re-dispatching without a bump re-uses the tag and re-uploads assets to
+      # the existing release. Re-runs of the same commit/tag recompute the same
+      # RELEASE_TAG, so they safely re-upload assets instead of failing.
       - name: Publish GitHub Release
         if: env.SHOULD_RELEASE == 'true' && env.HAS_RELEASE == 'true'
         env:
@@ -263,11 +245,7 @@ jobs:
         run: |
           set -euo pipefail
           TAG="$RELEASE_TAG"
-          if [ "$IS_TAG_RELEASE" = "true" ]; then
-            TITLE="$RELEASE_TAG (build $VERSION_CODE)"
-          else
-            TITLE="v$VERSION (build $VERSION_CODE)"
-          fi
+          TITLE="$RELEASE_TAG"
           NOTES="$(printf '%s\n\n_Commit: %s_' "$RELEASE_NOTES" "${GITHUB_SHA:0:7}")"
           # The release APK is app-release.apk when signed, app-release-unsigned.apk otherwise.
           # The AAB is attached too so a signed one is available to upload to Play Console
@@ -311,11 +289,11 @@ jobs:
             fi
           fi
           DATE="$(date -u +%Y-%m-%d)"
-          awk -v ver="$CHANGELOG_VERSION" -v date="$DATE" -v code="$VERSION_CODE" '
+          awk -v ver="$CHANGELOG_VERSION" -v date="$DATE" '
             /^## \[Unreleased\]$/ && !done {
               print
               print ""
-              print "## [" ver "] - " date " (build " code ")"
+              print "## [" ver "] - " date
               done=1
               next
             }
