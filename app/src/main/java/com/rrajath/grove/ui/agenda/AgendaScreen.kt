@@ -49,6 +49,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
@@ -404,7 +405,7 @@ private fun LeverToggle(label: String, on: Boolean, modifier: Modifier = Modifie
         ) {
             Box(
                 Modifier
-                    .offset(x = knobX, y = 2.5.dp)
+                    .offset { IntOffset(knobX.roundToPx(), 2.5.dp.roundToPx()) }
                     .size(16.dp)
                     .clip(CircleShape)
                     .background(c.surface),
