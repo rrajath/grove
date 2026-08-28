@@ -75,6 +75,12 @@ re-uploads the APKs to the existing release instead of failing.
   expanding in place: a back arrow, a tappable breadcrumb back to the vault
   root, and a flat file list. Sub-folders inside drill deeper; the system back
   button steps back up one level at a time.
+- Notebooks can be created into and moved between folders. The `＋` button in a
+  drilled-in folder creates the new notebook there (and a typed
+  `sub/dir/name.org` still makes the folders it needs); a new "Move to folder…"
+  action on a notebook's long-press menu opens a picker that walks the folder
+  tree, with a "New folder here" option. Moving a notebook keeps its icon
+  colour and pinned position.
 
 ## [1.0.5] - 2026-08-28
 

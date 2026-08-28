@@ -12,6 +12,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
@@ -22,6 +23,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -41,9 +43,11 @@ import androidx.compose.material.icons.filled.UnfoldLess
 import androidx.compose.material.icons.filled.UnfoldMore
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -91,6 +95,7 @@ import com.rrajath.grove.ui.vault.NotebookTreeRow
 import com.rrajath.grove.ui.vault.drillLevel
 import com.rrajath.grove.ui.vault.NotebooksUiState
 import com.rrajath.grove.ui.vault.NotebooksViewModel
+import com.rrajath.grove.vault.vaultPath
 
 /** Notebook list home screen (design spec §2), driven by the sync index. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -106,9 +111,12 @@ fun NotebooksScreen(
     val c = MaterialTheme.grove
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    var showCreateDialog by remember { mutableStateOf(false) }
+    // Non-null while the "New notebook" dialog is open; the value is the target
+    // directory ("" = vault root, or the folder being browsed in the drill view).
+    var createInDir by remember { mutableStateOf<String?>(null) }
     var renameTarget by remember { mutableStateOf<String?>(null) }
     var styleTarget by remember { mutableStateOf<String?>(null) }
+    var moveTarget by remember { mutableStateOf<String?>(null) }
     // Drill-down view (variant 1b): the folder currently being browsed as a full
     // screen, or null for the inline tree. A folder with more than
     // FOLDER_DRILL_THRESHOLD files opens here instead of expanding in place.
@@ -155,6 +163,9 @@ fun NotebooksScreen(
                             onNavigate = { drillDir = it },
                         )
                     },
+                    actions = {
+                        IconGlyph("＋", onClick = { createInDir = currentDrill })
+                    },
                 )
             } else {
                 GroveTopBar(
@@ -169,7 +180,7 @@ fun NotebooksScreen(
                     },
                     actions = {
                         if (loadedState != null) {
-                            IconGlyph("＋", onClick = { showCreateDialog = true })
+                            IconGlyph("＋", onClick = { createInDir = "" })
                             if (loadedState.hasFolders) {
                                 IconGlyph(
                                     if (loadedState.allFoldersCollapsed) Icons.Default.UnfoldMore
@@ -239,6 +250,7 @@ fun NotebooksScreen(
                             onClick = { onOpenNotebook(nb.fileName) },
                             onOpenConflict = { onOpenConflict(nb.fileName) },
                             onRename = { renameTarget = nb.fileName },
+                            onMove = { moveTarget = nb.fileName },
                             onChangeIcon = { styleTarget = nb.fileName },
                             onDelete = { viewModel.trashNotebook(nb.fileName) },
                             onForceReload = { viewModel.forceReload(nb.fileName) },
@@ -341,17 +353,37 @@ fun NotebooksScreen(
         }
     }
 
-    if (showCreateDialog) {
+    createInDir?.let { dir ->
         NameDialog(
             title = "New notebook",
             initial = "",
             confirmLabel = "Create",
-            onDismiss = { showCreateDialog = false },
+            contextLabel = if (dir.isNotEmpty()) "in $dir/" else null,
+            onDismiss = { createInDir = null },
             onConfirm = { name ->
-                viewModel.createNotebook(name)
-                showCreateDialog = false
+                viewModel.createNotebook(name, dir)
+                createInDir = null
             },
         )
+    }
+    moveTarget?.let { target ->
+        val loaded = state as? NotebooksUiState.Loaded
+        val nb = loaded?.notebooks?.firstOrNull { it.fileName == target }
+        if (loaded == null || nb == null) {
+            moveTarget = null
+        } else {
+            MoveToFolderSheet(
+                displayName = nb.displayName,
+                currentDir = nb.dir,
+                notebooks = loaded.notebooks,
+                vaultName = loaded.vaultDisplayName,
+                onConfirm = { newDir ->
+                    viewModel.moveNotebook(target, newDir)
+                    moveTarget = null
+                },
+                onDismiss = { moveTarget = null },
+            )
+        }
     }
     renameTarget?.let { target ->
         NameDialog(
@@ -645,6 +677,7 @@ private fun FileRow(
     onClick: () -> Unit,
     onOpenConflict: () -> Unit,
     onRename: () -> Unit,
+    onMove: () -> Unit,
     onChangeIcon: () -> Unit,
     onDelete: () -> Unit,
     onForceReload: () -> Unit,
@@ -726,6 +759,10 @@ private fun FileRow(
             DropdownMenuItem(
                 text = { Text("Rename", fontFamily = PlexSans, color = c.ink) },
                 onClick = { menuOpen = false; onRename() },
+            )
+            DropdownMenuItem(
+                text = { Text("Move to folder…", fontFamily = PlexSans, color = c.ink) },
+                onClick = { menuOpen = false; onMove() },
             )
             DropdownMenuItem(
                 text = { Text("Change icon color", fontFamily = PlexSans, color = c.ink) },
@@ -810,6 +847,7 @@ private fun NameDialog(
     confirmLabel: String,
     onDismiss: () -> Unit,
     onConfirm: (String) -> Unit,
+    contextLabel: String? = null,
 ) {
     val c = MaterialTheme.grove
     var name by remember { mutableStateOf(initial) }
@@ -818,13 +856,22 @@ private fun NameDialog(
         containerColor = c.surface,
         title = { Text(title, fontFamily = PlexSans, fontWeight = FontWeight.SemiBold, color = c.ink) },
         text = {
-            OutlinedTextField(
-                value = name,
-                onValueChange = { name = it },
-                singleLine = true,
-                placeholder = { Text("notebook.org", fontFamily = PlexMono, color = c.ink3) },
-                textStyle = TextStyle(fontFamily = PlexMono, color = c.ink),
-            )
+            Column {
+                if (contextLabel != null) {
+                    Text(
+                        contextLabel,
+                        fontFamily = PlexMono, fontSize = 12.sp, color = c.ink3,
+                        modifier = Modifier.padding(bottom = 8.dp),
+                    )
+                }
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    singleLine = true,
+                    placeholder = { Text("notebook.org", fontFamily = PlexMono, color = c.ink3) },
+                    textStyle = TextStyle(fontFamily = PlexMono, color = c.ink),
+                )
+            }
         },
         confirmButton = {
             TextButton(
@@ -836,6 +883,186 @@ private fun NameDialog(
             TextButton(onClick = onDismiss) { Text("Cancel", color = c.ink2) }
         },
     )
+}
+
+/**
+ * "Move to folder…" destination picker (nested-folders plan §6). A bottom sheet
+ * that drills the vault folder tree one level at a time: tapping a folder row
+ * navigates into it, the breadcrumb jumps back out, and "Move here" targets the
+ * folder currently shown. "New folder here" types a fresh sub-path that
+ * [com.rrajath.grove.vault.Vault.moveNotebook] creates on the way.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun MoveToFolderSheet(
+    displayName: String,
+    currentDir: String,
+    notebooks: List<NotebookItem>,
+    vaultName: String,
+    onConfirm: (newDir: String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val c = MaterialTheme.grove
+    var pickerDir by remember { mutableStateOf("") }
+    var creatingFolder by remember { mutableStateOf(false) }
+    var newFolder by remember { mutableStateOf("") }
+    val childFolders = remember(notebooks, pickerDir) {
+        drillLevel(notebooks, pickerDir).childFolders
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = c.surface,
+        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+    ) {
+        Column(Modifier.padding(horizontal = 14.dp)) {
+            Text(
+                "Move $displayName",
+                fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
+                fontSize = 16.sp, color = c.ink,
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                "Currently in ${currentDir.ifEmpty { vaultName }}",
+                fontFamily = PlexSans, fontSize = 12.sp, color = c.ink2,
+            )
+            Spacer(Modifier.height(10.dp))
+            Breadcrumb(
+                vaultName = vaultName,
+                dir = pickerDir,
+                onExit = { pickerDir = "" },
+                onNavigate = { pickerDir = it },
+            )
+            Spacer(Modifier.height(12.dp))
+            LazyColumn(
+                Modifier.heightIn(max = 320.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                if (childFolders.isEmpty()) {
+                    item {
+                        Text(
+                            "No sub-folders here",
+                            fontFamily = PlexSans, fontSize = 13.sp, color = c.ink3,
+                            modifier = Modifier.padding(vertical = 12.dp),
+                        )
+                    }
+                }
+                items(childFolders, key = { it.dir }) { node ->
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .border(1.dp, c.line, RoundedCornerShape(12.dp))
+                            .clickable { pickerDir = node.dir }
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text("▪", fontFamily = PlexMono, fontSize = 15.sp, color = c.ink3)
+                        Spacer(Modifier.width(10.dp))
+                        Text(
+                            node.name,
+                            fontFamily = PlexMono, fontWeight = FontWeight.Medium,
+                            fontSize = 14.5.sp, color = c.ink, modifier = Modifier.weight(1f),
+                        )
+                        Text(
+                            "${node.recursiveOrgCount}",
+                            fontFamily = PlexSans, fontSize = 11.5.sp, color = c.ink3,
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text("›", fontFamily = PlexMono, fontSize = 15.sp, color = c.ink3)
+                    }
+                }
+            }
+            Spacer(Modifier.height(10.dp))
+            if (creatingFolder) {
+                OutlinedTextField(
+                    value = newFolder,
+                    onValueChange = { newFolder = it },
+                    singleLine = true,
+                    placeholder = { Text("folder name", fontFamily = PlexMono, color = c.ink3) },
+                    textStyle = TextStyle(fontFamily = PlexMono, color = c.ink),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(8.dp))
+                val newDir = vaultPath(pickerDir, newFolder.trim().trim('/'))
+                MoveConfirmButton(
+                    label = "Create and move here",
+                    enabled = newFolder.isNotBlank() && newDir != currentDir,
+                    onClick = { onConfirm(newDir) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            } else {
+                Row(
+                    Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .clickable { creatingFolder = true }
+                        .padding(horizontal = 8.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text("＋", fontFamily = PlexMono, fontSize = 15.sp, color = c.accent)
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        "New folder here",
+                        fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
+                        fontSize = 13.sp, color = c.accent,
+                    )
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+            HorizontalDivider(color = c.line)
+            Row(
+                Modifier.padding(vertical = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(
+                    Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(c.surface2)
+                        .border(1.dp, c.line, RoundedCornerShape(12.dp))
+                        .clickable(onClick = onDismiss)
+                        .padding(horizontal = 18.dp, vertical = 12.dp),
+                ) {
+                    Text(
+                        "Cancel",
+                        fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
+                        fontSize = 14.sp, color = c.ink2,
+                    )
+                }
+                MoveConfirmButton(
+                    label = "Move to ${pickerDir.ifEmpty { vaultName }}",
+                    enabled = pickerDir != currentDir && !creatingFolder,
+                    onClick = { onConfirm(pickerDir) },
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MoveConfirmButton(
+    label: String,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val c = MaterialTheme.grove
+    Box(
+        modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(if (enabled) c.accent else c.surface2)
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = 18.dp, vertical = 12.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            label,
+            fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
+            fontSize = 14.sp, color = if (enabled) c.accentInk else c.ink3,
+            maxLines = 1,
+        )
+    }
 }
 
 @Composable

@@ -123,4 +123,20 @@ class VaultTest {
         assertEquals("* A", tmp.root.resolve("clients/acme.org").readText())
         assertNull(v.moveNotebook("clients/acme.org", "clients"))
     }
+
+    @Test
+    fun `moveNotebook into a not-yet-existing nested folder creates the path`() = runTest {
+        tmp.newFile("acme.org").writeText("* A")
+        val v = vault()
+
+        assertEquals("clients/2026/acme.org", v.moveNotebook("acme.org", "clients/2026"))
+        assertTrue(tmp.root.resolve("clients/2026/acme.org").exists())
+    }
+
+    @Test
+    fun `createNotebook honours a typed nested name under a directory`() = runTest {
+        val v = vault()
+        assertTrue(v.createNotebook("clients/acme.org", dir = "projects"))
+        assertTrue(tmp.root.resolve("projects/clients/acme.org").exists())
+    }
 }

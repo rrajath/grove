@@ -14,6 +14,7 @@ Grove edits plain `.org` files in a folder you choose. There is no account, no p
 - **One canvas for both dates**: scheduling opens a full-screen editor that puts SCHEDULED and DEADLINE on the same calendar (with the lead time between them shaded and a warning if you'd start already late), and commits both in one edit. Each carries presets, a time range and an org repeater, and a shorthand box parses lines like `fri 10-11am ++1w` or `d: aug 5` as you type.
 - **Reminders**: a notification fires when a heading's SCHEDULED or DEADLINE time arrives, with Complete (marks the heading done) and Reschedule (reopens the dates screen) actions right on the notification. Enabled by default; notification and exact-alarm access are only requested once the first reminder actually needs scheduling.
 - **Outline operations**: collapsible heading tree with body previews, expand/collapse all, move/cut/copy/paste subtrees, cycle state by swipe, narrow to a subtree.
+- **Nested vault folders**: subdirectories inside the vault are first-class. The Notebooks screen shows the whole vault as an inline tree (a folder with more than 20 files becomes a tappable drill-down instead), a notebook's identity is its vault-relative path, and `＋` / "Move to folder…" create and relocate notebooks across folders.
 - **Orgzly-compatible search**: `i.todo s.7d t.work .b.archive OR p.a`, saved searches, and an `ad.N` agenda view. Backed by a SQLite FTS5 trigram index, so substring search stays instant as the vault grows and covers full note bodies. See [docs/search-syntax.md](docs/search-syntax.md).
 - **Sync that respects your tools**: change detection by file revision, Syncthing `.sync-conflict-*` detection with a keep-local / keep-remote / keep-both picker, manual through continuous sync modes, `.orgzlyignore` support.
 - **A warm, deliberate design**: IBM Plex Sans/Serif/Mono, an earth-tone palette with full dark mode, and org syntax tokens colored the way an Emacs theme would.
@@ -52,7 +53,7 @@ Grove edits plain `.org` files in a folder you choose. There is no account, no p
 ```
 app/src/main/java/com/rrajath/grove/
 ├── org/        Org-mode engine: parser, mutations, timestamps, line editing
-├── vault/      File access: FileStore abstraction, SAF + JVM impls, Vault facade
+├── vault/      File access: recursive FileStore abstraction, SAF + JVM impls, Vault facade
 ├── sync/       Sync engine, state machine, conflict handling, Android triggers
 ├── data/       Room index (rebuildable cache) over the vault
 ├── capture/    Capture templates, placeholder expansion, entry insertion

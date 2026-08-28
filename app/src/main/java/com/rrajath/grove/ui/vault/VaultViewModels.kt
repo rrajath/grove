@@ -214,11 +214,35 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
         }
     }
 
-    fun createNotebook(name: String) {
+    /**
+     * Create an empty notebook. [dir] is a vault-relative directory ("" = root);
+     * the drill-down view passes the folder currently being browsed. [name] may
+     * itself carry `/` segments, which [Vault.createNotebook] appends under [dir],
+     * creating any missing folders.
+     */
+    fun createNotebook(name: String, dir: String = "") {
         val vault = app.vault.value ?: return
         viewModelScope.launch {
-            vault.createNotebook(name.trim())
+            vault.createNotebook(name.trim(), dir.trim('/'))
             app.syncManager.requestSync("notebook created")
+        }
+    }
+
+    /**
+     * Move a notebook into [newDir] (a vault-relative directory, "" = root),
+     * keeping its file name. Re-keys the monogram colour and pin position onto
+     * the new path via [com.rrajath.grove.settings.SettingsRepository.moveNotebookStyle]
+     * and drops the stale index row so the next sync re-discovers it in place.
+     */
+    fun moveNotebook(path: String, newDir: String) {
+        val vault = app.vault.value ?: return
+        viewModelScope.launch {
+            val newPath = vault.moveNotebook(path, newDir.trim('/'))
+            if (newPath != null) {
+                app.database.indexDao().removeNotebook(path)
+                app.settingsRepository.moveNotebookStyle(path, newPath)
+                app.syncManager.requestSync("notebook moved")
+            }
         }
     }
 
