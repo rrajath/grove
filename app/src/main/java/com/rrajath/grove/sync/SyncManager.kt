@@ -18,6 +18,7 @@ import com.rrajath.grove.data.GroveDatabase
 import com.rrajath.grove.data.RoomNoteIndex
 import com.rrajath.grove.data.SyncLogEntity
 import com.rrajath.grove.settings.SyncMode
+import com.rrajath.grove.vault.FileEntry
 import com.rrajath.grove.vault.FileStore
 import com.rrajath.grove.vault.Vault
 import kotlinx.coroutines.CoroutineScope
@@ -218,9 +219,21 @@ class SyncManager(
     private fun startPolling() {
         if (pollJob?.isActive == true) return
         pollJob = scope.launch {
+            // Fingerprint the directory each tick and only kick off a sync when
+            // a file was added, removed, renamed or changed size/mtime. The
+            // listing is one cheap SAF cursor query; this skips the Room diff,
+            // the SyncEngine pass and the sync-log writes on the common quiet
+            // tick. First tick just seeds the fingerprint (onAppForeground
+            // already synced). PERFORMANCE_AUDIT_2026-08-27 #2.
+            var lastFingerprint: Long? = null
             while (isActive) {
                 delay(POLL_INTERVAL_MS)
-                requestSync("change poll")
+                val entries = runCatching { store?.list() }.getOrNull() ?: continue
+                val fingerprint = directoryFingerprint(entries)
+                if (lastFingerprint != null && fingerprint != lastFingerprint) {
+                    requestSync("change poll")
+                }
+                lastFingerprint = fingerprint
             }
         }
     }
@@ -284,6 +297,24 @@ class SyncManager(
         private const val NOTIFICATION_ID = 100
         private const val POLL_INTERVAL_MS = 10_000L
     }
+}
+
+/**
+ * A cheap, order-independent hash of a vault directory listing: it changes iff
+ * a file is added, removed, renamed, or its size / last-modified time changes.
+ * Lets the continuous-mode poll ([SyncManager.startPolling]) skip a full sync
+ * pass on ticks where nothing on disk moved (PERFORMANCE_AUDIT_2026-08-27 #2).
+ * A hash collision only ever costs one delayed sync (the next real change, or
+ * the periodic worker, still catches it), so 64 bits of FNV-1a is plenty.
+ */
+internal fun directoryFingerprint(entries: List<FileEntry>): Long {
+    var hash = -3750763034362895579L // FNV-1a 64-bit offset basis
+    for (entry in entries.sortedBy { it.name }) {
+        hash = (hash xor entry.name.hashCode().toLong()) * 1099511628211L
+        hash = (hash xor entry.lastModified) * 1099511628211L
+        hash = (hash xor entry.size) * 1099511628211L
+    }
+    return hash
 }
 
 class SyncWorker(
