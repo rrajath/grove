@@ -53,6 +53,14 @@ class SyncManager(
     private var engine: SyncEngine? = null
     private var store: FileStore? = null
 
+    // All full-sync triggers funnel through here so overlapping ones coalesce
+    // into a single pass instead of running back to back (PERFORMANCE_AUDIT
+    // 2026-08-27 #3). Still takes [mutex] so it can't interleave with
+    // [requestReindex] / [clearAndResync].
+    private val coalescer = SyncCoalescer(scope) { reason ->
+        mutex.withLock { runSyncPass(reason) }
+    }
+
     private val _state = MutableStateFlow<SyncState>(SyncState.Idle)
     val state: StateFlow<SyncState> = _state
 
@@ -75,20 +83,22 @@ class SyncManager(
     }
 
     fun requestSync(reason: String) {
+        if (engine == null) return
+        coalescer.request(reason)
+    }
+
+    /** One full sync pass. Serialized by [coalescer] (and [mutex]); never run concurrently. */
+    private suspend fun runSyncPass(reason: String) {
         val engine = engine ?: return
-        scope.launch {
-            mutex.withLock {
-                log("sync started ($reason)")
-                val result = engine.sync(log = { msg -> log(msg) })
-                if (result != null) {
-                    _lastResult.value = result
-                    log("sync done: ${result.pulled.size} pulled, ${result.conflicts.size} conflicts")
-                    if (result.conflicts.isNotEmpty()) notifyConflicts(result.conflicts.keys)
-                }
-                database.syncLogDao().trim()
-                onSyncCompleted()
-            }
+        log("sync started ($reason)")
+        val result = engine.sync(log = { msg -> log(msg) })
+        if (result != null) {
+            _lastResult.value = result
+            log("sync done: ${result.pulled.size} pulled, ${result.conflicts.size} conflicts")
+            if (result.conflicts.isNotEmpty()) notifyConflicts(result.conflicts.keys)
         }
+        database.syncLogDao().trim()
+        onSyncCompleted()
     }
 
     /**
