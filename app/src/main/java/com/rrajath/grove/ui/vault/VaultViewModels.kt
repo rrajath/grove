@@ -3,6 +3,7 @@ package com.rrajath.grove.ui.vault
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import androidx.compose.runtime.Immutable
 import androidx.lifecycle.viewmodel.CreationExtras
 import com.rrajath.grove.GroveApplication
 import com.rrajath.grove.org.ArchiveLocation
@@ -17,6 +18,9 @@ import com.rrajath.grove.sync.SyncState
 import com.rrajath.grove.vault.AutoArchive
 import com.rrajath.grove.vault.StateChangeResult
 import com.rrajath.grove.vault.Vault
+import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -196,17 +200,18 @@ data class OutlineToast(val message: String, val id: Long)
 data class OutlineSnack(val message: String, val id: Long)
 
 /** One step of refile-picker drill-down state (design spec Gestures screen). */
+@Immutable
 data class RefileNotebook(val fileName: String, val noteCount: Int)
 
 data class RefileUiState(
     /** Line index of the headline being refiled (in the current document). */
     val sourceLine: Int,
     /** Null while the notebook list is loading. */
-    val notebooks: List<RefileNotebook>? = null,
+    val notebooks: ImmutableList<RefileNotebook>? = null,
     val pickedFile: String? = null,
     val pickedDoc: OrgDocument? = null,
     /** Drill-down trail of headline lineIndexes inside [pickedDoc]; empty = top level. */
-    val path: List<Int> = emptyList(),
+    val path: ImmutableList<Int> = persistentListOf(),
     /** Effective `ARCHIVE` target for the source headline (nearest-ancestor-wins), if any. */
     val archiveTarget: ArchiveTarget? = null,
     /** Destination of the most recent successful refile, if any. */
@@ -657,6 +662,7 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
         viewModelScope.launch {
             val notebooks = app.vault.value?.notebooks().orEmpty()
                 .map { RefileNotebook(it.fileName, it.noteCount) }
+                .toImmutableList()
             val settings = app.settingsRepository.settings.first()
             val archiveTarget = (_state.value as? DocumentUiState.Loaded)?.let {
                 ArchiveLocation.resolve(it.document, headline, AutoArchive.settingsFallback(settings))
@@ -679,18 +685,18 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
                 showToast("Couldn't open ${fileName.removeSuffix(".org")}")
                 return@launch
             }
-            _refile.value = _refile.value?.copy(pickedFile = fileName, pickedDoc = doc, path = emptyList())
+            _refile.value = _refile.value?.copy(pickedFile = fileName, pickedDoc = doc, path = persistentListOf())
         }
     }
 
     fun refileDrillInto(line: Int) {
-        _refile.value = _refile.value?.let { it.copy(path = it.path + line) }
+        _refile.value = _refile.value?.let { it.copy(path = (it.path + line).toImmutableList()) }
     }
 
     /** Pop one drill-down level, or return to the notebook list from a file's top level. */
     fun refileBack() {
         _refile.value = _refile.value?.let {
-            if (it.path.isNotEmpty()) it.copy(path = it.path.dropLast(1))
+            if (it.path.isNotEmpty()) it.copy(path = it.path.dropLast(1).toImmutableList())
             else it.copy(pickedFile = null, pickedDoc = null)
         }
     }

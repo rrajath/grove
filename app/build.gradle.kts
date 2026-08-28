@@ -173,6 +173,12 @@ android {
     }
 }
 
+composeCompiler {
+    // Value types (domain models, java.time) that are immutable in practice but
+    // the compiler can't verify. See internal/PERFORMANCE_AUDIT_2026-08-27.md #6.
+    stabilityConfigurationFiles.add(rootProject.layout.projectDirectory.file("app/compose_stability.conf"))
+}
+
 androidComponents {
     onVariants { variant ->
         val variantName = variant.name.replaceFirstChar { it.uppercase() }
@@ -199,6 +205,7 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.kotlinx.collections.immutable)
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)

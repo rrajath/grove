@@ -23,6 +23,8 @@ import com.rrajath.grove.settings.ThemePreference
 import com.rrajath.grove.ui.vault.RefileNotebook
 import com.rrajath.grove.ui.vault.RefileUiState
 import com.rrajath.grove.ui.vault.headlineAtLine
+import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.toImmutableList
 import com.rrajath.grove.whatsnew.ChangelogParser
 import com.rrajath.grove.whatsnew.ChangelogVersion
 import kotlinx.coroutines.Dispatchers
@@ -221,6 +223,7 @@ class AppViewModel(private val app: GroveApplication) : ViewModel() {
         viewModelScope.launch {
             val notebooks = app.vault.value?.notebooks().orEmpty()
                 .map { RefileNotebook(it.fileName, it.noteCount) }
+                .toImmutableList()
             _archiveLocationPicker.value = _archiveLocationPicker.value?.copy(notebooks = notebooks)
         }
     }
@@ -233,17 +236,18 @@ class AppViewModel(private val app: GroveApplication) : ViewModel() {
                 return@launch
             }
             _archiveLocationPicker.value =
-                _archiveLocationPicker.value?.copy(pickedFile = fileName, pickedDoc = doc, path = emptyList())
+                _archiveLocationPicker.value?.copy(pickedFile = fileName, pickedDoc = doc, path = persistentListOf())
         }
     }
 
     fun archiveLocationDrillInto(line: Int) {
-        _archiveLocationPicker.value = _archiveLocationPicker.value?.let { it.copy(path = it.path + line) }
+        _archiveLocationPicker.value =
+            _archiveLocationPicker.value?.let { it.copy(path = (it.path + line).toImmutableList()) }
     }
 
     fun archiveLocationBack() {
         _archiveLocationPicker.value = _archiveLocationPicker.value?.let {
-            if (it.path.isNotEmpty()) it.copy(path = it.path.dropLast(1))
+            if (it.path.isNotEmpty()) it.copy(path = it.path.dropLast(1).toImmutableList())
             else it.copy(pickedFile = null, pickedDoc = null)
         }
     }

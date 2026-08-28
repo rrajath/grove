@@ -20,6 +20,10 @@ import com.rrajath.grove.ui.vault.factory
 import com.rrajath.grove.ui.vault.headlineAtLine
 import com.rrajath.grove.vault.AutoArchive
 import com.rrajath.grove.vault.StateChangeResult
+import androidx.compose.runtime.Immutable
+import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -42,8 +46,10 @@ import kotlin.math.abs
 enum class AgendaMetaTone { NORMAL, MUTED, DANGER, TAG }
 
 /** One entry in a row's mono meta strip: the date, a `⚑` deadline, a time range, `↻` repeater, tags, or the file. */
+@Immutable
 data class AgendaMeta(val text: String, val tone: AgendaMetaTone)
 
+@Immutable
 data class AgendaRow(
     val fileName: String,
     val lineIndex: Int,
@@ -51,14 +57,15 @@ data class AgendaRow(
     val keyword: String?,
     val isDone: Boolean,
     val priority: String?,
-    val meta: List<AgendaMeta>,
+    val meta: ImmutableList<AgendaMeta>,
     /** Prefills the Dates screen for the swipe-to-schedule/deadline actions. */
     val scheduledTs: OrgTimestamp?,
     val deadlineTs: OrgTimestamp?,
 )
 
 /** One "Group by" bucket: an uppercase key, its count, and its rows. */
-data class AgendaGroup(val key: String, val count: Int, val rows: List<AgendaRow>)
+@Immutable
+data class AgendaGroup(val key: String, val count: Int, val rows: ImmutableList<AgendaRow>)
 
 /** The Today/Upcoming segmented control. Navigational, so it is not persisted. */
 enum class AgendaTab { TODAY, UPCOMING }
@@ -72,12 +79,12 @@ data class AgendaUiState(
     val tab: AgendaTab = AgendaTab.TODAY,
     val leversOpen: Boolean = false,
     val overdueOpen: Boolean = false,
-    val overdue: List<AgendaRow> = emptyList(),
-    val groups: List<AgendaGroup> = emptyList(),
+    val overdue: ImmutableList<AgendaRow> = persistentListOf(),
+    val groups: ImmutableList<AgendaGroup> = persistentListOf(),
     val grouping: AgendaGrouping = AgendaGrouping.DATE,
     val stateFilter: AgendaStateFilter = AgendaStateFilter.Open,
     /** The vault's active (todo-type) keywords: one "Show" chip each, between Open and Everything. */
-    val activeKeywords: List<String> = emptyList(),
+    val activeKeywords: ImmutableList<String> = persistentListOf(),
     val showTags: Boolean = true,
     val showFile: Boolean = false,
     val swipeLeftAction: AgendaSwipeAction = AgendaSwipeAction.MARK_DONE,
@@ -247,12 +254,15 @@ class AgendaViewModel(private val app: GroveApplication) : ViewModel() {
             tab = tab,
             leversOpen = leversOpen,
             overdueOpen = overdueOpen,
-            overdue = overdueItems.map { row(it, today, showDate = true, p = p) },
+            overdue = overdueItems.map { row(it, today, showDate = true, p = p) }.toImmutableList(),
             groups = AgendaBuckets.group(list, today, grouping, isTodayTab)
-                .map { b -> AgendaGroup(b.key, b.notes.size, b.notes.map { row(it, today, showDate, p) }) },
+                .map { b ->
+                    AgendaGroup(b.key, b.notes.size, b.notes.map { row(it, today, showDate, p) }.toImmutableList())
+                }
+                .toImmutableList(),
             grouping = grouping,
             stateFilter = filter,
-            activeKeywords = active,
+            activeKeywords = active.toImmutableList(),
             showTags = p.agendaShowTags,
             showFile = p.agendaShowFile,
             swipeLeftAction = p.agendaSwipeLeftAction,
@@ -502,7 +512,7 @@ class AgendaViewModel(private val app: GroveApplication) : ViewModel() {
                 keyword = m.keyword,
                 isDone = m.isDoneKeyword,
                 priority = m.priority,
-                meta = meta,
+                meta = meta.toImmutableList(),
                 scheduledTs = scheduledTs,
                 deadlineTs = deadlineTs,
             )

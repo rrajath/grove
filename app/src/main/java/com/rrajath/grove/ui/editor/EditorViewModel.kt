@@ -15,6 +15,9 @@ import com.rrajath.grove.ui.vault.factory
 import com.rrajath.grove.ui.vault.headlineFor
 import com.rrajath.grove.vault.AutoArchive
 import com.rrajath.grove.vault.StateChangeResult
+import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -42,7 +45,7 @@ data class EditorUiState(
     val error: String? = null,
     /** File changed on disk since load; offer overwrite (Force Save). */
     val staleFile: Boolean = false,
-    val allTags: List<String> = emptyList(),
+    val allTags: ImmutableList<String> = persistentListOf(),
     /**
      * Counts buffer rewrites that did *not* come from the text field: today
      * only the metadata sheet's mutations. The editor screen pushes the buffer
@@ -135,6 +138,7 @@ class EditorViewModel(private val app: GroveApplication) : ViewModel() {
                 .filter { it.isNotEmpty() }
                 .distinct()
                 .sorted()
+                .toImmutableList()
             _state.value = EditorUiState(
                 loading = false,
                 fileName = ref.fileName,

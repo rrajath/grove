@@ -2,6 +2,7 @@ package com.rrajath.grove.ui.search
 
 import android.database.SQLException
 import android.util.Log
+import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rrajath.grove.GroveApplication
@@ -28,6 +29,9 @@ import com.rrajath.grove.ui.vault.factory
 import com.rrajath.grove.ui.vault.headlineAtLine
 import com.rrajath.grove.vault.AutoArchive
 import com.rrajath.grove.vault.StateChangeResult
+import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.delay
@@ -64,6 +68,7 @@ enum class DatePreset(val label: String, val token: String) {
 }
 
 /** Inclusive start/end for [DatePreset.CUSTOM]. */
+@Immutable
 data class DateRange(val start: LocalDate, val end: LocalDate) {
     operator fun contains(date: LocalDate): Boolean = !date.isBefore(start) && !date.isAfter(end)
 }
@@ -74,6 +79,7 @@ data class DateRange(val start: LocalDate, val end: LocalDate) {
  * three states. Included values OR together (e.g. tag=work OR tag=urgent);
  * excluded values each independently rule a note out.
  */
+@Immutable
 data class SearchFilters(
     val tags: Set<String> = emptySet(),
     val excludedTags: Set<String> = emptySet(),
@@ -119,6 +125,7 @@ private fun <T> cycleFacet(included: Set<T>, excluded: Set<T>, value: T): Pair<S
     else -> (included + value) to excluded
 }
 
+@Immutable
 data class SearchResult(
     val fileName: String,
     val lineIndex: Int,
@@ -137,12 +144,14 @@ data class SearchResult(
     val deadlineTs: OrgTimestamp?,
 )
 
-data class SearchFileGroup(val fileName: String, val results: List<SearchResult>)
+@Immutable
+data class SearchFileGroup(val fileName: String, val results: ImmutableList<SearchResult>)
 
+@Immutable
 data class SearchCatalog(
-    val tags: List<String> = emptyList(),
-    val states: List<String> = emptyList(),
-    val notebooks: List<String> = emptyList(),
+    val tags: ImmutableList<String> = persistentListOf(),
+    val states: ImmutableList<String> = persistentListOf(),
+    val notebooks: ImmutableList<String> = persistentListOf(),
 )
 
 data class QuickCounts(val overdue: Int = 0, val today: Int = 0, val openTasks: Int = 0, val unscheduled: Int = 0)
@@ -150,16 +159,16 @@ data class QuickCounts(val overdue: Int = 0, val today: Int = 0, val openTasks: 
 data class SearchUiState(
     val query: String = "",
     val filters: SearchFilters = SearchFilters(),
-    val groups: List<SearchFileGroup> = emptyList(),
+    val groups: ImmutableList<SearchFileGroup> = persistentListOf(),
     val resultCount: Int = 0,
     val notebookCount: Int = 0,
     val isBlank: Boolean = true,
     val catalog: SearchCatalog = SearchCatalog(),
     val quickCounts: QuickCounts = QuickCounts(),
     /** Configured todo-type (non-done) keywords: backs the "Open tasks" quick card. */
-    val activeStates: List<String> = emptyList(),
+    val activeStates: ImmutableList<String> = persistentListOf(),
     /** Current query's plain-text terms: result rows highlight these after org-rendering. */
-    val matchedTerms: List<String> = emptyList(),
+    val matchedTerms: ImmutableList<String> = persistentListOf(),
 )
 
 /** Full-text + faceted search, results grouped by file (design spec §9 "Search
@@ -530,11 +539,11 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
         if (raw.isBlank() && filters.activeCount == 0) {
             _state.value = _state.value.copy(
                 filters = filters,
-                groups = emptyList(),
+                groups = persistentListOf(),
                 resultCount = vaultNoteCount,
                 notebookCount = vaultNotebookCount,
                 isBlank = true,
-                matchedTerms = emptyList(),
+                matchedTerms = persistentListOf(),
             )
             return
         }
@@ -547,18 +556,14 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
             val terms = textQuery?.textTerms ?: emptyList()
             val filtered = textMatched.filter { matchesFilters(it, filters, today) }
 
-            val groups = mutableListOf<SearchFileGroup>()
-            val indexOfFile = HashMap<String, Int>()
+            // Group by file, preserving first-seen file order.
+            val byFile = LinkedHashMap<String, MutableList<SearchResult>>()
             filtered.forEach { note ->
-                val result = toResult(note, terms, today)
-                val idx = indexOfFile[note.fileName]
-                if (idx == null) {
-                    indexOfFile[note.fileName] = groups.size
-                    groups.add(SearchFileGroup(note.fileName, listOf(result)))
-                } else {
-                    groups[idx] = groups[idx].copy(results = groups[idx].results + result)
-                }
+                byFile.getOrPut(note.fileName) { mutableListOf() }.add(toResult(note, terms, today))
             }
+            val groups = byFile.map { (file, results) ->
+                SearchFileGroup(file, results.toImmutableList())
+            }.toImmutableList()
 
             _state.value = _state.value.copy(
                 filters = filters,
@@ -566,7 +571,7 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
                 resultCount = filtered.size,
                 notebookCount = groups.size,
                 isBlank = false,
-                matchedTerms = terms,
+                matchedTerms = terms.toImmutableList(),
             )
         }
     }
@@ -703,11 +708,11 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
     private suspend fun updateCatalogAndCounts(notes: List<NoteFacets>, savedSearches: List<SavedSearch>) {
         val today = LocalDate.now()
         val keywords = app.keywords.value
-        val tags = notes.flatMap { it.inheritedTags }.distinct().sorted()
+        val tags = notes.flatMap { it.inheritedTags }.distinct().sorted().toImmutableList()
         // All configured states (not just ones currently in use), todo-type first
         // then done-type, "no state" last.
-        val states = keywords.active + keywords.done + NO_STATE
-        val notebooks = notes.map { it.fileName }.distinct().sorted()
+        val states = (keywords.active + keywords.done + NO_STATE).toImmutableList()
+        val notebooks = notes.map { it.fileName }.distinct().sorted().toImmutableList()
         val overrides = savedSearches.filter { it.id in QuickStartOverrides.ids }.associateBy { it.id }
 
         val overdue = overrides[QuickStartOverrides.OVERDUE_ID]?.let { overrideCount(it.query) } ?: notes.count {
@@ -725,7 +730,7 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
         _state.value = _state.value.copy(
             catalog = SearchCatalog(tags, states, notebooks),
             quickCounts = QuickCounts(overdue, dueToday, openTasks, unscheduled),
-            activeStates = keywords.active,
+            activeStates = keywords.active.toImmutableList(),
         )
     }
 
