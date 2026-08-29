@@ -114,6 +114,8 @@ fun ChangeIconColorDialog(
     currentColorKey: String,
     onPickColor: (String) -> Unit,
     onDismiss: () -> Unit,
+    /** When set, the preview tile shows this glyph (e.g. `▪` for a folder) instead of [letter]. */
+    glyph: String? = null,
 ) {
     val c = MaterialTheme.grove
     AlertDialog(
@@ -129,7 +131,21 @@ fun ChangeIconColorDialog(
         text = {
             Column {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    MonogramTile(letter = letter, colorKey = currentColorKey, size = 42.dp)
+                    if (glyph != null) {
+                        val (fg, bg) = monogramPalette(c, currentColorKey)
+                        Box(
+                            Modifier
+                                .size(42.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(bg)
+                                .border(1.dp, fg.copy(alpha = 0.4f), RoundedCornerShape(12.dp)),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(glyph, fontFamily = PlexMono, fontSize = 15.sp, color = fg)
+                        }
+                    } else {
+                        MonogramTile(letter = letter, colorKey = currentColorKey, size = 42.dp)
+                    }
                     Spacer(Modifier.width(12.dp))
                     Column {
                         Text(

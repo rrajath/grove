@@ -81,6 +81,11 @@ re-uploads the APKs to the existing release instead of failing.
   action on a notebook's long-press menu opens a picker that walks the folder
   tree, with a "New folder here" option. Moving a notebook keeps its icon
   colour and pinned position.
+- Long-pressing a folder row opens a menu to pin it to the top, rename it,
+  change its icon colour, or delete it. Pinning a folder adds it to the Pinned
+  strip while keeping it in place in the tree; renaming moves every file inside
+  and carries their icon colours and pins across; deleting moves every file
+  inside to the trash, recoverable from the synced folder.
 
 ## [1.0.5] - 2026-08-28
 

@@ -86,6 +86,10 @@ sealed class NotebooksUiState {
         val rows: List<NotebookTreeRow> = emptyList(),
         /** Pinned folders, pin order; rendered in the strip and still in place in [rows]. */
         val pinnedFolders: List<FolderNode> = emptyList(),
+        /** Directory paths currently expanded — lets the pinned strip's folder rows share the tree's caret state. */
+        val expandedFolders: Set<String> = emptySet(),
+        /** Per-folder icon-colour overrides, so the drill-down view tints its folder tiles like the tree. */
+        val folderColors: Map<String, String> = emptyMap(),
         /** True when the tree contains at least one folder (gates the expand/collapse-all button). */
         val hasFolders: Boolean = false,
         /** True when no folder is expanded (picks the expand-all vs collapse-all icon). */
@@ -171,6 +175,8 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
                 pinnedFolders = pinnedFolderNodes(
                     treeItems, inputs.folderColors, inputs.pinnedFolders,
                 ),
+                expandedFolders = inputs.expandedFolders,
+                folderColors = inputs.folderColors,
                 hasFolders = folderDirs.isNotEmpty(),
                 allFoldersCollapsed = folderDirs.none { it in inputs.expandedFolders },
                 vaultDisplayName = inputs.vaultDisplayName,

@@ -117,6 +117,10 @@ fun NotebooksScreen(
     var renameTarget by remember { mutableStateOf<String?>(null) }
     var styleTarget by remember { mutableStateOf<String?>(null) }
     var moveTarget by remember { mutableStateOf<String?>(null) }
+    // Folder long-press menu targets (variant 1a follow-up); the value is the folder node.
+    var folderRenameTarget by remember { mutableStateOf<FolderNode?>(null) }
+    var folderColorTarget by remember { mutableStateOf<FolderNode?>(null) }
+    var folderDeleteTarget by remember { mutableStateOf<FolderNode?>(null) }
     // Drill-down view (variant 1b): the folder currently being browsed as a full
     // screen, or null for the inline tree. A folder with more than
     // FOLDER_DRILL_THRESHOLD files opens here instead of expanding in place.
@@ -259,11 +263,44 @@ fun NotebooksScreen(
                         )
                     }
 
+                    @Composable
+                    fun folderRow(
+                        node: FolderNode,
+                        expanded: Boolean = false,
+                        flat: Boolean = false,
+                        pinnedStrip: Boolean = false,
+                        onClick: () -> Unit,
+                    ) {
+                        FolderRow(
+                            node = node,
+                            expanded = expanded,
+                            chevron = !flat && node.recursiveOrgCount > FOLDER_DRILL_THRESHOLD,
+                            flat = flat,
+                            pinnedStrip = pinnedStrip,
+                            onClick = onClick,
+                            onPin = { viewModel.pinFolder(node.dir) },
+                            onUnpin = { viewModel.unpinFolder(node.dir) },
+                            onRename = { folderRenameTarget = node },
+                            onChangeColor = { folderColorTarget = node },
+                            onDelete = { folderDeleteTarget = node },
+                        )
+                    }
+
+                    // Tree/pinned-strip tap: drill into a big folder, else toggle it in place.
+                    fun openFolder(node: FolderNode) {
+                        if (node.recursiveOrgCount > FOLDER_DRILL_THRESHOLD) drillDir = node.dir
+                        else viewModel.toggleFolder(node.dir)
+                    }
+
                     val currentDrill = drillDir
                     if (currentDrill != null) {
                         // Variant 1b: one folder as a full screen, rows never indent.
-                        val level = remember(s.notebooks, currentDrill) {
-                            drillLevel(s.notebooks, currentDrill)
+                        val level = remember(s.notebooks, currentDrill, s.pinnedFolders, s.folderColors) {
+                            drillLevel(
+                                s.notebooks, currentDrill,
+                                folderColors = s.folderColors,
+                                pinnedFolders = s.pinnedFolders.map { it.dir },
+                            )
                         }
                         if (level.childFolders.isEmpty() && level.files.isEmpty()) {
                             CenterMessage("✦", "Nothing in this folder yet")
@@ -273,9 +310,8 @@ fun NotebooksScreen(
                                 contentPadding = PaddingValues(top = 4.dp, bottom = 24.dp),
                             ) {
                                 items(level.childFolders, key = { "dir:${it.dir}" }) { node ->
-                                    FolderRow(
+                                    folderRow(
                                         node = node,
-                                        expanded = false,
                                         flat = true,
                                         onClick = { drillDir = node.dir },
                                     )
@@ -304,8 +340,17 @@ fun NotebooksScreen(
                                         // the FAB instead of sitting underneath it.
                                         contentPadding = PaddingValues(bottom = 86.dp),
                                     ) {
-                                        if (s.pinned.isNotEmpty()) {
+                                        if (s.pinned.isNotEmpty() || s.pinnedFolders.isNotEmpty()) {
                                             item(key = "strip:pinned") { StripLabel("Pinned") }
+                                            // Folders first, then files — matching the tree's per-level sort.
+                                            items(s.pinnedFolders, key = { "pindir:${it.dir}" }) { node ->
+                                                folderRow(
+                                                    node = node,
+                                                    expanded = node.dir in s.expandedFolders,
+                                                    pinnedStrip = true,
+                                                    onClick = { openFolder(node) },
+                                                )
+                                            }
                                             items(s.pinned, key = { "pin:${it.fileName}" }) { nb ->
                                                 fileRow(nb, depth = 0, showPath = true)
                                             }
@@ -320,19 +365,12 @@ fun NotebooksScreen(
                                             },
                                         ) { row ->
                                             when (row) {
-                                                is NotebookTreeRow.Folder -> {
-                                                    val drillTarget =
-                                                        row.node.recursiveOrgCount > FOLDER_DRILL_THRESHOLD
-                                                    FolderRow(
+                                                is NotebookTreeRow.Folder ->
+                                                    folderRow(
                                                         node = row.node,
                                                         expanded = row.expanded,
-                                                        chevron = drillTarget,
-                                                        onClick = {
-                                                            if (drillTarget) drillDir = row.node.dir
-                                                            else viewModel.toggleFolder(row.node.dir)
-                                                        },
+                                                        onClick = { openFolder(row.node) },
                                                     )
-                                                }
                                                 is NotebookTreeRow.File ->
                                                     fileRow(row.item, row.depth, showPath = false)
                                             }
@@ -416,6 +454,64 @@ fun NotebooksScreen(
                 onDismiss = { styleTarget = null },
             )
         }
+    }
+    folderRenameTarget?.let { node ->
+        NameDialog(
+            title = "Rename ${node.name}",
+            initial = node.name,
+            confirmLabel = "Rename",
+            placeholder = "folder name",
+            onDismiss = { folderRenameTarget = null },
+            onConfirm = { name ->
+                viewModel.renameFolder(node.dir, name)
+                folderRenameTarget = null
+            },
+        )
+    }
+    folderColorTarget?.let { node ->
+        ChangeIconColorDialog(
+            name = node.name,
+            hint = "Color follows the folder name",
+            letter = "▪",
+            glyph = "▪",
+            currentColorKey = node.colorOverride ?: nameHashPaletteKey(node.dir),
+            onPickColor = { key -> viewModel.setFolderColor(node.dir, key) },
+            onDismiss = { folderColorTarget = null },
+        )
+    }
+    folderDeleteTarget?.let { node ->
+        val c = MaterialTheme.grove
+        val count = node.recursiveOrgCount
+        AlertDialog(
+            onDismissRequest = { folderDeleteTarget = null },
+            containerColor = c.surface,
+            title = {
+                Text(
+                    "Delete ${node.name}?",
+                    fontFamily = PlexSans, fontWeight = FontWeight.SemiBold, color = c.ink,
+                )
+            },
+            text = {
+                Text(
+                    "This moves $count ${if (count == 1) "note" else "notes"} to the trash. " +
+                        "You can restore them from the synced folder.",
+                    fontFamily = PlexSans, fontSize = 13.sp, color = c.ink2,
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.deleteFolder(node.dir)
+                        folderDeleteTarget = null
+                    },
+                ) { Text("Delete", color = c.red, fontWeight = FontWeight.SemiBold) }
+            },
+            dismissButton = {
+                TextButton(onClick = { folderDeleteTarget = null }) {
+                    Text("Cancel", color = c.ink2)
+                }
+            },
+        )
     }
 }
 
@@ -586,24 +682,37 @@ private fun Breadcrumb(
  *
  * The top-level folder row sits flush with the root files (no rail): its indent
  * rail belongs to its *children*, so the container depth is one less than the
- * folder's own nesting level.
+ * folder's own nesting level. [pinnedStrip] forces that flush depth for a copy
+ * shown in the Pinned strip.
+ *
+ * Long-pressing the row opens a menu mirroring the file row's: pin/unpin,
+ * rename, change icon colour, and delete (moves every descendant file to trash).
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun FolderRow(
     node: FolderNode,
     expanded: Boolean,
     chevron: Boolean = false,
     flat: Boolean = false,
+    pinnedStrip: Boolean = false,
     onClick: () -> Unit,
+    onPin: () -> Unit = {},
+    onUnpin: () -> Unit = {},
+    onRename: () -> Unit = {},
+    onChangeColor: () -> Unit = {},
+    onDelete: () -> Unit = {},
 ) {
     val c = MaterialTheme.grove
     val (fg, bg) = monogramPalette(c, node.colorKey)
-    TreeRowContainer(depth = if (flat) 0 else node.depth - 1) {
+    var menuOpen by remember { mutableStateOf(false) }
+    TreeRowContainer(depth = if (flat || pinnedStrip) 0 else node.depth - 1) {
+      Box {
         Row(
             Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(13.dp))
-                .clickable(onClick = onClick)
+                .combinedClickable(onClick = onClick, onLongClick = { menuOpen = true })
                 .padding(start = 8.dp, end = 8.dp, top = 10.dp, bottom = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -650,6 +759,14 @@ private fun FolderRow(
                     modifier = Modifier.padding(top = 2.dp),
                 )
             }
+            if (node.isPinned) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_pin),
+                    contentDescription = null,
+                    tint = c.accent,
+                    modifier = Modifier.padding(end = 6.dp).size(14.dp),
+                )
+            }
             if (node.hasConflictDescendant) {
                 Icon(
                     Icons.Default.Warning,
@@ -663,6 +780,36 @@ private fun FolderRow(
                 Text("›", fontFamily = PlexMono, fontSize = 17.sp, color = c.ink3)
             }
         }
+        DropdownMenu(
+            expanded = menuOpen,
+            onDismissRequest = { menuOpen = false },
+            containerColor = c.surface,
+        ) {
+            if (node.isPinned) {
+                DropdownMenuItem(
+                    text = { Text("Unpin", fontFamily = PlexSans, color = c.ink) },
+                    onClick = { menuOpen = false; onUnpin() },
+                )
+            } else {
+                DropdownMenuItem(
+                    text = { Text("Pin to top", fontFamily = PlexSans, color = c.ink) },
+                    onClick = { menuOpen = false; onPin() },
+                )
+            }
+            DropdownMenuItem(
+                text = { Text("Rename", fontFamily = PlexSans, color = c.ink) },
+                onClick = { menuOpen = false; onRename() },
+            )
+            DropdownMenuItem(
+                text = { Text("Change icon color", fontFamily = PlexSans, color = c.ink) },
+                onClick = { menuOpen = false; onChangeColor() },
+            )
+            DropdownMenuItem(
+                text = { Text("Delete (to trash)", fontFamily = PlexSans, color = c.red) },
+                onClick = { menuOpen = false; onDelete() },
+            )
+        }
+      }
     }
 }
 
@@ -849,6 +996,7 @@ private fun NameDialog(
     onDismiss: () -> Unit,
     onConfirm: (String) -> Unit,
     contextLabel: String? = null,
+    placeholder: String = "notebook.org",
 ) {
     val c = MaterialTheme.grove
     var name by remember { mutableStateOf(initial) }
@@ -869,7 +1017,7 @@ private fun NameDialog(
                     value = name,
                     onValueChange = { name = it },
                     singleLine = true,
-                    placeholder = { Text("notebook.org", fontFamily = PlexMono, color = c.ink3) },
+                    placeholder = { Text(placeholder, fontFamily = PlexMono, color = c.ink3) },
                     textStyle = TextStyle(fontFamily = PlexMono, color = c.ink),
                 )
             }
