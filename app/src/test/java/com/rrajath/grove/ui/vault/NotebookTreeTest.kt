@@ -212,10 +212,28 @@ class NotebookTreeTest {
     }
 
     @Test
-    fun `a pinned folder still appears as a row in the tree`() {
-        val rows = buildNotebookTree(vault, expanded = emptySet(), pinnedFolders = listOf("projects"))
+    fun `a pinned folder is omitted from the tree rows (strip-only)`() {
+        val rows = buildNotebookTree(vault, expanded = setOf("projects"), pinnedFolders = listOf("projects"))
+        val dirs = rows.filterIsInstance<NotebookTreeRow.Folder>().map { it.node.dir }
+        assertFalse("projects" in dirs)
+        // Its whole subtree goes with it — no orphaned child folder or file rows.
+        assertFalse("projects/clients" in dirs)
+        val paths = rows.filterIsInstance<NotebookTreeRow.File>().map { it.item.fileName }
+        assertFalse(paths.any { it.startsWith("projects/") })
+    }
+
+    @Test
+    fun `a pinned nested folder is omitted while its unpinned parent stays`() {
+        val rows = buildNotebookTree(
+            vault, expanded = setOf("projects"), pinnedFolders = listOf("projects/clients"),
+        )
         val dirs = rows.filterIsInstance<NotebookTreeRow.Folder>().map { it.node.dir }
         assertTrue("projects" in dirs)
+        assertFalse("projects/clients" in dirs)
+        val paths = rows.filterIsInstance<NotebookTreeRow.File>().map { it.item.fileName }
+        // projects' own files still render; the pinned sub-folder's don't.
+        assertTrue("projects/grove.org" in paths)
+        assertFalse("projects/clients/acme.org" in paths)
     }
 
     @Test
@@ -227,6 +245,43 @@ class NotebookTreeTest {
         )
         assertEquals(listOf("projects/clients", "archive"), nodes.map { it.dir })
         assertEquals("rose", nodes.first().colorKey)
+    }
+
+    @Test
+    fun `pinnedFolderSubtreeRows lists a pinned folder's contents with no row for the folder itself`() {
+        val rows = pinnedFolderSubtreeRows(
+            vault, rootDir = "projects", expanded = emptySet(),
+        )
+        val folders = rows.filterIsInstance<NotebookTreeRow.Folder>().map { it.node.dir }
+        val files = rows.filterIsInstance<NotebookTreeRow.File>().map { it.item.fileName }
+        // The collapsed child folder shows; its files stay hidden until expanded.
+        assertEquals(listOf("projects/clients"), folders)
+        assertEquals(listOf("projects/grove.org", "projects/website.org"), files)
+    }
+
+    @Test
+    fun `pinnedFolderSubtreeRows expands a nested child and shifts depths to indent under the strip row`() {
+        val rows = pinnedFolderSubtreeRows(
+            vault, rootDir = "projects", expanded = setOf("projects/clients"),
+        )
+        val clients = rows.filterIsInstance<NotebookTreeRow.Folder>()
+            .single { it.node.dir == "projects/clients" }
+        // projects (depth 1) is flush; its direct child folder indents one step.
+        assertEquals(2, clients.depth)
+        val acme = rows.filterIsInstance<NotebookTreeRow.File>()
+            .single { it.item.fileName == "projects/clients/acme.org" }
+        assertEquals(2, acme.depth)
+    }
+
+    @Test
+    fun `pinnedFolderSubtreeRows skips a pinned descendant folder`() {
+        val rows = pinnedFolderSubtreeRows(
+            vault, rootDir = "projects", expanded = emptySet(),
+            pinnedFolders = listOf("projects", "projects/clients"),
+        )
+        assertFalse(
+            rows.filterIsInstance<NotebookTreeRow.Folder>().any { it.node.dir == "projects/clients" },
+        )
     }
 
     @Test

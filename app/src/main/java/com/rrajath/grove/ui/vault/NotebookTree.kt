@@ -124,6 +124,12 @@ fun pinnedFolderNodes(
  * Flatten [items] into display rows. Within every level folders come first, then
  * files, each alphabetical by lowercased display name (matching the flat-list
  * sort). A folder's children are emitted only when its `dir` is in [expanded].
+ *
+ * A folder whose `dir` is in [pinnedFolders] is omitted entirely (its whole
+ * subtree with it): a pinned folder lives only in the Pinned strip, exactly as a
+ * pinned file is dropped from its in-tree position. A pinned *descendant* folder
+ * doesn't hide its unpinned ancestor — `projects` still shows when only
+ * `projects/clients` is pinned, just without the `clients` row.
  */
 fun buildNotebookTree(
     items: List<NotebookItem>,
@@ -132,11 +138,13 @@ fun buildNotebookTree(
     pinnedFolders: List<String> = emptyList(),
 ): List<NotebookTreeRow> {
     val nodes = buildFolderNodes(items, folderColors, pinnedFolders)
+    val pinnedDirs = pinnedFolders.toSet()
     val rows = mutableListOf<NotebookTreeRow>()
 
     fun emitLevel(dir: String) {
         nodes.values
             .filter { parentOf(it.dir) == dir }
+            .filterNot { it.dir in pinnedDirs }
             .sortedBy { it.name.lowercase() }
             .forEach { node ->
                 val isOpen = node.dir in expanded
@@ -151,6 +159,51 @@ fun buildNotebookTree(
     }
 
     emitLevel("")
+    return rows
+}
+
+/**
+ * The display rows shown *under* an expanded pinned folder in the Pinned strip.
+ * Same folders-first-then-files ordering and [expanded] gating as
+ * [buildNotebookTree], but rooted at [rootDir]: no row is emitted for [rootDir]
+ * itself (the strip already shows it), and every depth is shifted down so a
+ * direct child sits exactly one indent step in from the flush strip row. A
+ * pinned *descendant* folder is skipped here too — it carries its own strip row.
+ */
+fun pinnedFolderSubtreeRows(
+    items: List<NotebookItem>,
+    rootDir: String,
+    expanded: Set<String>,
+    folderColors: Map<String, String> = emptyMap(),
+    pinnedFolders: List<String> = emptyList(),
+): List<NotebookTreeRow> {
+    if (rootDir.isEmpty()) return emptyList()
+    val nodes = buildFolderNodes(items, folderColors, pinnedFolders)
+    val pinnedDirs = pinnedFolders.toSet()
+    // rootDir renders flush (depth 0) in the strip; a direct child folder has
+    // absolute depth rootDepth + 1 and should land at effective depth 2 (one
+    // indent step once FolderRow subtracts its own 1), so shift by rootDepth - 1.
+    val shift = rootDir.split('/').size - 1
+    val rows = mutableListOf<NotebookTreeRow>()
+
+    fun emitLevel(dir: String) {
+        nodes.values
+            .filter { parentOf(it.dir) == dir }
+            .filterNot { it.dir in pinnedDirs }
+            .sortedBy { it.name.lowercase() }
+            .forEach { node ->
+                val isOpen = node.dir in expanded
+                rows += NotebookTreeRow.Folder(node.copy(depth = node.depth - shift), isOpen)
+                if (isOpen) emitLevel(node.dir)
+            }
+        val fileDepth = dir.split('/').size - shift
+        items
+            .filter { it.dir == dir }
+            .sortedBy { it.displayName.lowercase() }
+            .forEach { rows += NotebookTreeRow.File(it, fileDepth) }
+    }
+
+    emitLevel(rootDir)
     return rows
 }
 

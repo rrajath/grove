@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
 import com.rrajath.grove.GroveApplication
+import com.rrajath.grove.R
 import com.rrajath.grove.capture.ShareIntake
 import com.rrajath.grove.data.FavoriteNote
 import com.rrajath.grove.search.SavedSearch
@@ -320,7 +321,7 @@ class AppViewModel(private val app: GroveApplication) : ViewModel() {
         val current = settingsRepository.settings.first()
         val imported = runCatching { SettingsSerialization.import(text, current) }.getOrNull()
         if (imported == null) {
-            toast("Not a valid Grove settings file")
+            toast("Not a valid ${app.getString(R.string.app_name)} settings file")
             return@launch
         }
         settingsRepository.applyImported(imported)

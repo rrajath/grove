@@ -27,6 +27,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.rrajath.grove.GroveApplication
+import com.rrajath.grove.R
 import com.rrajath.grove.capture.ShortcutSyncer
 import com.rrajath.grove.icon.AppIconManager
 import com.rrajath.grove.settings.GroveSettings
@@ -201,9 +202,9 @@ private fun GroveNavigation(
                 android.widget.Toast.makeText(
                     app,
                     if (requestedName != null) {
-                        "\"$requestedName\" isn't in your Grove vault folder."
+                        "\"$requestedName\" isn't in your ${app.getString(R.string.app_name)} vault folder."
                     } else {
-                        "Couldn't open that file in Grove."
+                        "Couldn't open that file in ${app.getString(R.string.app_name)}."
                     },
                     android.widget.Toast.LENGTH_LONG,
                 ).show()

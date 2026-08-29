@@ -30,10 +30,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.rrajath.grove.R
 import com.rrajath.grove.data.FavoriteNote
 import com.rrajath.grove.search.SavedSearch
 import com.rrajath.grove.ui.components.BrandMark
@@ -85,7 +87,7 @@ fun GroveDrawerContent(
                 )
             }
             Spacer(Modifier.height(10.dp))
-            Text("Grove", fontFamily = PlexSans, fontWeight = FontWeight.SemiBold, fontSize = 18.sp, color = c.ink)
+            Text(stringResource(R.string.app_name), fontFamily = PlexSans, fontWeight = FontWeight.SemiBold, fontSize = 18.sp, color = c.ink)
             Text(vaultPath, fontFamily = PlexMono, fontSize = 12.sp, color = c.ink2)
         }
         HorizontalDivider(color = c.line)

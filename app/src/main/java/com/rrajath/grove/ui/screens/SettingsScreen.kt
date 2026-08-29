@@ -13,9 +13,11 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.rrajath.grove.R
 import com.rrajath.grove.ui.components.GroveTopBar
 import com.rrajath.grove.ui.screens.settings.RowDivider
 import com.rrajath.grove.ui.screens.settings.SectionLabel
@@ -101,7 +103,7 @@ fun SettingsScreen(
             }
 
             Text(
-                "Grove v${com.rrajath.grove.BuildConfig.VERSION_NAME}",
+                "${stringResource(R.string.app_name)} v${com.rrajath.grove.BuildConfig.VERSION_NAME}",
                 fontFamily = PlexMono, fontSize = 11.5.sp, color = c.ink3,
                 textAlign = TextAlign.Center,
                 modifier = Modifier

@@ -64,8 +64,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextStyle
@@ -95,6 +96,7 @@ import com.rrajath.grove.ui.vault.NotebookTreeRow
 import com.rrajath.grove.ui.vault.drillLevel
 import com.rrajath.grove.ui.vault.NotebooksUiState
 import com.rrajath.grove.ui.vault.NotebooksViewModel
+import com.rrajath.grove.ui.vault.PinnedRow
 import com.rrajath.grove.vault.vaultPath
 
 /** Notebook list home screen (design spec §2), driven by the sync index. */
@@ -341,19 +343,44 @@ fun NotebooksScreen(
                                         // the FAB instead of sitting underneath it.
                                         contentPadding = PaddingValues(bottom = 86.dp),
                                     ) {
-                                        if (s.pinned.isNotEmpty() || s.pinnedFolders.isNotEmpty()) {
+                                        if (s.pinnedStrip.isNotEmpty()) {
                                             item(key = "strip:pinned") { StripLabel("Pinned") }
-                                            // Folders first, then files — matching the tree's per-level sort.
-                                            items(s.pinnedFolders, key = { "pindir:${it.dir}" }) { node ->
-                                                folderRow(
-                                                    node = node,
-                                                    expanded = node.dir in s.expandedFolders,
-                                                    pinnedStrip = true,
-                                                    onClick = { openFolder(node) },
-                                                )
-                                            }
-                                            items(s.pinned, key = { "pin:${it.fileName}" }) { nb ->
-                                                fileRow(nb, depth = 0, showPath = true)
+                                            // One block, in the order the user pinned things.
+                                            items(
+                                                s.pinnedStrip,
+                                                key = { row ->
+                                                    when (row) {
+                                                        is PinnedRow.Folder -> "pindir:${row.node.dir}"
+                                                        is PinnedRow.File -> "pin:${row.item.fileName}"
+                                                    }
+                                                },
+                                            ) { row ->
+                                                when (row) {
+                                                    is PinnedRow.Folder -> {
+                                                        folderRow(
+                                                            node = row.node,
+                                                            expanded = row.node.dir in s.expandedFolders,
+                                                            pinnedStrip = true,
+                                                            onClick = { openFolder(row.node) },
+                                                        )
+                                                        // Expanded pinned folder: its subtree renders
+                                                        // indented directly beneath its strip row.
+                                                        s.pinnedFolderExpansions[row.node.dir]?.forEach { sub ->
+                                                            when (sub) {
+                                                                is NotebookTreeRow.Folder ->
+                                                                    folderRow(
+                                                                        node = sub.node,
+                                                                        expanded = sub.expanded,
+                                                                        onClick = { openFolder(sub.node) },
+                                                                    )
+                                                                is NotebookTreeRow.File ->
+                                                                    fileRow(sub.item, sub.depth, showPath = false)
+                                                            }
+                                                        }
+                                                    }
+                                                    is PinnedRow.File ->
+                                                        fileRow(row.item, depth = 0, showPath = true)
+                                                }
                                             }
                                         }
                                         items(
@@ -485,8 +512,11 @@ fun NotebooksScreen(
         val c = MaterialTheme.grove
         val loaded = state as? NotebooksUiState.Loaded
         val node = loaded?.let { l ->
-            l.rows.firstNotNullOfOrNull { (it as? NotebookTreeRow.Folder)?.node?.takeIf { n -> n.dir == dir } }
+            fun findIn(rows: List<NotebookTreeRow>) =
+                rows.firstNotNullOfOrNull { (it as? NotebookTreeRow.Folder)?.node?.takeIf { n -> n.dir == dir } }
+            findIn(l.rows)
                 ?: l.pinnedFolders.firstOrNull { it.dir == dir }
+                ?: l.pinnedFolderExpansions.values.firstNotNullOfOrNull { findIn(it) }
         }
         if (node == null) {
             folderDeleteTarget = null
@@ -682,10 +712,16 @@ private fun Breadcrumb(
 }
 
 /**
- * A folder row. In the inline tree (variant 1a) it carries a rotating caret and
- * indents under its parent; a folder over [FOLDER_DRILL_THRESHOLD] files shows a
- * static `›` ([chevron]) instead, since tapping it opens the drill-down view. In
- * that drill-down view ([flat]) rows never indent and the `›` sits on the right.
+ * A folder row. The 42dp tile starts at the same x-position as a [FileRow]'s
+ * monogram tile at the same tree level, so folder and file icons line up in a
+ * single column; nesting is conveyed only by [TreeRowContainer]'s indent.
+ *
+ * The expand/collapse affordance sits at the right end of the row, outboard of
+ * the pin / conflict indicators. In the inline tree (variant 1a) a normal folder
+ * shows a `▾` chevron that animates 180° between collapsed and [expanded]. A
+ * folder over [FOLDER_DRILL_THRESHOLD] files ([chevron]) shows a static `›`
+ * instead, since tapping it opens the drill-down view rather than expanding in
+ * place; the drill-down view itself ([flat]) also shows a static `›`.
  *
  * The tile is a 42dp rounded square (matching the file monogram tiles) with the
  * folder's palette colour: soft-tint fill, a tinted border, and a `▪` glyph. A
@@ -727,18 +763,6 @@ private fun FolderRow(
                 .padding(start = 8.dp, end = 8.dp, top = 10.dp, bottom = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (!flat) {
-                Text(
-                    if (chevron) "›" else "▸",
-                    fontFamily = PlexMono,
-                    fontSize = if (chevron) 15.sp else 11.sp,
-                    color = c.ink3,
-                    modifier = Modifier
-                        .width(12.dp)
-                        .rotate(if (!chevron && expanded) 90f else 0f),
-                )
-                Spacer(Modifier.width(9.dp))
-            }
             Box(
                 Modifier
                     .size(42.dp)
@@ -786,9 +810,25 @@ private fun FolderRow(
                     modifier = Modifier.size(16.dp),
                 )
             }
-            if (flat) {
-                Spacer(Modifier.width(8.dp))
-                Text("›", fontFamily = PlexMono, fontSize = 17.sp, color = c.ink3)
+            Spacer(Modifier.width(8.dp))
+            if (flat || chevron) {
+                // Tapping the row navigates away (drill-down / flat list), so
+                // the affordance is a static right-pointing chevron.
+                Text("›", fontFamily = PlexMono, fontSize = 15.sp, color = c.ink3)
+            } else {
+                // Expands in place: a downward chevron that flips 180° when open,
+                // matching the app's dropdown-picker chevron animation.
+                val chevronAngle by animateFloatAsState(
+                    targetValue = if (expanded) 180f else 0f,
+                    label = "folderChevron",
+                )
+                Text(
+                    "▾",
+                    fontFamily = PlexMono,
+                    fontSize = 13.sp,
+                    color = c.ink3,
+                    modifier = Modifier.graphicsLayer { rotationZ = chevronAngle },
+                )
             }
         }
         DropdownMenu(
@@ -846,10 +886,9 @@ private fun FileRow(
     val letter = monogramLetter(notebook.displayName)
     val colorKey = notebook.color ?: nameHashPaletteKey(notebook.fileName)
     var menuOpen by remember { mutableStateOf(false) }
-    // Files nested inside an expanded folder sit one caret-width in so they line
-    // up under folder names. Top-level files (depth 0), the flat pinned strip and
-    // the drill-down view have no caret column, so they sit flush.
-    val leadingInset = if (showPathSubtitle || flat || depth == 0) 0.dp else 21.dp
+    // The monogram tile always starts at the row's own start padding; nesting is
+    // conveyed by TreeRowContainer's indent alone, so a file's tile lines up with
+    // its sibling folder tiles (which no longer carry a leading caret column).
 
     TreeRowContainer(depth = if (flat) 0 else depth) {
       Box {
@@ -861,7 +900,6 @@ private fun FileRow(
                 .padding(horizontal = 8.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (leadingInset > 0.dp) Spacer(Modifier.width(leadingInset))
             if (showFileIcon) {
                 MonogramTile(letter = letter, colorKey = colorKey, size = 42.dp)
                 Spacer(Modifier.width(12.dp))

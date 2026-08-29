@@ -52,6 +52,13 @@ data class SettingsExport(
     val showTagsInOutline: Boolean = true,
     val showTimestampsInOutline: Boolean = true,
     val showKeywordsInOutline: Boolean = true,
+    /**
+     * Unified ordered pin list: `<tag><path>` tokens (`f`/`d` prefix, see
+     * [PinnedItem]). [pinnedNotebooks] / [pinnedFolders] are kept alongside it,
+     * written for older builds to read and read back when an older export (which
+     * has no [pinnedItems]) is imported.
+     */
+    val pinnedItems: List<String> = emptyList(),
     val pinnedNotebooks: List<String> = emptyList(),
     val pinnedFolders: List<String> = emptyList(),
     val showPreface: Boolean = true,
@@ -100,8 +107,11 @@ data class SettingsExport(
         showTagsInOutline = showTagsInOutline,
         showTimestampsInOutline = showTimestampsInOutline,
         showKeywordsInOutline = showKeywordsInOutline,
-        pinnedNotebooks = pinnedNotebooks,
-        pinnedFolders = pinnedFolders,
+        pinnedItems = if (pinnedItems.isNotEmpty()) {
+            pinnedItems.mapNotNull { PinnedItem.decode(it) }
+        } else {
+            PinnedItem.fromLegacy(pinnedNotebooks, pinnedFolders)
+        },
         showPreface = showPreface,
         showPropertyDrawers = showPropertyDrawers,
         notebookDisplayNameMode = NotebookDisplayNameMode.fromStorage(notebookDisplayNameMode),
@@ -151,6 +161,7 @@ data class SettingsExport(
             showTagsInOutline = s.showTagsInOutline,
             showTimestampsInOutline = s.showTimestampsInOutline,
             showKeywordsInOutline = s.showKeywordsInOutline,
+            pinnedItems = s.pinnedItems.map { it.encode() },
             pinnedNotebooks = s.pinnedNotebooks,
             pinnedFolders = s.pinnedFolders,
             showPreface = s.showPreface,

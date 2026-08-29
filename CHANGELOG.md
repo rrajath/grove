@@ -82,14 +82,22 @@ re-uploads the APKs to the existing release instead of failing.
   tree, with a "New folder here" option. Moving a notebook keeps its icon
   colour and pinned position.
 - Long-pressing a folder row opens a menu to pin it to the top, rename it,
-  change its icon colour, or delete it. Pinning a folder adds it to the Pinned
-  strip while keeping it in place in the tree; renaming moves every file inside
-  and carries their icon colours and pins across; deleting moves every file
-  inside to the trash, recoverable from the synced folder.
+  change its icon colour, or delete it. Pinning a folder moves it into the
+  Pinned strip; renaming moves every file inside and carries their icon colours
+  and pins across; deleting moves every file inside to the trash, recoverable
+  from the synced folder.
 
 ## [1.0.5] - 2026-08-28
 
 ### Fixed
+- Pinning a folder no longer shows it twice on the Notebooks screen (once in
+  the Pinned strip and again as a normal folder row). A pinned folder now
+  appears only in the strip; its whole subtree is lifted out of the tree, the
+  same way a pinned file already was.
+- Tapping a pinned folder in the Pinned strip now expands it in place to show
+  its subfolders and notes, instead of only flipping the chevron with nothing
+  underneath. A pinned folder large enough to open as its own screen still
+  drills in on tap, as before.
 - Pinning a notebook that lives inside a folder no longer pushes the
   vault-root notebook rows to the right. Top-level files now sit flush with the
   folder tiles; only files nested inside an expanded folder keep the indent.
@@ -98,8 +106,22 @@ re-uploads the APKs to the existing release instead of failing.
   The note's sub-headings now render lazily instead of all at once, and a note
   with a very large subtree opens with its inner sections folded (tap a
   section's caret to expand it).
+- The debug build now shows "Grove Debug" everywhere the app name appears
+  in-app (onboarding title, navigation drawer header, Settings about line, bug
+  report email subject, and the share/file-open/settings-import toasts), not
+  just on the launcher icon. These spots previously hardcoded "Grove" instead
+  of reading the build's app name resource.
 
 ### Changed
+- The Pinned strip on the Notebooks screen now lists notebooks and folders in
+  one chronological order — the order you pinned them — instead of always
+  grouping folders above files. Pin a folder after a file and it stays below
+  that file.
+- Folder rows on the Notebooks screen now line their icon tile up with the file
+  rows in the same column instead of sitting a caret-width to the right. The
+  expand/collapse chevron moved to the right end of the row: a downward `▾` that
+  flips when the folder is open, or a static `›` for a folder big enough to open
+  as its own screen.
 - In Read mode, text selection now stays within a single section (heading +
   its body) rather than spanning the whole note.
 - The Read-mode breadcrumb now shows a nested note's full folder path

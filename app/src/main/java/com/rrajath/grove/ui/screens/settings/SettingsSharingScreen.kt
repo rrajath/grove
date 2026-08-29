@@ -11,11 +11,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.rrajath.grove.R
 import com.rrajath.grove.capture.FilenameValidation
 import com.rrajath.grove.settings.GroveSettings
 import com.rrajath.grove.ui.capture.TemplatesViewModel
@@ -57,7 +59,7 @@ fun SettingsSharingScreen(
                     fontSize = 14.5.sp, color = c.ink,
                 )
                 Text(
-                    "The .org file that receives links and text shared into Grove",
+                    "The .org file that receives links and text shared into ${stringResource(R.string.app_name)}",
                     fontFamily = PlexSans, fontSize = 12.sp, color = c.ink3,
                     modifier = Modifier.padding(bottom = 6.dp),
                 )

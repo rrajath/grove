@@ -70,6 +70,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.rrajath.grove.BuildConfig
+import com.rrajath.grove.R
 import com.rrajath.grove.org.LineEditing
 import com.rrajath.grove.org.TextEdit
 import com.rrajath.grove.ui.components.GroveTopBar
@@ -84,7 +85,6 @@ import java.time.temporal.ChronoUnit
 import java.util.Locale
 
 private const val BUG_REPORT_EMAIL = "r.rajath@gmail.com"
-private const val BUG_REPORT_SUBJECT = "Grove Bug Report"
 
 private data class BugPayloadRow(val key: String, val value: String)
 
@@ -112,6 +112,7 @@ fun SettingsBugReportScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
+    val bugReportSubject = "${context.getString(R.string.app_name)} Bug Report"
 
     var description by rememberSaveable { mutableStateOf("") }
     val stepsState = rememberTextFieldState()
@@ -171,7 +172,7 @@ fun SettingsBugReportScreen(onBack: () -> Unit) {
                                 )
                                 // Copied unconditionally so the report is never lost, whether
                                 // or not a mail app is available or the chooser gets dismissed.
-                                clipboard.setClipEntry(ClipEntry(ClipData.newPlainText(BUG_REPORT_SUBJECT, body)))
+                                clipboard.setClipEntry(ClipEntry(ClipData.newPlainText(bugReportSubject, body)))
                                 copied = true
                                 // ACTION_SEND + "message/rfc822" (rather than ACTION_SENDTO +
                                 // a mailto: URI) is the intent shape non-Gmail mail apps
@@ -180,7 +181,7 @@ fun SettingsBugReportScreen(onBack: () -> Unit) {
                                 val intent = Intent(Intent.ACTION_SEND).apply {
                                     type = "message/rfc822"
                                     putExtra(Intent.EXTRA_EMAIL, arrayOf(BUG_REPORT_EMAIL))
-                                    putExtra(Intent.EXTRA_SUBJECT, BUG_REPORT_SUBJECT)
+                                    putExtra(Intent.EXTRA_SUBJECT, bugReportSubject)
                                     putExtra(Intent.EXTRA_TEXT, body)
                                 }
                                 runCatching {
@@ -211,7 +212,7 @@ fun SettingsBugReportScreen(onBack: () -> Unit) {
                                     clipboard.setClipEntry(
                                         ClipEntry(
                                             ClipData.newPlainText(
-                                                BUG_REPORT_SUBJECT,
+                                                bugReportSubject,
                                                 formatBugReportEmail(
                                                     description = description,
                                                     steps = stepsState.text.toString(),

@@ -2,6 +2,7 @@ package com.rrajath.grove.settings
 
 import android.content.Context
 import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.booleanPreferencesKey
@@ -14,6 +15,38 @@ import kotlinx.coroutines.flow.map
 import java.time.LocalTime
 
 private val Context.settingsDataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
+
+/** Whether a [PinnedItem] pins a notebook file or a folder. */
+enum class PinKind(val tag: Char) { FILE('f'), FOLDER('d') }
+
+/**
+ * One entry in the unified, chronologically-ordered pin list ([GroveSettings.pinnedItems]).
+ *
+ * Persisted as a single token `<tag><path>` with no separator: the first char is
+ * [PinKind.tag] (`f`/`d`), the rest is the raw vault-relative path. A path can
+ * contain `:` but never `;` (the list separator), so a fixed 1-char prefix is
+ * unambiguous where a `d:`-style prefix would not be.
+ */
+data class PinnedItem(val kind: PinKind, val path: String) {
+    fun encode(): String = "${kind.tag}$path"
+
+    companion object {
+        fun decode(token: String): PinnedItem? {
+            if (token.length < 2) return null
+            val kind = PinKind.entries.firstOrNull { it.tag == token[0] } ?: return null
+            return PinnedItem(kind, token.substring(1))
+        }
+
+        /**
+         * Fold the two legacy per-type pin lists into one unified list. The old
+         * lists carry no cross-order, so this reproduces what the strip showed
+         * before: folders first, then files.
+         */
+        fun fromLegacy(pinnedNotebooks: List<String>, pinnedFolders: List<String>): List<PinnedItem> =
+            pinnedFolders.map { PinnedItem(PinKind.FOLDER, it) } +
+                pinnedNotebooks.map { PinnedItem(PinKind.FILE, it) }
+    }
+}
 
 data class GroveSettings(
     val theme: ThemePreference = ThemePreference.LIGHT,
@@ -53,10 +86,12 @@ data class GroveSettings(
     val showTagsInOutline: Boolean = true,
     val showTimestampsInOutline: Boolean = true,
     val showKeywordsInOutline: Boolean = true,
-    /** Ordered list of pinned notebook file names; first = topmost. */
-    val pinnedNotebooks: List<String> = emptyList(),
-    /** Ordered list of pinned folder paths (vault-relative dirs); first = topmost. */
-    val pinnedFolders: List<String> = emptyList(),
+    /**
+     * Single chronologically-ordered pin list across both notebooks and folders;
+     * first = topmost. Order in this list is the display order of the Pinned
+     * strip (append on pin, remove on unpin).
+     */
+    val pinnedItems: List<PinnedItem> = emptyList(),
     /** Read mode: show a collapsible section for file-level `#+` keyword lines. */
     val showPreface: Boolean = true,
     /** Read mode: show collapsible sections for `:PROPERTIES:` drawers. */
@@ -112,6 +147,14 @@ data class GroveSettings(
     /** True once the first-open folder-expansion heuristic has run for this vault. */
     val notebooksTreeDefaultsApplied: Boolean = false,
 ) {
+    /** Pinned notebook file names in pin order — derived view of [pinnedItems]. */
+    val pinnedNotebooks: List<String>
+        get() = pinnedItems.filter { it.kind == PinKind.FILE }.map { it.path }
+
+    /** Pinned folder paths (vault-relative dirs) in pin order — derived view of [pinnedItems]. */
+    val pinnedFolders: List<String>
+        get() = pinnedItems.filter { it.kind == PinKind.FOLDER }.map { it.path }
+
     companion object {
         const val DEFAULT_TODO_KEYWORDS = "TODO IN-PROGRESS | DONE CANCELLED"
         const val DEFAULT_SHARE_TARGET = "inbox.org"
@@ -150,6 +193,13 @@ class SettingsRepository(private val context: Context) {
         val showTagsInOutline = booleanPreferencesKey("show_tags_in_outline")
         val showTimestampsInOutline = booleanPreferencesKey("show_timestamps_in_outline")
         val showKeywordsInOutline = booleanPreferencesKey("show_keywords_in_outline")
+        /** Unified ordered pin list; `;`-joined `<tag><path>` tokens (see [PinnedItem]). */
+        val pinnedItems = stringPreferencesKey("pinned_items")
+
+        /**
+         * Retired: the two separate per-type pin lists. Read only for the one-time
+         * migration into [pinnedItems]; every write purges them.
+         */
         val pinnedNotebooks = stringPreferencesKey("pinned_notebooks")
         val pinnedFolders = stringPreferencesKey("pinned_folders")
         val showPreface = booleanPreferencesKey("show_preface")
@@ -203,8 +253,7 @@ class SettingsRepository(private val context: Context) {
             showTagsInOutline = prefs[Keys.showTagsInOutline] ?: true,
             showTimestampsInOutline = prefs[Keys.showTimestampsInOutline] ?: true,
             showKeywordsInOutline = prefs[Keys.showKeywordsInOutline] ?: true,
-            pinnedNotebooks = decodePinnedList(prefs[Keys.pinnedNotebooks]),
-            pinnedFolders = decodePinnedList(prefs[Keys.pinnedFolders]),
+            pinnedItems = readPinnedItems(prefs),
             showPreface = prefs[Keys.showPreface] ?: true,
             showPropertyDrawers = prefs[Keys.showPropertyDrawers] ?: true,
             notebookDisplayNameMode = NotebookDisplayNameMode.fromStorage(prefs[Keys.notebookDisplayNameMode]),
@@ -247,11 +296,35 @@ class SettingsRepository(private val context: Context) {
 
     private fun encodeTime(time: LocalTime): String = time.toString()
 
+    /** Legacy per-type pin list decode; used only by [readPinnedItems]'s migration path. */
     private fun decodePinnedList(raw: String?): List<String> =
         raw?.split(';')?.filter { it.isNotEmpty() } ?: emptyList()
 
-    private fun encodePinnedList(list: List<String>): String =
-        list.joinToString(";")
+    private fun decodePinnedItems(raw: String?): List<PinnedItem> =
+        raw?.split(';')?.mapNotNull { if (it.isEmpty()) null else PinnedItem.decode(it) } ?: emptyList()
+
+    private fun encodePinnedItems(items: List<PinnedItem>): String =
+        items.joinToString(";") { it.encode() }
+
+    /**
+     * The unified pin list, migrating the two legacy keys on the fly: if
+     * [Keys.pinnedItems] has never been written, fold [Keys.pinnedNotebooks] +
+     * [Keys.pinnedFolders] into one (folders first, matching the old strip order).
+     */
+    private fun readPinnedItems(prefs: Preferences): List<PinnedItem> {
+        prefs[Keys.pinnedItems]?.let { return decodePinnedItems(it) }
+        return PinnedItem.fromLegacy(
+            decodePinnedList(prefs[Keys.pinnedNotebooks]),
+            decodePinnedList(prefs[Keys.pinnedFolders]),
+        )
+    }
+
+    /** Persist [items] as the sole pin list, purging the retired per-type keys. */
+    private fun writePinnedItems(prefs: MutablePreferences, items: List<PinnedItem>) {
+        prefs[Keys.pinnedItems] = encodePinnedItems(items)
+        prefs.remove(Keys.pinnedNotebooks)
+        prefs.remove(Keys.pinnedFolders)
+    }
 
     private fun decodeModes(raw: String?): Map<String, String> =
         raw?.split(';')
@@ -293,8 +366,7 @@ class SettingsRepository(private val context: Context) {
             p[Keys.showTagsInOutline] = s.showTagsInOutline
             p[Keys.showTimestampsInOutline] = s.showTimestampsInOutline
             p[Keys.showKeywordsInOutline] = s.showKeywordsInOutline
-            p[Keys.pinnedNotebooks] = encodePinnedList(s.pinnedNotebooks)
-            p[Keys.pinnedFolders] = encodePinnedList(s.pinnedFolders)
+            writePinnedItems(p, s.pinnedItems)
             p[Keys.showPreface] = s.showPreface
             p[Keys.showPropertyDrawers] = s.showPropertyDrawers
             p[Keys.notebookDisplayNameMode] = s.notebookDisplayNameMode.storageKey
@@ -536,23 +608,20 @@ class SettingsRepository(private val context: Context) {
         }
     }
 
-    suspend fun pinNotebook(fileName: String) {
+    private suspend fun editPinnedItems(mutate: (MutableList<PinnedItem>) -> Boolean) {
         context.settingsDataStore.edit { prefs ->
-            val current = decodePinnedList(prefs[Keys.pinnedNotebooks]).toMutableList()
-            if (fileName !in current) {
-                current.add(fileName)
-                prefs[Keys.pinnedNotebooks] = encodePinnedList(current)
-            }
+            val current = readPinnedItems(prefs).toMutableList()
+            if (mutate(current)) writePinnedItems(prefs, current)
         }
     }
 
-    suspend fun unpinNotebook(fileName: String) {
-        context.settingsDataStore.edit { prefs ->
-            val current = decodePinnedList(prefs[Keys.pinnedNotebooks]).toMutableList()
-            if (current.remove(fileName)) {
-                prefs[Keys.pinnedNotebooks] = encodePinnedList(current)
-            }
-        }
+    suspend fun pinNotebook(fileName: String) = editPinnedItems { items ->
+        val entry = PinnedItem(PinKind.FILE, fileName)
+        if (entry in items) false else items.add(entry)
+    }
+
+    suspend fun unpinNotebook(fileName: String) = editPinnedItems { items ->
+        items.remove(PinnedItem(PinKind.FILE, fileName))
     }
 
     /** Keep the chosen monogram color and pin position attached to a notebook across renames. */
@@ -565,11 +634,11 @@ class SettingsRepository(private val context: Context) {
             }
             // Monogram icons replaced the glyph picker; drop any leftover glyph pick.
             prefs.remove(Keys.notebookIcons)
-            val pinned = decodePinnedList(prefs[Keys.pinnedNotebooks]).toMutableList()
-            val pinIdx = pinned.indexOf(oldFileName)
+            val pinned = readPinnedItems(prefs).toMutableList()
+            val pinIdx = pinned.indexOf(PinnedItem(PinKind.FILE, oldFileName))
             if (pinIdx >= 0) {
-                pinned[pinIdx] = newFileName
-                prefs[Keys.pinnedNotebooks] = encodePinnedList(pinned)
+                pinned[pinIdx] = PinnedItem(PinKind.FILE, newFileName)
+                writePinnedItems(prefs, pinned)
             }
         }
     }
@@ -582,23 +651,13 @@ class SettingsRepository(private val context: Context) {
         }
     }
 
-    suspend fun pinFolder(dir: String) {
-        context.settingsDataStore.edit { prefs ->
-            val current = decodePinnedList(prefs[Keys.pinnedFolders]).toMutableList()
-            if (dir !in current) {
-                current.add(dir)
-                prefs[Keys.pinnedFolders] = encodePinnedList(current)
-            }
-        }
+    suspend fun pinFolder(dir: String) = editPinnedItems { items ->
+        val entry = PinnedItem(PinKind.FOLDER, dir)
+        if (entry in items) false else items.add(entry)
     }
 
-    suspend fun unpinFolder(dir: String) {
-        context.settingsDataStore.edit { prefs ->
-            val current = decodePinnedList(prefs[Keys.pinnedFolders]).toMutableList()
-            if (current.remove(dir)) {
-                prefs[Keys.pinnedFolders] = encodePinnedList(current)
-            }
-        }
+    suspend fun unpinFolder(dir: String) = editPinnedItems { items ->
+        items.remove(PinnedItem(PinKind.FOLDER, dir))
     }
 
     /**
@@ -624,13 +683,14 @@ class SettingsRepository(private val context: Context) {
             reKeyByPrefix(notebookColors, ::rebase)
             prefs[Keys.notebookColors] = encodeModes(notebookColors)
 
-            val pinnedFolders = decodePinnedList(prefs[Keys.pinnedFolders])
-                .map { rebase(it) ?: it }
-            prefs[Keys.pinnedFolders] = encodePinnedList(pinnedFolders)
-
-            val pinnedNotebooks = decodePinnedList(prefs[Keys.pinnedNotebooks])
-                .map { rebase(it) ?: it }
-            prefs[Keys.pinnedNotebooks] = encodePinnedList(pinnedNotebooks)
+            // One unified list: re-base every pinned entry (file or folder) whose
+            // path is oldDir or sits under it, keeping list order untouched.
+            writePinnedItems(
+                prefs,
+                readPinnedItems(prefs).map { item ->
+                    rebase(item.path)?.let { item.copy(path = it) } ?: item
+                },
+            )
         }
     }
 
@@ -646,11 +706,7 @@ class SettingsRepository(private val context: Context) {
             val notebookColors = decodeModes(prefs[Keys.notebookColors]).filterKeys { !own(it) }
             prefs[Keys.notebookColors] = encodeModes(notebookColors)
 
-            val pinnedFolders = decodePinnedList(prefs[Keys.pinnedFolders]).filterNot { own(it) }
-            prefs[Keys.pinnedFolders] = encodePinnedList(pinnedFolders)
-
-            val pinnedNotebooks = decodePinnedList(prefs[Keys.pinnedNotebooks]).filterNot { own(it) }
-            prefs[Keys.pinnedNotebooks] = encodePinnedList(pinnedNotebooks)
+            writePinnedItems(prefs, readPinnedItems(prefs).filterNot { own(it.path) })
         }
     }
 

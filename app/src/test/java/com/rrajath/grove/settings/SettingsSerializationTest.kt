@@ -28,8 +28,14 @@ class SettingsSerializationTest {
         showTagsInOutline = false,
         showTimestampsInOutline = false,
         showKeywordsInOutline = true,
-        pinnedNotebooks = listOf("pinned-first.org", "pinned-second.org", "area/sub/deep.org"),
-        pinnedFolders = listOf("projects", "projects/clients"),
+        // Interleaved file/folder pins to prove chronological order round-trips.
+        pinnedItems = listOf(
+            PinnedItem(PinKind.FILE, "pinned-first.org"),
+            PinnedItem(PinKind.FOLDER, "projects"),
+            PinnedItem(PinKind.FILE, "pinned-second.org"),
+            PinnedItem(PinKind.FOLDER, "projects/clients"),
+            PinnedItem(PinKind.FILE, "area/sub/deep.org"),
+        ),
         showPreface = false,
         showPropertyDrawers = false,
         showNotebookFileIcons = false,
@@ -80,6 +86,7 @@ class SettingsSerializationTest {
         assertEquals(sample.showTagsInOutline, restored.showTagsInOutline)
         assertEquals(sample.showTimestampsInOutline, restored.showTimestampsInOutline)
         assertEquals(sample.showKeywordsInOutline, restored.showKeywordsInOutline)
+        assertEquals(sample.pinnedItems, restored.pinnedItems)
         assertEquals(sample.pinnedNotebooks, restored.pinnedNotebooks)
         assertEquals(sample.pinnedFolders, restored.pinnedFolders)
         assertEquals(sample.showPreface, restored.showPreface)
@@ -103,6 +110,40 @@ class SettingsSerializationTest {
         assertEquals(sample.autoArchiveHeadingPath, restored.autoArchiveHeadingPath)
         assertEquals(sample.lastRefileFile, restored.lastRefileFile)
         assertEquals(sample.lastRefileHeadingPath, restored.lastRefileHeadingPath)
+    }
+
+    @Test
+    fun `an old-format export with only pinnedNotebooks and pinnedFolders imports into the unified list`() {
+        // A pre-unification export: no "pinnedItems" key, just the two legacy arrays.
+        val json = """
+            {
+              "pinnedNotebooks": ["inbox.org", "area/sub/deep.org"],
+              "pinnedFolders": ["projects", "projects/clients"]
+            }
+        """.trimIndent()
+        val restored = SettingsSerialization.import(json, GroveSettings())
+
+        // Legacy lists carry no cross-order, so folders come first then files.
+        assertEquals(
+            listOf(
+                PinnedItem(PinKind.FOLDER, "projects"),
+                PinnedItem(PinKind.FOLDER, "projects/clients"),
+                PinnedItem(PinKind.FILE, "inbox.org"),
+                PinnedItem(PinKind.FILE, "area/sub/deep.org"),
+            ),
+            restored.pinnedItems,
+        )
+        assertEquals(listOf("inbox.org", "area/sub/deep.org"), restored.pinnedNotebooks)
+        assertEquals(listOf("projects", "projects/clients"), restored.pinnedFolders)
+    }
+
+    @Test
+    fun `a pinned path containing a colon survives the round trip`() {
+        val weird = GroveSettings(
+            pinnedItems = listOf(PinnedItem(PinKind.FILE, "odd:name.org"), PinnedItem(PinKind.FOLDER, "a:b")),
+        )
+        val restored = SettingsSerialization.import(SettingsSerialization.export(weird), GroveSettings())
+        assertEquals(weird.pinnedItems, restored.pinnedItems)
     }
 
     @Test

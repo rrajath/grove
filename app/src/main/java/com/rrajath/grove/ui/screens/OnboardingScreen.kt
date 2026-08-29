@@ -28,10 +28,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.rrajath.grove.R
 import com.rrajath.grove.ui.components.BrandMark
 import com.rrajath.grove.ui.components.Pill
 import com.rrajath.grove.ui.theme.PlexSans
@@ -73,7 +75,7 @@ fun OnboardingScreen(
         BrandMark(tileSize = 74.dp)
         Spacer(Modifier.height(18.dp))
         Text(
-            "Grove",
+            stringResource(R.string.app_name),
             style = MaterialTheme.typography.displaySmall,
             color = c.ink,
         )
@@ -108,7 +110,7 @@ fun OnboardingScreen(
             Spacer(Modifier.height(14.dp))
             OnboardingStep(1, "Install Syncthing on this phone and your laptop")
             OnboardingStep(2, "Share your org folder between the two devices")
-            OnboardingStep(3, "Point Grove at that folder below: sync is automatic")
+            OnboardingStep(3, "Point ${stringResource(R.string.app_name)} at that folder below: sync is automatic")
         }
 
         Spacer(Modifier.height(26.dp))

@@ -42,7 +42,7 @@ Every notebook card displays:
 
 Long-pressing a notebook card opens a context menu with:
 
-- **Pin to top** / **Unpin**: keep frequently used notebooks at the top of the list, independent of alphabetical or recency order
+- **Pin to top** / **Unpin**: keep frequently used notebooks at the top of the list, independent of alphabetical or recency order. Pinned notebooks and folders share one Pinned strip, listed in the order you pinned them
 - **Rename**
 - **Change icon color**: pick the tile color for this notebook's monogram from the theme palette
 - **Force reload**: re-parse this file from disk, bypassing the normal change-detection diff (useful if you suspect Grove's index is stale)
@@ -57,7 +57,7 @@ Deleting a notebook doesn't remove the file. Grove renames it to `<name>.org.tra
 
 Subfolders in your sync directory show up as folder rows in the list. Long-pressing one opens its own menu:
 
-- **Pin to top** / **Unpin**: a pinned folder moves to the Pinned strip at the top of the list and still stays in place in the tree; both copies expand together
+- **Pin to top** / **Unpin**: a pinned folder moves out of the tree and into the Pinned strip at the top of the list, taking everything inside it along. It shares that strip with pinned notebooks, in the order things were pinned. Tap it to expand its contents in place; a folder big enough to open as its own screen drills in instead
 - **Rename**: renames the folder and moves every `.org` file inside it, keeping each file's icon color and pinned position
 - **Change icon color**: pick the folder tile's color from the theme palette
 - **Delete**: moves every `.org` file inside the folder to the trash, the same non-destructive rename as deleting a single notebook. An empty folder simply stops showing once its last file is gone.

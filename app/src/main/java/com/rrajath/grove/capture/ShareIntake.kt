@@ -1,6 +1,7 @@
 package com.rrajath.grove.capture
 
 import com.rrajath.grove.GroveApplication
+import com.rrajath.grove.R
 import com.rrajath.grove.org.OrgMutations
 import com.rrajath.grove.settings.GroveSettings
 import kotlinx.coroutines.Dispatchers
@@ -52,7 +53,7 @@ object ShareIntake {
     suspend fun consumeShare(app: GroveApplication, payload: SharedPayload) {
         val settings = app.settingsRepository.settings.first()
         if (settings.vaultTreeUri == null) {
-            toast(app, "Set a sync folder before sharing to Grove")
+            toast(app, "Set a sync folder before sharing to ${app.getString(R.string.app_name)}")
             return
         }
         // On a cold start the vault may still be initializing; await it.
