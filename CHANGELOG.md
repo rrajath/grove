@@ -105,8 +105,18 @@ re-uploads the APKs to the existing release instead of failing.
   preface", and "Show property drawers" moved from Look and Feel to Notes
   (with the other read-mode content settings). Export/import of settings is
   unaffected.
-
-## [1.0.5] - 2026-08-28
+- The Pinned strip on the Notebooks screen now lists notebooks and folders in
+  one chronological order — the order you pinned them — instead of always
+  grouping folders above files. Pin a folder after a file and it stays below
+  that file.
+- Folder rows on the Notebooks screen now line their icon tile up with the file
+  rows in the same column instead of sitting a caret-width to the right. The
+  expand/collapse chevron moved to the right end of the row: a downward `▾` that
+  flips when the folder is open, or a static `›` for a folder big enough to open
+  as its own screen.
+- The Read-mode breadcrumb now shows a nested note's full folder path
+  (`projects/clients/acme.org › Heading`) instead of just the bare file name,
+  and keeps the `.org` suffix to match the notebook list and the outline title.
 
 ### Fixed
 - Pinning a folder no longer shows it twice on the Notebooks screen (once in
@@ -126,32 +136,24 @@ re-uploads the APKs to the existing release instead of failing.
 - Pinning a notebook that lives inside a folder no longer pushes the
   vault-root notebook rows to the right. Top-level files now sit flush with the
   folder tiles; only files nested inside an expanded folder keep the indent.
-- Read mode no longer hangs for a few seconds when opening a heading with a
-  large or deeply-nested subtree, and scrolling such a note is smooth again.
-  The note's sub-headings now render lazily instead of all at once, and a note
-  with a very large subtree opens with its inner sections folded (tap a
-  section's caret to expand it).
 - The debug build now shows "Grove Debug" everywhere the app name appears
   in-app (onboarding title, navigation drawer header, Settings about line, bug
   report email subject, and the share/file-open/settings-import toasts), not
   just on the launcher icon. These spots previously hardcoded "Grove" instead
   of reading the build's app name resource.
 
+## [1.0.5] - 2026-08-28
+
+### Fixed
+- Read mode no longer hangs for a few seconds when opening a heading with a
+  large or deeply-nested subtree, and scrolling such a note is smooth again.
+  The note's sub-headings now render lazily instead of all at once, and a note
+  with a very large subtree opens with its inner sections folded (tap a
+  section's caret to expand it).
+
 ### Changed
-- The Pinned strip on the Notebooks screen now lists notebooks and folders in
-  one chronological order — the order you pinned them — instead of always
-  grouping folders above files. Pin a folder after a file and it stays below
-  that file.
-- Folder rows on the Notebooks screen now line their icon tile up with the file
-  rows in the same column instead of sitting a caret-width to the right. The
-  expand/collapse chevron moved to the right end of the row: a downward `▾` that
-  flips when the folder is open, or a static `›` for a folder big enough to open
-  as its own screen.
 - In Read mode, text selection now stays within a single section (heading +
   its body) rather than spanning the whole note.
-- The Read-mode breadcrumb now shows a nested note's full folder path
-  (`projects/clients/acme.org › Heading`) instead of just the bare file name,
-  and keeps the `.org` suffix to match the notebook list and the outline title.
 
 ## [1.0.4] - 2026-08-28
 
