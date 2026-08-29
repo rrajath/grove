@@ -8,7 +8,6 @@
 .externalNativeBuild
 .cxx
 local.properties
-.serena
 .impeccable
 
 .kotlin
@@ -26,7 +25,12 @@ graft/
 
 # Internal readiness/compliance reports — not for public distribution.
 internal-docs/
+
+# Local agent tooling — not shared via the repo.
 .claude
+.ignore
+.mcp.json
+.serena
 
 # Working docs for the android-dev-workflow skill (plans, audits, learnings).
 internal/
