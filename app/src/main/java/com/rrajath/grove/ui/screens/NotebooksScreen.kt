@@ -64,6 +64,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
@@ -89,6 +90,7 @@ import com.rrajath.grove.ui.components.searchIcon
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
+import com.rrajath.grove.ui.util.pluralCount
 import com.rrajath.grove.ui.vault.FOLDER_DRILL_THRESHOLD
 import com.rrajath.grove.ui.vault.FolderNode
 import com.rrajath.grove.ui.vault.NotebookItem
@@ -247,13 +249,20 @@ fun NotebooksScreen(
                     ReminderPermissionBanner(pendingCount = s.remindersPendingPermission)
 
                     @Composable
-                    fun fileRow(nb: NotebookItem, depth: Int, showPath: Boolean, flat: Boolean = false) {
+                    fun fileRow(
+                        nb: NotebookItem,
+                        depth: Int,
+                        showPath: Boolean,
+                        flat: Boolean = false,
+                        pinnedByFolder: Boolean = false,
+                    ) {
                         FileRow(
                             notebook = nb,
                             showFileIcon = s.showFileIcons,
                             depth = depth,
                             showPathSubtitle = showPath,
                             flat = flat,
+                            pinnedByFolder = pinnedByFolder,
                             onClick = { onOpenNotebook(nb.fileName) },
                             onOpenConflict = { onOpenConflict(nb.fileName) },
                             onRename = { renameTarget = nb.fileName },
@@ -312,16 +321,20 @@ fun NotebooksScreen(
                                     LazyColumn(
                                         state = listState,
                                         modifier = Modifier.fillMaxSize().testTag("notebooks_list"),
-                                        contentPadding = PaddingValues(bottom = 86.dp),
+                                        contentPadding = PaddingValues(top = 4.dp, bottom = 86.dp),
                                     ) {
-                                        if (s.flatPinned.isNotEmpty()) {
-                                            item(key = "strip:pinned") { StripLabel("Pinned") }
-                                            items(s.flatPinned, key = { "pin:${it.fileName}" }) { nb ->
-                                                fileRow(nb, depth = 0, showPath = true, flat = true)
+                                        items(s.flatPinned, key = { "pin:${it.fileName}" }) { nb ->
+                                            Box(Modifier.animateItem()) {
+                                                fileRow(
+                                                    nb, depth = 0, showPath = true, flat = true,
+                                                    pinnedByFolder = true,
+                                                )
                                             }
                                         }
                                         items(s.flatRows, key = { "file:${it.fileName}" }) { nb ->
-                                            fileRow(nb, depth = 0, showPath = true, flat = true)
+                                            Box(Modifier.animateItem()) {
+                                                fileRow(nb, depth = 0, showPath = true, flat = true)
+                                            }
                                         }
                                     }
                                     ScrollJumpButtons(
@@ -380,10 +393,9 @@ fun NotebooksScreen(
                                         modifier = Modifier.fillMaxSize().testTag("notebooks_list"),
                                         // Bottom inset so the last row scrolls clear of
                                         // the FAB instead of sitting underneath it.
-                                        contentPadding = PaddingValues(bottom = 86.dp),
+                                        contentPadding = PaddingValues(top = 4.dp, bottom = 86.dp),
                                     ) {
                                         if (s.pinnedStrip.isNotEmpty()) {
-                                            item(key = "strip:pinned") { StripLabel("Pinned") }
                                             // One block, in the order the user pinned things.
                                             items(
                                                 s.pinnedStrip,
@@ -394,31 +406,36 @@ fun NotebooksScreen(
                                                     }
                                                 },
                                             ) { row ->
-                                                when (row) {
-                                                    is PinnedRow.Folder -> {
-                                                        folderRow(
-                                                            node = row.node,
-                                                            expanded = row.node.dir in s.expandedFolders,
-                                                            pinnedStrip = true,
-                                                            onClick = { openFolder(row.node) },
-                                                        )
-                                                        // Expanded pinned folder: its subtree renders
-                                                        // indented directly beneath its strip row.
-                                                        s.pinnedFolderExpansions[row.node.dir]?.forEach { sub ->
-                                                            when (sub) {
-                                                                is NotebookTreeRow.Folder ->
-                                                                    folderRow(
-                                                                        node = sub.node,
-                                                                        expanded = sub.expanded,
-                                                                        onClick = { openFolder(sub.node) },
-                                                                    )
-                                                                is NotebookTreeRow.File ->
-                                                                    fileRow(sub.item, sub.depth, showPath = false)
+                                                Box(Modifier.animateItem()) {
+                                                    when (row) {
+                                                        is PinnedRow.Folder -> Column {
+                                                            folderRow(
+                                                                node = row.node,
+                                                                expanded = row.node.dir in s.expandedFolders,
+                                                                pinnedStrip = true,
+                                                                onClick = { openFolder(row.node) },
+                                                            )
+                                                            // Expanded pinned folder: its subtree renders
+                                                            // indented directly beneath its strip row,
+                                                            // growing in with a height animation.
+                                                            Column(Modifier.animateContentSize()) {
+                                                                s.pinnedFolderExpansions[row.node.dir]?.forEach { sub ->
+                                                                    when (sub) {
+                                                                        is NotebookTreeRow.Folder ->
+                                                                            folderRow(
+                                                                                node = sub.node,
+                                                                                expanded = sub.expanded,
+                                                                                onClick = { openFolder(sub.node) },
+                                                                            )
+                                                                        is NotebookTreeRow.File ->
+                                                                            fileRow(sub.item, sub.depth, showPath = false)
+                                                                    }
+                                                                }
                                                             }
                                                         }
+                                                        is PinnedRow.File ->
+                                                            fileRow(row.item, depth = 0, showPath = true)
                                                     }
-                                                    is PinnedRow.File ->
-                                                        fileRow(row.item, depth = 0, showPath = true)
                                                 }
                                             }
                                         }
@@ -431,15 +448,17 @@ fun NotebooksScreen(
                                                 }
                                             },
                                         ) { row ->
-                                            when (row) {
-                                                is NotebookTreeRow.Folder ->
-                                                    folderRow(
-                                                        node = row.node,
-                                                        expanded = row.expanded,
-                                                        onClick = { openFolder(row.node) },
-                                                    )
-                                                is NotebookTreeRow.File ->
-                                                    fileRow(row.item, row.depth, showPath = false)
+                                            Box(Modifier.animateItem()) {
+                                                when (row) {
+                                                    is NotebookTreeRow.Folder ->
+                                                        folderRow(
+                                                            node = row.node,
+                                                            expanded = row.expanded,
+                                                            onClick = { openFolder(row.node) },
+                                                        )
+                                                    is NotebookTreeRow.File ->
+                                                        fileRow(row.item, row.depth, showPath = false)
+                                                }
                                             }
                                         }
                                     }
@@ -688,21 +707,6 @@ private fun TreeRowContainer(depth: Int, content: @Composable () -> Unit) {
     }
 }
 
-/** Small caps section label above the pinned strip. */
-@Composable
-private fun StripLabel(text: String) {
-    val c = MaterialTheme.grove
-    Text(
-        text.uppercase(),
-        fontFamily = PlexSans,
-        fontWeight = FontWeight.SemiBold,
-        fontSize = 10.5.sp,
-        letterSpacing = 1.sp,
-        color = c.ink3,
-        modifier = Modifier.padding(start = 10.dp, top = 12.dp, bottom = 4.dp),
-    )
-}
-
 /**
  * Drill-down breadcrumb (variant 1b): the vault folder's name, then one crumb
  * per path segment. Tapping the root name returns to the inline tree; tapping a
@@ -822,12 +826,10 @@ private fun FolderRow(
                 )
                 Text(
                     buildString {
-                        append(node.recursiveOrgCount)
-                        append(if (node.recursiveOrgCount == 1) " file" else " files")
+                        append(pluralCount(node.recursiveOrgCount, "file"))
                         if (node.directFolderCount > 0) {
                             append(" / ")
-                            append(node.directFolderCount)
-                            append(if (node.directFolderCount == 1) " folder" else " folders")
+                            append(pluralCount(node.directFolderCount, "folder"))
                         }
                     },
                     fontFamily = PlexSans, fontSize = 12.sp, color = c.ink2,
@@ -912,6 +914,8 @@ private fun FileRow(
     depth: Int,
     showPathSubtitle: Boolean,
     flat: Boolean = false,
+    /** Force the pin indicator on: the file itself isn't pinned, but a pinned ancestor folder is. */
+    pinnedByFolder: Boolean = false,
     onClick: () -> Unit,
     onOpenConflict: () -> Unit,
     onRename: () -> Unit,
@@ -961,11 +965,15 @@ private fun FileRow(
                 // Stub rows show only the timestamp until the background parse
                 // fills in the count; avoids a "0 notes" flash before the jump.
                 Text(
-                    if (notebook.isIndexed) "${notebook.noteCount} notes · $ago" else "$ago",
+                    if (notebook.isIndexed) {
+                        "${pluralCount(notebook.noteCount, "note")} · $ago"
+                    } else {
+                        "$ago"
+                    },
                     fontFamily = PlexSans, fontSize = 12.5.sp, color = c.ink2,
                 )
             }
-            if (notebook.isPinned) {
+            if (notebook.isPinned || pinnedByFolder) {
                 Icon(
                     painter = painterResource(R.drawable.ic_pin),
                     contentDescription = null,

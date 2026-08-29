@@ -99,6 +99,7 @@ import com.rrajath.grove.ui.theme.grove
 import com.rrajath.grove.ui.theme.priorityColor
 import com.rrajath.grove.ui.theme.starColor
 import com.rrajath.grove.ui.util.IntSetSaver
+import com.rrajath.grove.ui.util.pluralCount
 import com.rrajath.grove.ui.vault.DocumentUiState
 import com.rrajath.grove.ui.vault.DocumentViewModel
 import com.rrajath.grove.ui.vault.NoteRef
@@ -254,7 +255,7 @@ fun OutlineScreen(
                                         it.document.headlines.count { h -> h.level == 1 }
                                     }
                                     Text(
-                                        "$noteCount notes",
+                                        pluralCount(noteCount, "note"),
                                         fontFamily = PlexSans, fontSize = 11.5.sp, color = c.ink2,
                                     )
                                 }

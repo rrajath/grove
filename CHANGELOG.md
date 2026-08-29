@@ -94,6 +94,11 @@ re-uploads the APKs to the existing release instead of failing.
   between folders from its long-press menu.
 
 ### Changed
+- Expanding or collapsing a folder on the Notebooks screen now animates: the
+  folder's rows slide in and the rows below shift down, instead of the list
+  jumping.
+- The "Pinned" label above the pinned strip on the Notebooks screen is gone.
+  The pin icon on each row already says what the strip is.
 - Settings reshuffle: "Notebook display name" moved from Notes to Look and Feel
   (next to the other notebook-list options); "Default note mode", "Show
   preface", and "Show property drawers" moved from Look and Feel to Notes
@@ -111,6 +116,12 @@ re-uploads the APKs to the existing release instead of failing.
   its subfolders and notes, instead of only flipping the chevron with nothing
   underneath. A pinned folder large enough to open as its own screen still
   drills in on tap, as before.
+- With "Flatten folders" on, a note that is pinned only because its folder is
+  pinned now shows the pin icon on its row. Previously those rows looked
+  unpinned even though they were held at the top of the list.
+- Notebook rows with a single note now read "1 note" instead of "1 notes".
+  Same fix applied to the outline note count and the refile sheet's heading
+  counts; the folder file/sub-folder counts already handled the singular.
 - Pinning a notebook that lives inside a folder no longer pushes the
   vault-root notebook rows to the right. Top-level files now sit flush with the
   folder tiles; only files nested inside an expanded folder keep the indent.

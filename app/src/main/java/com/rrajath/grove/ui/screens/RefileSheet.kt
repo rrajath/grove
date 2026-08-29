@@ -39,6 +39,7 @@ import com.rrajath.grove.ui.components.notebookIcon
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
+import com.rrajath.grove.ui.util.pluralCount
 import com.rrajath.grove.ui.vault.RefileUiState
 import com.rrajath.grove.ui.vault.headlineAtLine
 
@@ -134,7 +135,7 @@ fun RefileSheet(
                         RefileRow(
                             icon = notebookIcon(),
                             label = nb.fileName.removeSuffix(".org"),
-                            sub = "${nb.noteCount} headings",
+                            sub = pluralCount(nb.noteCount, "heading"),
                             onClick = { onPickNotebook(nb.fileName) },
                         )
                     }
@@ -205,7 +206,7 @@ fun RefileSheet(
 
 private fun headingCountLabel(doc: OrgDocument, h: OrgHeadline): String? {
     val n = doc.directChildren(h).size
-    return if (n == 0) null else "$n headings"
+    return if (n == 0) null else pluralCount(n, "heading")
 }
 
 private fun archiveCrumb(target: ArchiveTarget): String {
