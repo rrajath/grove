@@ -294,6 +294,63 @@ class NotebookTreeTest {
         assertTrue(allFolderDirs(flat).isEmpty())
     }
 
+    // --- groupNotebookTreeRuns (Notebooks list animation grouping) ---
+
+    private fun runLabels(runs: List<NotebookTreeRun>) = runs.map { run ->
+        when (run) {
+            is NotebookTreeRun.Subtree ->
+                "sub:${run.header.node.dir}(${run.descendants.size})"
+            is NotebookTreeRun.Loose -> when (val r = run.row) {
+                is NotebookTreeRow.Folder -> "loose-d:${r.node.dir}"
+                is NotebookTreeRow.File -> "loose-f:${r.item.fileName}"
+            }
+        }
+    }
+
+    @Test
+    fun `collapsed tree is one run per top-level folder plus one per root file`() {
+        val runs = groupNotebookTreeRuns(buildNotebookTree(vault, expanded = emptySet()))
+        assertEquals(
+            listOf(
+                "sub:archive(0)", "sub:areas(0)", "sub:projects(0)",
+                "loose-f:inbox.org", "loose-f:journal.org", "loose-f:recipes.org",
+            ),
+            runLabels(runs),
+        )
+    }
+
+    @Test
+    fun `an expanded folder's descendants all land in its subtree run`() {
+        val runs = groupNotebookTreeRuns(
+            buildNotebookTree(vault, expanded = setOf("projects", "projects/clients")),
+        )
+        val projects = runs.filterIsInstance<NotebookTreeRun.Subtree>()
+            .single { it.header.node.dir == "projects" }
+        assertEquals(
+            listOf(
+                "projects/clients",
+                "projects/clients/acme.org", "projects/clients/northwind.org",
+                "projects/grove.org", "projects/website.org",
+            ),
+            projects.descendants.map {
+                when (it) {
+                    is NotebookTreeRow.Folder -> it.node.dir
+                    is NotebookTreeRow.File -> it.item.fileName
+                }
+            },
+        )
+        // Sibling top-level folders stay separate runs, not swallowed by projects.
+        assertTrue(runLabels(runs).contains("sub:archive(0)"))
+    }
+
+    @Test
+    fun `a flat vault with no folders is all loose file runs`() {
+        val runs = groupNotebookTreeRuns(
+            buildNotebookTree(listOf(item("a.org"), item("b.org")), expanded = emptySet()),
+        )
+        assertEquals(listOf("loose-f:a.org", "loose-f:b.org"), runLabels(runs))
+    }
+
     // --- flat mode (Settings § Look and Feel → "Flatten folders") ---
 
     @Test

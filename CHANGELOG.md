@@ -94,9 +94,10 @@ re-uploads the APKs to the existing release instead of failing.
   between folders from its long-press menu.
 
 ### Changed
-- Expanding or collapsing a folder on the Notebooks screen now animates: the
-  folder's rows slide in and the rows below shift down, instead of the list
-  jumping.
+- Expanding or collapsing a folder on the Notebooks screen now animates
+  smoothly: the whole subtree grows or shrinks its height as one block and the
+  rows below glide with it, instead of the rows popping in individually while
+  the list jumps. The chevron flip is timed to match the same motion.
 - The "Pinned" label above the pinned strip on the Notebooks screen is gone.
   The pin icon on each row already says what the strip is.
 - Settings reshuffle: "Notebook display name" moved from Notes to Look and Feel

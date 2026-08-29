@@ -52,6 +52,9 @@ data class FolderNode(
  */
 const val FOLDER_DRILL_THRESHOLD = 20
 
+/** Duration and easing shared by the tree's expand/collapse height animation and its chevron flip. */
+const val TREE_EXPAND_MILLIS = 240
+
 /** A single flattened display row: either a folder header or a file. */
 sealed interface NotebookTreeRow {
     /** 0 for a root file, 1 for a top-level folder or a file one level deep, ... */
@@ -207,6 +210,57 @@ fun pinnedFolderSubtreeRows(
 
     emitLevel(rootDir)
     return rows
+}
+
+/**
+ * A run of display rows the Notebooks list renders as one animating unit.
+ *
+ * [buildNotebookTree] returns a flat, expansion-gated row list; toggling a folder
+ * inserts or removes a contiguous block of rows. Rendering each row as its own
+ * `LazyColumn` item made every toggle fan out into N independent per-item
+ * fade/slide animations that fought each other and shoved the rows below in one
+ * jump. Grouping instead keeps every top-level folder together with its
+ * currently-visible descendants so the whole subtree grows and shrinks its
+ * height as a single block, and leaves root-level files as their own rows.
+ */
+sealed interface NotebookTreeRun {
+    /** A top-level folder header plus the descendant rows currently visible under it. */
+    data class Subtree(
+        val header: NotebookTreeRow.Folder,
+        val descendants: List<NotebookTreeRow>,
+    ) : NotebookTreeRun
+
+    /** A single row that stands on its own (a root-level file). */
+    data class Loose(val row: NotebookTreeRow) : NotebookTreeRun
+}
+
+/**
+ * Fold the flat rows from [buildNotebookTree] into [NotebookTreeRun]s: a
+ * [NotebookTreeRun.Subtree] for every top-level folder (depth 1) carrying the
+ * rows beneath it up to the next top-level folder or root-level file, and a
+ * [NotebookTreeRun.Loose] for every root-level file. Order is preserved.
+ */
+fun groupNotebookTreeRuns(rows: List<NotebookTreeRow>): List<NotebookTreeRun> {
+    val runs = mutableListOf<NotebookTreeRun>()
+    var i = 0
+    while (i < rows.size) {
+        val row = rows[i]
+        if (row is NotebookTreeRow.Folder && row.depth <= 1) {
+            var j = i + 1
+            while (j < rows.size) {
+                val r = rows[j]
+                if (r is NotebookTreeRow.Folder && r.depth <= 1) break
+                if (r is NotebookTreeRow.File && r.depth <= 0) break
+                j++
+            }
+            runs += NotebookTreeRun.Subtree(row, rows.subList(i + 1, j).toList())
+            i = j
+        } else {
+            runs += NotebookTreeRun.Loose(row)
+            i++
+        }
+    }
+    return runs
 }
 
 /**

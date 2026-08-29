@@ -65,7 +65,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
@@ -95,7 +97,10 @@ import com.rrajath.grove.ui.vault.FOLDER_DRILL_THRESHOLD
 import com.rrajath.grove.ui.vault.FolderNode
 import com.rrajath.grove.ui.vault.NotebookItem
 import com.rrajath.grove.ui.vault.NotebookTreeRow
+import com.rrajath.grove.ui.vault.NotebookTreeRun
+import com.rrajath.grove.ui.vault.TREE_EXPAND_MILLIS
 import com.rrajath.grove.ui.vault.drillLevel
+import com.rrajath.grove.ui.vault.groupNotebookTreeRuns
 import com.rrajath.grove.ui.vault.NotebooksUiState
 import com.rrajath.grove.ui.vault.NotebooksViewModel
 import com.rrajath.grove.ui.vault.PinnedRow
@@ -387,6 +392,10 @@ fun NotebooksScreen(
                                 CenterMessage("✦", "No .org files here yet", "Capture a note or create a notebook with ＋")
                             } else {
                                 val listState = rememberLazyListState()
+                                // Each top-level folder + its visible descendants is one list
+                                // item, so a toggle animates the whole subtree's height as a
+                                // single block instead of N competing per-row animations.
+                                val treeRuns = remember(s.rows) { groupNotebookTreeRuns(s.rows) }
                                 Box(Modifier.fillMaxSize()) {
                                     LazyColumn(
                                         state = listState,
@@ -418,7 +427,11 @@ fun NotebooksScreen(
                                                             // Expanded pinned folder: its subtree renders
                                                             // indented directly beneath its strip row,
                                                             // growing in with a height animation.
-                                                            Column(Modifier.animateContentSize()) {
+                                                            Column(
+                                                                Modifier.animateContentSize(
+                                                                    tween(TREE_EXPAND_MILLIS, easing = FastOutSlowInEasing)
+                                                                )
+                                                            ) {
                                                                 s.pinnedFolderExpansions[row.node.dir]?.forEach { sub ->
                                                                     when (sub) {
                                                                         is NotebookTreeRow.Folder ->
@@ -440,25 +453,59 @@ fun NotebooksScreen(
                                             }
                                         }
                                         items(
-                                            s.rows,
-                                            key = { row ->
-                                                when (row) {
-                                                    is NotebookTreeRow.Folder -> "dir:${row.node.dir}"
-                                                    is NotebookTreeRow.File -> "file:${row.item.fileName}"
+                                            treeRuns,
+                                            key = { run ->
+                                                when (run) {
+                                                    is NotebookTreeRun.Subtree -> "dir:${run.header.node.dir}"
+                                                    is NotebookTreeRun.Loose -> when (val r = run.row) {
+                                                        is NotebookTreeRow.Folder -> "dir:${r.node.dir}"
+                                                        is NotebookTreeRow.File -> "file:${r.item.fileName}"
+                                                    }
                                                 }
                                             },
-                                        ) { row ->
-                                            Box(Modifier.animateItem()) {
-                                                when (row) {
-                                                    is NotebookTreeRow.Folder ->
+                                        ) { run ->
+                                            when (run) {
+                                                is NotebookTreeRun.Subtree ->
+                                                    Column(Modifier.animateItem()) {
                                                         folderRow(
-                                                            node = row.node,
-                                                            expanded = row.expanded,
-                                                            onClick = { openFolder(row.node) },
+                                                            node = run.header.node,
+                                                            expanded = run.header.expanded,
+                                                            onClick = { openFolder(run.header.node) },
                                                         )
-                                                    is NotebookTreeRow.File ->
-                                                        fileRow(row.item, row.depth, showPath = false)
-                                                }
+                                                        // The whole subtree grows/shrinks its height as
+                                                        // one block when a folder inside it toggles.
+                                                        Column(
+                                                            Modifier.animateContentSize(
+                                                                tween(TREE_EXPAND_MILLIS, easing = FastOutSlowInEasing)
+                                                            )
+                                                        ) {
+                                                            run.descendants.forEach { sub ->
+                                                                when (sub) {
+                                                                    is NotebookTreeRow.Folder ->
+                                                                        folderRow(
+                                                                            node = sub.node,
+                                                                            expanded = sub.expanded,
+                                                                            onClick = { openFolder(sub.node) },
+                                                                        )
+                                                                    is NotebookTreeRow.File ->
+                                                                        fileRow(sub.item, sub.depth, showPath = false)
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                is NotebookTreeRun.Loose ->
+                                                    Box(Modifier.animateItem()) {
+                                                        when (val r = run.row) {
+                                                            is NotebookTreeRow.Folder ->
+                                                                folderRow(
+                                                                    node = r.node,
+                                                                    expanded = r.expanded,
+                                                                    onClick = { openFolder(r.node) },
+                                                                )
+                                                            is NotebookTreeRow.File ->
+                                                                fileRow(r.item, r.depth, showPath = false)
+                                                        }
+                                                    }
                                             }
                                         }
                                     }
@@ -862,6 +909,7 @@ private fun FolderRow(
                 // matching the app's dropdown-picker chevron animation.
                 val chevronAngle by animateFloatAsState(
                     targetValue = if (expanded) 180f else 0f,
+                    animationSpec = tween(TREE_EXPAND_MILLIS, easing = FastOutSlowInEasing),
                     label = "folderChevron",
                 )
                 Text(
