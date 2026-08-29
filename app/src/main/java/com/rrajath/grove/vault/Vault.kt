@@ -143,6 +143,52 @@ class Vault(
         return ok
     }
 
+    /**
+     * Rename a folder in place, keeping its parent directory. Every `.org`
+     * notebook under [dir] is moved to the matching path under the new
+     * directory; missing intermediate directories are created by the FileStore.
+     * Returns the new vault-relative directory path, or null on a no-op (name
+     * unchanged) or if any destination path is already taken.
+     */
+    suspend fun renameFolder(dir: String, newName: String): String? {
+        val trimmed = dir.trim('/')
+        if (trimmed.isEmpty()) return null
+        val parent = trimmed.substringBeforeLast('/', "")
+        val leaf = newName.trim().trim('/')
+        if (leaf.isEmpty()) return null
+        val newDir = vaultPath(parent, leaf)
+        if (newDir == trimmed) return null
+
+        val prefix = "$trimmed/"
+        val moves = notebooks()
+            .filter { it.fileName.startsWith(prefix) }
+            .map { it.fileName to newDir + "/" + it.fileName.removePrefix(prefix) }
+        if (moves.isEmpty()) return null
+        if (moves.any { store.exists(it.second) }) return null
+
+        var movedAny = false
+        for ((from, to) in moves) {
+            if (store.rename(from, to)) {
+                cache.keys.removeAll { it.name == from }
+                movedAny = true
+            }
+        }
+        return if (movedAny) newDir else null
+    }
+
+    /**
+     * Soft-delete every `.org` notebook under [dir] (recursively) via
+     * [trashNotebook]. The folder itself disappears from the tree once its last
+     * file is gone, since folders are derived from file paths. Returns the count
+     * of files trashed.
+     */
+    suspend fun trashFolder(dir: String): Int {
+        val prefix = "${dir.trim('/')}/"
+        return notebooks()
+            .filter { it.fileName.startsWith(prefix) }
+            .count { trashNotebook(it.fileName) }
+    }
+
     suspend fun save(fileName: String, content: String) {
         store.write(fileName, content)
         cache.keys.removeAll { it.name == fileName }

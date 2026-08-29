@@ -139,4 +139,57 @@ class VaultTest {
         assertTrue(v.createNotebook("clients/acme.org", dir = "projects"))
         assertTrue(tmp.root.resolve("projects/clients/acme.org").exists())
     }
+
+    @Test
+    fun `renameFolder moves every descendant and creates the new directory`() = runTest {
+        tmp.newFolder("projects", "clients")
+        tmp.root.resolve("projects/grove.org").writeText("* G")
+        tmp.root.resolve("projects/clients/acme.org").writeText("* A")
+        val v = vault()
+
+        assertEquals("work", v.renameFolder("projects", "work"))
+        assertFalse(tmp.root.resolve("projects/grove.org").exists())
+        assertEquals("* G", tmp.root.resolve("work/grove.org").readText())
+        assertEquals("* A", tmp.root.resolve("work/clients/acme.org").readText())
+        assertEquals(
+            listOf("work/clients/acme.org", "work/grove.org"),
+            v.notebooks().map { it.fileName },
+        )
+    }
+
+    @Test
+    fun `renameFolder keeps the parent and renames only the leaf`() = runTest {
+        tmp.newFolder("area", "old")
+        tmp.root.resolve("area/old/note.org").writeText("* N")
+        val v = vault()
+
+        assertEquals("area/new", v.renameFolder("area/old", "new"))
+        assertEquals("* N", tmp.root.resolve("area/new/note.org").readText())
+    }
+
+    @Test
+    fun `renameFolder is a no-op when the name is unchanged or the target exists`() = runTest {
+        tmp.newFolder("a")
+        tmp.root.resolve("a/one.org").writeText("* 1")
+        tmp.newFolder("b")
+        tmp.root.resolve("b/one.org").writeText("* 2")
+        val v = vault()
+
+        assertNull(v.renameFolder("a", "a"))
+        assertNull(v.renameFolder("a", "b")) // b/one.org already exists
+        assertTrue(tmp.root.resolve("a/one.org").exists())
+    }
+
+    @Test
+    fun `trashFolder trashes every file and the folder drops out of the tree`() = runTest {
+        tmp.newFolder("projects", "clients")
+        tmp.root.resolve("projects/grove.org").writeText("* G")
+        tmp.root.resolve("projects/clients/acme.org").writeText("* A")
+        tmp.newFile("root.org").writeText("* R")
+        val v = vault()
+
+        assertEquals(2, v.trashFolder("projects"))
+        assertEquals(listOf("root.org"), v.notebooks().map { it.fileName })
+        assertTrue(tmp.root.resolve("projects/grove.org.trash").exists())
+    }
 }

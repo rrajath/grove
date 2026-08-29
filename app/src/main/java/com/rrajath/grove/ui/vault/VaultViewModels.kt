@@ -309,6 +309,47 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
         viewModelScope.launch { app.settingsRepository.setFolderColor(dir, colorKey) }
     }
 
+    /**
+     * Rename [dir] in place (keeping its parent). Moves every descendant `.org`
+     * file, drops their stale index rows, re-keys the folder's (and every
+     * descendant's) icon colour + pin state, and requests a sync.
+     */
+    fun renameFolder(dir: String, newName: String) {
+        val vault = app.vault.value ?: return
+        viewModelScope.launch {
+            val affected = affectedPaths(dir)
+            val newDir = vault.renameFolder(dir, newName)
+            if (newDir != null) {
+                affected.forEach { app.database.indexDao().removeNotebook(it) }
+                app.settingsRepository.renameFolderStyle(dir, newDir)
+                app.syncManager.requestSync("folder renamed")
+            }
+        }
+    }
+
+    /**
+     * Move every `.org` file under [dir] to the trash (recoverable), drop their
+     * index rows, clear the folder's icon colour + pin state, and request a sync.
+     */
+    fun deleteFolder(dir: String) {
+        val vault = app.vault.value ?: return
+        viewModelScope.launch {
+            val affected = affectedPaths(dir)
+            if (vault.trashFolder(dir) > 0) {
+                affected.forEach { app.database.indexDao().removeNotebook(it) }
+                app.settingsRepository.deleteFolderStyle(dir)
+                app.syncManager.requestSync("folder deleted")
+            }
+        }
+    }
+
+    /** Vault-relative paths of the notebooks currently indexed under [dir]. */
+    private fun affectedPaths(dir: String): List<String> =
+        (state.value as? NotebooksUiState.Loaded)?.notebooks
+            ?.map { it.fileName }
+            ?.filter { it.startsWith("$dir/") }
+            .orEmpty()
+
     companion object {
         val Factory = factory { NotebooksViewModel(it) }
     }
