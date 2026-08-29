@@ -117,10 +117,11 @@ fun NotebooksScreen(
     var renameTarget by remember { mutableStateOf<String?>(null) }
     var styleTarget by remember { mutableStateOf<String?>(null) }
     var moveTarget by remember { mutableStateOf<String?>(null) }
-    // Folder long-press menu targets (variant 1a follow-up); the value is the folder node.
-    var folderRenameTarget by remember { mutableStateOf<FolderNode?>(null) }
-    var folderColorTarget by remember { mutableStateOf<FolderNode?>(null) }
-    var folderDeleteTarget by remember { mutableStateOf<FolderNode?>(null) }
+    // Folder long-press menu targets (variant 1a follow-up); the value is the folder's dir path.
+    // Stored as the path (not the node) so each dialog reads the folder's live state on recompose.
+    var folderRenameTarget by remember { mutableStateOf<String?>(null) }
+    var folderColorTarget by remember { mutableStateOf<String?>(null) }
+    var folderDeleteTarget by remember { mutableStateOf<String?>(null) }
     // Drill-down view (variant 1b): the folder currently being browsed as a full
     // screen, or null for the inline tree. A folder with more than
     // FOLDER_DRILL_THRESHOLD files opens here instead of expanding in place.
@@ -280,9 +281,9 @@ fun NotebooksScreen(
                             onClick = onClick,
                             onPin = { viewModel.pinFolder(node.dir) },
                             onUnpin = { viewModel.unpinFolder(node.dir) },
-                            onRename = { folderRenameTarget = node },
-                            onChangeColor = { folderColorTarget = node },
-                            onDelete = { folderDeleteTarget = node },
+                            onRename = { folderRenameTarget = node.dir },
+                            onChangeColor = { folderColorTarget = node.dir },
+                            onDelete = { folderDeleteTarget = node.dir },
                         )
                     }
 
@@ -455,63 +456,73 @@ fun NotebooksScreen(
             )
         }
     }
-    folderRenameTarget?.let { node ->
+    folderRenameTarget?.let { dir ->
         NameDialog(
-            title = "Rename ${node.name}",
-            initial = node.name,
+            title = "Rename ${dir.substringAfterLast('/')}",
+            initial = dir.substringAfterLast('/'),
             confirmLabel = "Rename",
             placeholder = "folder name",
             onDismiss = { folderRenameTarget = null },
             onConfirm = { name ->
-                viewModel.renameFolder(node.dir, name)
+                viewModel.renameFolder(dir, name)
                 folderRenameTarget = null
             },
         )
     }
-    folderColorTarget?.let { node ->
+    folderColorTarget?.let { dir ->
+        val loaded = state as? NotebooksUiState.Loaded
         ChangeIconColorDialog(
-            name = node.name,
+            name = dir.substringAfterLast('/'),
             hint = "Color follows the folder name",
             letter = "▪",
             glyph = "▪",
-            currentColorKey = node.colorOverride ?: nameHashPaletteKey(node.dir),
-            onPickColor = { key -> viewModel.setFolderColor(node.dir, key) },
+            currentColorKey = loaded?.folderColors?.get(dir) ?: nameHashPaletteKey(dir),
+            onPickColor = { key -> viewModel.setFolderColor(dir, key) },
             onDismiss = { folderColorTarget = null },
         )
     }
-    folderDeleteTarget?.let { node ->
+    folderDeleteTarget?.let { dir ->
         val c = MaterialTheme.grove
-        val count = node.recursiveOrgCount
-        AlertDialog(
-            onDismissRequest = { folderDeleteTarget = null },
-            containerColor = c.surface,
-            title = {
-                Text(
-                    "Delete ${node.name}?",
-                    fontFamily = PlexSans, fontWeight = FontWeight.SemiBold, color = c.ink,
-                )
-            },
-            text = {
-                Text(
-                    "This moves $count ${if (count == 1) "note" else "notes"} to the trash. " +
-                        "You can restore them from the synced folder.",
-                    fontFamily = PlexSans, fontSize = 13.sp, color = c.ink2,
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        viewModel.deleteFolder(node.dir)
-                        folderDeleteTarget = null
-                    },
-                ) { Text("Delete", color = c.red, fontWeight = FontWeight.SemiBold) }
-            },
-            dismissButton = {
-                TextButton(onClick = { folderDeleteTarget = null }) {
-                    Text("Cancel", color = c.ink2)
-                }
-            },
-        )
+        val loaded = state as? NotebooksUiState.Loaded
+        val node = loaded?.let { l ->
+            l.rows.firstNotNullOfOrNull { (it as? NotebookTreeRow.Folder)?.node?.takeIf { n -> n.dir == dir } }
+                ?: l.pinnedFolders.firstOrNull { it.dir == dir }
+        }
+        if (node == null) {
+            folderDeleteTarget = null
+        } else {
+            val count = node.recursiveOrgCount
+            AlertDialog(
+                onDismissRequest = { folderDeleteTarget = null },
+                containerColor = c.surface,
+                title = {
+                    Text(
+                        "Delete ${node.name}?",
+                        fontFamily = PlexSans, fontWeight = FontWeight.SemiBold, color = c.ink,
+                    )
+                },
+                text = {
+                    Text(
+                        "This moves $count ${if (count == 1) "note" else "notes"} to the trash. " +
+                            "You can restore them from the synced folder.",
+                        fontFamily = PlexSans, fontSize = 13.sp, color = c.ink2,
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            viewModel.deleteFolder(dir)
+                            folderDeleteTarget = null
+                        },
+                    ) { Text("Delete", color = c.red, fontWeight = FontWeight.SemiBold) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { folderDeleteTarget = null }) {
+                        Text("Cancel", color = c.ink2)
+                    }
+                },
+            )
+        }
     }
 }
 

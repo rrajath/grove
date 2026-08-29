@@ -53,6 +53,15 @@ Long-pressing a notebook card opens a context menu with:
 
 Deleting a notebook doesn't remove the file. Grove renames it to `<name>.org.trash`, so it drops out of the notebook list but stays on disk, fully recoverable with any file browser or your sync tool. There's no in-app "restore from trash"; you get the file back by renaming it back to `.org` outside the app.
 
+### Folder rows
+
+Subfolders in your sync directory show up as folder rows in the list. Long-pressing one opens its own menu:
+
+- **Pin to top** / **Unpin**: a pinned folder moves to the Pinned strip at the top of the list and still stays in place in the tree; both copies expand together
+- **Rename**: renames the folder and moves every `.org` file inside it, keeping each file's icon color and pinned position
+- **Change icon color**: pick the folder tile's color from the theme palette
+- **Delete**: moves every `.org` file inside the folder to the trash, the same non-destructive rename as deleting a single notebook. An empty folder simply stops showing once its last file is gone.
+
 ## Creating a notebook
 
 Tap **+** and give the new file a name. Grove creates an empty `.org` file in your sync folder immediately.
