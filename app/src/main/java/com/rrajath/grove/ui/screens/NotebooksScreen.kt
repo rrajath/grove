@@ -688,9 +688,10 @@ private fun FileRow(
     val letter = monogramLetter(notebook.displayName)
     val colorKey = notebook.color ?: nameHashPaletteKey(notebook.fileName)
     var menuOpen by remember { mutableStateOf(false) }
-    // In-tree files sit one caret-width in so they line up under folder names;
-    // the flat pinned strip and the drill-down view have no caret column.
-    val leadingInset = if (showPathSubtitle || flat) 0.dp else 21.dp
+    // Files nested inside an expanded folder sit one caret-width in so they line
+    // up under folder names. Top-level files (depth 0), the flat pinned strip and
+    // the drill-down view have no caret column, so they sit flush.
+    val leadingInset = if (showPathSubtitle || flat || depth == 0) 0.dp else 21.dp
 
     TreeRowContainer(depth = if (flat) 0 else depth) {
       Box {

@@ -85,6 +85,9 @@ re-uploads the APKs to the existing release instead of failing.
 ## [1.0.5] - 2026-08-28
 
 ### Fixed
+- Pinning a notebook that lives inside a folder no longer pushes the
+  vault-root notebook rows to the right. Top-level files now sit flush with the
+  folder tiles; only files nested inside an expanded folder keep the indent.
 - Read mode no longer hangs for a few seconds when opening a heading with a
   large or deeply-nested subtree, and scrolling such a note is smooth again.
   The note's sub-headings now render lazily instead of all at once, and a note
