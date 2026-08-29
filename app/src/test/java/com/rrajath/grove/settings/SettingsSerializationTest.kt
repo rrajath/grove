@@ -39,6 +39,7 @@ class SettingsSerializationTest {
         showPreface = false,
         showPropertyDrawers = false,
         showNotebookFileIcons = false,
+        flattenNotebookFolders = true,
         checklistStates = ChecklistStates.THREE,
         remindersEnabled = false,
         morningBriefEnabled = false,
@@ -92,6 +93,7 @@ class SettingsSerializationTest {
         assertEquals(sample.showPreface, restored.showPreface)
         assertEquals(sample.showPropertyDrawers, restored.showPropertyDrawers)
         assertEquals(sample.showNotebookFileIcons, restored.showNotebookFileIcons)
+        assertEquals(sample.flattenNotebookFolders, restored.flattenNotebookFolders)
         assertEquals(sample.checklistStates, restored.checklistStates)
         assertEquals(sample.remindersEnabled, restored.remindersEnabled)
         assertEquals(sample.morningBriefEnabled, restored.morningBriefEnabled)

@@ -295,6 +295,45 @@ fun NotebooksScreen(
                         else viewModel.toggleFolder(node.dir)
                     }
 
+                    if (s.flat) {
+                        // Settings § Look and Feel → "Flatten folders": one path-subtitled
+                        // file list, no tree / drill-down / expand-collapse.
+                        val isRefreshing = s.syncState is SyncState.Checking || s.syncState is SyncState.Pulling
+                        PullToRefreshBox(
+                            isRefreshing = isRefreshing,
+                            onRefresh = { viewModel.requestSync() },
+                            modifier = Modifier.fillMaxSize(),
+                        ) {
+                            if (s.notebooks.isEmpty()) {
+                                CenterMessage("✦", "No .org files here yet", "Capture a note or create a notebook with ＋")
+                            } else {
+                                val listState = rememberLazyListState()
+                                Box(Modifier.fillMaxSize()) {
+                                    LazyColumn(
+                                        state = listState,
+                                        modifier = Modifier.fillMaxSize().testTag("notebooks_list"),
+                                        contentPadding = PaddingValues(bottom = 86.dp),
+                                    ) {
+                                        if (s.flatPinned.isNotEmpty()) {
+                                            item(key = "strip:pinned") { StripLabel("Pinned") }
+                                            items(s.flatPinned, key = { "pin:${it.fileName}" }) { nb ->
+                                                fileRow(nb, depth = 0, showPath = true, flat = true)
+                                            }
+                                        }
+                                        items(s.flatRows, key = { "file:${it.fileName}" }) { nb ->
+                                            fileRow(nb, depth = 0, showPath = true, flat = true)
+                                        }
+                                    }
+                                    ScrollJumpButtons(
+                                        listState = listState,
+                                        modifier = Modifier
+                                            .align(Alignment.BottomEnd)
+                                            .padding(bottom = 86.dp, end = 16.dp),
+                                    )
+                                }
+                            }
+                        }
+                    } else {
                     val currentDrill = drillDir
                     if (currentDrill != null) {
                         // Variant 1b: one folder as a full screen, rows never indent.
@@ -413,6 +452,7 @@ fun NotebooksScreen(
                                 }
                             }
                         }
+                    }
                     }
                 }
             }

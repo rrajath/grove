@@ -1,5 +1,7 @@
 package com.rrajath.grove.ui.vault
 
+import com.rrajath.grove.settings.PinKind
+import com.rrajath.grove.settings.PinnedItem
 import com.rrajath.grove.ui.components.nameHashPaletteKey
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -290,5 +292,70 @@ class NotebookTreeTest {
         val rows = buildNotebookTree(flat, expanded = emptySet())
         assertTrue(rows.all { it is NotebookTreeRow.File })
         assertTrue(allFolderDirs(flat).isEmpty())
+    }
+
+    // --- flat mode (Settings § Look and Feel → "Flatten folders") ---
+
+    @Test
+    fun `flatNotebookRows lists every file grouped by folder path then name`() {
+        val rows = flatNotebookRows(vault).map { it.fileName }
+        assertEquals(
+            listOf(
+                // root files first (empty dir sorts before any folder)
+                "inbox.org", "journal.org", "recipes.org",
+                "archive/2024.org",
+                "areas/health.org",
+                "projects/grove.org", "projects/website.org",
+                "projects/clients/acme.org", "projects/clients/northwind.org",
+            ),
+            rows,
+        )
+    }
+
+    @Test
+    fun `flatNotebookRows pulls pinned files and pinned-folder subtrees out of the main list`() {
+        val pins = listOf(
+            PinnedItem(PinKind.FILE, "inbox.org"),
+            PinnedItem(PinKind.FOLDER, "projects"),
+        )
+        val rows = flatNotebookRows(vault, pins).map { it.fileName }
+        assertFalse("inbox.org" in rows)
+        assertFalse(rows.any { it.startsWith("projects/") })
+        assertTrue("journal.org" in rows)
+        assertTrue("areas/health.org" in rows)
+    }
+
+    @Test
+    fun `flatPinnedRows resolves each pin in order, expanding a folder to its files inline`() {
+        val pins = listOf(
+            PinnedItem(PinKind.FILE, "recipes.org"),
+            PinnedItem(PinKind.FOLDER, "projects"),
+        )
+        assertEquals(
+            listOf(
+                "recipes.org",
+                "projects/grove.org", "projects/website.org",
+                "projects/clients/acme.org", "projects/clients/northwind.org",
+            ),
+            flatPinnedRows(vault, pins).map { it.fileName },
+        )
+    }
+
+    @Test
+    fun `flatPinnedRows emits a file once when both a folder and a nested folder are pinned`() {
+        val pins = listOf(
+            PinnedItem(PinKind.FOLDER, "projects"),
+            PinnedItem(PinKind.FOLDER, "projects/clients"),
+        )
+        val rows = flatPinnedRows(vault, pins).map { it.fileName }
+        assertEquals(rows, rows.distinct())
+        // The nested pin owns its files; the parent pin emits only its own.
+        assertEquals(
+            listOf(
+                "projects/grove.org", "projects/website.org",
+                "projects/clients/acme.org", "projects/clients/northwind.org",
+            ),
+            rows,
+        )
     }
 }

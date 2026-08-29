@@ -121,6 +121,12 @@ sealed class NotebooksUiState {
         val remindersPendingPermission: Int = 0,
         /** Settings § Look and Feel toggle: draw the per-file icon tile on each row. */
         val showFileIcons: Boolean = true,
+        /** Settings § Look and Feel toggle: render [flatRows]/[flatPinned] instead of the tree. */
+        val flat: Boolean = false,
+        /** Flat mode only: every file as a path-grouped row (pinned content excluded). */
+        val flatRows: List<NotebookItem> = emptyList(),
+        /** Flat mode only: the Pinned strip as file rows (pinned files + pinned folders' files inline). */
+        val flatPinned: List<NotebookItem> = emptyList(),
     ) : NotebooksUiState()
 }
 
@@ -129,6 +135,8 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
     private data class TreeInputs(
         val items: List<NotebookItem>,
         val showFileIcons: Boolean,
+        /** Settings § Look and Feel: render one flat file list instead of the folder tree. */
+        val flattenFolders: Boolean,
         val expandedFolders: Set<String>,
         val vaultDisplayName: String,
         val folderColors: Map<String, String>,
@@ -163,6 +171,7 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
         TreeInputs(
             items,
             settings.showNotebookFileIcons,
+            settings.flattenNotebookFolders,
             settings.expandedFolders,
             vaultDisplayName(settings.vaultTreeUri),
             settings.folderColors,
@@ -179,6 +188,27 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
     ) { inputs, syncState, lastResult, remindersPending ->
         if (inputs == null) {
             NotebooksUiState.NoVault
+        } else if (inputs.flattenFolders) {
+            // Flat mode: no tree, no drill-down, no strip folders — every file is a
+            // path-subtitled row. A pinned folder contributes its files to the strip
+            // inline (flatPinnedRows), so its subtree is pulled from flatRows.
+            NotebooksUiState.Loaded(
+                notebooks = inputs.items.sortedWith(
+                    compareBy<NotebookItem> { if (it.isPinned) it.pinnedIndex else Int.MAX_VALUE }
+                        .thenBy { it.displayName.lowercase() }
+                ),
+                pinned = inputs.items.filter { it.isPinned }.sortedBy { it.pinnedIndex },
+                flat = true,
+                flatRows = flatNotebookRows(inputs.items, inputs.pinnedItems),
+                flatPinned = flatPinnedRows(inputs.items, inputs.pinnedItems),
+                folderColors = inputs.folderColors,
+                hasFolders = false,
+                vaultDisplayName = inputs.vaultDisplayName,
+                syncState = syncState,
+                lastSyncAt = lastResult?.completedAt,
+                remindersPendingPermission = remindersPending,
+                showFileIcons = inputs.showFileIcons,
+            )
         } else {
             val flat = inputs.items.sortedWith(
                 compareBy<NotebookItem> { if (it.isPinned) it.pinnedIndex else Int.MAX_VALUE }

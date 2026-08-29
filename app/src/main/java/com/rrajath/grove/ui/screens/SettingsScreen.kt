@@ -48,10 +48,10 @@ fun SettingsScreen(
 ) {
     val c = MaterialTheme.grove
     val pages = listOf(
-        SettingsPage("Look and Feel", "Theme, fonts, note display", onOpenAppearance),
+        SettingsPage("Look and Feel", "Theme, fonts, notebook list", onOpenAppearance),
         SettingsPage("Capture Templates", "Quick-capture targets and shortcuts", onOpenCaptureTemplates),
         SettingsPage("Sync", "Folder, auto-sync, sync log", onOpenSync),
-        SettingsPage("Notes", "TODO keywords, priorities, checklists", onOpenNotes),
+        SettingsPage("Notes", "TODO keywords, priorities, note display", onOpenNotes),
         SettingsPage("Agenda", "Swipe actions on agenda rows", onOpenAgenda),
         SettingsPage("Reminders", "Notifications for SCHEDULED/DEADLINE", onOpenReminders),
         SettingsPage("Sharing", "Where shared content lands", onOpenSharing),

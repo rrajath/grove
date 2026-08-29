@@ -100,6 +100,9 @@ class AppViewModel(private val app: GroveApplication) : ViewModel() {
     fun setShowNotebookFileIcons(enabled: Boolean) =
         viewModelScope.launch { settingsRepository.setShowNotebookFileIcons(enabled) }
 
+    fun setFlattenNotebookFolders(enabled: Boolean) =
+        viewModelScope.launch { settingsRepository.setFlattenNotebookFolders(enabled) }
+
     fun completeOnboarding() = viewModelScope.launch {
         // A brand-new install has nothing "new" to report: stamp the current build as
         // already seen, in the same write that flips onboardingDone, so the What's New

@@ -24,7 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.rrajath.grove.settings.FontSizePreference
 import com.rrajath.grove.settings.GroveSettings
-import com.rrajath.grove.settings.NoteOpenMode
+import com.rrajath.grove.settings.NotebookDisplayNameMode
 import com.rrajath.grove.settings.ThemePreference
 import com.rrajath.grove.ui.components.SegmentedControl
 import com.rrajath.grove.ui.components.ThemeDropdownPicker
@@ -38,11 +38,10 @@ fun SettingsAppearanceScreen(
     onBack: () -> Unit,
     onSetTheme: (ThemePreference) -> Unit,
     onSetSyncAppIconWithTheme: (Boolean) -> Unit,
-    onSetShowPreface: (Boolean) -> Unit,
-    onSetShowPropertyDrawers: (Boolean) -> Unit,
     onSetShowNotebookFileIcons: (Boolean) -> Unit,
+    onSetFlattenNotebookFolders: (Boolean) -> Unit,
+    onSetNotebookDisplayNameMode: (NotebookDisplayNameMode) -> Unit,
     onSetFontSize: (FontSizePreference) -> Unit,
-    onSetNoteOpenMode: (NoteOpenMode) -> Unit,
 ) {
     val c = MaterialTheme.grove
     SettingsPageScaffold(title = "Look and Feel", onBack = onBack) {
@@ -68,25 +67,34 @@ fun SettingsAppearanceScreen(
             )
             RowDivider()
             ToggleRow(
-                label = "Show preface",
-                description = "Display file-level #+ keywords in org files",
-                checked = settings.showPreface,
-                onToggle = onSetShowPreface,
-            )
-            RowDivider()
-            ToggleRow(
-                label = "Show property drawers",
-                description = "Display :PROPERTIES: drawers in org files",
-                checked = settings.showPropertyDrawers,
-                onToggle = onSetShowPropertyDrawers,
-            )
-            RowDivider()
-            ToggleRow(
                 label = "Show file icons in notebooks",
                 description = "Display the icon tile on each row of the notebooks list",
                 checked = settings.showNotebookFileIcons,
                 onToggle = onSetShowNotebookFileIcons,
             )
+            RowDivider()
+            ToggleRow(
+                label = "Flatten folders",
+                description = "Hide folders and list every note as one flat list, each showing its folder path",
+                checked = settings.flattenNotebookFolders,
+                onToggle = onSetFlattenNotebookFolders,
+            )
+            RowDivider()
+            SettingsRow(
+                label = "Notebook display name",
+                description = if (settings.notebookDisplayNameMode == NotebookDisplayNameMode.FILENAME) {
+                    "Notebooks are displayed by their filenames"
+                } else {
+                    "Notebooks are displayed by their titles, falling back to filename"
+                },
+            ) {
+                SegmentedControl(
+                    options = listOf("Filename", "Title"),
+                    selectedIndex = settings.notebookDisplayNameMode.ordinal,
+                    onSelect = { onSetNotebookDisplayNameMode(NotebookDisplayNameMode.entries[it]) },
+                    modifier = Modifier.width(200.dp),
+                )
+            }
             RowDivider()
             SettingsRow(label = "Font size") {
                 SegmentedControl(
@@ -94,22 +102,6 @@ fun SettingsAppearanceScreen(
                     selectedIndex = settings.fontSize.ordinal,
                     onSelect = { onSetFontSize(FontSizePreference.entries[it]) },
                     modifier = Modifier.width(220.dp),
-                )
-            }
-            RowDivider()
-            SettingsRow(
-                label = "Default note mode",
-                description = if (settings.defaultNoteOpenMode == NoteOpenMode.READ) {
-                    "Notes open in read mode"
-                } else {
-                    "Notes open in edit mode"
-                },
-            ) {
-                SegmentedControl(
-                    options = listOf("Read", "Edit"),
-                    selectedIndex = settings.defaultNoteOpenMode.ordinal,
-                    onSelect = { onSetNoteOpenMode(NoteOpenMode.entries[it]) },
-                    modifier = Modifier.width(160.dp),
                 )
             }
         }

@@ -479,11 +479,10 @@ private fun GroveNavigation(
                     onBack = { navController.popBackStack() },
                     onSetTheme = viewModel::setTheme,
                     onSetSyncAppIconWithTheme = viewModel::setSyncAppIconWithTheme,
-                    onSetShowPreface = viewModel::setShowPreface,
-                    onSetShowPropertyDrawers = viewModel::setShowPropertyDrawers,
                     onSetShowNotebookFileIcons = viewModel::setShowNotebookFileIcons,
+                    onSetFlattenNotebookFolders = viewModel::setFlattenNotebookFolders,
+                    onSetNotebookDisplayNameMode = viewModel::setNotebookDisplayNameMode,
                     onSetFontSize = viewModel::setFontSize,
-                    onSetNoteOpenMode = viewModel::setDefaultNoteOpenMode,
                 )
             }
             composable(Routes.SETTINGS_CAPTURE_TEMPLATES) {
@@ -512,7 +511,9 @@ private fun GroveNavigation(
                     onBack = { navController.popBackStack() },
                     onSetTodoKeywords = viewModel::setTodoKeywords,
                     onSetDefaultPriority = viewModel::setDefaultPriority,
-                    onSetNotebookDisplayNameMode = viewModel::setNotebookDisplayNameMode,
+                    onSetNoteOpenMode = viewModel::setDefaultNoteOpenMode,
+                    onSetShowPreface = viewModel::setShowPreface,
+                    onSetShowPropertyDrawers = viewModel::setShowPropertyDrawers,
                     onSetChecklistStates = viewModel::setChecklistStates,
                     onSetAddId = viewModel::setAddIdToNewNotes,
                     onSetAddCreated = viewModel::setAddCreatedToNewNotes,

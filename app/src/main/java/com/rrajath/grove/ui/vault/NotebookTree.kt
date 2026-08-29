@@ -1,5 +1,7 @@
 package com.rrajath.grove.ui.vault
 
+import com.rrajath.grove.settings.PinKind
+import com.rrajath.grove.settings.PinnedItem
 import com.rrajath.grove.ui.components.nameHashPaletteKey
 
 /**
@@ -250,3 +252,62 @@ fun firstOpenExpandedDirs(plannedFileNames: Collection<String>): Set<String> =
         .map { it.substringBeforeLast('/', "") }
         .filter { it.isNotEmpty() }
         .flatMapTo(mutableSetOf()) { ancestorDirs(it) }
+
+// --- flat mode (Settings § Look and Feel → "Flatten folders") ---
+
+/** Path-grouped file order: parent directory first, then display name; both case-insensitive. */
+private val flatRowOrder: Comparator<NotebookItem> =
+    compareBy({ it.dir.lowercase() }, { it.displayName.lowercase() })
+
+/**
+ * The main file list for flat mode: every `.org` file as its own row, no folder
+ * rows, grouped by parent directory then sorted by display name (so files in the
+ * same folder cluster and root-level files come first). Files that live in the
+ * Pinned strip — pinned files, and anything beneath a pinned folder — are pulled
+ * out here, exactly as [buildNotebookTree] pulls a pinned subtree out of the tree.
+ */
+fun flatNotebookRows(
+    items: List<NotebookItem>,
+    pinnedItems: List<PinnedItem> = emptyList(),
+): List<NotebookItem> {
+    val pinnedFiles = pinnedItems.filter { it.kind == PinKind.FILE }.mapTo(mutableSetOf()) { it.path }
+    val pinnedFolders = pinnedItems.filter { it.kind == PinKind.FOLDER }.map { it.path }
+    fun underPinnedFolder(dir: String) =
+        pinnedFolders.any { dir == it || dir.startsWith("$it/") }
+    return items
+        .filterNot { it.fileName in pinnedFiles || underPinnedFolder(it.dir) }
+        .sortedWith(flatRowOrder)
+}
+
+/**
+ * The Pinned strip contents for flat mode: each pin resolved in pin order to file
+ * rows. A pinned file yields itself; a pinned folder yields every `.org` file
+ * beneath it (path-grouped), with no folder row of its own. A file is emitted
+ * once: a pinned file nested under a pinned folder, or a file under a more
+ * specific pinned sub-folder, belongs to that more specific pin.
+ */
+fun flatPinnedRows(
+    items: List<NotebookItem>,
+    pinnedItems: List<PinnedItem>,
+): List<NotebookItem> {
+    val pinnedFiles = pinnedItems.filter { it.kind == PinKind.FILE }.mapTo(mutableSetOf()) { it.path }
+    val pinnedFolders = pinnedItems.filter { it.kind == PinKind.FOLDER }.map { it.path }
+    return pinnedItems.flatMap { pi ->
+        when (pi.kind) {
+            PinKind.FILE -> items.filter { it.fileName == pi.path }
+            PinKind.FOLDER -> {
+                val prefix = "${pi.path}/"
+                val nestedPins = pinnedFolders.filter { it.startsWith(prefix) }
+                fun underNestedPin(dir: String) =
+                    nestedPins.any { dir == it || dir.startsWith("$it/") }
+                items
+                    .filter { f ->
+                        (f.dir == pi.path || f.dir.startsWith(prefix)) &&
+                            f.fileName !in pinnedFiles &&
+                            !underNestedPin(f.dir)
+                    }
+                    .sortedWith(flatRowOrder)
+            }
+        }
+    }
+}

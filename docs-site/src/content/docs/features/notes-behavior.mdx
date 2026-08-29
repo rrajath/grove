@@ -1,6 +1,6 @@
 ---
 title: Notes Behavior
-description: Custom TODO keyword sets, default priority, checklist states, note IDs, and auto-archiving (Settings → Notes).
+description: Custom TODO keyword sets, default priority, default note mode, read-mode display toggles, checklist states, note IDs, and auto-archiving (Settings → Notes).
 ---
 
 import ThemeShot from '../../../components/ThemeShot.astro';
@@ -12,7 +12,7 @@ Settings → Notes controls how Grove treats note *content* (the org-mode semant
 <ThemeShot
   light={settingsNotesLight}
   dark={settingsNotesDark}
-  alt="Notes settings showing the TODO keyword string TODO IN-PROGRESS | DONE CANCELLED, Default priority, Notebook display name, Checklist states, Add ID/CREATED toggles, and Auto-archive done items"
+  alt="Notes settings showing the TODO keyword string TODO IN-PROGRESS | DONE CANCELLED, Default priority, Default note mode, Checklist states, Show preface and Show property drawers toggles, Add ID/CREATED toggles, and Auto-archive done items"
   widths={[340, 680]}
   sizes="340px"
 />
@@ -25,13 +25,20 @@ Grove's default keyword set is `TODO IN-PROGRESS | DONE CANCELLED`, using standa
 
 Sets which priority (none, A, B, or C) new headings start with.
 
-## Notebook display name
+## Default note mode
 
-Choose whether notebook cards on the home screen show the **Filename** (`tasks.org`) or the file's **Title** (`#+TITLE:` value, if set).
+Choose whether tapping a note from Outline View opens it in [Read](/features/read-mode) or [Edit](/features/edit-mode) mode by default.
 
 ## Checklist states
 
 Configures which checkbox markers (`- [ ]`, `- [X]`, and any intermediate states) Grove recognizes and cycles through.
+
+## Read-mode display toggles
+
+- **Show preface**: whether file-level `#+KEYWORD:` lines render in [Read mode](/features/read-mode)
+- **Show property drawers**: whether `:PROPERTIES:` drawers render in Read mode
+
+Both are display-only; turning them off hides that element from the view without touching your files.
 
 ## Note IDs and timestamps
 

@@ -1,6 +1,6 @@
 ---
 title: Themes & Appearance
-description: 11 built-in color themes, launcher icon theming, font size, and note-display toggles.
+description: 11 built-in color themes, launcher icon theming, font size, and notebook-list display options.
 ---
 
 import ThemeShot from '../../../components/ThemeShot.astro';
@@ -12,7 +12,7 @@ Settings → Look and Feel is where Grove's visual presentation is configured, s
 <ThemeShot
   light={settingsAppearanceLight}
   dark={settingsAppearanceDark}
-  alt="Look and Feel settings showing the Grove Light theme picker, Sync App Icon with Theme toggle, Show preface and Show property drawers toggles, a Small/Medium/Large font size control, and Default note mode set to Read"
+  alt="Look and Feel settings showing the Grove Light theme picker, Sync App Icon with Theme toggle, Show file icons in notebooks and Flatten folders toggles, a Filename/Title notebook display name control, and a Small/Medium/Large font size control"
   widths={[340, 680]}
   sizes="340px"
 />
@@ -34,17 +34,13 @@ The **Sync App Icon with Theme** toggle swaps the app's launcher icon (and the b
 
 A three-way segmented control: **Small / Medium / Large**, applied app-wide.
 
-## Default note mode
+## Notebook list
 
-Choose whether tapping a note from Outline View opens it in [Read](/features/read-mode) or [Edit](/features/edit-mode) mode by default.
-
-## Display toggles
-
-- **Show preface**: whether file-level `#+KEYWORD:` lines render in Read mode
-- **Show property drawers**: whether `:PROPERTIES:` drawers render in Read mode
 - **Show file icons in notebooks**: whether each row of the [Notebooks](/features/notebooks) list carries its monogram tile. On by default; turn it off for a plainer, text-only list. The per-notebook color you pick is kept either way, it just isn't drawn while this is off.
+- **Flatten folders**: hide the folder tree and list every note in one flat list, each note showing its folder path as a subtitle. Top-level notes look unchanged. The drill-down view and expand/collapse-all are hidden while this is on; you can still move a note between folders from its long-press menu. Off by default. See [Notebooks](/features/notebooks).
+- **Notebook display name**: whether the list labels each notebook by its **Filename** or by its `#+TITLE:` (**Title**), falling back to the filename when a note has no title. The monogram letter follows the filename either way.
 
-All three are display-only; turning them off doesn't remove anything from your files or settings, it just hides that element from the view.
+These are view-only; turning them off or switching them doesn't change anything on disk.
 
 ## Related
 

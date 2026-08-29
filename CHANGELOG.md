@@ -86,6 +86,19 @@ re-uploads the APKs to the existing release instead of failing.
   Pinned strip; renaming moves every file inside and carries their icon colours
   and pins across; deleting moves every file inside to the trash, recoverable
   from the synced folder.
+- Settings → Look and Feel gains a "Flatten folders" toggle. With it on, the
+  Notebooks screen hides folder rows and lists every note in one flat list,
+  each showing its folder path as a subtitle; top-level notes are unchanged and
+  the monogram letter still comes from the filename. The drill-down view and
+  expand/collapse-all are hidden while flat, but a note can still be moved
+  between folders from its long-press menu.
+
+### Changed
+- Settings reshuffle: "Notebook display name" moved from Notes to Look and Feel
+  (next to the other notebook-list options); "Default note mode", "Show
+  preface", and "Show property drawers" moved from Look and Feel to Notes
+  (with the other read-mode content settings). Export/import of settings is
+  unaffected.
 
 ## [1.0.5] - 2026-08-28
 

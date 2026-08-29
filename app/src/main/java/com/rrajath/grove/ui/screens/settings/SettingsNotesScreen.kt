@@ -24,7 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.rrajath.grove.settings.ChecklistStates
 import com.rrajath.grove.settings.GroveSettings
-import com.rrajath.grove.settings.NotebookDisplayNameMode
+import com.rrajath.grove.settings.NoteOpenMode
 import com.rrajath.grove.ui.components.SegmentedControl
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
@@ -37,7 +37,9 @@ fun SettingsNotesScreen(
     onBack: () -> Unit,
     onSetTodoKeywords: (String) -> Unit,
     onSetDefaultPriority: (Char?) -> Unit,
-    onSetNotebookDisplayNameMode: (NotebookDisplayNameMode) -> Unit,
+    onSetNoteOpenMode: (NoteOpenMode) -> Unit,
+    onSetShowPreface: (Boolean) -> Unit,
+    onSetShowPropertyDrawers: (Boolean) -> Unit,
     onSetChecklistStates: (ChecklistStates) -> Unit,
     onSetAddId: (Boolean) -> Unit,
     onSetAddCreated: (Boolean) -> Unit,
@@ -108,18 +110,18 @@ fun SettingsNotesScreen(
             }
             RowDivider()
             SettingsRow(
-                label = "Notebook display name",
-                description = if (settings.notebookDisplayNameMode == NotebookDisplayNameMode.FILENAME) {
-                    "Notebooks are displayed by their filenames"
+                label = "Default note mode",
+                description = if (settings.defaultNoteOpenMode == NoteOpenMode.READ) {
+                    "Notes open in read mode"
                 } else {
-                    "Notebooks are displayed by their titles, falling back to filename"
+                    "Notes open in edit mode"
                 },
             ) {
                 SegmentedControl(
-                    options = listOf("Filename", "Title"),
-                    selectedIndex = settings.notebookDisplayNameMode.ordinal,
-                    onSelect = { onSetNotebookDisplayNameMode(NotebookDisplayNameMode.entries[it]) },
-                    modifier = Modifier.width(200.dp),
+                    options = listOf("Read", "Edit"),
+                    selectedIndex = settings.defaultNoteOpenMode.ordinal,
+                    onSelect = { onSetNoteOpenMode(NoteOpenMode.entries[it]) },
+                    modifier = Modifier.width(160.dp),
                 )
             }
             RowDivider()
@@ -134,6 +136,20 @@ fun SettingsNotesScreen(
                     modifier = Modifier.width(160.dp),
                 )
             }
+            RowDivider()
+            ToggleRow(
+                label = "Show preface",
+                description = "Display file-level #+ keywords in org files",
+                checked = settings.showPreface,
+                onToggle = onSetShowPreface,
+            )
+            RowDivider()
+            ToggleRow(
+                label = "Show property drawers",
+                description = "Display :PROPERTIES: drawers in org files",
+                checked = settings.showPropertyDrawers,
+                onToggle = onSetShowPropertyDrawers,
+            )
             RowDivider()
             ToggleRow(
                 label = "Add ID to new notes",

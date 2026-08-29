@@ -100,6 +100,12 @@ data class GroveSettings(
     val notebookDisplayNameMode: NotebookDisplayNameMode = NotebookDisplayNameMode.FILENAME,
     /** Notebook list: show the per-file icon tile at the start of each row. */
     val showNotebookFileIcons: Boolean = true,
+    /**
+     * Notebook list: collapse the folder tree to a flat file list. Every `.org`
+     * file shows as its own row with its folder path as a subtitle; folder rows,
+     * the drill-down view, and expand/collapse all are hidden.
+     */
+    val flattenNotebookFolders: Boolean = false,
     /** Destination file of the most recent successful refile; null until one has happened. */
     val lastRefileFile: String? = null,
     /** '/'-separated heading path within [lastRefileFile]; empty = top level. */
@@ -206,6 +212,7 @@ class SettingsRepository(private val context: Context) {
         val showPropertyDrawers = booleanPreferencesKey("show_property_drawers")
         val notebookDisplayNameMode = stringPreferencesKey("notebook_display_name_mode")
         val showNotebookFileIcons = booleanPreferencesKey("show_notebook_file_icons")
+        val flattenNotebookFolders = booleanPreferencesKey("flatten_notebook_folders")
         val lastRefileFile = stringPreferencesKey("last_refile_file")
         val lastRefileHeadingPath = stringPreferencesKey("last_refile_heading_path")
         val autoArchiveDoneItems = booleanPreferencesKey("auto_archive_done_items")
@@ -258,6 +265,7 @@ class SettingsRepository(private val context: Context) {
             showPropertyDrawers = prefs[Keys.showPropertyDrawers] ?: true,
             notebookDisplayNameMode = NotebookDisplayNameMode.fromStorage(prefs[Keys.notebookDisplayNameMode]),
             showNotebookFileIcons = prefs[Keys.showNotebookFileIcons] ?: true,
+            flattenNotebookFolders = prefs[Keys.flattenNotebookFolders] ?: false,
             lastRefileFile = prefs[Keys.lastRefileFile],
             lastRefileHeadingPath = prefs[Keys.lastRefileHeadingPath] ?: "",
             autoArchiveDoneItems = prefs[Keys.autoArchiveDoneItems] ?: false,
@@ -371,6 +379,7 @@ class SettingsRepository(private val context: Context) {
             p[Keys.showPropertyDrawers] = s.showPropertyDrawers
             p[Keys.notebookDisplayNameMode] = s.notebookDisplayNameMode.storageKey
             p[Keys.showNotebookFileIcons] = s.showNotebookFileIcons
+            p[Keys.flattenNotebookFolders] = s.flattenNotebookFolders
             p[Keys.checklistStates] = s.checklistStates.storageKey
             p[Keys.remindersEnabled] = s.remindersEnabled
             p[Keys.morningBriefEnabled] = s.morningBriefEnabled
@@ -496,6 +505,10 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setShowNotebookFileIcons(enabled: Boolean) {
         context.settingsDataStore.edit { it[Keys.showNotebookFileIcons] = enabled }
+    }
+
+    suspend fun setFlattenNotebookFolders(enabled: Boolean) {
+        context.settingsDataStore.edit { it[Keys.flattenNotebookFolders] = enabled }
     }
 
     suspend fun setChecklistStates(states: ChecklistStates) {
