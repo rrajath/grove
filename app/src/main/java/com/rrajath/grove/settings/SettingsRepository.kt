@@ -44,6 +44,8 @@ data class GroveSettings(
     val notebookModes: Map<String, String> = emptyMap(),
     /** Per-notebook monogram color overrides: "file.org" → palette key ("green"…). */
     val notebookColors: Map<String, String> = emptyMap(),
+    /** Per-folder icon color overrides, keyed by vault-relative dir: "projects/clients" → palette key. */
+    val folderColors: Map<String, String> = emptyMap(),
     val captureNotification: Boolean = false,
     /** .org file that receives content shared into Grove from other apps. */
     val shareTargetFile: String = DEFAULT_SHARE_TARGET,
@@ -53,6 +55,8 @@ data class GroveSettings(
     val showKeywordsInOutline: Boolean = true,
     /** Ordered list of pinned notebook file names; first = topmost. */
     val pinnedNotebooks: List<String> = emptyList(),
+    /** Ordered list of pinned folder paths (vault-relative dirs); first = topmost. */
+    val pinnedFolders: List<String> = emptyList(),
     /** Read mode: show a collapsible section for file-level `#+` keyword lines. */
     val showPreface: Boolean = true,
     /** Read mode: show collapsible sections for `:PROPERTIES:` drawers. */
@@ -140,12 +144,14 @@ class SettingsRepository(private val context: Context) {
          */
         val notebookIcons = stringPreferencesKey("notebook_icons")
         val notebookColors = stringPreferencesKey("notebook_colors")
+        val folderColors = stringPreferencesKey("folder_colors")
         val captureNotification = booleanPreferencesKey("capture_notification")
         val shareTargetFile = stringPreferencesKey("share_target_file")
         val showTagsInOutline = booleanPreferencesKey("show_tags_in_outline")
         val showTimestampsInOutline = booleanPreferencesKey("show_timestamps_in_outline")
         val showKeywordsInOutline = booleanPreferencesKey("show_keywords_in_outline")
         val pinnedNotebooks = stringPreferencesKey("pinned_notebooks")
+        val pinnedFolders = stringPreferencesKey("pinned_folders")
         val showPreface = booleanPreferencesKey("show_preface")
         val showPropertyDrawers = booleanPreferencesKey("show_property_drawers")
         val notebookDisplayNameMode = stringPreferencesKey("notebook_display_name_mode")
@@ -191,12 +197,14 @@ class SettingsRepository(private val context: Context) {
             addCreatedToNewNotes = prefs[Keys.addCreatedToNewNotes] ?: true,
             notebookModes = decodeModes(prefs[Keys.notebookModes]),
             notebookColors = decodeModes(prefs[Keys.notebookColors]),
+            folderColors = decodeModes(prefs[Keys.folderColors]),
             captureNotification = prefs[Keys.captureNotification] ?: false,
             shareTargetFile = prefs[Keys.shareTargetFile] ?: GroveSettings.DEFAULT_SHARE_TARGET,
             showTagsInOutline = prefs[Keys.showTagsInOutline] ?: true,
             showTimestampsInOutline = prefs[Keys.showTimestampsInOutline] ?: true,
             showKeywordsInOutline = prefs[Keys.showKeywordsInOutline] ?: true,
             pinnedNotebooks = decodePinnedList(prefs[Keys.pinnedNotebooks]),
+            pinnedFolders = decodePinnedList(prefs[Keys.pinnedFolders]),
             showPreface = prefs[Keys.showPreface] ?: true,
             showPropertyDrawers = prefs[Keys.showPropertyDrawers] ?: true,
             notebookDisplayNameMode = NotebookDisplayNameMode.fromStorage(prefs[Keys.notebookDisplayNameMode]),
@@ -278,6 +286,7 @@ class SettingsRepository(private val context: Context) {
             p[Keys.addCreatedToNewNotes] = s.addCreatedToNewNotes
             p[Keys.notebookModes] = encodeModes(s.notebookModes)
             p[Keys.notebookColors] = encodeModes(s.notebookColors)
+            p[Keys.folderColors] = encodeModes(s.folderColors)
             p.remove(Keys.notebookIcons)
             p[Keys.captureNotification] = s.captureNotification
             p[Keys.shareTargetFile] = s.shareTargetFile
@@ -285,6 +294,7 @@ class SettingsRepository(private val context: Context) {
             p[Keys.showTimestampsInOutline] = s.showTimestampsInOutline
             p[Keys.showKeywordsInOutline] = s.showKeywordsInOutline
             p[Keys.pinnedNotebooks] = encodePinnedList(s.pinnedNotebooks)
+            p[Keys.pinnedFolders] = encodePinnedList(s.pinnedFolders)
             p[Keys.showPreface] = s.showPreface
             p[Keys.showPropertyDrawers] = s.showPropertyDrawers
             p[Keys.notebookDisplayNameMode] = s.notebookDisplayNameMode.storageKey
@@ -562,5 +572,91 @@ class SettingsRepository(private val context: Context) {
                 prefs[Keys.pinnedNotebooks] = encodePinnedList(pinned)
             }
         }
+    }
+
+    suspend fun setFolderColor(dir: String, colorKey: String) {
+        context.settingsDataStore.edit { prefs ->
+            val current = decodeModes(prefs[Keys.folderColors]).toMutableMap()
+            current[dir] = colorKey
+            prefs[Keys.folderColors] = encodeModes(current)
+        }
+    }
+
+    suspend fun pinFolder(dir: String) {
+        context.settingsDataStore.edit { prefs ->
+            val current = decodePinnedList(prefs[Keys.pinnedFolders]).toMutableList()
+            if (dir !in current) {
+                current.add(dir)
+                prefs[Keys.pinnedFolders] = encodePinnedList(current)
+            }
+        }
+    }
+
+    suspend fun unpinFolder(dir: String) {
+        context.settingsDataStore.edit { prefs ->
+            val current = decodePinnedList(prefs[Keys.pinnedFolders]).toMutableList()
+            if (current.remove(dir)) {
+                prefs[Keys.pinnedFolders] = encodePinnedList(current)
+            }
+        }
+    }
+
+    /**
+     * Move the icon colour and pin state of a folder (and every descendant file
+     * and sub-folder) from [oldDir] to [newDir] when the folder is renamed. Keys
+     * are re-based by prefix: `oldDir` itself and anything under `oldDir/`.
+     */
+    suspend fun renameFolderStyle(oldDir: String, newDir: String) {
+        if (oldDir == newDir) return
+        context.settingsDataStore.edit { prefs ->
+            val oldPrefix = "$oldDir/"
+            fun rebase(key: String): String? = when {
+                key == oldDir -> newDir
+                key.startsWith(oldPrefix) -> newDir + "/" + key.removePrefix(oldPrefix)
+                else -> null
+            }
+
+            val folderColors = decodeModes(prefs[Keys.folderColors]).toMutableMap()
+            reKeyByPrefix(folderColors, ::rebase)
+            prefs[Keys.folderColors] = encodeModes(folderColors)
+
+            val notebookColors = decodeModes(prefs[Keys.notebookColors]).toMutableMap()
+            reKeyByPrefix(notebookColors, ::rebase)
+            prefs[Keys.notebookColors] = encodeModes(notebookColors)
+
+            val pinnedFolders = decodePinnedList(prefs[Keys.pinnedFolders])
+                .map { rebase(it) ?: it }
+            prefs[Keys.pinnedFolders] = encodePinnedList(pinnedFolders)
+
+            val pinnedNotebooks = decodePinnedList(prefs[Keys.pinnedNotebooks])
+                .map { rebase(it) ?: it }
+            prefs[Keys.pinnedNotebooks] = encodePinnedList(pinnedNotebooks)
+        }
+    }
+
+    /** Drop the icon colour and pin state of [dir] and every descendant when the folder is deleted. */
+    suspend fun deleteFolderStyle(dir: String) {
+        context.settingsDataStore.edit { prefs ->
+            val prefix = "$dir/"
+            fun own(key: String) = key == dir || key.startsWith(prefix)
+
+            val folderColors = decodeModes(prefs[Keys.folderColors]).filterKeys { !own(it) }
+            prefs[Keys.folderColors] = encodeModes(folderColors)
+
+            val notebookColors = decodeModes(prefs[Keys.notebookColors]).filterKeys { !own(it) }
+            prefs[Keys.notebookColors] = encodeModes(notebookColors)
+
+            val pinnedFolders = decodePinnedList(prefs[Keys.pinnedFolders]).filterNot { own(it) }
+            prefs[Keys.pinnedFolders] = encodePinnedList(pinnedFolders)
+
+            val pinnedNotebooks = decodePinnedList(prefs[Keys.pinnedNotebooks]).filterNot { own(it) }
+            prefs[Keys.pinnedNotebooks] = encodePinnedList(pinnedNotebooks)
+        }
+    }
+
+    /** Re-key a map in place: for every key [rebase] resolves, remove the old entry and re-add under the new key. */
+    private fun reKeyByPrefix(map: MutableMap<String, String>, rebase: (String) -> String?) {
+        val moves = map.keys.mapNotNull { old -> rebase(old)?.let { old to it } }
+        moves.forEach { (old, new) -> map.remove(old)?.let { map[new] = it } }
     }
 }

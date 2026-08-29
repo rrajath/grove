@@ -24,7 +24,10 @@ data class FolderNode(
     val name: String,
     /** 1 for a top-level folder, 2 one level in, ... Drives the indent cap. */
     val depth: Int,
-    /** Monogram palette key, derived from [dir] exactly as a file's is from its name. */
+    /**
+     * Effective monogram palette key: the user's [colorOverride] if set, otherwise
+     * one derived from [dir] exactly as a file's is from its name.
+     */
     val colorKey: String,
     /** `.org` files anywhere beneath [dir], recursively. */
     val recursiveOrgCount: Int,
@@ -32,7 +35,13 @@ data class FolderNode(
     val directFolderCount: Int,
     /** True when any file beneath [dir] has an unresolved sync conflict. */
     val hasConflictDescendant: Boolean,
-)
+    /** User-chosen palette key for this folder's tile, or null to use the derived one. */
+    val colorOverride: String? = null,
+    /** Position in the pinned-folders list (0 = topmost); -1 when not pinned. */
+    val pinnedIndex: Int = -1,
+) {
+    val isPinned: Boolean get() = pinnedIndex >= 0
+}
 
 /**
  * A folder whose recursive `.org` count is over this becomes a drill target on
@@ -67,22 +76,48 @@ private fun parentOf(dir: String): String = dir.substringBeforeLast('/', "")
 fun allFolderDirs(items: List<NotebookItem>): Set<String> =
     items.flatMapTo(mutableSetOf()) { ancestorDirs(it.dir) }
 
-/** Build a [FolderNode] for every directory reachable from [items]. */
-fun buildFolderNodes(items: List<NotebookItem>): Map<String, FolderNode> {
+/**
+ * Build a [FolderNode] for every directory reachable from [items]. [folderColors]
+ * maps a vault-relative dir to a user-chosen palette key; [pinnedFolders] is the
+ * ordered pin list. Both default to empty for call sites that don't care (tests,
+ * the first-open heuristic).
+ */
+fun buildFolderNodes(
+    items: List<NotebookItem>,
+    folderColors: Map<String, String> = emptyMap(),
+    pinnedFolders: List<String> = emptyList(),
+): Map<String, FolderNode> {
     val dirs = allFolderDirs(items)
     return dirs.associateWith { dir ->
         val prefix = "$dir/"
         val filesBeneath = items.filter { it.dir == dir || it.dir.startsWith(prefix) }
+        val override = folderColors[dir]
         FolderNode(
             dir = dir,
             name = dir.substringAfterLast('/'),
             depth = dir.split('/').size,
-            colorKey = nameHashPaletteKey(dir),
+            colorKey = override ?: nameHashPaletteKey(dir),
             recursiveOrgCount = filesBeneath.size,
             directFolderCount = dirs.count { parentOf(it) == dir },
             hasConflictDescendant = filesBeneath.any { it.hasConflict },
+            colorOverride = override,
+            pinnedIndex = pinnedFolders.indexOf(dir),
         )
     }
+}
+
+/**
+ * The [FolderNode]s for [pinnedFolders], in pin order, skipping any pinned dir
+ * that no longer holds a file (folders are path-derived, so a pin to an
+ * emptied-out folder simply drops off the strip).
+ */
+fun pinnedFolderNodes(
+    items: List<NotebookItem>,
+    folderColors: Map<String, String> = emptyMap(),
+    pinnedFolders: List<String> = emptyList(),
+): List<FolderNode> {
+    val nodes = buildFolderNodes(items, folderColors, pinnedFolders)
+    return pinnedFolders.mapNotNull { nodes[it] }
 }
 
 /**
@@ -90,8 +125,13 @@ fun buildFolderNodes(items: List<NotebookItem>): Map<String, FolderNode> {
  * files, each alphabetical by lowercased display name (matching the flat-list
  * sort). A folder's children are emitted only when its `dir` is in [expanded].
  */
-fun buildNotebookTree(items: List<NotebookItem>, expanded: Set<String>): List<NotebookTreeRow> {
-    val nodes = buildFolderNodes(items)
+fun buildNotebookTree(
+    items: List<NotebookItem>,
+    expanded: Set<String>,
+    folderColors: Map<String, String> = emptyMap(),
+    pinnedFolders: List<String> = emptyList(),
+): List<NotebookTreeRow> {
+    val nodes = buildFolderNodes(items, folderColors, pinnedFolders)
     val rows = mutableListOf<NotebookTreeRow>()
 
     fun emitLevel(dir: String) {
@@ -127,8 +167,13 @@ data class DrillLevel(
 )
 
 /** Build the [DrillLevel] for [dir] (`""` = the vault root) from the flat [items]. */
-fun drillLevel(items: List<NotebookItem>, dir: String): DrillLevel {
-    val nodes = buildFolderNodes(items)
+fun drillLevel(
+    items: List<NotebookItem>,
+    dir: String,
+    folderColors: Map<String, String> = emptyMap(),
+    pinnedFolders: List<String> = emptyList(),
+): DrillLevel {
+    val nodes = buildFolderNodes(items, folderColors, pinnedFolders)
     return DrillLevel(
         dir = dir,
         childFolders = nodes.values

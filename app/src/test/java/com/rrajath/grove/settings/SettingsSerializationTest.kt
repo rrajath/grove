@@ -22,12 +22,14 @@ class SettingsSerializationTest {
         // Nested vault paths are valid keys now the vault is a tree.
         notebookModes = mapOf("work.org" to "edit", "projects/clients/acme.org" to "read"),
         notebookColors = mapOf("work.org" to "green", "projects/clients/acme.org" to "amber"),
+        folderColors = mapOf("projects" to "cobalt", "projects/clients" to "rose"),
         captureNotification = true,
         shareTargetFile = "capture.org",
         showTagsInOutline = false,
         showTimestampsInOutline = false,
         showKeywordsInOutline = true,
         pinnedNotebooks = listOf("pinned-first.org", "pinned-second.org", "area/sub/deep.org"),
+        pinnedFolders = listOf("projects", "projects/clients"),
         showPreface = false,
         showPropertyDrawers = false,
         showNotebookFileIcons = false,
@@ -72,12 +74,14 @@ class SettingsSerializationTest {
         assertEquals(sample.addCreatedToNewNotes, restored.addCreatedToNewNotes)
         assertEquals(sample.notebookModes, restored.notebookModes)
         assertEquals(sample.notebookColors, restored.notebookColors)
+        assertEquals(sample.folderColors, restored.folderColors)
         assertEquals(sample.captureNotification, restored.captureNotification)
         assertEquals(sample.shareTargetFile, restored.shareTargetFile)
         assertEquals(sample.showTagsInOutline, restored.showTagsInOutline)
         assertEquals(sample.showTimestampsInOutline, restored.showTimestampsInOutline)
         assertEquals(sample.showKeywordsInOutline, restored.showKeywordsInOutline)
         assertEquals(sample.pinnedNotebooks, restored.pinnedNotebooks)
+        assertEquals(sample.pinnedFolders, restored.pinnedFolders)
         assertEquals(sample.showPreface, restored.showPreface)
         assertEquals(sample.showPropertyDrawers, restored.showPropertyDrawers)
         assertEquals(sample.showNotebookFileIcons, restored.showNotebookFileIcons)

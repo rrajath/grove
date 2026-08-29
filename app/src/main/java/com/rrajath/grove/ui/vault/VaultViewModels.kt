@@ -84,6 +84,8 @@ sealed class NotebooksUiState {
         val pinned: List<NotebookItem> = emptyList(),
         /** The inline tree (variant 1a), flattened to display rows for the current expansion. */
         val rows: List<NotebookTreeRow> = emptyList(),
+        /** Pinned folders, pin order; rendered in the strip and still in place in [rows]. */
+        val pinnedFolders: List<FolderNode> = emptyList(),
         /** True when the tree contains at least one folder (gates the expand/collapse-all button). */
         val hasFolders: Boolean = false,
         /** True when no folder is expanded (picks the expand-all vs collapse-all icon). */
@@ -106,6 +108,8 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
         val showFileIcons: Boolean,
         val expandedFolders: Set<String>,
         val vaultDisplayName: String,
+        val folderColors: Map<String, String>,
+        val pinnedFolders: List<String>,
     )
 
     // Built separately from the sync banner inputs: syncManager.state ticks once
@@ -136,6 +140,8 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
             settings.showNotebookFileIcons,
             settings.expandedFolders,
             vaultDisplayName(settings.vaultTreeUri),
+            settings.folderColors,
+            settings.pinnedFolders,
         )
     }.distinctUntilChanged()
 
@@ -159,7 +165,12 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
             NotebooksUiState.Loaded(
                 notebooks = flat,
                 pinned = pinned,
-                rows = buildNotebookTree(treeItems, inputs.expandedFolders),
+                rows = buildNotebookTree(
+                    treeItems, inputs.expandedFolders, inputs.folderColors, inputs.pinnedFolders,
+                ),
+                pinnedFolders = pinnedFolderNodes(
+                    treeItems, inputs.folderColors, inputs.pinnedFolders,
+                ),
                 hasFolders = folderDirs.isNotEmpty(),
                 allFoldersCollapsed = folderDirs.none { it in inputs.expandedFolders },
                 vaultDisplayName = inputs.vaultDisplayName,
@@ -284,6 +295,18 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
 
     fun unpinNotebook(fileName: String) {
         viewModelScope.launch { app.settingsRepository.unpinNotebook(fileName) }
+    }
+
+    fun pinFolder(dir: String) {
+        viewModelScope.launch { app.settingsRepository.pinFolder(dir) }
+    }
+
+    fun unpinFolder(dir: String) {
+        viewModelScope.launch { app.settingsRepository.unpinFolder(dir) }
+    }
+
+    fun setFolderColor(dir: String, colorKey: String) {
+        viewModelScope.launch { app.settingsRepository.setFolderColor(dir, colorKey) }
     }
 
     companion object {

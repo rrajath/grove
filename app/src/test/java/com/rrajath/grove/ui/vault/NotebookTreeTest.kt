@@ -1,5 +1,6 @@
 package com.rrajath.grove.ui.vault
 
+import com.rrajath.grove.ui.components.nameHashPaletteKey
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -185,6 +186,47 @@ class NotebookTreeTest {
 
         val small = (1..FOLDER_DRILL_THRESHOLD).map { item("areas/note$it.org") }
         assertFalse(buildFolderNodes(small).getValue("areas").recursiveOrgCount > FOLDER_DRILL_THRESHOLD)
+    }
+
+    @Test
+    fun `buildFolderNodes applies a folder colour override and leaves others derived`() {
+        val nodes = buildFolderNodes(vault, folderColors = mapOf("projects" to "cobalt"))
+        val projects = nodes.getValue("projects")
+        assertEquals("cobalt", projects.colorKey)
+        assertEquals("cobalt", projects.colorOverride)
+        val areas = nodes.getValue("areas")
+        assertEquals(null, areas.colorOverride)
+        assertEquals(nameHashPaletteKey("areas"), areas.colorKey)
+    }
+
+    @Test
+    fun `buildFolderNodes carries the pin index in list order`() {
+        val nodes = buildFolderNodes(
+            vault, pinnedFolders = listOf("areas", "projects/clients"),
+        )
+        assertEquals(0, nodes.getValue("areas").pinnedIndex)
+        assertTrue(nodes.getValue("areas").isPinned)
+        assertEquals(1, nodes.getValue("projects/clients").pinnedIndex)
+        assertEquals(-1, nodes.getValue("projects").pinnedIndex)
+        assertFalse(nodes.getValue("projects").isPinned)
+    }
+
+    @Test
+    fun `a pinned folder still appears as a row in the tree`() {
+        val rows = buildNotebookTree(vault, expanded = emptySet(), pinnedFolders = listOf("projects"))
+        val dirs = rows.filterIsInstance<NotebookTreeRow.Folder>().map { it.node.dir }
+        assertTrue("projects" in dirs)
+    }
+
+    @Test
+    fun `pinnedFolderNodes returns nodes in pin order and skips folders with no files`() {
+        val nodes = pinnedFolderNodes(
+            vault,
+            folderColors = mapOf("projects/clients" to "rose"),
+            pinnedFolders = listOf("projects/clients", "archive", "ghost/gone"),
+        )
+        assertEquals(listOf("projects/clients", "archive"), nodes.map { it.dir })
+        assertEquals("rose", nodes.first().colorKey)
     }
 
     @Test
