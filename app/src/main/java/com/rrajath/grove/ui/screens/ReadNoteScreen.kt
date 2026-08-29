@@ -107,6 +107,7 @@ import com.rrajath.grove.ui.util.IntSetSaver
 import com.rrajath.grove.ui.vault.DocumentUiState
 import com.rrajath.grove.ui.vault.DocumentViewModel
 import com.rrajath.grove.ui.vault.NoteRef
+import com.rrajath.grove.ui.vault.breadcrumbFileLabel
 import com.rrajath.grove.ui.vault.headlineFor
 
 /**
@@ -338,7 +339,7 @@ private fun ReadModeBreadcrumb(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            fileName.removeSuffix(".org"),
+            breadcrumbFileLabel(fileName),
             fontFamily = PlexMono, fontSize = 11.5.sp, color = c.ink3,
             maxLines = 1,
             modifier = Modifier.clickable { onOpenBreadcrumb(null) },

@@ -102,6 +102,7 @@ import com.rrajath.grove.ui.util.IntSetSaver
 import com.rrajath.grove.ui.vault.DocumentUiState
 import com.rrajath.grove.ui.vault.DocumentViewModel
 import com.rrajath.grove.ui.vault.NoteRef
+import com.rrajath.grove.ui.vault.breadcrumbFileLabel
 import com.rrajath.grove.ui.vault.headlineAtLine
 
 data class OutlineDisplayFlags(
@@ -236,7 +237,7 @@ fun OutlineScreen(
                     title = {
                         Column(Modifier.padding(start = 4.dp)) {
                             Text(
-                                notebookId,
+                                breadcrumbFileLabel(notebookId),
                                 fontFamily = PlexMono, fontWeight = FontWeight.SemiBold,
                                 fontSize = 17.sp, color = c.ink,
                             )

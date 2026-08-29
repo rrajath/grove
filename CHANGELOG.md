@@ -97,6 +97,9 @@ re-uploads the APKs to the existing release instead of failing.
 ### Changed
 - In Read mode, text selection now stays within a single section (heading +
   its body) rather than spanning the whole note.
+- The Read-mode breadcrumb now shows a nested note's full folder path
+  (`projects/clients/acme.org › Heading`) instead of just the bare file name,
+  and keeps the `.org` suffix to match the notebook list and the outline title.
 
 ## [1.0.4] - 2026-08-28
 
