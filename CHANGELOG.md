@@ -59,6 +59,8 @@ re-uploads the APKs to the existing release instead of failing.
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-08-29
+
 ### Added
 - The vault can now contain subfolders. Grove reads `.org` files from nested
   directories, not just the top level, and skips dot-directories like
