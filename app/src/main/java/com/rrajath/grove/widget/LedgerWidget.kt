@@ -49,6 +49,7 @@ import com.rrajath.grove.MainActivity
 import com.rrajath.grove.data.toNoteMeta
 import com.rrajath.grove.icon.AppIconManager
 import com.rrajath.grove.ui.agenda.AgendaMeta
+import com.rrajath.grove.ui.agenda.AgendaMetaTone
 import com.rrajath.grove.ui.agenda.AgendaRow
 import com.rrajath.grove.ui.agenda.agendaPriorityColor
 import com.rrajath.grove.ui.agenda.metaColor
@@ -380,11 +381,18 @@ private fun LedgerRow(context: Context, colors: GroveColors, row: AgendaRow) {
                 )
             }
             if (row.meta.isNotEmpty()) {
-                Row(modifier = GlanceModifier.padding(top = 3.dp)) {
-                    row.meta.forEachIndexed { index, m ->
-                        if (index > 0) Spacer(modifier = GlanceModifier.width(8.dp))
-                        MetaChip(colors, m)
-                    }
+                // Glance has no FlowRow and can't measure width, so a crowded meta
+                // line (date + inherited tags + filename) used to wrap the trailing
+                // filename mid-word across three lines. When the row carries tags —
+                // the case that actually runs out of room — drop the filename onto
+                // its own line instead; everything else stays inline.
+                val fileChip = row.meta.lastOrNull()
+                    ?.takeIf { it.tone == AgendaMetaTone.MUTED && it.text == row.fileName }
+                val splitFile = fileChip != null && row.meta.any { it.tone == AgendaMetaTone.TAG }
+                val inlineMeta = if (splitFile) row.meta.dropLast(1) else row.meta
+                MetaLine(colors, inlineMeta, GlanceModifier.padding(top = 3.dp))
+                if (splitFile) {
+                    MetaLine(colors, listOf(fileChip!!), GlanceModifier.padding(top = 2.dp))
                 }
             }
         }
@@ -408,10 +416,23 @@ private fun LedgerRow(context: Context, colors: GroveColors, row: AgendaRow) {
     }
 }
 
+/** One horizontal strip of meta chips, 8dp apart. */
+@Composable
+private fun MetaLine(colors: GroveColors, meta: List<AgendaMeta>, modifier: GlanceModifier) {
+    Row(modifier = modifier) {
+        meta.forEachIndexed { index, m ->
+            if (index > 0) Spacer(modifier = GlanceModifier.width(8.dp))
+            MetaChip(colors, m)
+        }
+    }
+}
+
 @Composable
 private fun MetaChip(colors: GroveColors, meta: AgendaMeta) {
     Text(
         meta.text,
+        // Never let a chip wrap mid-word; when the strip is tight it truncates instead.
+        maxLines = 1,
         style = TextStyle(color = ColorProvider(colors.metaColor(meta.tone)), fontSize = 10.5.sp, fontFamily = FontFamily.Monospace),
     )
 }

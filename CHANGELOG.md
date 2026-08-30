@@ -58,6 +58,7 @@ Re-running against the same commit/tag re-uses the same tag and just
 re-uploads the APKs to the existing release instead of failing.
 
 ## [Unreleased]
+- Agenda widget: a crowded meta line (date + inherited tags + filename) no longer wraps the trailing filename mid-word across several lines. When a row carries tags, the filename now moves to its own line below the rest of the strip; otherwise it stays inline. Individual chips truncate rather than wrap.
 
 ## [1.1.0] - 2026-08-29
 
