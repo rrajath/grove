@@ -34,11 +34,11 @@ Grove edits plain `.org` files in a folder you choose. There is no account, no p
 
 | Notebooks                                                                           | Outline                                                                         | Read mode                                                                          |
 |-------------------------------------------------------------------------------------|---------------------------------------------------------------------------------|------------------------------------------------------------------------------------|
-| ![Notebooks](fastlane/metadata/android/en-US/images/phoneScreenshots/1.png) | ![Outline](fastlane/metadata/android/en-US/images/phoneScreenshots/2.png) | ![Read mode](fastlane/metadata/android/en-US/images/phoneScreenshots/3.png) |
+| ![Notebooks](screenshots/GroveLight/notebooks.png) | ![Outline](screenshots/GroveLight/outline.png) | ![Read mode](screenshots/GroveLight/read-mode.png) |
 
 | Edit mode                                                                          | Agenda                                                                        | Widget                                                                        |
 |------------------------------------------------------------------------------------|-------------------------------------------------------------------------------|-------------------------------------------------------------------------------|
-| ![Edit mode](fastlane/metadata/android/en-US/images/phoneScreenshots/4.png) | ![Agenda](fastlane/metadata/android/en-US/images/phoneScreenshots/5.png) | ![Widget](fastlane/metadata/android/en-US/images/phoneScreenshots/6.png) |
+| ![Edit mode](fastlane/metadata/android/en-US/images/phoneScreenshots/4.png) | ![Agenda](screenshots/GroveLight/agenda.png) | ![Widget](fastlane/metadata/android/en-US/images/phoneScreenshots/6.png) |
 
 ## Getting started
 
