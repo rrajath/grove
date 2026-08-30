@@ -119,6 +119,9 @@ re-uploads the APKs to the existing release instead of failing.
 - The Read-mode breadcrumb now shows a nested note's full folder path
   (`projects/clients/acme.org › Heading`) instead of just the bare file name,
   and keeps the `.org` suffix to match the notebook list and the outline title.
+- The "This notebook is empty" placeholder now shows the Grove asterisk mark
+  (the five-spoke app icon, drawn in the same muted colour, no tile behind it)
+  in place of the generic Unicode star.
 
 ### Fixed
 - Pinning a folder no longer shows it twice on the Notebooks screen (once in

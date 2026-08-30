@@ -78,6 +78,7 @@ import com.rrajath.grove.org.OrgHeadline
 import com.rrajath.grove.org.OrgTimestamp
 import com.rrajath.grove.org.PlanningKind
 import com.rrajath.grove.settings.OutlineToggle
+import com.rrajath.grove.ui.components.BrandMarkGlyph
 import com.rrajath.grove.ui.components.CollapsibleKvSection
 import com.rrajath.grove.ui.components.FavoriteStar
 import com.rrajath.grove.ui.components.GroveTopBar
@@ -393,7 +394,7 @@ fun OutlineScreen(
                             Modifier.align(Alignment.Center),
                             horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
-                            Text("✶", fontFamily = PlexMono, fontSize = 28.sp, color = c.ink3)
+                            BrandMarkGlyph(size = 28.dp, color = c.ink3)
                             Spacer(Modifier.height(10.dp))
                             Text(
                                 "This notebook is empty",

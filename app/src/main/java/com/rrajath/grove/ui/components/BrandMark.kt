@@ -46,6 +46,22 @@ fun BrandMark(
     }
 }
 
+/**
+ * The bare Grove asterisk with no tile or border behind it: the same five-spoke
+ * geometry as [BrandMark], filling a [size] box. Used for empty states and
+ * anywhere the mark should read as an inline glyph rather than an app icon.
+ */
+@Composable
+fun BrandMarkGlyph(
+    size: Dp,
+    modifier: Modifier = Modifier,
+    color: Color = MaterialTheme.grove.accent,
+) {
+    Canvas(modifier.size(size)) {
+        drawAsterisk(color)
+    }
+}
+
 private fun DrawScope.drawAsterisk(color: Color) {
     val spokeLength = size.minDimension / 2f
     val spokeWidth = size.minDimension * (7f / 32f)

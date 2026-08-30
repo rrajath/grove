@@ -4,6 +4,17 @@
 
 Grove edits plain `.org` files in a folder you choose. There is no account, no proprietary database, and no export step: the files on disk *are* your notes, byte-for-byte, and they sync to your laptop with whatever tool you already trust (Syncthing is the recommended pairing). If you stop using Grove tomorrow, your notes are exactly where they always were.
 
+<p align="center">
+  <a href="https://github.com/rrajath/grove/releases">
+    <img src="https://raw.githubusercontent.com/Kunzisoft/Github-badge/main/get-it-on-github.png"
+         alt="Get it on GitHub" height="80" />
+  </a>
+  <a href="https://apps.obtainium.imranr.dev/redirect.html?r=obtainium://add/https://github.com/rrajath/grove">
+    <img src="https://raw.githubusercontent.com/ImranR98/Obtainium/main/assets/graphics/badge_obtainium.png"
+         alt="Get it on Obtainium" height="80" />
+  </a>
+</p>
+
 ## Highlights
 
 - **File-first**: `.org` files in a synced folder are the sole source of truth. Grove's internal database is only a rebuildable search index.
