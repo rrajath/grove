@@ -1,7 +1,9 @@
 package com.rrajath.grove.data
 
+import com.rrajath.grove.org.OrgDocument
 import com.rrajath.grove.org.OrgKeywords
 import com.rrajath.grove.org.OrgParser
+import com.rrajath.grove.org.PREFACE_LINE_INDEX
 import com.rrajath.grove.sync.KnownNotebook
 import com.rrajath.grove.sync.NoteIndex
 import com.rrajath.grove.sync.NotebookStub
@@ -70,13 +72,15 @@ class RoomNoteIndex(
                 isDone = h.keyword != null && doc.keywords.isDone(h.keyword),
                 lastModified = lastModified,
             )
-        }
+        } + prefaceNote(doc, fileName, lastModified)
         dao.replaceNotebook(
             NotebookEntity(
                 fileName = fileName,
                 revision = revision,
-                // Top-level headings only: subheadings are part of their note.
-                noteCount = doc.headlines.count { it.level == 1 },
+                // Top-level headings only: subheadings are part of their note. A
+                // heading-less preface (if any) counts as one more note.
+                noteCount = doc.headlines.count { it.level == 1 } +
+                    (if (doc.hasPrefaceContent) 1 else 0),
                 lastModified = lastModified,
                 conflictFileName = conflictFileName,
                 title = doc.preambleKeywords.firstOrNull { it.first.equals("#+TITLE:", ignoreCase = true) }?.second,
@@ -84,6 +88,36 @@ class RoomNoteIndex(
             notes,
         )
         onIndexed(fileName, doc)
+    }
+
+    /**
+     * The file's heading-less preface as a single index row (or empty when the
+     * file has no such content). Keyed at [PREFACE_LINE_INDEX] so it round-trips
+     * through search results and `NoteRef` like any other note.
+     */
+    private fun prefaceNote(doc: OrgDocument, fileName: String, lastModified: Long): List<NoteEntity> {
+        if (!doc.hasPrefaceContent) return emptyList()
+        return listOf(
+            NoteEntity(
+                fileName = fileName,
+                lineIndex = PREFACE_LINE_INDEX,
+                level = 0,
+                title = doc.prefaceTitle,
+                keyword = null,
+                priority = null,
+                tags = "",
+                inheritedTags = doc.fileTags.joinToString(":"),
+                scheduled = null,
+                deadline = null,
+                closed = null,
+                orgId = null,
+                customId = null,
+                createdAt = null,
+                body = doc.prefaceBody.joinToString("\n").trim(),
+                isDone = false,
+                lastModified = lastModified,
+            )
+        )
     }
 
     override suspend fun setConflict(fileName: String, conflictFileName: String?) {

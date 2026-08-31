@@ -15,6 +15,7 @@ import com.rrajath.grove.org.OrgHeadline
 import com.rrajath.grove.org.OrgMutations
 import com.rrajath.grove.org.OrgParser
 import com.rrajath.grove.org.OrgTimestamp
+import com.rrajath.grove.org.PREFACE_LINE_INDEX
 import com.rrajath.grove.settings.NotebookDisplayNameMode
 import com.rrajath.grove.settings.PinKind
 import com.rrajath.grove.settings.PinnedItem
@@ -498,6 +499,16 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
     private val _allTags = MutableStateFlow<List<String>>(emptyList())
     val allTags: StateFlow<List<String>> = _allTags
 
+    /**
+     * Set to the line of the blank heading [withPrefaceHeading] just inserted, so
+     * the read screen (currently showing the preface pseudo-note) can re-open it
+     * as a real note. Cleared by [clearPrefacePromoted] once consumed.
+     */
+    private val _prefacePromotedLine = MutableStateFlow<Int?>(null)
+    val prefacePromotedLine: StateFlow<Int?> = _prefacePromotedLine
+
+    fun clearPrefacePromoted() { _prefacePromotedLine.value = null }
+
     private var eventId = 0L
 
     fun showToast(message: String) {
@@ -606,6 +617,38 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
             vault.save(loaded.fileName, newText)
             app.syncManager.requestSync("favorite added custom id")
             onResolved(newId)
+        }
+    }
+
+    /**
+     * A metadata action was invoked on a file's heading-less preface, which has
+     * no headline to hang metadata on. In one atomic edit: insert a blank
+     * top-level heading directly above the content (so the content becomes its
+     * body), then apply [mutate] to that heading. [describe] is the metadata
+     * action's own toast (shown alongside the "added a heading" snack).
+     * Publishes the new heading's line via [prefacePromotedLine] so the read
+     * screen can re-open it as a normal note. Undoable in a single step.
+     */
+    fun withPrefaceHeading(describe: String, mutate: (OrgDocument, OrgHeadline) -> String) {
+        val loaded = _state.value as? DocumentUiState.Loaded ?: return
+        val vault = app.vault.value ?: return
+        if (!loaded.document.hasPrefaceContent) return
+        viewModelScope.launch {
+            val (finalText, newLine, finalDoc) = withContext(Dispatchers.Default) {
+                val (wrapped, line) = OrgMutations.wrapPrefaceInHeading(loaded.document)
+                val wrappedDoc = OrgParser.parse(wrapped, loaded.document.keywords)
+                val h = wrappedDoc.headlineAtLine(line)
+                    ?: return@withContext Triple(wrapped, line, wrappedDoc)
+                val text = mutate(wrappedDoc, h)
+                Triple(text, line, OrgParser.parse(text, loaded.document.keywords))
+            }
+            undoSnapshot = UndoSnapshot(listOf(loaded.fileName to loaded.document.text))
+            _state.value = DocumentUiState.Loaded(loaded.fileName, finalDoc)
+            vault.save(loaded.fileName, finalText)
+            app.syncManager.requestSync("preface promoted to heading")
+            showSnack("Added a blank heading for this content")
+            if (describe.isNotEmpty()) showToast(describe)
+            _prefacePromotedLine.value = newLine
         }
     }
 
@@ -1115,7 +1158,13 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
 data class NoteRef(val fileName: String, val lineIndex: Int, val customId: String? = null) {
     fun encode(): String = if (customId != null) "$fileName@$lineIndex#$customId" else "$fileName@$lineIndex"
 
+    /** True when this ref points at the file's heading-less preface (see [PREFACE_LINE_INDEX]). */
+    val isPreface: Boolean get() = lineIndex == PREFACE_LINE_INDEX
+
     companion object {
+        /** A ref to [fileName]'s heading-less preface content. */
+        fun preface(fileName: String) = NoteRef(fileName, PREFACE_LINE_INDEX)
+
         fun decode(noteId: String): NoteRef? {
             val hash = noteId.indexOf('#')
             val base = if (hash >= 0) noteId.substring(0, hash) else noteId

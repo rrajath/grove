@@ -252,8 +252,11 @@ fun OutlineScreen(
                                 )
                             } else {
                                 (state as? DocumentUiState.Loaded)?.let {
+                                    // Matches RoomNoteIndex.noteCount: top-level headings
+                                    // plus the heading-less preface, if any.
                                     val noteCount = remember(it.document) {
-                                        it.document.headlines.count { h -> h.level == 1 }
+                                        it.document.headlines.count { h -> h.level == 1 } +
+                                            (if (it.document.hasPrefaceContent) 1 else 0)
                                     }
                                     Text(
                                         pluralCount(noteCount, "note"),
@@ -375,8 +378,17 @@ fun OutlineScreen(
                 // Every mutation produces a new document; snap any open panel shut.
                 LaunchedEffect(doc) { openRowLine = null }
                 val visible = remember(scopedHeadlines, collapsed) { visibleHeadlines(scopedHeadlines, collapsed) }
+                // A file can hold real content before its first heading (or
+                // with no heading at all). It's not a headline, so it gets its
+                // own tap-only row above the outline, opening in read mode.
+                val showPrefaceRow = doc.hasPrefaceContent && narrowTarget == null
                 Column(Modifier.fillMaxSize().padding(padding)) {
-                    if (showPreface && doc.preambleKeywords.isNotEmpty() && doc.headlines.isEmpty()) {
+                    // Pinned keyword box: only when there's no list below to scroll
+                    // it with (i.e. no headings and no preface row). Otherwise the
+                    // in-list `item(key = "preface")` renders it instead.
+                    if (showPreface && doc.preambleKeywords.isNotEmpty() &&
+                        doc.headlines.isEmpty() && !showPrefaceRow
+                    ) {
                         CollapsibleKvSection(
                             label = "PREFACE",
                             entries = doc.preambleKeywords,
@@ -387,7 +399,7 @@ fun OutlineScreen(
                         )
                     }
                     Box(Modifier.fillMaxSize().weight(1f)) {
-                    if (scopedHeadlines.isEmpty()) {
+                    if (scopedHeadlines.isEmpty() && !showPrefaceRow) {
                         // Empty state still needs the overlays below: undoing a
                         // delete/refile of the last note happens from here.
                         Column(
@@ -417,6 +429,8 @@ fun OutlineScreen(
                         // (54.dp) instead of sitting underneath it.
                         contentPadding = PaddingValues(bottom = 86.dp),
                     ) {
+                        // File header metadata first, then the content row, then
+                        // the headings — the file's own top-to-bottom order.
                         // Scrolls away with the rest of the outline instead of
                         // staying pinned above the list.
                         if (showPreface && doc.preambleKeywords.isNotEmpty()) {
@@ -428,6 +442,14 @@ fun OutlineScreen(
                                     onToggle = { prefaceExpanded = !prefaceExpanded },
                                     modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
                                     onDoubleTap = { onOpenPreface(notebookId) },
+                                )
+                            }
+                        }
+                        if (showPrefaceRow) {
+                            item(key = "prefaceRow") {
+                                PrefaceRow(
+                                    doc = doc,
+                                    onTap = { onOpenNote(NoteRef.preface(notebookId)) },
                                 )
                             }
                         }
@@ -781,6 +803,61 @@ private fun visibleHeadlines(headlines: List<OrgHeadline>, collapsed: Set<Int>):
         if (h.lineIndex in collapsed) hideDeeperThan = h.level
     }
     return result
+}
+
+/**
+ * Row for a file's heading-less content (everything before the first `*`), shown
+ * above the outline. Tap-only: opens read mode scoped to that content. Styled
+ * like an outline leaf row but with no asterisk, caret, chips or star, since it
+ * isn't a headline. Label is the content's first non-blank line.
+ */
+@Composable
+private fun PrefaceRow(doc: OrgDocument, onTap: () -> Unit) {
+    val c = MaterialTheme.grove
+    val title = remember(doc.prefaceTitle, c) { annotateOrgInline(doc.prefaceTitle, c) }
+    val preview = remember(doc) {
+        doc.prefaceBody
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .drop(1)
+            .take(2)
+            .joinToString("\n")
+            .take(200)
+    }
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .background(c.bg)
+            .clickable(onClick = onTap)
+            .padding(top = 9.dp, bottom = 9.dp, end = 6.dp),
+        verticalAlignment = Alignment.Top,
+    ) {
+        Box(Modifier.size(22.dp), contentAlignment = Alignment.Center) {
+            Canvas(Modifier.size(7.dp)) {
+                drawCircle(color = c.ink3, style = Stroke(width = 1.2.dp.toPx()))
+            }
+        }
+        Spacer(Modifier.width(7.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                title,
+                fontFamily = PlexSans, fontWeight = FontWeight.Medium,
+                fontSize = 14.5.sp, color = c.ink,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+            )
+            if (preview.isNotEmpty()) {
+                Text(
+                    preview,
+                    fontFamily = PlexSans, fontSize = 12.5.sp, color = c.ink3,
+                    maxLines = 2,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
+            }
+        }
+    }
 }
 
 @OptIn(ExperimentalLayoutApi::class)

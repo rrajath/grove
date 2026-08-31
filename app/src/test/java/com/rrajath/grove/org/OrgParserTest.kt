@@ -72,6 +72,41 @@ class OrgParserTest {
     }
 
     @Test
+    fun `preface helpers see real content before the first heading`() {
+        val doc = OrgParser.parse(
+            ":PROPERTIES:\n:ID: x\n:END:\n#+title: Roam note\n\nOriginally proposed by Hegel.\nMore prose.\n",
+        )
+        assertTrue(doc.hasPrefaceContent)
+        assertEquals("Originally proposed by Hegel.", doc.prefaceTitle)
+        assertEquals(
+            listOf("Originally proposed by Hegel.", "More prose."),
+            doc.prefaceBody.filter { it.isNotBlank() },
+        )
+    }
+
+    @Test
+    fun `preface helpers see content that precedes a later heading`() {
+        val doc = OrgParser.parse("#+title: T\n\nPreamble prose.\n\n* Timeline\nunder heading\n")
+        assertTrue(doc.hasPrefaceContent)
+        assertEquals("Preamble prose.", doc.prefaceTitle)
+        assertTrue(doc.prefaceBody.none { it.contains("Timeline") })
+    }
+
+    @Test
+    fun `no preface content when the preamble is only keywords and a drawer`() {
+        val doc = OrgParser.parse(":PROPERTIES:\n:ID: x\n:END:\n#+title: T\n\n* Heading\nbody\n")
+        assertTrue(!doc.hasPrefaceContent)
+        assertEquals("", doc.prefaceTitle)
+        assertEquals(doc.preambleEnd, doc.prefaceBodyStart)
+    }
+
+    @Test
+    fun `no preface content for a plain heading-only file`() {
+        val doc = OrgParser.parse("* just a heading\nbody text\n")
+        assertTrue(!doc.hasPrefaceContent)
+    }
+
+    @Test
     fun `parses keyword priority and planning`() {
         val doc = OrgParser.parse(golden("travel.org"))
 

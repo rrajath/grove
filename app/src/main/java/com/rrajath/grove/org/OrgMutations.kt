@@ -246,6 +246,20 @@ object OrgMutations {
         return lines.joinToString("\n")
     }
 
+    /**
+     * Insert a blank top-level heading (`* `) directly above the file's
+     * heading-less content ([OrgDocument.prefaceBodyStart]) so that content
+     * becomes the new heading's body. `#+KEY:` lines and any leading property
+     * drawer stay above it. Returns the new text and the new heading's line
+     * index. Caller should have checked [OrgDocument.hasPrefaceContent].
+     */
+    fun wrapPrefaceInHeading(doc: OrgDocument): Pair<String, Int> {
+        val at = doc.prefaceBodyStart
+        val lines = doc.lines.toMutableList()
+        lines.add(at, "* ")
+        return lines.joinToString("\n") to at
+    }
+
     fun deleteSubtree(doc: OrgDocument, h: OrgHeadline): String {
         val lines = doc.lines.toMutableList()
         repeat(doc.subtreeEndLine(h) - h.lineIndex) { lines.removeAt(h.lineIndex) }

@@ -3,6 +3,7 @@ package com.rrajath.grove.ui.nav
 import com.rrajath.grove.ui.vault.NoteRef
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class RoutesTest {
@@ -70,6 +71,16 @@ class RoutesTest {
         val ref = NoteRef.decode(decodedArg)!!
         assertEquals("projects/clients/acme.org", ref.fileName)
         assertEquals(42, ref.lineIndex)
+    }
+
+    @Test
+    fun `preface NoteRef round-trips through the note route`() {
+        val ref = NoteRef.preface("a/b/roam.org")
+        assertTrue(ref.isPreface)
+        val decodedArg = uriStyleDecode(Routes.note(ref.encode()).removePrefix("note/").substringBefore('?'))
+        val back = NoteRef.decode(decodedArg)!!
+        assertEquals("a/b/roam.org", back.fileName)
+        assertTrue(back.isPreface)
     }
 
     @Test

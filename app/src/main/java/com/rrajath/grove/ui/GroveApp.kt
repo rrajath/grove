@@ -345,7 +345,15 @@ private fun GroveNavigation(
                     // alongside `mode` (not a nav arg) so the mode toggle keeps not
                     // re-navigating/re-triggering the enter/exit transition.
                     var editTargetLine by rememberSaveable(noteId) { mutableStateOf<Int?>(null) }
-                    if (mode == "edit") {
+                    if (mode == "edit" && ref.isPreface) {
+                        // The preface has no heading to edit as a subtree: its editor
+                        // is scoped to the whole preamble (same screen as the outline's
+                        // PREFACE section). Back returns to the preface read view.
+                        EditPrefaceScreen(
+                            fileName = ref.fileName,
+                            onBack = { mode = "read" },
+                        )
+                    } else if (mode == "edit") {
                         EditNoteScreen(
                             noteRef = ref,
                             isNewNote = isNew,
@@ -367,6 +375,16 @@ private fun GroveNavigation(
                             showPropertyDrawers = settings.showPropertyDrawers,
                             checklistStates = settings.checklistStates,
                             favorites = favoritesFor(favorites, ref.fileName),
+                            // The preface just got a blank heading (a metadata action
+                            // needed one); re-open the file at that heading so it
+                            // continues as an ordinary note, replacing this entry.
+                            onPromotedToHeading = { line ->
+                                navController.navigate(
+                                    Routes.note(NoteRef(ref.fileName, line).encode(), mode = "read")
+                                ) {
+                                    popUpTo(entry.destination.route ?: Routes.NOTE) { inclusive = true }
+                                }
+                            },
                         )
                     }
                 }

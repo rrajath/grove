@@ -501,6 +501,34 @@ class OrgMutationsTest {
     }
 
     @Test
+    fun `wrapPrefaceInHeading puts a blank heading above heading-less content`() {
+        val roam = OrgParser.parse(
+            ":PROPERTIES:\n:ID: abc\n:END:\n#+title: Note\n\nFirst para.\nSecond line.\n",
+        )
+        val (text, line) = OrgMutations.wrapPrefaceInHeading(roam)
+        val parsed = OrgParser.parse(text)
+        val hd = parsed.headlines.single()
+        assertEquals(line, hd.lineIndex)
+        assertEquals("", hd.title)
+        // #+title / property drawer stay above the new heading; the loose text
+        // becomes the heading's body.
+        assertTrue(text.substringBefore("* ").contains("#+title: Note"))
+        assertEquals(listOf("First para.", "Second line."), parsed.bodyOf(hd).filter { it.isNotBlank() })
+    }
+
+    @Test
+    fun `wrapPrefaceInHeading keeps an existing first heading and its content`() {
+        val mixed = OrgParser.parse("#+title: T\n\nPreamble prose.\n\n* Timeline\nunder heading\n")
+        val (text, line) = OrgMutations.wrapPrefaceInHeading(mixed)
+        val parsed = OrgParser.parse(text)
+        val wrapped = parsed.headlines.first { it.lineIndex == line }
+        assertEquals("", wrapped.title)
+        assertEquals("Timeline", parsed.headlines.last().title)
+        assertTrue(parsed.bodyOf(wrapped).any { it.contains("Preamble prose") })
+        assertTrue(parsed.bodyOf(parsed.headlines.last()).any { it.contains("under heading") })
+    }
+
+    @Test
     fun `cut and paste releveles the subtree`() {
         val cut = OrgMutations.subtreeText(doc, h("Child task"))
         val without = OrgParser.parse(OrgMutations.deleteSubtree(doc, h("Child task")))

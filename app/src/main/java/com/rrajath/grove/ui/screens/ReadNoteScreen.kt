@@ -83,6 +83,7 @@ import com.rrajath.grove.org.BlockParser
 import com.rrajath.grove.org.OrgBlock
 import com.rrajath.grove.org.OrgDocument
 import com.rrajath.grove.org.OrgHeadline
+import com.rrajath.grove.org.OrgMutations
 import com.rrajath.grove.org.OrgTimestamp
 import com.rrajath.grove.settings.ChecklistStates
 import com.rrajath.grove.ui.components.CollapsibleKvSection
@@ -138,12 +139,25 @@ fun ReadNoteScreen(
     checklistStates: ChecklistStates = ChecklistStates.TWO,
     /** Favorited headlines in this file, matched per-heading by customId, marked with a ★. */
     favorites: List<FavoriteNote> = emptyList(),
+    /**
+     * The preface (heading-less content) was just given a blank heading because a
+     * metadata action needed one; the arg is that heading's line. The host re-opens
+     * the note at that line so it continues as an ordinary note. Preface refs only.
+     */
+    onPromotedToHeading: (Int) -> Unit = {},
     viewModel: DocumentViewModel = viewModel(factory = DocumentViewModel.Factory),
 ) {
     val c = MaterialTheme.grove
     val state by viewModel.state.collectAsStateWithLifecycle()
     val allTags by viewModel.allTags.collectAsStateWithLifecycle()
     val refileState by viewModel.refile.collectAsStateWithLifecycle()
+    val prefacePromotedLine by viewModel.prefacePromotedLine.collectAsStateWithLifecycle()
+    LaunchedEffect(prefacePromotedLine) {
+        prefacePromotedLine?.let { line ->
+            viewModel.clearPrefacePromoted()
+            onPromotedToHeading(line)
+        }
+    }
     val snack by viewModel.snack.collectAsStateWithLifecycle()
     var metadataOpen by remember { mutableStateOf(false) }
     // Set on a completed move (refileConfirm/refileToArchive/refileToLastUsed), not a plain
@@ -198,7 +212,10 @@ fun ReadNoteScreen(
                 },
                 subtitle = {
                     (state as? DocumentUiState.Loaded)?.document?.let { doc ->
-                        doc.headlineFor(noteRef)?.let { h ->
+                        if (noteRef.isPreface) {
+                            // No heading segment: the preface sits above every heading.
+                            ReadModeBreadcrumb(noteRef.fileName, emptyList(), onOpenBreadcrumb)
+                        } else doc.headlineFor(noteRef)?.let { h ->
                             val path = remember(doc, h) {
                                 val chain = mutableListOf(h)
                                 var p = doc.parent(h)
@@ -228,7 +245,26 @@ fun ReadNoteScreen(
             is DocumentUiState.Loaded -> {
                 val doc = s.document
                 val headline = doc.headlineFor(noteRef)
-                if (headline == null) {
+                if (noteRef.isPreface && doc.hasPrefaceContent) {
+                    val listState = rememberLazyListState()
+                    Box(Modifier.fillMaxSize().padding(padding)) {
+                        PrefaceContent(
+                            doc = doc,
+                            fileName = noteRef.fileName,
+                            listState = listState,
+                            onOpenNote = onOpenNote,
+                            onEdit = { onEdit(null) },
+                            onToggleCheckbox = { line -> viewModel.toggleChecklistItem(line, checklistStates.marks) },
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                        ScrollJumpButtons(
+                            listState = listState,
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(16.dp),
+                        )
+                    }
+                } else if (headline == null) {
                     Box(
                         Modifier.fillMaxSize().padding(padding),
                         contentAlignment = Alignment.Center,
@@ -289,7 +325,56 @@ fun ReadNoteScreen(
     if (metadataOpen) {
         val headline = currentHeadline
         val doc = (state as? DocumentUiState.Loaded)?.document
-        if (headline != null && doc != null) {
+        if (noteRef.isPreface && doc != null && doc.hasPrefaceContent) {
+            // No heading yet: every chip first inserts a blank top-level heading
+            // above the content (one atomic edit), then applies its change; the
+            // screen then re-opens the note at that heading. Refile is hidden —
+            // there's nothing to move until the content has a heading.
+            val now = { java.time.LocalDateTime.now() }
+            MetadataSheet(
+                headline = null,
+                keywords = doc.keywords,
+                allTags = allTags,
+                onChangeKeyword = { kw ->
+                    metadataOpen = false
+                    viewModel.withPrefaceHeading("State → ${kw ?: "none"}") { d, h ->
+                        OrgMutations.changeKeyword(d, h, kw, d.keywords, now())
+                    }
+                },
+                onSetPriority = { p ->
+                    metadataOpen = false
+                    viewModel.withPrefaceHeading("Priority → ${p?.let { "#$it" } ?: "none"}") { d, h ->
+                        OrgMutations.setPriority(d, h, p)
+                    }
+                },
+                onSetTags = { tags ->
+                    metadataOpen = false
+                    viewModel.withPrefaceHeading("") { d, h -> OrgMutations.setTags(d, h, tags) }
+                },
+                onSetPlanningDates = { sched, dead ->
+                    metadataOpen = false
+                    viewModel.withPrefaceHeading("Planning updated") { d, h ->
+                        OrgMutations.setPlanningDates(d, h, sched, dead)
+                    }
+                },
+                onAddNote = { note ->
+                    metadataOpen = false
+                    viewModel.withPrefaceHeading("Note added") { d, h ->
+                        OrgMutations.appendLogbookNote(
+                            d, h, note.trim(),
+                            OrgTimestamp(
+                                now().toLocalDate(),
+                                time = now().toLocalTime().withSecond(0).withNano(0),
+                                active = false,
+                            ),
+                        )
+                    }
+                },
+                onRefile = {},
+                showRefile = false,
+                onDismiss = { metadataOpen = false },
+            )
+        } else if (headline != null && doc != null) {
             MetadataSheet(
                 headline = headline,
                 keywords = doc.keywords,
@@ -352,6 +437,72 @@ private fun ReadModeBreadcrumb(
                 maxLines = 1,
                 modifier = Modifier.clickable { onOpenBreadcrumb(h.lineIndex) },
             )
+        }
+    }
+}
+
+/**
+ * Read view for a file's heading-less content (everything before the first `*`).
+ * Renders only that content, as org body blocks — no title, no heading, no
+ * subtree. Double-tap switches to the preface editor; links and checkboxes work
+ * as in [NoteContent].
+ */
+@Composable
+private fun PrefaceContent(
+    doc: OrgDocument,
+    fileName: String,
+    listState: LazyListState,
+    onOpenNote: (NoteRef) -> Unit,
+    onEdit: () -> Unit,
+    onToggleCheckbox: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val c = MaterialTheme.grove
+    val context = LocalContext.current
+    var boxCoords by remember { mutableStateOf<LayoutCoordinates?>(null) }
+    var linkMenuState by remember { mutableStateOf<Pair<String, IntOffset>?>(null) }
+    val openLink: (String) -> Unit = remember(doc, fileName, context, onOpenNote) {
+        { openOrgTarget(it, doc, fileName, context, onOpenNote) }
+    }
+    val onLinkLongPress: (String, Offset, LayoutCoordinates) -> Unit = remember {
+        { target, textLocalPos, textCoords ->
+            boxCoords?.let {
+                val boxLocalPos = it.localPositionOf(textCoords, textLocalPos)
+                linkMenuState = target to IntOffset(boxLocalPos.x.toInt(), boxLocalPos.y.toInt())
+            }
+        }
+    }
+    val body = remember(doc) { doc.prefaceBody.toList() }
+
+    Box(Modifier.onGloballyPositioned { boxCoords = it }) {
+        LazyColumn(
+            state = listState,
+            modifier = modifier.pointerInput(Unit) {
+                detectTapGestures(onDoubleTap = { onEdit() })
+            },
+            contentPadding = PaddingValues(start = 24.dp, end = 24.dp, top = 16.dp, bottom = 48.dp),
+        ) {
+            item(key = "preface-body") {
+                SelectionContainer {
+                    Column {
+                        BodyBlocks(body, doc.prefaceBodyStart, onToggleCheckbox, openLink, onLinkLongPress, onEdit)
+                    }
+                }
+            }
+            item(key = "bottom-spacer") { Spacer(Modifier.height(40.dp)) }
+        }
+
+        val (target, anchorOffset) = linkMenuState ?: (null to IntOffset.Zero)
+        if (target != null && anchorOffset != IntOffset.Zero) {
+            Box(Modifier.offset { anchorOffset }) {
+                DropdownMenu(
+                    expanded = true,
+                    onDismissRequest = { linkMenuState = null },
+                    containerColor = c.surface,
+                ) {
+                    LinkActionMenuItems(target, onDismiss = { linkMenuState = null })
+                }
+            }
         }
     }
 }

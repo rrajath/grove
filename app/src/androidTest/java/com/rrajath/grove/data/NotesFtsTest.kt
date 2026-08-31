@@ -112,6 +112,28 @@ class NotesFtsTest {
     }
 
     @Test
+    fun headinglessContentIsIndexedAsOneSearchableNote() = runBlocking {
+        indexFile(
+            "roam.org",
+            ":PROPERTIES:\n:ID: abc\n:END:\n#+title: Master-slave dialectic\n\n" +
+                "Originally proposed by Hegel and Kojeve.\n",
+        )
+        assertEquals(1, noteCount())
+        assertEquals(1, db.indexDao().ftsRowCount())
+        assertEquals(1, keysMatching("\"Kojeve\"").size)
+        // Keyed at the preface sentinel line, not a real heading line.
+        assertEquals(-1, keysMatching("\"Kojeve\"").single().lineIndex)
+    }
+
+    @Test
+    fun prefacePlusHeadingIndexesBothNotes() = runBlocking {
+        indexFile("mixed.org", "#+title: T\n\nPreamble prose about dynasties.\n\n* Timeline\nunder heading\n")
+        assertEquals(2, noteCount())
+        assertEquals(1, keysMatching("\"dynasties\"").size)
+        assertEquals(1, keysMatching("\"under heading\"").size)
+    }
+
+    @Test
     fun titlesAndBodiesAreBothIndexed() = runBlocking {
         indexFile("work.org", "* Distinctive Title\nunrelated body words\n")
 

@@ -28,8 +28,9 @@ Terms used throughout the code, the UI, and these docs. Org-mode terms keep thei
 |---|---|
 | **Vault** | The user's chosen org folder, accessed through a persisted SAF tree URI. Flat: no subdirectories. Also the name of the facade class (`Vault`) that lists/opens/saves files in it. |
 | **Notebook** | One `.org` file in the vault. The home screen lists notebooks. |
-| **Note** | One *top-level* headline in a notebook, together with its subtree. Subheadings are part of their note; this is why a notebook's note count only counts level-1 headlines. |
-| **NoteRef** | How a note is addressed in navigation and deep links: `"file.org@headlineLineIndex"`. A stopgap identity until cross-file org IDs are used. |
+| **Note** | One *top-level* headline in a notebook, together with its subtree (subheadings are part of their note), **or** the file's preface if it has one. A notebook's note count = level-1 headlines + 1 if there is preface content. |
+| **Preface** | Real content (paragraphs, lists, …) before a file's first `*` heading — or the whole body of a file with no headings, like an org-roam note. Distinct from the `#+` keyword lines. Grove surfaces it as its own note: a tap-only row above the outline, a preface-only read view, searchable, counted. Adding metadata to it first inserts a blank `* ` heading above the content. |
+| **NoteRef** | How a note is addressed in navigation and deep links: `"file.org@headlineLineIndex"`, or `"file.org@-1"` for the file's preface. A stopgap identity until cross-file org IDs are used. |
 | **FileStore** | The minimal suspend interface over a flat directory of files (`list/read/write/create/rename/delete/exists`). `SafFileStore` in production, `JvmFileStore` in tests. |
 | **Revision** | A file's change marker: `"mtime:size"`. Sync compares revisions to find externally-changed files; the editor compares them to detect a stale buffer before saving. |
 | **Index** | The Room database: one row per notebook and per headline, used for search, tag autocomplete, and the home screen. A *rebuildable cache*: never the source of truth; it can be wiped and rebuilt from the files at any time. |

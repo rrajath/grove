@@ -1,5 +1,14 @@
 package com.rrajath.grove.org
 
+/**
+ * Sentinel line index for the "preface note": a file's real content before its
+ * first `*` heading, surfaced as its own note (outline row, read view, search
+ * row). It has no headline line, so `-1` stands in wherever a note is addressed
+ * by (fileName, lineIndex) — the index rows, [com.rrajath.grove.ui.vault.NoteRef],
+ * and search results.
+ */
+const val PREFACE_LINE_INDEX = -1
+
 /** SCHEDULED / DEADLINE / CLOSED metadata from a headline's planning line. */
 data class Planning(
     val scheduled: OrgTimestamp? = null,
@@ -63,6 +72,38 @@ class OrgDocument(
             }
         }
     }
+
+    /**
+     * First line index of real content in the preamble (the region before the
+     * first headline). Skips a leading file-level `:PROPERTIES: … :END:` drawer,
+     * `#+KEY:` lines and blank lines. Equals [preambleEnd] when the preamble is
+     * only a property drawer / keywords / blank lines (the common case).
+     */
+    val prefaceBodyStart: Int by lazy {
+        var i = 0
+        if (i < preambleEnd && lines[i].trim().equals(":PROPERTIES:", ignoreCase = true)) {
+            val end = (i + 1 until preambleEnd).firstOrNull {
+                lines[it].trim().equals(":END:", ignoreCase = true)
+            }
+            if (end != null) i = end + 1
+        }
+        while (i < preambleEnd) {
+            val line = lines[i]
+            val isKeyword = OrgParser.PREAMBLE_KEYWORD.matchEntire(line.trim()) != null
+            if (line.isNotBlank() && !isKeyword) break
+            i++
+        }
+        i
+    }
+
+    /** Preamble lines from [prefaceBodyStart] up to the first headline. */
+    val prefaceBody: List<String> get() = lines.subList(prefaceBodyStart, preambleEnd)
+
+    /** Whether the file has real (non-keyword, non-drawer) content before its first headline. */
+    val hasPrefaceContent: Boolean get() = prefaceBody.any { it.isNotBlank() }
+
+    /** One-line label for the preface note: its first non-blank content line, trimmed. */
+    val prefaceTitle: String get() = prefaceBody.firstOrNull { it.isNotBlank() }?.trim().orEmpty()
 
     fun serialize(): String = text
 
