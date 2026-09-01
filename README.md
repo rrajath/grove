@@ -60,6 +60,13 @@ Grove edits plain `.org` files in a folder you choose. There is no account, no p
 2. Point Syncthing (or any other sync tool) at the same folder to share it with your other machines.
 3. Capture something.
 
+## Roadmap
+Following is the list of features/enhancements I'm planning to make to this app:
+- [ ] Clickable org links
+- [ ] Nested search expressions
+- [ ] Tips & Tricks page
+- [ ] WebDAV support
+
 ## Project layout
 
 ```
