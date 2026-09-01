@@ -30,14 +30,21 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.time.LocalDateTime
 
+/** Which scoped region of a file an [EditorViewModel] session is editing, if not a headline subtree. */
+enum class EditRegion { PREFACE, FILE_PROPERTIES, HEADING_PROPERTIES, HEADING_LOGBOOK }
+
 data class EditorUiState(
     val loading: Boolean = true,
     val fileName: String = "",
     val lineIndex: Int = 0,
-    /** True when this session is editing the file's preamble (see [EditorViewModel.loadPreface])
-     *  rather than a headline's subtree; [lineIndex] is meaningless in that case. */
-    val isPreface: Boolean = false,
-    /** The note's subtree text being edited (or the file's preamble, when [isPreface]). */
+    /** Non-null when this session edits a scoped region (see [EditorViewModel.loadRegion])
+     *  rather than a headline's subtree. [lineIndex] anchors the headline for the
+     *  HEADING_* regions and is meaningless for PREFACE / FILE_PROPERTIES. */
+    val region: EditRegion? = null,
+    /** The line range the region was loaded from, markers included; the save path
+     *  recomputes it from the fresh file and falls back to this. Null for PREFACE. */
+    val regionRange: IntRange? = null,
+    /** The note's subtree text being edited (or the scoped region's raw text, when [region] is set). */
     val buffer: String = "",
     val loadedRevision: String? = null,
     val keywords: OrgKeywords = OrgKeywords.DEFAULT,
@@ -55,7 +62,9 @@ data class EditorUiState(
      * buffer swallowed the characters typed in between. Reset to 0 by [load].
      */
     val bufferRevision: Long = 0,
-)
+) {
+    val isPreface: Boolean get() = region == EditRegion.PREFACE
+}
 
 class EditorViewModel(private val app: GroveApplication) : ViewModel() {
 
@@ -152,12 +161,15 @@ class EditorViewModel(private val app: GroveApplication) : ViewModel() {
     }
 
     /**
-     * Loads [fileName]'s preamble (every line before the first headline) for the preface
-     * editor, opened via a double-tap on Outline's PREFACE section. Unlike [load], this has
-     * no headline to anchor to: [writeBuffer] detects [EditorUiState.isPreface] and splices
-     * the buffer back in via [OrgMutations.replacePreface] instead.
+     * Loads a scoped [region] of [fileName] for the drawer / preface editor, opened via a
+     * double-tap on the matching section. Unlike [load] there may be no headline subtree to
+     * anchor to: [writeBuffer] detects [EditorUiState.region] and splices the buffer back
+     * via [OrgMutations.replacePreface] / [OrgMutations.replaceLines] instead.
+     *
+     * [noteId] is the encoded [NoteRef] of the owning headline, required for the HEADING_*
+     * regions and ignored otherwise.
      */
-    fun loadPreface(fileName: String) {
+    fun loadRegion(fileName: String, noteId: String?, region: EditRegion) {
         _state.update { it.copy(loading = true, error = null) }
         viewModelScope.launch {
             val vault = app.vault.value ?: run {
@@ -168,16 +180,49 @@ class EditorViewModel(private val app: GroveApplication) : ViewModel() {
                 _state.value = EditorUiState(loading = false, error = "$fileName not found")
                 return@launch
             }
+            var lineIndex = 0
+            val (buffer, range) = when (region) {
+                EditRegion.PREFACE -> OrgMutations.prefaceText(doc) to null
+                EditRegion.FILE_PROPERTIES -> {
+                    val r = OrgMutations.fileDrawerRange(doc) ?: run {
+                        _state.value = EditorUiState(loading = false, error = "No file property drawer here")
+                        return@launch
+                    }
+                    OrgMutations.regionText(doc, r) to r
+                }
+                EditRegion.HEADING_PROPERTIES, EditRegion.HEADING_LOGBOOK -> {
+                    val ref = noteId?.let { NoteRef.decode(it) } ?: run {
+                        _state.value = EditorUiState(loading = false, error = "Note not found")
+                        return@launch
+                    }
+                    val headline = doc.headlineFor(ref) ?: run {
+                        _state.value = EditorUiState(loading = false, error = "Note not found")
+                        return@launch
+                    }
+                    val marker = if (region == EditRegion.HEADING_LOGBOOK) ":LOGBOOK:" else ":PROPERTIES:"
+                    val r = OrgMutations.headingDrawerRange(doc, headline, marker) ?: run {
+                        _state.value = EditorUiState(loading = false, error = "This drawer is no longer here")
+                        return@launch
+                    }
+                    lineIndex = headline.lineIndex
+                    OrgMutations.regionText(doc, r) to r
+                }
+            }
             _state.value = EditorUiState(
                 loading = false,
                 fileName = fileName,
-                isPreface = true,
-                buffer = OrgMutations.prefaceText(doc),
+                lineIndex = lineIndex,
+                region = region,
+                regionRange = range,
+                buffer = buffer,
                 loadedRevision = vault.revision(fileName),
                 keywords = app.keywords.value,
             )
         }
     }
+
+    /** [loadRegion] shorthand for the preface editor. */
+    fun loadPreface(fileName: String) = loadRegion(fileName, null, EditRegion.PREFACE)
 
     /** The text field reporting the user's own typing; never echoed back to it. */
     fun onBufferChange(text: String) {
@@ -365,16 +410,25 @@ class EditorViewModel(private val app: GroveApplication) : ViewModel() {
         // mid-keystroke while an auto-save runs.
         val newText = withContext(Dispatchers.Default) {
             val doc = vault.open(s.fileName) ?: return@withContext null
-            if (s.isPreface) {
-                OrgMutations.replacePreface(doc, savedBuffer)
-            } else {
-                val headline = doc.headlines.firstOrNull { it.lineIndex == s.lineIndex }
-                if (headline != null) {
-                    OrgMutations.replaceSubtree(doc, headline, savedBuffer)
-                } else {
-                    // Note vanished from the file (heavy external edit); append the
-                    // buffer at the end rather than lose the user's work.
-                    doc.text.trimEnd('\n') + "\n" + savedBuffer.trimEnd('\n') + "\n"
+            // Extreme edge case for every branch below: the region/note vanished
+            // from the file (heavy external edit) and no stored range survives;
+            // append the buffer at the end rather than lose the user's work.
+            val appendFallback = doc.text.trimEnd('\n') + "\n" + savedBuffer.trimEnd('\n') + "\n"
+            when (s.region) {
+                EditRegion.PREFACE -> OrgMutations.replacePreface(doc, savedBuffer)
+                EditRegion.FILE_PROPERTIES -> {
+                    val range = OrgMutations.fileDrawerRange(doc) ?: s.regionRange
+                    if (range != null) OrgMutations.replaceLines(doc, range, savedBuffer) else appendFallback
+                }
+                EditRegion.HEADING_PROPERTIES, EditRegion.HEADING_LOGBOOK -> {
+                    val marker = if (s.region == EditRegion.HEADING_LOGBOOK) ":LOGBOOK:" else ":PROPERTIES:"
+                    val headline = doc.headlines.firstOrNull { it.lineIndex == s.lineIndex }
+                    val range = headline?.let { OrgMutations.headingDrawerRange(doc, it, marker) } ?: s.regionRange
+                    if (range != null) OrgMutations.replaceLines(doc, range, savedBuffer) else appendFallback
+                }
+                null -> {
+                    val headline = doc.headlines.firstOrNull { it.lineIndex == s.lineIndex }
+                    if (headline != null) OrgMutations.replaceSubtree(doc, headline, savedBuffer) else appendFallback
                 }
             }
         } ?: return false

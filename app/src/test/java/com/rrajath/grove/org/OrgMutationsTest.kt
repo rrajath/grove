@@ -500,6 +500,61 @@ class OrgMutationsTest {
         assertTrue(saved.contains("* First"))
     }
 
+    // --- scoped drawer editors (fileDrawerRange / headingDrawerRange / replaceLines) ---
+
+    private val drawerDoc = OrgParser.parse(
+        """
+        :PROPERTIES:
+        :ID: file-1
+        :END:
+        #+TITLE: D
+
+        * Task
+        SCHEDULED: <2025-06-09 Mon>
+        :PROPERTIES:
+        :CUSTOM_ID: task
+        :END:
+        :LOGBOOK:
+        - State "DONE" from "TODO" [2025-06-09 Mon 10:00]
+        :END:
+        body line
+        """.trimIndent() + "\n"
+    )
+
+    @Test
+    fun `fileDrawerRange spans the leading property drawer with its markers`() {
+        val range = OrgMutations.fileDrawerRange(drawerDoc)!!
+        assertEquals(0..2, range)
+        assertEquals(":PROPERTIES:\n:ID: file-1\n:END:", OrgMutations.regionText(drawerDoc, range))
+        assertNull(OrgMutations.fileDrawerRange(OrgParser.parse("* Only a heading\n")))
+        assertNull(OrgMutations.fileDrawerRange(OrgParser.parse(":PROPERTIES:\n:ID: x\n* unclosed\n")))
+    }
+
+    @Test
+    fun `headingDrawerRange finds the properties and logbook drawers past the planning line`() {
+        val task = drawerDoc.headlines.single()
+        val props = OrgMutations.headingDrawerRange(drawerDoc, task, ":PROPERTIES:")!!
+        assertEquals(":PROPERTIES:\n:CUSTOM_ID: task\n:END:", OrgMutations.regionText(drawerDoc, props))
+        val log = OrgMutations.headingDrawerRange(drawerDoc, task, ":LOGBOOK:")!!
+        assertTrue(OrgMutations.regionText(drawerDoc, log).startsWith(":LOGBOOK:\n- State \"DONE\""))
+        val bare = OrgParser.parse("* No drawers\nbody\n")
+        assertNull(OrgMutations.headingDrawerRange(bare, bare.headlines.single(), ":PROPERTIES:"))
+    }
+
+    @Test
+    fun `replaceLines swaps a drawer and leaves the rest of the file byte-identical`() {
+        val task = drawerDoc.headlines.single()
+        val log = OrgMutations.headingDrawerRange(drawerDoc, task, ":LOGBOOK:")!!
+        val edited = OrgMutations.replaceLines(
+            drawerDoc, log,
+            ":LOGBOOK:\n- State \"DONE\" from \"TODO\" [2025-06-09 Mon 10:00]\nCLOCK: [2025-06-09 Mon 11:00]--[2025-06-09 Mon 11:30] =>  0:30\n:END:",
+        )
+        val reparsed = OrgParser.parse(edited)
+        assertTrue(reparsed.headlines.single().logbook.any { it.startsWith("CLOCK:") })
+        assertTrue(edited.contains(":ID: file-1"))
+        assertTrue(edited.trimEnd().endsWith("body line"))
+    }
+
     @Test
     fun `wrapPrefaceInHeading puts a blank heading above heading-less content`() {
         val roam = OrgParser.parse(

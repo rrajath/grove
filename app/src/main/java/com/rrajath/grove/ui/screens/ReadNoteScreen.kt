@@ -133,6 +133,12 @@ fun ReadNoteScreen(
      * outline to that heading's subtree).
      */
     onOpenBreadcrumb: (Int?) -> Unit = {},
+    /**
+     * Double-tapping a `:PROPERTIES:` or `:LOGBOOK:` drawer opens an editor scoped to just
+     * that drawer. [kind] is `"headingProps"` or `"headingLog"`; [ref] identifies the
+     * owning heading.
+     */
+    onOpenDrawer: (kind: String, ref: NoteRef) -> Unit = { _, _ -> },
     /** Settings toggle: show collapsible sections for `:PROPERTIES:`/`:LOGBOOK:` drawers. */
     showPropertyDrawers: Boolean = true,
     /** Settings: how many states tapping a checklist item cycles through. */
@@ -291,6 +297,7 @@ fun ReadNoteScreen(
                             onOpenNote = onOpenNote,
                             fileName = noteRef.fileName,
                             onEditAt = onEdit,
+                            onOpenDrawer = onOpenDrawer,
                             onToggleCheckbox = { line -> viewModel.toggleChecklistItem(line, checklistStates.marks) },
                             showPropertyDrawers = showPropertyDrawers,
                             favorites = favorites,
@@ -515,6 +522,7 @@ private fun NoteContent(
     fileName: String,
     onOpenNote: (NoteRef) -> Unit,
     onEditAt: (Int?) -> Unit,
+    onOpenDrawer: (kind: String, ref: NoteRef) -> Unit,
     onToggleCheckbox: (Int) -> Unit,
     listState: LazyListState,
     modifier: Modifier = Modifier,
@@ -650,6 +658,7 @@ private fun NoteContent(
                         // in :PROPERTIES:, shown there only, not as a separate line).
                         if (showPropertyDrawers && (headline.properties.isNotEmpty() || headline.logbook.isNotEmpty())) {
                             Spacer(Modifier.height(10.dp))
+                            val ownRef = NoteRef(fileName, headline.lineIndex, headline.customId)
                             if (headline.properties.isNotEmpty()) {
                                 CollapsibleKvSection(
                                     label = ":PROPERTIES:",
@@ -658,6 +667,7 @@ private fun NoteContent(
                                     onToggle = {
                                         collapsibleExpanded["own"] = collapsibleExpanded["own"] != true
                                     },
+                                    onDoubleTap = { onOpenDrawer("headingProps", ownRef) },
                                 )
                             }
                             if (headline.logbook.isNotEmpty()) {
@@ -669,6 +679,7 @@ private fun NoteContent(
                                     onToggle = {
                                         collapsibleExpanded["own-logbook"] = collapsibleExpanded["own-logbook"] != true
                                     },
+                                    onDoubleTap = { onOpenDrawer("headingLog", ownRef) },
                                 )
                             }
                             Spacer(Modifier.height(20.dp))
@@ -772,6 +783,7 @@ private fun NoteContent(
                             }
                             if (showPropertyDrawers && (child.properties.isNotEmpty() || child.logbook.isNotEmpty())) {
                                 Spacer(Modifier.height(10.dp))
+                                val childRef = NoteRef(fileName, child.lineIndex, child.customId)
                                 if (child.properties.isNotEmpty()) {
                                     CollapsibleKvSection(
                                         label = ":PROPERTIES:",
@@ -781,6 +793,7 @@ private fun NoteContent(
                                             val key = "child:${child.lineIndex}"
                                             collapsibleExpanded[key] = collapsibleExpanded[key] != true
                                         },
+                                        onDoubleTap = { onOpenDrawer("headingProps", childRef) },
                                     )
                                 }
                                 if (child.logbook.isNotEmpty()) {
@@ -793,6 +806,7 @@ private fun NoteContent(
                                             val key = "child-logbook:${child.lineIndex}"
                                             collapsibleExpanded[key] = collapsibleExpanded[key] != true
                                         },
+                                        onDoubleTap = { onOpenDrawer("headingLog", childRef) },
                                     )
                                 }
                                 Spacer(Modifier.height(14.dp))

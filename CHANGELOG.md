@@ -75,9 +75,23 @@ re-uploads the APKs to the existing release instead of failing.
 - A file-level `:PROPERTIES:` drawer at the very top of an `.org` file (before
   the first heading) is now shown in the outline as a collapsed-by-default
   key/value section above the PREFACE box, styled the same as the `:PROPERTIES:`
-  drawer on individual headings in read mode. It is display-only and gated by
-  the same "Show property drawers" setting. Previously this drawer was dropped
-  from the outline entirely.
+  drawer on individual headings in read mode. It is gated by the same "Show
+  property drawers" setting. Previously this drawer was dropped from the outline
+  entirely.
+- Double-tapping a `:PROPERTIES:` or `:LOGBOOK:` drawer now opens an editor
+  scoped to just that drawer's raw text, the same way double-tapping the PREFACE
+  section opens the preamble editor. Works on the outline's file-level
+  `:PROPERTIES:` drawer and on every heading's `:PROPERTIES:` / `:LOGBOOK:`
+  drawer in read mode. Saving splices only that drawer back into the file.
+
+### Changed
+- Double-tapping a PREFACE or `:PROPERTIES:` key/value row now registers anywhere
+  on the row, not only when the tap lands exactly on the key or value text.
+- Settings › Help › Report a bug now offers two actions: "Send report via email"
+  (unchanged: copies the report to the clipboard and opens a mail-app chooser)
+  and "Open an issue on GitHub" (copies the same report and opens the Grove
+  issue tracker in the browser). The old "Copy as text instead" link is gone,
+  replaced by a note that both buttons copy the report to the clipboard.
 
 ### Fixed
 - Deleting a notebook whose trashed copy already exists no longer produces an

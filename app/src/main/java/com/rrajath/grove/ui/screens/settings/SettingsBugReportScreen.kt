@@ -2,6 +2,7 @@ package com.rrajath.grove.ui.screens.settings
 
 import android.content.ClipData
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
@@ -57,6 +58,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
@@ -64,7 +66,6 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
@@ -96,15 +97,17 @@ private data class DeviceInfo(
     val locale: String,
 )
 
+private const val GITHUB_ISSUE_URL = "https://github.com/rrajath/grove/issues/new"
+
 /**
- * Settings § Help → Report a bug (design/Grove.dc.html lines 1811-1881). Send
- * copies the form details (based on which toggles are on) to the clipboard
- * and opens a mail app chooser with the same content filled into the
- * subject/body of a new email addressed to [BUG_REPORT_EMAIL], instead of
- * filing anything remotely: there's no server-side component to this
- * feature at all. The clipboard copy happens unconditionally so the report
- * survives even if no mail app is available or the user backs out of the
- * chooser.
+ * Settings § Help → Report a bug (design/Grove.dc.html lines 1811-1881). Both
+ * actions build the same plain-text report from the form (based on which toggles
+ * are on) and copy it to the clipboard, then: "Send report via email" opens a
+ * mail app chooser with it filled into a new email to [BUG_REPORT_EMAIL];
+ * "Open an issue on GitHub" opens [GITHUB_ISSUE_URL] in the browser (the user
+ * pastes the copied report into the issue body). Nothing is filed remotely by
+ * the app itself. The clipboard copy happens unconditionally so the report
+ * survives even if the target app can't be opened.
  */
 @Composable
 fun SettingsBugReportScreen(onBack: () -> Unit) {
@@ -112,7 +115,7 @@ fun SettingsBugReportScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
-    val bugReportSubject = "${context.getString(R.string.app_name)} Bug Report"
+    val bugReportSubject = "${stringResource(R.string.app_name)} Bug Report"
 
     var description by rememberSaveable { mutableStateOf("") }
     val stepsState = rememberTextFieldState()
@@ -120,13 +123,28 @@ fun SettingsBugReportScreen(onBack: () -> Unit) {
     var includeErrorLog by rememberSaveable { mutableStateOf(false) }
     var previewOpen by rememberSaveable { mutableStateOf(false) }
     var sending by rememberSaveable { mutableStateOf(false) }
-    var copied by rememberSaveable { mutableStateOf(false) }
 
     // Not rememberSaveable: a captured log is only meaningful for the current process's
     // session, so it's fine (and correct) for this to reset on process death.
     var errorLogLines by remember { mutableStateOf<List<String>?>(null) }
     LaunchedEffect(includeErrorLog) {
         errorLogLines = if (includeErrorLog) captureRecentErrorLog(maxLines = 50) else null
+    }
+
+    // Builds the report from the form as it stands right now (re-capturing the log so it
+    // reflects everything up to the tap, not just when the toggle was flipped on) and puts
+    // it on the clipboard, unconditionally, so it's never lost if the target app won't open.
+    suspend fun buildAndCopyReport(): String {
+        val freshErrorLog = if (includeErrorLog) captureRecentErrorLog(maxLines = 50) else null
+        errorLogLines = freshErrorLog
+        val body = formatBugReportEmail(
+            description = description,
+            steps = stepsState.text.toString(),
+            deviceInfo = if (includeDeviceInfo) deviceInfo() else null,
+            errorLogLines = if (includeErrorLog) freshErrorLog else null,
+        )
+        clipboard.setClipEntry(ClipEntry(ClipData.newPlainText(bugReportSubject, body)))
+        return body
     }
 
     val canSend = description.isNotBlank() && !sending
@@ -153,27 +171,14 @@ fun SettingsBugReportScreen(onBack: () -> Unit) {
             Column(Modifier.fillMaxWidth().background(c.bg)) {
                 HorizontalDivider(color = c.line)
                 Column(Modifier.padding(16.dp)) {
-                    SendReportButton(
+                    BugReportButton(
+                        label = if (sending) "Opening mail app…" else "Send report via email",
                         enabled = canSend,
-                        sending = sending,
+                        primary = true,
                         onClick = {
                             sending = true
                             scope.launch {
-                                // Re-capture right before sending (rather than reusing
-                                // errorLogLines) so the log reflects everything up to the
-                                // moment of the tap, not just when the toggle was flipped on.
-                                val freshErrorLog = if (includeErrorLog) captureRecentErrorLog(maxLines = 50) else null
-                                errorLogLines = freshErrorLog
-                                val body = formatBugReportEmail(
-                                    description = description,
-                                    steps = stepsState.text.toString(),
-                                    deviceInfo = if (includeDeviceInfo) deviceInfo() else null,
-                                    errorLogLines = if (includeErrorLog) freshErrorLog else null,
-                                )
-                                // Copied unconditionally so the report is never lost, whether
-                                // or not a mail app is available or the chooser gets dismissed.
-                                clipboard.setClipEntry(ClipEntry(ClipData.newPlainText(bugReportSubject, body)))
-                                copied = true
+                                val body = buildAndCopyReport()
                                 // ACTION_SEND + "message/rfc822" (rather than ACTION_SENDTO +
                                 // a mailto: URI) is the intent shape non-Gmail mail apps
                                 // (Outlook, Yahoo, Samsung Email, …) register a compose-email
@@ -195,36 +200,29 @@ fun SettingsBugReportScreen(onBack: () -> Unit) {
                             }
                         },
                     )
-                    Text(
-                        if (copied) "Copied. Paste it wherever you'd like."
-                        else "Copy as text instead",
-                        fontFamily = PlexSans, fontSize = 12.sp,
-                        color = if (copied) c.ink2 else c.synLink,
-                        textDecoration = if (copied) null else TextDecoration.Underline,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 10.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .clickable {
-                                copied = true
-                                scope.launch {
-                                    clipboard.setClipEntry(
-                                        ClipEntry(
-                                            ClipData.newPlainText(
-                                                bugReportSubject,
-                                                formatBugReportEmail(
-                                                    description = description,
-                                                    steps = stepsState.text.toString(),
-                                                    deviceInfo = if (includeDeviceInfo) deviceInfo() else null,
-                                                    errorLogLines = if (includeErrorLog) errorLogLines else null,
-                                                ),
-                                            ),
-                                        ),
-                                    )
+                    Spacer(Modifier.height(10.dp))
+                    BugReportButton(
+                        label = "Open an issue on GitHub",
+                        enabled = canSend,
+                        primary = false,
+                        onClick = {
+                            scope.launch {
+                                buildAndCopyReport()
+                                runCatching {
+                                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(GITHUB_ISSUE_URL)))
+                                }.onSuccess {
+                                    Toast.makeText(context, "Report copied. Opening GitHub, paste it into the issue.", Toast.LENGTH_LONG).show()
+                                }.onFailure {
+                                    Toast.makeText(context, "Couldn't open a browser. Report copied to clipboard instead.", Toast.LENGTH_LONG).show()
                                 }
                             }
-                            .padding(vertical = 4.dp),
+                        },
+                    )
+                    Text(
+                        "The bug details will be copied to your clipboard.",
+                        fontFamily = PlexSans, fontSize = 12.sp, color = c.ink3,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
                     )
                 }
             }
@@ -239,7 +237,8 @@ fun SettingsBugReportScreen(onBack: () -> Unit) {
         ) {
             Text(
                 "Tell us what happened. Everything below is optional except the description. " +
-                    "Tapping Send Report opens your mail app with a draft; nothing is sent until you send that email.",
+                    "Either button copies the report to your clipboard, then opens your mail app " +
+                    "or GitHub; nothing is filed until you send the email or submit the issue.",
                 fontFamily = PlexSans, fontSize = 13.sp, lineHeight = 1.55.em, color = c.ink2,
                 modifier = Modifier.padding(bottom = 18.dp),
             )
@@ -490,23 +489,37 @@ private fun PrivacyNote() {
         Text("⚿", fontSize = 14.sp, color = c.accent, modifier = Modifier.padding(top = 1.dp))
         Spacer(Modifier.width(10.dp))
         Text(
-            "Sent as an email straight to the developer. Never sent to Google or filed anywhere public.",
+            "Goes straight to the developer, by email or as a GitHub issue you submit. " +
+                "Never sent to Google or filed anywhere automatically.",
             fontFamily = PlexSans, fontSize = 11.5.sp, lineHeight = 1.6.em, color = c.ink2,
         )
     }
 }
 
+/**
+ * The bug-report footer's action button. [primary] is the solid accent "Send report via
+ * email" button (with a soft shadow when enabled); the secondary variant is the outlined
+ * "Open an issue on GitHub" button. Both grey out until the description is filled in.
+ */
 @Composable
-private fun SendReportButton(enabled: Boolean, sending: Boolean, onClick: () -> Unit) {
+private fun BugReportButton(label: String, enabled: Boolean, primary: Boolean, onClick: () -> Unit) {
     val c = MaterialTheme.grove
-    val bg = if (enabled || sending) c.accent else c.surface3
-    val fg = if (enabled || sending) c.accentInk else c.ink3
     val shape = RoundedCornerShape(14.dp)
+    val bg = when {
+        !enabled -> c.surface3
+        primary -> c.accent
+        else -> c.surface
+    }
+    val fg = when {
+        !enabled -> c.ink3
+        primary -> c.accentInk
+        else -> c.ink
+    }
     Box(
         Modifier
             .fillMaxWidth()
             .then(
-                if (enabled) {
+                if (enabled && primary) {
                     Modifier.shadow(6.dp, shape, clip = false, ambientColor = ButtonShadowColor, spotColor = ButtonShadowColor)
                 } else {
                     Modifier
@@ -514,12 +527,13 @@ private fun SendReportButton(enabled: Boolean, sending: Boolean, onClick: () -> 
             )
             .clip(shape)
             .background(bg)
+            .then(if (!primary) Modifier.border(1.dp, if (enabled) c.line2 else c.line, shape) else Modifier)
             .clickable(enabled = enabled, onClick = onClick)
             .padding(vertical = 14.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
-            if (sending) "Opening mail app…" else "Send report",
+            label,
             fontFamily = PlexSans, fontWeight = FontWeight.SemiBold, fontSize = 14.5.sp, color = fg,
         )
     }

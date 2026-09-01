@@ -247,6 +247,55 @@ object OrgMutations {
     }
 
     /**
+     * Inclusive line range (drawer markers included) of the leading file-level
+     * `:PROPERTIES: … :END:` drawer, or null when there is no such closed drawer
+     * on the very first line. Mirrors [OrgDocument.filePropertyDrawer]'s rules;
+     * this is the raw region a drawer editor scopes itself to.
+     */
+    fun fileDrawerRange(doc: OrgDocument): IntRange? {
+        if (doc.preambleEnd == 0 ||
+            !doc.lines[0].trim().equals(":PROPERTIES:", ignoreCase = true)
+        ) {
+            return null
+        }
+        val end = (1 until doc.preambleEnd).firstOrNull {
+            doc.lines[it].trim().equals(":END:", ignoreCase = true)
+        } ?: return null
+        return 0..end
+    }
+
+    /**
+     * Inclusive line range (drawer markers included) of [h]'s `:PROPERTIES:` or
+     * `:LOGBOOK:` drawer ([marker] is the uppercase drawer name, e.g. `":LOGBOOK:"`),
+     * or null when [h] has no such closed drawer in the run right after its
+     * planning line. The raw region a drawer editor scopes itself to.
+     */
+    fun headingDrawerRange(doc: OrgDocument, h: OrgHeadline, marker: String): IntRange? {
+        val start = drawerScanStart(doc, h)
+        val markerLine = findDrawerMarker(doc.lines, start, h.bodyStart, marker) ?: return null
+        var endLine = markerLine + 1
+        while (endLine < doc.lines.size &&
+            !doc.lines[endLine].trim().equals(":END:", ignoreCase = true)
+        ) {
+            endLine++
+        }
+        if (endLine >= doc.lines.size) return null
+        return markerLine..endLine
+    }
+
+    /** Raw text of the line [range] (as returned by [fileDrawerRange] / [headingDrawerRange]). */
+    fun regionText(doc: OrgDocument, range: IntRange): String =
+        doc.lines.subList(range.first, range.last + 1).joinToString("\n")
+
+    /** Replace the line [range] with [newText] (a scoped drawer editor's save path). */
+    fun replaceLines(doc: OrgDocument, range: IntRange, newText: String): String {
+        val lines = doc.lines.toMutableList()
+        repeat(range.last - range.first + 1) { lines.removeAt(range.first) }
+        lines.addAll(range.first, newText.trimEnd('\n').split("\n"))
+        return lines.joinToString("\n")
+    }
+
+    /**
      * Insert a blank top-level heading (`* `) directly above the file's
      * heading-less content ([OrgDocument.prefaceBodyStart]) so that content
      * becomes the new heading's body. `#+KEY:` lines and any leading property

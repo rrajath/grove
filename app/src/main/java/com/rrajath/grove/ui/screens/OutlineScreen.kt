@@ -149,6 +149,9 @@ fun OutlineScreen(
     /** Double-tapping the PREFACE section: opens an editor scoped to just the preamble
      *  (everything before the first heading), mirroring double-tap-to-edit elsewhere. */
     onOpenPreface: (fileName: String) -> Unit = {},
+    /** Double-tapping the file-level `:PROPERTIES:` section: opens an editor scoped to just
+     *  that drawer. */
+    onOpenFileProperties: (fileName: String) -> Unit = {},
     viewModel: DocumentViewModel = viewModel(factory = DocumentViewModel.Factory),
 ) {
     val c = MaterialTheme.grove
@@ -404,7 +407,7 @@ fun OutlineScreen(
                             expanded = filePropsExpanded,
                             onToggle = { filePropsExpanded = !filePropsExpanded },
                             modifier = Modifier.padding(start = 10.dp, top = 8.dp, end = 10.dp),
-                            onDoubleTap = null,
+                            onDoubleTap = { onOpenFileProperties(notebookId) },
                         )
                     }
                     if (pinnedHeader && showPreface && doc.preambleKeywords.isNotEmpty()) {
@@ -460,7 +463,7 @@ fun OutlineScreen(
                                     expanded = filePropsExpanded,
                                     onToggle = { filePropsExpanded = !filePropsExpanded },
                                     modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
-                                    onDoubleTap = null,
+                                    onDoubleTap = { onOpenFileProperties(notebookId) },
                                 )
                             }
                         }
@@ -856,7 +859,7 @@ private fun PrefaceRow(doc: OrgDocument, onTap: () -> Unit) {
             .clickable(onClick = onTap)
             // Left edge lines up with the leaf-row bullets, with matching padding
             // on the right so the block reads as evenly inset.
-            .padding(vertical = 10.dp, horizontal = 21.dp),
+            .padding(vertical = 10.dp, horizontal = 11.dp),
     ) {
         Text(
             content,

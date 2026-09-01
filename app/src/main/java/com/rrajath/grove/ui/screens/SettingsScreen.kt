@@ -95,7 +95,7 @@ fun SettingsScreen(
             SettingsGroup {
                 SettingsRow(
                     label = "Report a bug",
-                    description = "Creates an issue on GitHub",
+                    description = "Send an email or create an issue on GitHub",
                     onClick = onOpenBugReport,
                 ) {
                     Text("›", fontFamily = PlexMono, fontSize = 14.sp, color = c.ink2)

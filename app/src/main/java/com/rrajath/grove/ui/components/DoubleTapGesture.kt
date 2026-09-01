@@ -24,6 +24,11 @@ import androidx.compose.ui.text.TextLayoutResult
  * inconsistent behavior this modifier replaces. A single-press, long-press,
  * or drag is *always* left completely untouched, so word-selection via
  * long-press keeps working normally.
+ *
+ * [layoutResult] and [links] exist only to leave link taps alone. On a container
+ * that renders no links (e.g. a whole `:PROPERTIES:` key/value row), pass
+ * `layoutResult = { null }` and no [links]: the null layout is then treated as
+ * "nothing to avoid" rather than "can't map this tap".
  */
 fun Modifier.doubleTapToEdit(
     layoutResult: () -> TextLayoutResult?,
@@ -66,9 +71,11 @@ fun Modifier.doubleTapToEdit(
                 val onLink = charOffset != null && links.any { charOffset in it.range }
                 lastPosition = null
 
-                if (layout == null || charOffset == null || onLink) {
-                    // Can't map this tap, or it's on a link (which owns its own
-                    // tap/long-press handling); don't hijack the gesture.
+                if (onLink || (links.isNotEmpty() && (layout == null || charOffset == null))) {
+                    // It's on a link (which owns its own tap/long-press handling),
+                    // or this is a text target whose tap we couldn't map to a
+                    // character; don't hijack the gesture. A link-free container
+                    // (layout intentionally null) falls through and takes over.
                     return@awaitEachGesture
                 }
 

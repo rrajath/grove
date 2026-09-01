@@ -14,6 +14,10 @@ object Routes {
     /** A file's preamble (everything before its first heading), opened by double-tapping
      *  Outline's PREFACE section; scoped to just that region, unlike NOTE. */
     const val PREFACE = "preface/{fileName}"
+    /** A single metadata drawer, opened by double-tapping it: [kind] is `fileProps`
+     *  (file-level `:PROPERTIES:`), `headingProps` or `headingLog`; [noteId] is the
+     *  encoded NoteRef of the owning heading (absent for `fileProps`). */
+    const val DRAWER = "drawer/{fileName}?kind={kind}&noteId={noteId}"
     const val CAPTURE = "capture"
     const val CAPTURE_TEMPLATE = "capture/{templateId}"
     const val SEARCH = "search?q={q}&notebook={notebook}"
@@ -67,6 +71,8 @@ object Routes {
     fun note(noteId: String, mode: String = "read", isNew: Boolean = false) =
         "note/${encode(noteId)}?mode=$mode&isNew=$isNew"
     fun preface(fileName: String) = "preface/${encode(fileName)}"
+    fun drawer(fileName: String, kind: String, noteId: String? = null) =
+        "drawer/${encode(fileName)}?kind=$kind" + (noteId?.let { "&noteId=${encode(it)}" } ?: "")
     fun capture(templateId: String? = null) =
         if (templateId == null) CAPTURE else "capture/${encode(templateId)}"
     fun conflict(notebookId: String) = "conflict/${encode(notebookId)}"

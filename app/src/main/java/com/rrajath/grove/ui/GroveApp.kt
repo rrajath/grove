@@ -35,6 +35,8 @@ import com.rrajath.grove.ui.agenda.AgendaScreen
 import com.rrajath.grove.ui.capture.CaptureEditorScreen
 import com.rrajath.grove.ui.editor.EditNoteScreen
 import com.rrajath.grove.ui.editor.EditPrefaceScreen
+import com.rrajath.grove.ui.editor.EditRegion
+import com.rrajath.grove.ui.editor.EditRegionScreen
 import com.rrajath.grove.ui.capture.CapturePickerSheet
 import com.rrajath.grove.ui.capture.TemplateEditScreen
 import com.rrajath.grove.ui.nav.Routes
@@ -315,12 +317,30 @@ private fun GroveNavigation(
                     showPreface = settings.showPreface,
                     showPropertyDrawers = settings.showPropertyDrawers,
                     onOpenPreface = { fileName -> navController.navigate(Routes.preface(fileName)) },
+                    onOpenFileProperties = { fileName ->
+                        navController.navigate(Routes.drawer(fileName, "fileProps"))
+                    },
                 )
             }
             composable(Routes.PREFACE) { entry ->
                 val fileName = entry.arguments?.getString("fileName").orEmpty()
                 EditPrefaceScreen(
                     fileName = fileName,
+                    onBack = { navController.popBackStack() },
+                )
+            }
+            composable(Routes.DRAWER) { entry ->
+                val fileName = entry.arguments?.getString("fileName").orEmpty()
+                val noteId = entry.arguments?.getString("noteId")
+                val region = when (entry.arguments?.getString("kind")) {
+                    "headingProps" -> EditRegion.HEADING_PROPERTIES
+                    "headingLog" -> EditRegion.HEADING_LOGBOOK
+                    else -> EditRegion.FILE_PROPERTIES
+                }
+                EditRegionScreen(
+                    fileName = fileName,
+                    region = region,
+                    noteId = noteId,
                     onBack = { navController.popBackStack() },
                 )
             }
@@ -372,6 +392,9 @@ private fun GroveNavigation(
                             // line index narrows the outline to that heading's subtree.
                             onOpenBreadcrumb = { targetLine ->
                                 navController.navigate(Routes.outline(ref.fileName, targetLine))
+                            },
+                            onOpenDrawer = { kind, drawerRef ->
+                                navController.navigate(Routes.drawer(drawerRef.fileName, kind, drawerRef.encode()))
                             },
                             showPropertyDrawers = settings.showPropertyDrawers,
                             checklistStates = settings.checklistStates,

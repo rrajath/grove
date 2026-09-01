@@ -64,19 +64,37 @@ import kotlinx.coroutines.delay
 import java.time.LocalTime
 
 /**
- * Raw org editor scoped to a file's preamble (every line before the first headline),
- * opened by double-tapping Outline's PREFACE section (see [doubleTapToEdit] usage in
- * `CollapsibleKvSection`). Deliberately a smaller sibling of [EditNoteScreen]: there's
- * no heading here, so no Read/Edit toggle, metadata sheet, or blank-heading validation,
- * just the same syntax-highlighted text field, dirty/save affordance, idle auto-save,
- * and stale-file handling.
+ * Raw org editor scoped to one region of a file: its preamble (the PREFACE section), a
+ * file-level or per-heading `:PROPERTIES:` drawer, or a `:LOGBOOK:` drawer. Opened by
+ * double-tapping the matching section (see [doubleTapToEdit] usage in `CollapsibleKvSection`
+ * / `CollapsibleLogSection`). Deliberately a smaller sibling of [EditNoteScreen]: no
+ * Read/Edit toggle, metadata sheet, or blank-heading validation, just the same
+ * syntax-highlighted text field, dirty/save affordance, idle auto-save, and stale-file
+ * handling.
  */
 @Composable
 fun EditPrefaceScreen(
     fileName: String,
     onBack: () -> Unit,
     viewModel: EditorViewModel = viewModel(factory = EditorViewModel.Factory),
+) = EditRegionScreen(fileName, EditRegion.PREFACE, noteId = null, onBack = onBack, viewModel = viewModel)
+
+/** One-word label for [region], used in this screen's title bar, save toast and leave dialog. */
+private fun regionLabel(region: EditRegion): String = when (region) {
+    EditRegion.PREFACE -> "Preface"
+    EditRegion.FILE_PROPERTIES, EditRegion.HEADING_PROPERTIES -> "Properties"
+    EditRegion.HEADING_LOGBOOK -> "Logbook"
+}
+
+@Composable
+fun EditRegionScreen(
+    fileName: String,
+    region: EditRegion,
+    noteId: String?,
+    onBack: () -> Unit,
+    viewModel: EditorViewModel = viewModel(factory = EditorViewModel.Factory),
 ) {
+    val label = regionLabel(region)
     val c = MaterialTheme.grove
     val context = LocalContext.current
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -106,7 +124,7 @@ fun EditPrefaceScreen(
     }
     androidx.activity.compose.BackHandler { leave() }
 
-    LaunchedEffect(fileName) { viewModel.loadPreface(fileName) }
+    LaunchedEffect(fileName, noteId, region) { viewModel.loadRegion(fileName, noteId, region) }
     LaunchedEffect(state.loading) {
         if (!state.loading && state.error == null) {
             setText(state.buffer, TextRange(0))
@@ -160,8 +178,8 @@ fun EditPrefaceScreen(
                                         viewModel.save { lastAutoSavedAt = LocalTime.now() }
                                     } else {
                                         val message = lastAutoSavedAt?.let {
-                                            "The preface was last saved at: ${AutoSaveTimestamp.format(it)}"
-                                        } ?: "This preface hasn't been saved yet"
+                                            "$label last saved at: ${AutoSaveTimestamp.format(it)}"
+                                        } ?: "This ${label.lowercase()} hasn't been saved yet"
                                         Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
                                     }
                                 }
@@ -172,7 +190,7 @@ fun EditPrefaceScreen(
                 title = {
                     Column(Modifier.padding(start = 4.dp)) {
                         Text(
-                            "Preface",
+                            label,
                             fontFamily = PlexMono, fontWeight = FontWeight.SemiBold,
                             fontSize = 17.sp, color = c.ink,
                         )
@@ -201,7 +219,7 @@ fun EditPrefaceScreen(
             if (state.staleFile) {
                 StaleFileBanner(
                     onOverwrite = { viewModel.save(force = true) },
-                    onReload = { viewModel.dismissStale(); viewModel.loadPreface(fileName) },
+                    onReload = { viewModel.dismissStale(); viewModel.loadRegion(fileName, noteId, region) },
                 )
             }
             Box(Modifier.weight(1f).fillMaxWidth()) {
@@ -263,7 +281,7 @@ fun EditPrefaceScreen(
             },
             text = {
                 Text(
-                    "This preface has unsaved changes.",
+                    "This ${label.lowercase()} has unsaved changes.",
                     fontFamily = PlexSans, fontSize = 14.sp, color = c.ink2,
                 )
             },

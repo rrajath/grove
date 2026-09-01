@@ -105,6 +105,17 @@ class RoutesTest {
     }
 
     @Test
+    fun `drawer route carries kind and an optional owning note id`() {
+        assertEquals("drawer/notes.org?kind=fileProps", Routes.drawer("notes.org", "fileProps"))
+        assertEquals(
+            "drawer/notes.org?kind=headingProps&noteId=notes.org%4012%23h",
+            Routes.drawer("notes.org", "headingProps", "notes.org@12#h"),
+        )
+        // The built form must still start with the path the NavHost registers.
+        assertTrue(Routes.drawer("notes.org", "fileProps").startsWith(Routes.DRAWER.substringBefore("{")))
+    }
+
+    @Test
     fun `capture route with and without template`() {
         assertEquals("capture", Routes.capture())
         assertEquals("capture/journal", Routes.capture("journal"))
