@@ -61,11 +61,12 @@ re-uploads the APKs to the existing release instead of failing.
 
 ### Added
 - Content that sits before a file's first heading (or a file with no headings
-  at all, like an org-roam note) is no longer hidden. The outline shows it as
-  its own row above the headings, labelled with its first line; tapping the row
-  opens it in read mode showing just that content, with a Read/Edit toggle
-  (Edit opens the preamble editor). This "preface note" is counted in the
-  notebook's note total and is full-text searchable.
+  at all, like an org-roam note) is no longer hidden. The outline shows it in
+  full above the headings as flowing body text with inline markup, inset so its
+  left edge lines up with the outline's leaf bullets; tapping it opens it in
+  read mode showing just that content, with a Read/Edit toggle (Edit opens the
+  preamble editor). This "preface note" is counted in the notebook's note total
+  and is full-text searchable.
 - In the preface's read-mode metadata sheet, picking a state, priority, tag,
   schedule/deadline or note first inserts a blank top-level heading above the
   content (so the content becomes its body), shows a toast, then applies the
