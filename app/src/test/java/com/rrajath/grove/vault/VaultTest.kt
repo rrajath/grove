@@ -219,4 +219,59 @@ class VaultTest {
         assertEquals(listOf("root.org"), v.notebooks().map { it.fileName })
         assertTrue(tmp.root.resolve("projects/grove.org.trash").exists())
     }
+
+    // --- case-insensitive name-collision guard (SAF/FAT sync targets) ---
+    //
+    // JvmFileStore inherits the host filesystem's casing behaviour (case-
+    // insensitive on the default macOS/APFS setup, case-sensitive on Linux CI),
+    // so these use a strictly case-sensitive in-memory store to prove Vault's
+    // own guard rather than the OS's.
+
+    /** In-memory, strictly case-sensitive [FileStore]. */
+    private class CaseSensitiveStore : FileStore {
+        private val files = linkedMapOf<String, String>()
+        override suspend fun list(): List<FileEntry> =
+            files.map { (name, body) -> FileEntry(name, 0L, body.length.toLong()) }
+        override suspend fun read(name: String): String = files.getValue(name)
+        override suspend fun write(name: String, content: String) { files[name] = content }
+        override suspend fun create(name: String): Boolean {
+            if (name in files) return false
+            files[name] = ""
+            return true
+        }
+        override suspend fun rename(oldName: String, newName: String): Boolean {
+            if (oldName == newName || newName in files || oldName !in files) return false
+            files[newName] = files.remove(oldName)!!
+            return true
+        }
+        override suspend fun delete(name: String): Boolean = files.remove(name) != null
+        override suspend fun exists(name: String): Boolean = name in files
+    }
+
+    @Test
+    fun `createNotebook rejects a case-only duplicate`() = runTest {
+        val v = Vault(CaseSensitiveStore())
+        assertTrue(v.createNotebook("Work"))
+        assertFalse(v.createNotebook("work"))
+        assertFalse(v.createNotebook("WORK.org"))
+    }
+
+    @Test
+    fun `renameNotebook rejects a rename onto an existing name case-insensitively`() = runTest {
+        val v = Vault(CaseSensitiveStore())
+        assertTrue(v.createNotebook("inbox"))
+        assertTrue(v.createNotebook("archive"))
+        assertFalse(v.renameNotebook("inbox.org", "Archive"))
+        // A case-only self-rename is still allowed.
+        assertTrue(v.renameNotebook("inbox.org", "Inbox"))
+    }
+
+    @Test
+    fun `renameFolder rejects merging into an existing folder case-insensitively`() = runTest {
+        val v = Vault(CaseSensitiveStore())
+        assertTrue(v.createNotebook("one", dir = "Alpha"))
+        assertTrue(v.createNotebook("two", dir = "Beta"))
+        assertNull(v.renameFolder("Alpha", "Beta"))
+        assertNull(v.renameFolder("Alpha", "beta"))
+    }
 }

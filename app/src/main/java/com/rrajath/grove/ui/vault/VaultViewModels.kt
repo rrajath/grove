@@ -23,12 +23,15 @@ import com.rrajath.grove.sync.SyncState
 import com.rrajath.grove.vault.AutoArchive
 import com.rrajath.grove.vault.StateChangeResult
 import com.rrajath.grove.vault.Vault
+import com.rrajath.grove.vault.vaultPath
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -131,7 +134,23 @@ sealed class NotebooksUiState {
     ) : NotebooksUiState()
 }
 
+/**
+ * One-shot outcome of a notebook/folder create-or-rename, surfaced to
+ * `NotebooksScreen` so it can dismiss the name dialog on success, or toast and
+ * keep the dialog mounted (with the user's typed text) when the name collides.
+ */
+sealed interface NotebookEditEvent {
+    /** The create/rename went through; the screen dismisses the open name dialog. */
+    data object Succeeded : NotebookEditEvent
+    /** [message] names the collision; the screen toasts it and leaves the dialog open. */
+    data class NameTaken(val message: String) : NotebookEditEvent
+}
+
 class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
+
+    // One-shot create/rename outcomes for the name dialogs (see NotebookEditEvent).
+    private val _editEvents = MutableSharedFlow<NotebookEditEvent>(extraBufferCapacity = 1)
+    val editEvents: SharedFlow<NotebookEditEvent> = _editEvents
 
     private data class TreeInputs(
         val items: List<NotebookItem>,
@@ -325,8 +344,14 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
     fun createNotebook(name: String, dir: String = "") {
         val vault = app.vault.value ?: return
         viewModelScope.launch {
-            vault.createNotebook(name.trim(), dir.trim('/'))
-            app.syncManager.requestSync("notebook created")
+            if (vault.createNotebook(name.trim(), dir.trim('/'))) {
+                _editEvents.emit(NotebookEditEvent.Succeeded)
+                app.syncManager.requestSync("notebook created")
+            } else {
+                _editEvents.emit(
+                    NotebookEditEvent.NameTaken("A notebook with that name already exists")
+                )
+            }
         }
     }
 
@@ -350,12 +375,20 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
 
     fun renameNotebook(oldName: String, newName: String) {
         val vault = app.vault.value ?: return
+        val target = newName.trim().let { if (it.endsWith(".org")) it else "$it.org" }
+        if (target == oldName) {
+            // Confirmed without changing the name — nothing to do, just close.
+            viewModelScope.launch { _editEvents.emit(NotebookEditEvent.Succeeded) }
+            return
+        }
         viewModelScope.launch {
             if (vault.renameNotebook(oldName, newName.trim())) {
                 app.database.indexDao().removeNotebook(oldName)
-                app.settingsRepository.moveNotebookStyle(
-                    oldName,
-                    if (newName.trim().endsWith(".org")) newName.trim() else "${newName.trim()}.org",
+                app.settingsRepository.moveNotebookStyle(oldName, target)
+                _editEvents.emit(NotebookEditEvent.Succeeded)
+            } else {
+                _editEvents.emit(
+                    NotebookEditEvent.NameTaken("A notebook with that name already exists")
                 )
             }
             app.syncManager.requestSync("notebook renamed")
@@ -407,13 +440,25 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
      */
     fun renameFolder(dir: String, newName: String) {
         val vault = app.vault.value ?: return
+        val trimmed = dir.trim('/')
+        val newDir = vaultPath(trimmed.substringBeforeLast('/', ""), newName.trim().trim('/'))
+        if (newDir == trimmed) {
+            // Confirmed without changing the name — nothing to do, just close.
+            viewModelScope.launch { _editEvents.emit(NotebookEditEvent.Succeeded) }
+            return
+        }
         viewModelScope.launch {
             val affected = affectedPaths(dir)
-            val newDir = vault.renameFolder(dir, newName)
-            if (newDir != null) {
+            val renamedTo = vault.renameFolder(dir, newName)
+            if (renamedTo != null) {
                 affected.forEach { app.database.indexDao().removeNotebook(it) }
-                app.settingsRepository.renameFolderStyle(dir, newDir)
+                app.settingsRepository.renameFolderStyle(dir, renamedTo)
+                _editEvents.emit(NotebookEditEvent.Succeeded)
                 app.syncManager.requestSync("folder renamed")
+            } else {
+                _editEvents.emit(
+                    NotebookEditEvent.NameTaken("A folder with that name already exists")
+                )
             }
         }
     }

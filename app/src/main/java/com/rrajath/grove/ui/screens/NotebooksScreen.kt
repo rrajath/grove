@@ -56,6 +56,7 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.ui.res.painterResource
 import com.rrajath.grove.R
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -101,6 +102,7 @@ import com.rrajath.grove.ui.vault.NotebookTreeRun
 import com.rrajath.grove.ui.vault.TREE_EXPAND_MILLIS
 import com.rrajath.grove.ui.vault.drillLevel
 import com.rrajath.grove.ui.vault.groupNotebookTreeRuns
+import com.rrajath.grove.ui.vault.NotebookEditEvent
 import com.rrajath.grove.ui.vault.NotebooksUiState
 import com.rrajath.grove.ui.vault.NotebooksViewModel
 import com.rrajath.grove.ui.vault.PinnedRow
@@ -140,6 +142,23 @@ fun NotebooksScreen(
     }
 
     BackHandler(enabled = drillDir != null) { drillUp() }
+
+    // Create/rename outcomes: close the open name dialog on success, or toast the
+    // collision and leave the dialog mounted so the user can correct the name.
+    LaunchedEffect(Unit) {
+        viewModel.editEvents.collect { event ->
+            when (event) {
+                is NotebookEditEvent.Succeeded -> {
+                    // Only one name dialog is ever open at a time.
+                    createInDir = null
+                    renameTarget = null
+                    folderRenameTarget = null
+                }
+                is NotebookEditEvent.NameTaken ->
+                    Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
 
     val folderPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocumentTree()
@@ -532,10 +551,9 @@ fun NotebooksScreen(
             confirmLabel = "Create",
             contextLabel = if (dir.isNotEmpty()) "in $dir/" else null,
             onDismiss = { createInDir = null },
-            onConfirm = { name ->
-                viewModel.createNotebook(name, dir)
-                createInDir = null
-            },
+            // Closed by the editEvents collector: on success, or left open with a
+            // toast when the name already exists.
+            onConfirm = { name -> viewModel.createNotebook(name, dir) },
         )
     }
     moveTarget?.let { target ->
@@ -563,10 +581,8 @@ fun NotebooksScreen(
             initial = target,
             confirmLabel = "Rename",
             onDismiss = { renameTarget = null },
-            onConfirm = { name ->
-                viewModel.renameNotebook(target, name)
-                renameTarget = null
-            },
+            // Closed by the editEvents collector (see the create dialog).
+            onConfirm = { name -> viewModel.renameNotebook(target, name) },
         )
     }
     styleTarget?.let { target ->
@@ -596,10 +612,8 @@ fun NotebooksScreen(
             confirmLabel = "Rename",
             placeholder = "folder name",
             onDismiss = { folderRenameTarget = null },
-            onConfirm = { name ->
-                viewModel.renameFolder(dir, name)
-                folderRenameTarget = null
-            },
+            // Closed by the editEvents collector (see the create dialog).
+            onConfirm = { name -> viewModel.renameFolder(dir, name) },
         )
     }
     folderColorTarget?.let { dir ->

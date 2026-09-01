@@ -97,9 +97,20 @@ class Vault(
     suspend fun createNotebook(name: String, dir: String = ""): Boolean {
         val leaf = if (name.endsWith(".org")) name else "$name.org"
         val fileName = vaultPath(dir, leaf)
-        if (store.exists(fileName)) return false
+        if (pathTaken(fileName)) return false
         return store.create(fileName)
     }
+
+    /**
+     * Whether [path] already names a file in the vault, compared
+     * case-insensitively. SAF providers over FAT/exFAT (and the stock Documents
+     * provider) treat file names case-insensitively, but [FileStore.exists] is a
+     * keyed lookup on the exact display name, so it would miss `Work.org` when
+     * asked about `work.org` and let a colliding create/rename through. Same
+     * rationale as [matchOpenedFileToNotebook].
+     */
+    private suspend fun pathTaken(path: String): Boolean =
+        store.exists(path) || store.list().any { it.name.equals(path, ignoreCase = true) }
 
     /**
      * Rename and/or move a notebook. [newName] may be a bare name (kept in the
@@ -108,6 +119,9 @@ class Vault(
      */
     suspend fun renameNotebook(oldName: String, newName: String): Boolean {
         val target = if (newName.endsWith(".org")) newName else "$newName.org"
+        // Block a rename onto an existing (case-insensitively) file, but allow a
+        // case-only self-rename (Work.org -> work.org).
+        if (!target.equals(oldName, ignoreCase = true) && pathTaken(target)) return false
         val ok = store.rename(oldName, target)
         if (ok) cache.keys.removeAll { it.name == oldName }
         return ok
@@ -172,7 +186,13 @@ class Vault(
             .filter { it.fileName.startsWith(prefix) }
             .map { it.fileName to newDir + "/" + it.fileName.removePrefix(prefix) }
         if (moves.isEmpty()) return null
-        if (moves.any { store.exists(it.second) }) return null
+        // Reject if the destination folder already exists (any file already sits
+        // under it) or a moved file's target path is taken — both compared
+        // case-insensitively, since the sync target is often a case-insensitive
+        // filesystem.
+        val allFiles = store.list().map { it.name }
+        if (allFiles.any { it.startsWith("$newDir/", ignoreCase = true) }) return null
+        if (moves.any { (_, to) -> allFiles.any { it.equals(to, ignoreCase = true) } }) return null
 
         var movedAny = false
         for ((from, to) in moves) {
