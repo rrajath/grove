@@ -22,18 +22,46 @@ class MainActivity : ComponentActivity() {
     // (singleTask launchMode). Navigation Compose does not consume the
     // hosting Activity's Intent on its own, so it's threaded through as
     // Compose state and handed to NavController.handleDeepLink explicitly.
+    //
+    // It is a *pending* deep link only until it has been navigated once:
+    // GroveApp calls back into onDeepLinkConsumed() to clear it. Without that,
+    // any later Activity recreation (process death, or a configuration change
+    // not covered by android:configChanges) re-reads getIntent() and
+    // re-dispatches the original grove:// target -- e.g. the capture sheet the
+    // user already cancelled would reappear.
     private var deepLinkIntent by mutableStateOf<Intent?>(null)
 
     @OptIn(ExperimentalComposeUiApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        deepLinkIntent = intent
+        // Only a genuine cold start carries a pending deep link. After process
+        // death savedInstanceState is non-null and the launch Intent is stale;
+        // configuration changes (rotation, dark mode, font scale, ...) no longer
+        // recreate this Activity at all -- see android:configChanges in the
+        // manifest -- so in-progress editor/capture state survives them.
+        if (savedInstanceState == null) {
+            deepLinkIntent = intent
+        }
         setContent {
             // Expose Compose testTags as Android resource-ids so Macrobenchmark /
             // UiAutomator can target views by tag (e.g. By.res("outline_list")).
             Box(Modifier.fillMaxSize().semantics { testTagsAsResourceId = true }) {
-                GroveApp(deepLinkIntent = deepLinkIntent)
+                GroveApp(
+                    deepLinkIntent = deepLinkIntent,
+                    onDeepLinkConsumed = { consumed ->
+                        // Ignore a stale callback: if onNewIntent has already
+                        // swapped in a newer deep link while this one was still
+                        // resolving, that newer Intent must not be cleared.
+                        if (deepLinkIntent === consumed) {
+                            deepLinkIntent = null
+                            // Replace the stored Intent so a later getIntent()
+                            // (e.g. from a recreation that slips past
+                            // configChanges) can't resurrect the same deep link.
+                            setIntent(Intent())
+                        }
+                    },
+                )
             }
         }
     }

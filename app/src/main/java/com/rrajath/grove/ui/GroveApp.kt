@@ -80,6 +80,11 @@ import kotlinx.coroutines.withTimeoutOrNull
 @Composable
 fun GroveApp(
     deepLinkIntent: android.content.Intent? = null,
+    /** Called with the pending [deepLinkIntent] once it has been navigated, so
+     *  the host Activity can drop it and it never re-fires on a later
+     *  recreation. The Activity ignores the call if a newer Intent has since
+     *  arrived. */
+    onDeepLinkConsumed: (android.content.Intent) -> Unit = {},
     viewModel: AppViewModel = viewModel(factory = AppViewModel.Factory),
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
@@ -113,7 +118,7 @@ fun GroveApp(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
     GroveTheme(theme = loaded.theme) {
-        GroveNavigation(loaded, viewModel, deepLinkIntent)
+        GroveNavigation(loaded, viewModel, deepLinkIntent, onDeepLinkConsumed)
     }
 }
 
@@ -158,6 +163,7 @@ private fun GroveNavigation(
     settings: GroveSettings,
     viewModel: AppViewModel,
     deepLinkIntent: android.content.Intent? = null,
+    onDeepLinkConsumed: (android.content.Intent) -> Unit = {},
 ) {
     val navController = rememberNavController()
     val drawerState = rememberDrawerState(DrawerValue.Closed)
@@ -179,41 +185,53 @@ private fun GroveNavigation(
     // notification all launch grove:// VIEW intents; NavHost doesn't consume
     // the hosting Activity's intent on its own, so route it through here on
     // both cold start and a warm-start onNewIntent (see MainActivity).
+    val consumeDeepLink by rememberUpdatedState(onDeepLinkConsumed)
     LaunchedEffect(deepLinkIntent) {
-        val uri = deepLinkIntent?.data ?: return@LaunchedEffect
-        val action = deepLinkIntent.action
-        if (action == android.content.Intent.ACTION_VIEW && uri.scheme == "grove") {
-            navController.handleDeepLink(deepLinkIntent)
-            return@LaunchedEffect
-        }
-        // A .org file opened from outside Grove (file manager, "Open with",
-        // or Grove set as its default handler; see the file-open intent-filter
-        // on MainActivity in the manifest). This isn't one of the grove://
-        // NavDeepLinks above -- there's no route pattern an arbitrary
-        // content:// / file:// URI could match -- so it's resolved by hand:
-        // match the tapped file's name against a notebook already indexed in
-        // the vault and open its outline.
-        if ((action == android.content.Intent.ACTION_VIEW || action == android.content.Intent.ACTION_EDIT) &&
-            (uri.scheme == "content" || uri.scheme == "file")
-        ) {
-            val requestedName = externalOrgFileName(app, uri)
-            val vault = withTimeoutOrNull(5_000) { app.vault.filterNotNull().first() }
-            val match = requestedName?.let { name ->
-                vault?.let { matchOpenedFileToNotebook(name, it.notebooks()) }
+        val intent = deepLinkIntent ?: return@LaunchedEffect
+        val uri = intent.data
+        try {
+            val action = intent.action
+            if (uri == null) return@LaunchedEffect
+            if (action == android.content.Intent.ACTION_VIEW && uri.scheme == "grove") {
+                navController.handleDeepLink(intent)
+                return@LaunchedEffect
             }
-            if (match != null) {
-                navController.navigate(Routes.outline(match.fileName)) { launchSingleTop = true }
-            } else {
-                android.widget.Toast.makeText(
-                    app,
-                    if (requestedName != null) {
-                        "\"$requestedName\" isn't in your ${app.getString(R.string.app_name)} vault folder."
-                    } else {
-                        "Couldn't open that file in ${app.getString(R.string.app_name)}."
-                    },
-                    android.widget.Toast.LENGTH_LONG,
-                ).show()
+            // A .org file opened from outside Grove (file manager, "Open with",
+            // or Grove set as its default handler; see the file-open intent-filter
+            // on MainActivity in the manifest). This isn't one of the grove://
+            // NavDeepLinks above -- there's no route pattern an arbitrary
+            // content:// / file:// URI could match -- so it's resolved by hand:
+            // match the tapped file's name against a notebook already indexed in
+            // the vault and open its outline.
+            if ((action == android.content.Intent.ACTION_VIEW || action == android.content.Intent.ACTION_EDIT) &&
+                (uri.scheme == "content" || uri.scheme == "file")
+            ) {
+                val requestedName = externalOrgFileName(app, uri)
+                val vault = withTimeoutOrNull(5_000) { app.vault.filterNotNull().first() }
+                val match = requestedName?.let { name ->
+                    vault?.let { matchOpenedFileToNotebook(name, it.notebooks()) }
+                }
+                if (match != null) {
+                    navController.navigate(Routes.outline(match.fileName)) { launchSingleTop = true }
+                } else {
+                    android.widget.Toast.makeText(
+                        app,
+                        if (requestedName != null) {
+                            "\"$requestedName\" isn't in your ${app.getString(R.string.app_name)} vault folder."
+                        } else {
+                            "Couldn't open that file in ${app.getString(R.string.app_name)}."
+                        },
+                        android.widget.Toast.LENGTH_LONG,
+                    ).show()
+                }
             }
+        } finally {
+            // Navigated (or found nothing to do): the Intent is spent. Clearing
+            // it here is what stops a cancelled capture from returning after a
+            // process-death recreation or an uncovered configuration change.
+            // Passes the exact Intent handled so a newer one that arrived
+            // mid-resolve (cancelling this effect) is left untouched.
+            consumeDeepLink(intent)
         }
     }
 

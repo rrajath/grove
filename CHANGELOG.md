@@ -93,6 +93,18 @@ re-uploads the APKs to the existing release instead of failing.
 - Flatten-folders mode now orders its single list purely by the Notebooks sort
   order rather than always grouping files by folder path first.
 
+### Fixed
+- Rotating the screen no longer discards in-progress work. `MainActivity` now
+  declares `android:configChanges` for orientation and every other runtime
+  config, so a rotation (or a dark-mode / font-scale change) re-lays-out the UI
+  in place instead of destroying and recreating the Activity. Unsaved note
+  edits, a half-filled capture, an in-progress date edit, a template being
+  written and scroll positions all survive the turn.
+- Opening the app from a `grove://capture` link (capture shortcut, widget,
+  notification), cancelling the capture, then rotating no longer re-opens the
+  same capture sheet. The launch Intent is now treated as a one-shot: it is
+  cleared once navigated and is not re-read after a process-death recreation.
+
 ## [1.2.0] - 2026-09-01
 
 ### Added

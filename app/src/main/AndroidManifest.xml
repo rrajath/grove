@@ -26,7 +26,8 @@
             android:label="@string/app_name"
             android:launchMode="singleTask"
             android:theme="@style/Theme.Grove"
-            android:windowSoftInputMode="adjustResize">
+            android:windowSoftInputMode="adjustResize"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|keyboard|navigation|uiMode|density|fontScale|touchscreen|locale|layoutDirection|colorMode|fontWeightAdjustment|mcc|mnc">
             <!-- grove:// deep links (widget, notification, note shortcuts) -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
