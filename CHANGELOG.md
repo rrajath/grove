@@ -59,6 +59,8 @@ re-uploads the APKs to the existing release instead of failing.
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-09-01
+
 ### Added
 - Content that sits before a file's first heading (or a file with no headings
   at all, like an org-roam note) is no longer hidden. Grove calls it the file's
