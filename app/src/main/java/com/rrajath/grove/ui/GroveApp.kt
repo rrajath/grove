@@ -112,7 +112,7 @@ fun GroveApp(
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
-    GroveTheme(theme = loaded.theme, fontSize = loaded.fontSize) {
+    GroveTheme(theme = loaded.theme) {
         GroveNavigation(loaded, viewModel, deepLinkIntent)
     }
 }
@@ -330,6 +330,7 @@ private fun GroveNavigation(
                 EditPrefaceScreen(
                     fileName = fileName,
                     onBack = { navController.popBackStack() },
+                    editModeFontSize = settings.editModeFontSize,
                 )
             }
             composable(Routes.DRAWER) { entry ->
@@ -345,6 +346,7 @@ private fun GroveNavigation(
                     region = region,
                     noteId = noteId,
                     onBack = { navController.popBackStack() },
+                    editModeFontSize = settings.editModeFontSize,
                 )
             }
             composable(Routes.BLOCK) { entry ->
@@ -354,6 +356,7 @@ private fun GroveNavigation(
                     noteId = null,
                     blockLine = entry.arguments?.getString("line")?.toIntOrNull() ?: -1,
                     onBack = { navController.popBackStack() },
+                    editModeFontSize = settings.editModeFontSize,
                 )
             }
             composable(
@@ -386,12 +389,14 @@ private fun GroveNavigation(
                         EditIntroScreen(
                             fileName = ref.fileName,
                             onBack = { mode = "read" },
+                            editModeFontSize = settings.editModeFontSize,
                         )
                     } else if (mode == "edit") {
                         EditNoteScreen(
                             noteRef = ref,
                             isNewNote = isNew,
                             initialCursorLine = editTargetLine,
+                            editModeFontSize = settings.editModeFontSize,
                             onBack = { navController.popBackStack() },
                             onSwitchToRead = { editTargetLine = null; mode = "read" },
                         )
@@ -414,6 +419,7 @@ private fun GroveNavigation(
                             },
                             showPropertyDrawers = settings.showPropertyDrawers,
                             checklistStates = settings.checklistStates,
+                            readModeFontSize = settings.readModeFontSize,
                             favorites = favoritesFor(favorites, ref.fileName),
                             // The intro just got a blank heading (a metadata action
                             // needed one); re-open the file at that heading so it
@@ -483,6 +489,7 @@ private fun GroveNavigation(
                     templateId = entry.arguments?.getString("templateId").orEmpty(),
                     onClose = { navController.popBackStack() },
                     onSaved = { navController.popBackStack() },
+                    editModeFontSize = settings.editModeFontSize,
                 )
             }
             composable(Routes.TEMPLATE_EDIT) { entry ->
@@ -539,7 +546,6 @@ private fun GroveNavigation(
                     onBack = { navController.popBackStack() },
                     onSetTheme = viewModel::setTheme,
                     onSetSyncAppIconWithTheme = viewModel::setSyncAppIconWithTheme,
-                    onSetFontSize = viewModel::setFontSize,
                 )
             }
             composable(Routes.SETTINGS_NOTEBOOKS) {
@@ -580,6 +586,8 @@ private fun GroveNavigation(
                     onSetTodoKeywords = viewModel::setTodoKeywords,
                     onSetDefaultPriority = viewModel::setDefaultPriority,
                     onSetNoteOpenMode = viewModel::setDefaultNoteOpenMode,
+                    onSetReadModeFontSize = viewModel::setReadModeFontSize,
+                    onSetEditModeFontSize = viewModel::setEditModeFontSize,
                     onSetShowPreface = viewModel::setShowPreface,
                     onSetShowPropertyDrawers = viewModel::setShowPropertyDrawers,
                     onSetChecklistStates = viewModel::setChecklistStates,

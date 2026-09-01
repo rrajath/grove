@@ -10,7 +10,6 @@ import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
-import com.rrajath.grove.settings.FontSizePreference
 import com.rrajath.grove.settings.ThemePreference
 
 /** Access the full Grove token set: `MaterialTheme.grove.accent`, etc. */
@@ -72,7 +71,6 @@ fun groveColorsFor(theme: ThemePreference): GroveColors = when (theme) {
 @Composable
 fun GroveTheme(
     theme: ThemePreference = ThemePreference.LIGHT,
-    fontSize: FontSizePreference = FontSizePreference.MEDIUM,
     content: @Composable () -> Unit,
 ) {
     val groveColors = groveColorsFor(theme)
@@ -93,7 +91,7 @@ fun GroveTheme(
     CompositionLocalProvider(LocalGroveColors provides groveColors) {
         MaterialTheme(
             colorScheme = materialScheme(groveColors),
-            typography = groveTypography(fontSize.scale),
+            typography = groveTypography(),
             content = content,
         )
     }

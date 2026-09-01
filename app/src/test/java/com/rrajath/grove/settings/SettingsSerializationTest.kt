@@ -11,7 +11,8 @@ class SettingsSerializationTest {
     private val sample = GroveSettings(
         theme = ThemePreference.DARK,
         syncAppIconWithTheme = true,
-        fontSize = FontSizePreference.LARGE,
+        readModeFontSize = FontSizePreference.LARGE,
+        editModeFontSize = FontSizePreference.SMALL,
         defaultNoteOpenMode = NoteOpenMode.EDIT,
         syncMode = SyncMode.PERIODIC,
         periodicSyncMinutes = 60,
@@ -73,7 +74,8 @@ class SettingsSerializationTest {
 
         assertEquals(sample.theme, restored.theme)
         assertEquals(sample.syncAppIconWithTheme, restored.syncAppIconWithTheme)
-        assertEquals(sample.fontSize, restored.fontSize)
+        assertEquals(sample.readModeFontSize, restored.readModeFontSize)
+        assertEquals(sample.editModeFontSize, restored.editModeFontSize)
         assertEquals(sample.defaultNoteOpenMode, restored.defaultNoteOpenMode)
         assertEquals(sample.syncMode, restored.syncMode)
         assertEquals(sample.periodicSyncMinutes, restored.periodicSyncMinutes)
@@ -175,17 +177,35 @@ class SettingsSerializationTest {
 
     @Test
     fun `unknown enum values fall back to defaults on import`() {
-        val json = """{ "theme": "sepia", "fontSize": "huge", "syncMode": "warp", "checklistStates": "four",
+        val json = """{ "theme": "sepia", "readModeFontSize": "huge", "editModeFontSize": "tiny",
+            "syncMode": "warp", "checklistStates": "four",
             "agendaSwipeLeftAction": "cartwheel", "agendaSwipeRightAction": "backflip", "reminderLeadTime": "next week" }"""
         val restored = SettingsSerialization.import(json, GroveSettings())
 
         assertEquals(ThemePreference.LIGHT, restored.theme)
-        assertEquals(FontSizePreference.MEDIUM, restored.fontSize)
+        assertEquals(FontSizePreference.MEDIUM, restored.readModeFontSize)
+        assertEquals(FontSizePreference.MEDIUM, restored.editModeFontSize)
         assertEquals(SyncMode.ON_OPEN_CLOSE, restored.syncMode)
         assertEquals(ChecklistStates.TWO, restored.checklistStates)
         assertEquals(AgendaSwipeAction.MARK_DONE, restored.agendaSwipeLeftAction)
         assertEquals(AgendaSwipeAction.SET_SCHEDULED, restored.agendaSwipeRightAction)
         assertEquals(ReminderLeadTime.AT_TIME, restored.reminderLeadTime)
+    }
+
+    @Test
+    fun `a pre-split export seeds both read and edit font size from the old fontSize`() {
+        // v1 exports carried a single "fontSize"; it must migrate into both new fields.
+        val json = """{ "fontSize": "large" }"""
+        val restored = SettingsSerialization.import(json, GroveSettings())
+        assertEquals(FontSizePreference.LARGE, restored.readModeFontSize)
+        assertEquals(FontSizePreference.LARGE, restored.editModeFontSize)
+    }
+
+    @Test
+    fun `a new export no longer writes the retired fontSize key`() {
+        val json = SettingsSerialization.export(sample)
+        assertTrue(json.contains("\"readModeFontSize\""))
+        assertTrue(!json.contains("\"fontSize\""))
     }
 
     @Test

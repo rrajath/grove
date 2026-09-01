@@ -86,6 +86,8 @@ import com.rrajath.grove.ui.editor.insertAtCursor
 import com.rrajath.grove.ui.editor.insertLinkTemplate
 import com.rrajath.grove.ui.editor.wrapSelection
 import com.rrajath.grove.ui.screens.IconGlyph
+import com.rrajath.grove.settings.FontSizePreference
+import com.rrajath.grove.ui.theme.ContentFontScale
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.PlexSerif
@@ -105,6 +107,8 @@ fun CaptureEditorScreen(
     templateId: String,
     onClose: () -> Unit,
     onSaved: () -> Unit,
+    /** Settings § Notes: font-size lever for the editor field. App chrome is unaffected. */
+    editModeFontSize: FontSizePreference = FontSizePreference.MEDIUM,
     viewModel: CaptureViewModel = viewModel(factory = CaptureViewModel.Factory),
 ) {
     val c = MaterialTheme.grove
@@ -343,23 +347,25 @@ fun CaptureEditorScreen(
                     // auto-scroll while a selection handle is dragged past the top or
                     // bottom edge, and keeps the cursor visible when the keyboard
                     // shrinks the viewport.
-                    BasicTextField(
-                        state = textState,
-                        inputTransformation = remember(keywords) { orgInputTransformation(keywords) },
-                        outputTransformation = remember(c, keywords) { OrgSyntaxHighlight(c, keywords) },
-                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-                        lineLimits = TextFieldLineLimits.MultiLine(),
-                        textStyle = TextStyle(
-                            fontFamily = PlexMono, fontSize = 14.sp,
-                            lineHeight = 1.9.em, color = c.ink,
-                        ),
-                        cursorBrush = SolidColor(c.accent),
-                        scrollState = scrollState,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(start = 20.dp, top = 20.dp, end = 20.dp, bottom = 80.dp)
-                            .focusRequester(focusRequester),
-                    )
+                    ContentFontScale(editModeFontSize) {
+                        BasicTextField(
+                            state = textState,
+                            inputTransformation = remember(keywords) { orgInputTransformation(keywords) },
+                            outputTransformation = remember(c, keywords) { OrgSyntaxHighlight(c, keywords) },
+                            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                            lineLimits = TextFieldLineLimits.MultiLine(),
+                            textStyle = TextStyle(
+                                fontFamily = PlexMono, fontSize = 14.sp,
+                                lineHeight = 1.9.em, color = c.ink,
+                            ),
+                            cursorBrush = SolidColor(c.accent),
+                            scrollState = scrollState,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(start = 20.dp, top = 20.dp, end = 20.dp, bottom = 80.dp)
+                                .focusRequester(focusRequester),
+                        )
+                    }
                 }
                 // Save floats bottom-right: above the keyboard while it's up
                 // (the column is ime-padded), at the screen's bottom otherwise.

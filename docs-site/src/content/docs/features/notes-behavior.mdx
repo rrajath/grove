@@ -1,6 +1,6 @@
 ---
 title: Notes Behavior
-description: Custom TODO keyword sets, default priority, default note mode, read-mode display toggles, checklist states, note IDs, and auto-archiving (Settings → Notes).
+description: Custom TODO keyword sets, default priority, default note mode, read/edit-mode font size, read-mode display toggles, checklist states, note IDs, and auto-archiving (Settings → Notes).
 ---
 
 import ThemeShot from '../../../components/ThemeShot.astro';
@@ -12,7 +12,7 @@ Settings → Notes controls how Grove treats note *content* (the org-mode semant
 <ThemeShot
   light={settingsNotesLight}
   dark={settingsNotesDark}
-  alt="Notes settings showing the TODO keyword string TODO IN-PROGRESS | DONE CANCELLED, Default priority, Default note mode, Checklist states, Show preface and Show property drawers toggles, Add ID/CREATED toggles, and Auto-archive done items"
+  alt="Notes settings showing the TODO keyword string TODO IN-PROGRESS | DONE CANCELLED, Default priority, Default note mode, a Font size block with separate Small/Medium/Large controls for read mode and edit mode, Checklist states, Show preface and Show property drawers toggles, Add ID/CREATED toggles, and Auto-archive done items"
   widths={[340, 680]}
   sizes="340px"
 />
@@ -28,6 +28,12 @@ Sets which priority (none, A, B, or C) new headings start with.
 ## Default note mode
 
 Choose whether tapping a note from Outline View opens it in [Read](/features/read-mode) or [Edit](/features/edit-mode) mode by default.
+
+## Font size
+
+**Read mode** and **Edit mode** have their own Small / Medium / Large control. Each one scales only that surface: picking a larger read-mode size enlarges the rendered note without changing the editor, and vice versa. The rest of the app (screen titles, lists, settings, menus) always stays at its default size.
+
+Medium is the default and matches the size the app has always used.
 
 ## Checklist states
 

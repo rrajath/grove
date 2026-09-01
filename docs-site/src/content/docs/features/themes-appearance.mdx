@@ -1,6 +1,6 @@
 ---
 title: Themes & Appearance
-description: 11 built-in color themes, launcher icon theming, and font size.
+description: 11 built-in color themes and launcher icon theming.
 ---
 
 import ThemeShot from '../../../components/ThemeShot.astro';
@@ -12,7 +12,7 @@ Settings → Look and Feel is where Grove's visual presentation is configured, s
 <ThemeShot
   light={settingsAppearanceLight}
   dark={settingsAppearanceDark}
-  alt="Look and Feel settings showing the Grove Light theme picker, a Sync App Icon with Theme toggle with a launcher-icon preview, and a Small/Medium/Large font size control"
+  alt="Look and Feel settings showing the Grove Light theme picker and a Sync App Icon with Theme toggle with a launcher-icon preview"
   widths={[340, 680]}
   sizes="340px"
 />
@@ -32,7 +32,7 @@ The **Sync App Icon with Theme** toggle swaps the app's launcher icon (and the b
 
 ## Font size
 
-A three-way segmented control: **Small / Medium / Large**, applied app-wide.
+Font size is a note-content setting, not an appearance one, so it lives on the **Notes** page: read mode and edit mode scale independently, and the rest of the app stays fixed. See [Notes Behavior → Font size](/features/notes-behavior#font-size).
 
 ## Related
 

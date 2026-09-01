@@ -1,5 +1,6 @@
 package com.rrajath.grove.settings
 
+import kotlinx.serialization.EncodeDefault
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
@@ -36,7 +37,15 @@ data class SettingsExport(
     val version: Int = CURRENT_VERSION,
     val theme: String = ThemePreference.LIGHT.storageKey,
     val syncAppIconWithTheme: Boolean = false,
-    val fontSize: String = FontSizePreference.MEDIUM.storageKey,
+    /**
+     * Retired app-wide font-size lever. Kept only so a pre-split export still
+     * imports: its value seeds both [readModeFontSize] and [editModeFontSize] when
+     * those are absent. Never written back out.
+     */
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    val fontSize: String? = null,
+    val readModeFontSize: String? = null,
+    val editModeFontSize: String? = null,
     val defaultNoteOpenMode: String = NoteOpenMode.READ.storageKey,
     val syncMode: String = SyncMode.ON_OPEN_CLOSE.storageKey,
     val periodicSyncMinutes: Int = 30,
@@ -94,7 +103,9 @@ data class SettingsExport(
     fun applyTo(base: GroveSettings): GroveSettings = base.copy(
         theme = ThemePreference.fromStorage(theme),
         syncAppIconWithTheme = syncAppIconWithTheme,
-        fontSize = FontSizePreference.fromStorage(fontSize),
+        // A pre-split export carries only `fontSize`; seed both new fields from it.
+        readModeFontSize = FontSizePreference.fromStorage(readModeFontSize ?: fontSize),
+        editModeFontSize = FontSizePreference.fromStorage(editModeFontSize ?: fontSize),
         defaultNoteOpenMode = NoteOpenMode.fromStorage(defaultNoteOpenMode),
         syncMode = SyncMode.fromStorage(syncMode),
         periodicSyncMinutes = periodicSyncMinutes,
@@ -146,12 +157,15 @@ data class SettingsExport(
     )
 
     companion object {
-        const val CURRENT_VERSION = 1
+        // v2: the single `fontSize` lever was split into `readModeFontSize` +
+        // `editModeFontSize`. v1 exports still import (fontSize seeds both).
+        const val CURRENT_VERSION = 2
 
         fun fromSettings(s: GroveSettings): SettingsExport = SettingsExport(
             theme = s.theme.storageKey,
             syncAppIconWithTheme = s.syncAppIconWithTheme,
-            fontSize = s.fontSize.storageKey,
+            readModeFontSize = s.readModeFontSize.storageKey,
+            editModeFontSize = s.editModeFontSize.storageKey,
             defaultNoteOpenMode = s.defaultNoteOpenMode.storageKey,
             syncMode = s.syncMode.storageKey,
             periodicSyncMinutes = s.periodicSyncMinutes,

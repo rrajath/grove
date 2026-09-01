@@ -76,11 +76,20 @@ re-uploads the APKs to the existing release instead of failing.
   notebooks, folders (a folder sorts by its most recently edited note), notes
   inside folders, the drill-down view and flat mode. Pinned notebooks and
   folders always keep their pinned order. Default is Alphabetical, ascending.
+- **Settings › Notes › Font size** now has separate **Read mode** and **Edit
+  mode** controls (Small / Medium / Large each). The read-mode size scales the
+  rendered note, the edit-mode size scales the editor text, and they are
+  independent of each other. Both default to Medium.
 
 ### Changed
 - Settings has a new **Notebooks** page, directly under **Look and Feel**. The
   "Show file icons in notebooks", "Flatten folders" and "Notebook display name"
   settings moved there from Look and Feel; their values are unchanged.
+- The single app-wide **Font size** setting moved off **Look and Feel** and was
+  replaced by the per-mode read/edit controls on the **Notes** page. It used to
+  scale the whole Material typography (in practice, mostly screen titles); the
+  app's own chrome now stays at a fixed size and only the note / editor scale.
+  An existing font-size choice carries over to both new controls on upgrade.
 - Flatten-folders mode now orders its single list purely by the Notebooks sort
   order rather than always grouping files by folder path first.
 

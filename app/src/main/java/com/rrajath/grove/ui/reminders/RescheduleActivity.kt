@@ -61,7 +61,7 @@ class RescheduleActivity : ComponentActivity() {
             // Nothing is drawn until the theme resolves; this window sits over
             // the previous app, so an unthemed flash would be very visible.
             settings?.let { s ->
-                GroveTheme(theme = s.theme, fontSize = s.fontSize) {
+                GroveTheme(theme = s.theme) {
                     RescheduleFlow(reminderKey = key, onDone = ::finish)
                 }
             }

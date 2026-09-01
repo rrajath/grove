@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -22,10 +21,8 @@ import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.rrajath.grove.settings.FontSizePreference
 import com.rrajath.grove.settings.GroveSettings
 import com.rrajath.grove.settings.ThemePreference
-import com.rrajath.grove.ui.components.SegmentedControl
 import com.rrajath.grove.ui.components.ThemeDropdownPicker
 import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
@@ -37,7 +34,6 @@ fun SettingsAppearanceScreen(
     onBack: () -> Unit,
     onSetTheme: (ThemePreference) -> Unit,
     onSetSyncAppIconWithTheme: (Boolean) -> Unit,
-    onSetFontSize: (FontSizePreference) -> Unit,
 ) {
     val c = MaterialTheme.grove
     SettingsPageScaffold(title = "Look and Feel", onBack = onBack) {
@@ -61,15 +57,6 @@ fun SettingsAppearanceScreen(
                 theme = settings.theme,
                 onToggle = onSetSyncAppIconWithTheme,
             )
-            RowDivider()
-            SettingsRow(label = "Font size") {
-                SegmentedControl(
-                    options = listOf("Small", "Medium", "Large"),
-                    selectedIndex = settings.fontSize.ordinal,
-                    onSelect = { onSetFontSize(FontSizePreference.entries[it]) },
-                    modifier = Modifier.width(220.dp),
-                )
-            }
         }
     }
 }

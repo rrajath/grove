@@ -23,6 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.rrajath.grove.settings.ChecklistStates
+import com.rrajath.grove.settings.FontSizePreference
 import com.rrajath.grove.settings.GroveSettings
 import com.rrajath.grove.settings.NoteOpenMode
 import com.rrajath.grove.ui.components.SegmentedControl
@@ -38,6 +39,8 @@ fun SettingsNotesScreen(
     onSetTodoKeywords: (String) -> Unit,
     onSetDefaultPriority: (Char?) -> Unit,
     onSetNoteOpenMode: (NoteOpenMode) -> Unit,
+    onSetReadModeFontSize: (FontSizePreference) -> Unit,
+    onSetEditModeFontSize: (FontSizePreference) -> Unit,
     onSetShowPreface: (Boolean) -> Unit,
     onSetShowPropertyDrawers: (Boolean) -> Unit,
     onSetChecklistStates: (ChecklistStates) -> Unit,
@@ -125,6 +128,21 @@ fun SettingsNotesScreen(
                 )
             }
             RowDivider()
+            Column(Modifier.padding(horizontal = 15.dp, vertical = 12.dp)) {
+                Text(
+                    "Font size",
+                    fontFamily = PlexSans, fontWeight = FontWeight.Medium,
+                    fontSize = 14.5.sp, color = c.ink,
+                )
+                Text(
+                    "Read and edit mode scale independently. The rest of the app is unaffected.",
+                    fontFamily = PlexSans, fontSize = 12.sp, color = c.ink3,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
+                ModeFontSizePicker("Read mode", settings.readModeFontSize, onSetReadModeFontSize)
+                ModeFontSizePicker("Edit mode", settings.editModeFontSize, onSetEditModeFontSize)
+            }
+            RowDivider()
             SettingsRow(
                 label = "Checklist states",
                 descriptionContent = { ChecklistStatesDescription(settings.checklistStates) },
@@ -186,6 +204,28 @@ fun SettingsNotesScreen(
                 }
             }
         }
+    }
+}
+
+/** One "Read mode" / "Edit mode" labelled Small/Medium/Large picker inside the Font size block. */
+@Composable
+private fun ModeFontSizePicker(
+    label: String,
+    selected: FontSizePreference,
+    onSelect: (FontSizePreference) -> Unit,
+) {
+    Column(Modifier.padding(top = 12.dp)) {
+        Text(
+            label,
+            fontFamily = PlexSans, fontSize = 12.5.sp, color = MaterialTheme.grove.ink2,
+            modifier = Modifier.padding(bottom = 6.dp),
+        )
+        SegmentedControl(
+            options = listOf("Small", "Medium", "Large"),
+            selectedIndex = selected.ordinal,
+            onSelect = { onSelect(FontSizePreference.entries[it]) },
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 }
 

@@ -54,9 +54,11 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rrajath.grove.org.LineEditing
+import com.rrajath.grove.settings.FontSizePreference
 import com.rrajath.grove.ui.components.GroveTopBar
 import com.rrajath.grove.ui.components.ScrollJumpButtons
 import com.rrajath.grove.ui.screens.IconGlyph
+import com.rrajath.grove.ui.theme.ContentFontScale
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
@@ -72,8 +74,12 @@ import java.time.LocalTime
 fun EditPrefaceScreen(
     fileName: String,
     onBack: () -> Unit,
+    editModeFontSize: FontSizePreference = FontSizePreference.MEDIUM,
     viewModel: EditorViewModel = viewModel(factory = EditorViewModel.Factory),
-) = EditRegionScreen(fileName, EditRegion.PREFACE, noteId = null, onBack = onBack, viewModel = viewModel)
+) = EditRegionScreen(
+    fileName, EditRegion.PREFACE, noteId = null, onBack = onBack,
+    editModeFontSize = editModeFontSize, viewModel = viewModel,
+)
 
 /**
  * Raw org editor scoped to the file's intro: the heading-less content between the
@@ -85,8 +91,12 @@ fun EditPrefaceScreen(
 fun EditIntroScreen(
     fileName: String,
     onBack: () -> Unit,
+    editModeFontSize: FontSizePreference = FontSizePreference.MEDIUM,
     viewModel: EditorViewModel = viewModel(factory = EditorViewModel.Factory),
-) = EditRegionScreen(fileName, EditRegion.INTRO, noteId = null, onBack = onBack, viewModel = viewModel)
+) = EditRegionScreen(
+    fileName, EditRegion.INTRO, noteId = null, onBack = onBack,
+    editModeFontSize = editModeFontSize, viewModel = viewModel,
+)
 
 /** One-word label for [region], used in this screen's title bar, save toast and leave dialog. */
 private fun regionLabel(region: EditRegion): String = when (region) {
@@ -123,6 +133,8 @@ fun EditRegionScreen(
     onBack: () -> Unit,
     /** Absolute doc line of the tapped `#+BEGIN` (or its first affiliated line); [EditRegion.BLOCK] only. */
     blockLine: Int = -1,
+    /** Settings § Notes: font-size lever for the editor field. App chrome is unaffected. */
+    editModeFontSize: FontSizePreference = FontSizePreference.MEDIUM,
     viewModel: EditorViewModel = viewModel(factory = EditorViewModel.Factory),
 ) {
     val c = MaterialTheme.grove
@@ -254,23 +266,25 @@ fun EditRegionScreen(
                 )
             }
             Box(Modifier.weight(1f).fillMaxWidth()) {
-                BasicTextField(
-                    state = textState,
-                    inputTransformation = remember(state.keywords) { orgInputTransformation(state.keywords) },
-                    outputTransformation = highlight,
-                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-                    lineLimits = TextFieldLineLimits.MultiLine(),
-                    textStyle = TextStyle(
-                        fontFamily = PlexMono, fontSize = 13.5.sp,
-                        lineHeight = 1.85.em, color = c.ink,
-                    ),
-                    cursorBrush = SolidColor(c.accent),
-                    scrollState = scrollState,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(18.dp)
-                        .focusRequester(focusRequester),
-                )
+                ContentFontScale(editModeFontSize) {
+                    BasicTextField(
+                        state = textState,
+                        inputTransformation = remember(state.keywords) { orgInputTransformation(state.keywords) },
+                        outputTransformation = highlight,
+                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                        lineLimits = TextFieldLineLimits.MultiLine(),
+                        textStyle = TextStyle(
+                            fontFamily = PlexMono, fontSize = 13.5.sp,
+                            lineHeight = 1.85.em, color = c.ink,
+                        ),
+                        cursorBrush = SolidColor(c.accent),
+                        scrollState = scrollState,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(18.dp)
+                            .focusRequester(focusRequester),
+                    )
+                }
                 ScrollJumpButtons(
                     scrollState = scrollState,
                     minScrollDeltaPx = scrollButtonThresholdPx,

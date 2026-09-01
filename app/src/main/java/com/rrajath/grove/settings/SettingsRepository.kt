@@ -52,7 +52,10 @@ data class GroveSettings(
     val theme: ThemePreference = ThemePreference.LIGHT,
     /** When true, the launcher icon and drawer logo follow [theme]; otherwise they stay the default light mark. */
     val syncAppIconWithTheme: Boolean = false,
-    val fontSize: FontSizePreference = FontSizePreference.MEDIUM,
+    /** Read mode: scales the rendered note (Settings § Notes). App chrome is unaffected. */
+    val readModeFontSize: FontSizePreference = FontSizePreference.MEDIUM,
+    /** Edit mode: scales the editor text field (Settings § Notes). App chrome is unaffected. */
+    val editModeFontSize: FontSizePreference = FontSizePreference.MEDIUM,
     val defaultNoteOpenMode: NoteOpenMode = NoteOpenMode.READ,
     val onboardingDone: Boolean = false,
     /**
@@ -178,7 +181,15 @@ class SettingsRepository(private val context: Context) {
     private object Keys {
         val theme = stringPreferencesKey("theme")
         val syncAppIconWithTheme = booleanPreferencesKey("sync_app_icon_with_theme")
-        val fontSize = stringPreferencesKey("font_size")
+
+        /**
+         * Retired: the single app-wide font-size lever (scaled the whole Material
+         * typography). Read only to seed [readModeFontSize] / [editModeFontSize] the
+         * first time; every write purges it.
+         */
+        val legacyFontSize = stringPreferencesKey("font_size")
+        val readModeFontSize = stringPreferencesKey("read_mode_font_size")
+        val editModeFontSize = stringPreferencesKey("edit_mode_font_size")
         val noteOpenMode = stringPreferencesKey("note_open_mode")
         val onboardingDone = booleanPreferencesKey("onboarding_done")
         val lastSeenChangelogBuild = intPreferencesKey("last_seen_changelog_build")
@@ -247,7 +258,12 @@ class SettingsRepository(private val context: Context) {
         GroveSettings(
             theme = ThemePreference.fromStorage(prefs[Keys.theme]),
             syncAppIconWithTheme = prefs[Keys.syncAppIconWithTheme] ?: false,
-            fontSize = FontSizePreference.fromStorage(prefs[Keys.fontSize]),
+            readModeFontSize = FontSizePreference.fromStorage(
+                prefs[Keys.readModeFontSize] ?: prefs[Keys.legacyFontSize]
+            ),
+            editModeFontSize = FontSizePreference.fromStorage(
+                prefs[Keys.editModeFontSize] ?: prefs[Keys.legacyFontSize]
+            ),
             defaultNoteOpenMode = NoteOpenMode.fromStorage(prefs[Keys.noteOpenMode]),
             onboardingDone = prefs[Keys.onboardingDone] ?: false,
             lastSeenChangelogBuild = prefs[Keys.lastSeenChangelogBuild],
@@ -364,7 +380,9 @@ class SettingsRepository(private val context: Context) {
         context.settingsDataStore.edit { p ->
             p[Keys.theme] = s.theme.storageKey
             p[Keys.syncAppIconWithTheme] = s.syncAppIconWithTheme
-            p[Keys.fontSize] = s.fontSize.storageKey
+            p[Keys.readModeFontSize] = s.readModeFontSize.storageKey
+            p[Keys.editModeFontSize] = s.editModeFontSize.storageKey
+            p.remove(Keys.legacyFontSize)
             p[Keys.noteOpenMode] = s.defaultNoteOpenMode.storageKey
             p[Keys.syncMode] = s.syncMode.storageKey
             p[Keys.periodicSyncMinutes] = s.periodicSyncMinutes
@@ -421,8 +439,12 @@ class SettingsRepository(private val context: Context) {
         context.settingsDataStore.edit { it[Keys.syncAppIconWithTheme] = enabled }
     }
 
-    suspend fun setFontSize(fontSize: FontSizePreference) {
-        context.settingsDataStore.edit { it[Keys.fontSize] = fontSize.storageKey }
+    suspend fun setReadModeFontSize(fontSize: FontSizePreference) {
+        context.settingsDataStore.edit { it[Keys.readModeFontSize] = fontSize.storageKey }
+    }
+
+    suspend fun setEditModeFontSize(fontSize: FontSizePreference) {
+        context.settingsDataStore.edit { it[Keys.editModeFontSize] = fontSize.storageKey }
     }
 
     suspend fun setDefaultNoteOpenMode(mode: NoteOpenMode) {

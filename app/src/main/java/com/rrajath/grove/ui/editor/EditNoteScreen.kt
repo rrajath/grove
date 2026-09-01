@@ -57,12 +57,14 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rrajath.grove.org.LineEditing
+import com.rrajath.grove.settings.FontSizePreference
 import com.rrajath.grove.ui.components.GroveTopBar
 import com.rrajath.grove.ui.components.GroveUndoSnackbar
 import com.rrajath.grove.ui.components.ScrollJumpButtons
 import com.rrajath.grove.ui.components.SegmentedControl
 import com.rrajath.grove.ui.screens.IconGlyph
 import com.rrajath.grove.ui.screens.RefileSheet
+import com.rrajath.grove.ui.theme.ContentFontScale
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
@@ -91,6 +93,8 @@ fun EditNoteScreen(
      * "end of the first line" placement.
      */
     initialCursorLine: Int? = null,
+    /** Settings § Notes: font-size lever for the editor field. App chrome is unaffected. */
+    editModeFontSize: FontSizePreference = FontSizePreference.MEDIUM,
     viewModel: EditorViewModel = viewModel(factory = EditorViewModel.Factory),
 ) {
     val c = MaterialTheme.grove
@@ -341,23 +345,25 @@ fun EditNoteScreen(
                 // auto-scroll while a selection handle is dragged past the top or
                 // bottom edge, and keeps the cursor visible when the keyboard
                 // shrinks the viewport.
-                BasicTextField(
-                    state = textState,
-                    inputTransformation = remember(state.keywords) { orgInputTransformation(state.keywords) },
-                    outputTransformation = highlight,
-                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-                    lineLimits = TextFieldLineLimits.MultiLine(),
-                    textStyle = TextStyle(
-                        fontFamily = PlexMono, fontSize = 13.5.sp,
-                        lineHeight = 1.85.em, color = c.ink,
-                    ),
-                    cursorBrush = SolidColor(c.accent),
-                    scrollState = scrollState,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(18.dp)
-                        .focusRequester(focusRequester),
-                )
+                ContentFontScale(editModeFontSize) {
+                    BasicTextField(
+                        state = textState,
+                        inputTransformation = remember(state.keywords) { orgInputTransformation(state.keywords) },
+                        outputTransformation = highlight,
+                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                        lineLimits = TextFieldLineLimits.MultiLine(),
+                        textStyle = TextStyle(
+                            fontFamily = PlexMono, fontSize = 13.5.sp,
+                            lineHeight = 1.85.em, color = c.ink,
+                        ),
+                        cursorBrush = SolidColor(c.accent),
+                        scrollState = scrollState,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(18.dp)
+                            .focusRequester(focusRequester),
+                    )
+                }
                 ScrollJumpButtons(
                     scrollState = scrollState,
                     minScrollDeltaPx = scrollButtonThresholdPx,

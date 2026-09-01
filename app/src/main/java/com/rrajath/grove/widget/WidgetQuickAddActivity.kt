@@ -93,7 +93,7 @@ class WidgetQuickAddActivity : ComponentActivity() {
             var theme by remember { mutableStateOf<GroveSettings?>(null) }
             LaunchedEffect(Unit) { theme = app.settingsRepository.settings.first() }
             theme?.let { s ->
-                GroveTheme(theme = s.theme, fontSize = s.fontSize) {
+                GroveTheme(theme = s.theme) {
                     QuickAddSheet(onDismiss = ::finish)
                 }
             }

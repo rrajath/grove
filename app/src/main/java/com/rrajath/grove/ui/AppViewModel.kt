@@ -91,8 +91,11 @@ class AppViewModel(private val app: GroveApplication) : ViewModel() {
         if (enabled) toast("Restart the app for the icon change to take effect")
     }
 
-    fun setFontSize(fontSize: FontSizePreference) =
-        viewModelScope.launch { settingsRepository.setFontSize(fontSize) }
+    fun setReadModeFontSize(fontSize: FontSizePreference) =
+        viewModelScope.launch { settingsRepository.setReadModeFontSize(fontSize) }
+
+    fun setEditModeFontSize(fontSize: FontSizePreference) =
+        viewModelScope.launch { settingsRepository.setEditModeFontSize(fontSize) }
 
     fun setDefaultNoteOpenMode(mode: NoteOpenMode) =
         viewModelScope.launch { settingsRepository.setDefaultNoteOpenMode(mode) }

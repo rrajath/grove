@@ -33,11 +33,13 @@ val PlexMono = FontFamily(
 )
 
 /**
- * Typography per design/README.md, scaled by the user's font-size preference.
+ * Typography per design/README.md. App chrome renders at a fixed size; read mode
+ * and edit mode scale independently via [com.rrajath.grove.ui.theme.ContentFontScale]
+ * (Settings § Notes), not here.
  * Roles: Sans for UI, Serif for read-mode body, Mono for editor/timestamps.
  */
-fun groveTypography(scale: Float = 1f): Typography {
-    fun sz(v: Double) = (v * scale).sp
+fun groveTypography(): Typography {
+    fun sz(v: Double) = v.sp
     return Typography(
         // Display Large: M3 TimePicker digit dials fall back to this if unset,
         // which otherwise renders in the platform default font, not Plex.

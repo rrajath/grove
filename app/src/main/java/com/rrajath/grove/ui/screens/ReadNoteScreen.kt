@@ -86,6 +86,7 @@ import com.rrajath.grove.org.OrgHeadline
 import com.rrajath.grove.org.OrgMutations
 import com.rrajath.grove.org.OrgTimestamp
 import com.rrajath.grove.settings.ChecklistStates
+import com.rrajath.grove.settings.FontSizePreference
 import com.rrajath.grove.ui.components.CollapsibleBlockSection
 import com.rrajath.grove.ui.components.CollapsibleKvSection
 import com.rrajath.grove.ui.components.CollapsibleLogSection
@@ -100,6 +101,7 @@ import com.rrajath.grove.ui.components.doubleTapToEdit
 import com.rrajath.grove.ui.components.linkPressHandler
 import com.rrajath.grove.ui.components.orgInlineLinks
 import com.rrajath.grove.ui.components.ScrollJumpButtons
+import com.rrajath.grove.ui.theme.ContentFontScale
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.PlexSerif
@@ -149,6 +151,8 @@ fun ReadNoteScreen(
     showPropertyDrawers: Boolean = true,
     /** Settings: how many states tapping a checklist item cycles through. */
     checklistStates: ChecklistStates = ChecklistStates.TWO,
+    /** Settings § Notes: font-size lever for the rendered note. App chrome is unaffected. */
+    readModeFontSize: FontSizePreference = FontSizePreference.MEDIUM,
     /** Favorited headlines in this file, matched per-heading by customId, marked with a ★. */
     favorites: List<FavoriteNote> = emptyList(),
     /**
@@ -285,6 +289,7 @@ fun ReadNoteScreen(
                 } else {
                     val listState = rememberLazyListState()
                     Box(Modifier.fillMaxSize().padding(padding)) {
+                        ContentFontScale(readModeFontSize) {
                         NoteContent(
                             doc = doc,
                             headline = headline,
@@ -310,6 +315,7 @@ fun ReadNoteScreen(
                             showPropertyDrawers = showPropertyDrawers,
                             favorites = favorites,
                         )
+                        }
                         ScrollJumpButtons(
                             listState = listState,
                             modifier = Modifier
