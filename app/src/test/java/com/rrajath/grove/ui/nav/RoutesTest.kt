@@ -74,13 +74,13 @@ class RoutesTest {
     }
 
     @Test
-    fun `preface NoteRef round-trips through the note route`() {
-        val ref = NoteRef.preface("a/b/roam.org")
-        assertTrue(ref.isPreface)
+    fun `intro NoteRef round-trips through the note route`() {
+        val ref = NoteRef.intro("a/b/roam.org")
+        assertTrue(ref.isIntro)
         val decodedArg = uriStyleDecode(Routes.note(ref.encode()).removePrefix("note/").substringBefore('?'))
         val back = NoteRef.decode(decodedArg)!!
         assertEquals("a/b/roam.org", back.fileName)
-        assertTrue(back.isPreface)
+        assertTrue(back.isIntro)
     }
 
     @Test

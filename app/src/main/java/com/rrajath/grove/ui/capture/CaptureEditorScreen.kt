@@ -213,7 +213,7 @@ fun CaptureEditorScreen(
     // Mirrors the note editor's auto-save indicator: a tappable save (floppy)
     // icon in the top bar, shown once the draft has been edited or saved at
     // least once. Green + tap-to-save-now while dirty; grey + tap-for-last-
-    // saved-toast once clean, exactly like EditNoteScreen/EditPrefaceScreen.
+    // saved-toast once clean, exactly like EditNoteScreen/EditRegionScreen.
     var lastAutoSavedAt by remember { mutableStateOf<LocalTime?>(null) }
     // Text as of the last auto-save, so dirty can be computed by comparison.
     var lastAutoSavedText by remember(expanded) { mutableStateOf(initialText) }

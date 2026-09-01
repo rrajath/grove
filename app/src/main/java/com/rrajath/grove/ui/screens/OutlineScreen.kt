@@ -146,7 +146,7 @@ fun OutlineScreen(
      * PREFACE box.
      */
     showPropertyDrawers: Boolean = true,
-    /** Double-tapping the PREFACE section: opens an editor scoped to just the preamble
+    /** Double-tapping the PREFACE section: opens an editor scoped to just the `#+KEY:`
      *  (everything before the first heading), mirroring double-tap-to-edit elsewhere. */
     onOpenPreface: (fileName: String) -> Unit = {},
     /** Double-tapping the file-level `:PROPERTIES:` section: opens an editor scoped to just
@@ -265,10 +265,10 @@ fun OutlineScreen(
                             } else {
                                 (state as? DocumentUiState.Loaded)?.let {
                                     // Matches RoomNoteIndex.noteCount: top-level headings
-                                    // plus the heading-less preface, if any.
+                                    // plus the intro, if any.
                                     val noteCount = remember(it.document) {
                                         it.document.headlines.count { h -> h.level == 1 } +
-                                            (if (it.document.hasPrefaceContent) 1 else 0)
+                                            (if (it.document.hasIntro) 1 else 0)
                                     }
                                     Text(
                                         pluralCount(noteCount, "note"),
@@ -393,12 +393,12 @@ fun OutlineScreen(
                 // A file can hold real content before its first heading (or
                 // with no heading at all). It's not a headline, so it gets its
                 // own tap-only row above the outline, opening in read mode.
-                val showPrefaceRow = doc.hasPrefaceContent && narrowTarget == null
+                val showIntroRow = doc.hasIntro && narrowTarget == null
                 // A leading file-level `:PROPERTIES:` drawer, and the file-level
                 // `#+` keyword box, are only pinned here when there's no list
-                // below to scroll them with (no headings and no preface row).
+                // below to scroll them with (no headings and no intro row).
                 // Otherwise the in-list items render them instead.
-                val pinnedHeader = doc.headlines.isEmpty() && !showPrefaceRow
+                val pinnedHeader = doc.headlines.isEmpty() && !showIntroRow
                 Column(Modifier.fillMaxSize().padding(padding)) {
                     if (pinnedHeader && showPropertyDrawers && doc.filePropertyDrawer.isNotEmpty()) {
                         CollapsibleKvSection(
@@ -421,7 +421,7 @@ fun OutlineScreen(
                         )
                     }
                     Box(Modifier.fillMaxSize().weight(1f)) {
-                    if (scopedHeadlines.isEmpty() && !showPrefaceRow) {
+                    if (scopedHeadlines.isEmpty() && !showIntroRow) {
                         // Empty state still needs the overlays below: undoing a
                         // delete/refile of the last note happens from here.
                         Column(
@@ -479,11 +479,11 @@ fun OutlineScreen(
                                 )
                             }
                         }
-                        if (showPrefaceRow) {
-                            item(key = "prefaceRow") {
-                                PrefaceRow(
+                        if (showIntroRow) {
+                            item(key = "introRow") {
+                                IntroRow(
                                     doc = doc,
-                                    onTap = { onOpenNote(NoteRef.preface(notebookId)) },
+                                    onTap = { onOpenNote(NoteRef.intro(notebookId)) },
                                 )
                             }
                         }
@@ -846,10 +846,10 @@ private fun visibleHeadlines(headlines: List<OrgHeadline>, collapsed: Set<Int>):
  * truncation. Tap-only: opens read mode scoped to that content.
  */
 @Composable
-private fun PrefaceRow(doc: OrgDocument, onTap: () -> Unit) {
+private fun IntroRow(doc: OrgDocument, onTap: () -> Unit) {
     val c = MaterialTheme.grove
     val content = remember(doc, c) {
-        annotateOrgInline(doc.prefaceBody.joinToString("\n").trim(), c)
+        annotateOrgInline(doc.introBody.joinToString("\n").trim(), c)
     }
     Box(
         Modifier

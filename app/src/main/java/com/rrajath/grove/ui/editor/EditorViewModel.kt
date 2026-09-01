@@ -31,7 +31,7 @@ import kotlinx.coroutines.withContext
 import java.time.LocalDateTime
 
 /** Which scoped region of a file an [EditorViewModel] session is editing, if not a headline subtree. */
-enum class EditRegion { PREFACE, FILE_PROPERTIES, HEADING_PROPERTIES, HEADING_LOGBOOK }
+enum class EditRegion { INTRO, PREFACE, FILE_PROPERTIES, HEADING_PROPERTIES, HEADING_LOGBOOK }
 
 data class EditorUiState(
     val loading: Boolean = true,
@@ -39,10 +39,10 @@ data class EditorUiState(
     val lineIndex: Int = 0,
     /** Non-null when this session edits a scoped region (see [EditorViewModel.loadRegion])
      *  rather than a headline's subtree. [lineIndex] anchors the headline for the
-     *  HEADING_* regions and is meaningless for PREFACE / FILE_PROPERTIES. */
+     *  HEADING_* regions and is meaningless for INTRO / PREFACE / FILE_PROPERTIES. */
     val region: EditRegion? = null,
     /** The line range the region was loaded from, markers included; the save path
-     *  recomputes it from the fresh file and falls back to this. Null for PREFACE. */
+     *  recomputes it from the fresh file and falls back to this. */
     val regionRange: IntRange? = null,
     /** The note's subtree text being edited (or the scoped region's raw text, when [region] is set). */
     val buffer: String = "",
@@ -62,9 +62,7 @@ data class EditorUiState(
      * buffer swallowed the characters typed in between. Reset to 0 by [load].
      */
     val bufferRevision: Long = 0,
-) {
-    val isPreface: Boolean get() = region == EditRegion.PREFACE
-}
+)
 
 class EditorViewModel(private val app: GroveApplication) : ViewModel() {
 
@@ -161,10 +159,10 @@ class EditorViewModel(private val app: GroveApplication) : ViewModel() {
     }
 
     /**
-     * Loads a scoped [region] of [fileName] for the drawer / preface editor, opened via a
-     * double-tap on the matching section. Unlike [load] there may be no headline subtree to
-     * anchor to: [writeBuffer] detects [EditorUiState.region] and splices the buffer back
-     * via [OrgMutations.replacePreface] / [OrgMutations.replaceLines] instead.
+     * Loads a scoped [region] of [fileName] for the intro / preface / drawer editors, opened
+     * via a double-tap on the matching section. Unlike [load] there may be no headline subtree
+     * to anchor to: [writeBuffer] detects [EditorUiState.region] and splices the buffer back
+     * over the region's line range via [OrgMutations.replaceLines] instead.
      *
      * [noteId] is the encoded [NoteRef] of the owning headline, required for the HEADING_*
      * regions and ignored otherwise.
@@ -182,7 +180,20 @@ class EditorViewModel(private val app: GroveApplication) : ViewModel() {
             }
             var lineIndex = 0
             val (buffer, range) = when (region) {
-                EditRegion.PREFACE -> OrgMutations.prefaceText(doc) to null
+                EditRegion.INTRO -> {
+                    val r = OrgMutations.introRange(doc) ?: run {
+                        _state.value = EditorUiState(loading = false, error = "This note is no longer here")
+                        return@launch
+                    }
+                    OrgMutations.regionText(doc, r) to r
+                }
+                EditRegion.PREFACE -> {
+                    val r = OrgMutations.prefaceRange(doc) ?: run {
+                        _state.value = EditorUiState(loading = false, error = "No preface here")
+                        return@launch
+                    }
+                    OrgMutations.regionText(doc, r) to r
+                }
                 EditRegion.FILE_PROPERTIES -> {
                     val r = OrgMutations.fileDrawerRange(doc) ?: run {
                         _state.value = EditorUiState(loading = false, error = "No file property drawer here")
@@ -220,9 +231,6 @@ class EditorViewModel(private val app: GroveApplication) : ViewModel() {
             )
         }
     }
-
-    /** [loadRegion] shorthand for the preface editor. */
-    fun loadPreface(fileName: String) = loadRegion(fileName, null, EditRegion.PREFACE)
 
     /** The text field reporting the user's own typing; never echoed back to it. */
     fun onBufferChange(text: String) {
@@ -415,7 +423,14 @@ class EditorViewModel(private val app: GroveApplication) : ViewModel() {
             // append the buffer at the end rather than lose the user's work.
             val appendFallback = doc.text.trimEnd('\n') + "\n" + savedBuffer.trimEnd('\n') + "\n"
             when (s.region) {
-                EditRegion.PREFACE -> OrgMutations.replacePreface(doc, savedBuffer)
+                EditRegion.INTRO -> {
+                    val range = OrgMutations.introRange(doc) ?: s.regionRange
+                    if (range != null) OrgMutations.replaceLines(doc, range, savedBuffer) else appendFallback
+                }
+                EditRegion.PREFACE -> {
+                    val range = OrgMutations.prefaceRange(doc) ?: s.regionRange
+                    if (range != null) OrgMutations.replaceLines(doc, range, savedBuffer) else appendFallback
+                }
                 EditRegion.FILE_PROPERTIES -> {
                     val range = OrgMutations.fileDrawerRange(doc) ?: s.regionRange
                     if (range != null) OrgMutations.replaceLines(doc, range, savedBuffer) else appendFallback

@@ -30,7 +30,13 @@ A heading marked DONE renders with strikethrough and dims slightly, but stays in
 
 ## Preface and property drawers
 
-If the file has file-level `#+KEYWORDS:` (like `#+FILETAGS:`) or a heading has a `:PROPERTIES:` drawer, they render as collapsible, monospace, display-only blocks: tap the disclosure triangle to expand. These are controlled by the **Show preface** / **Show property drawers** toggles in Settings → Look and Feel; turn them off if you don't want the visual noise.
+If the file has file-level `#+KEYWORDS:` (like `#+FILETAGS:`) or a heading has a `:PROPERTIES:` drawer, they render as collapsible, monospace blocks: tap the disclosure triangle to expand, double-tap to edit that block's raw text on its own. These are controlled by the **Show preface** / **Show property drawers** toggles in Settings → Notes; turn them off if you don't want the visual noise.
+
+## The intro
+
+Text that sits above a file's first `*` heading (the whole body, for a heading-less org-roam style note) is the file's **intro**. It is not a heading, so Grove gives it a row of its own above the outline's headings, showing the content in full. Tapping it opens the intro on its own in Read mode, and the Read/Edit toggle there edits just that text: the `#+` keyword lines and the property drawer above it keep their own double-tap editors.
+
+The intro counts as one of the notebook's notes and is searchable like any other. Applying metadata to it (a TODO state, a priority, a tag) needs a heading to hang off, so Grove inserts a blank `* ` heading above the content first and reopens it as an ordinary note.
 
 ## Swipe actions
 

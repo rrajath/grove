@@ -121,12 +121,12 @@ class NotesFtsTest {
         assertEquals(1, noteCount())
         assertEquals(1, db.indexDao().ftsRowCount())
         assertEquals(1, keysMatching("\"Kojeve\"").size)
-        // Keyed at the preface sentinel line, not a real heading line.
+        // Keyed at the intro sentinel line, not a real heading line.
         assertEquals(-1, keysMatching("\"Kojeve\"").single().lineIndex)
     }
 
     @Test
-    fun prefacePlusHeadingIndexesBothNotes() = runBlocking {
+    fun introPlusHeadingIndexesBothNotes() = runBlocking {
         indexFile("mixed.org", "#+title: T\n\nPreamble prose about dynasties.\n\n* Timeline\nunder heading\n")
         assertEquals(2, noteCount())
         assertEquals(1, keysMatching("\"dynasties\"").size)

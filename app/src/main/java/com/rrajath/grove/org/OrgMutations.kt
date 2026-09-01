@@ -233,17 +233,31 @@ object OrgMutations {
     fun subtreeText(doc: OrgDocument, h: OrgHeadline): String =
         doc.lines.subList(h.lineIndex, doc.subtreeEndLine(h)).joinToString("\n")
 
-    /** The file's preamble (every line before the first headline, `#+KEY:` lines and any
-     *  other free text alike), the raw text a preface editor scopes itself to. */
-    fun prefaceText(doc: OrgDocument): String =
-        doc.lines.subList(0, doc.preambleEnd).joinToString("\n")
+    /**
+     * Inclusive line range of the file's preface: the leading run of `#+KEY:` lines
+     * (and any blanks between them) after an optional file-level property drawer,
+     * up to where the intro begins. Trailing blank lines are excluded so a save
+     * can't swallow the separator before the intro or the first heading. Null when
+     * the file has no such leading keyword run. The raw region the preface editor
+     * scopes itself to.
+     */
+    fun prefaceRange(doc: OrgDocument): IntRange? {
+        val start = fileDrawerRange(doc)?.let { it.last + 1 } ?: 0
+        val end = (start until doc.introStart).lastOrNull { doc.lines[it].isNotBlank() }
+            ?: return null
+        return start..end
+    }
 
-    /** Replace the file's whole preamble with [newText] (the preface editor's save path). */
-    fun replacePreface(doc: OrgDocument, newText: String): String {
-        val lines = doc.lines.toMutableList()
-        repeat(doc.preambleEnd) { lines.removeAt(0) }
-        lines.addAll(0, newText.trimEnd('\n').split("\n"))
-        return lines.joinToString("\n")
+    /**
+     * Inclusive line range of the file's intro: its heading-less content before the
+     * first headline ([OrgDocument.introStart] onward), trailing blank lines excluded
+     * so a save leaves the separator before the first heading alone. Null when the
+     * file has no intro. The raw region the intro editor scopes itself to.
+     */
+    fun introRange(doc: OrgDocument): IntRange? {
+        if (!doc.hasIntro) return null
+        val end = (doc.introStart until doc.preambleEnd).last { doc.lines[it].isNotBlank() }
+        return doc.introStart..end
     }
 
     /**
@@ -297,13 +311,13 @@ object OrgMutations {
 
     /**
      * Insert a blank top-level heading (`* `) directly above the file's
-     * heading-less content ([OrgDocument.prefaceBodyStart]) so that content
+     * heading-less content ([OrgDocument.introStart]) so that content
      * becomes the new heading's body. `#+KEY:` lines and any leading property
      * drawer stay above it. Returns the new text and the new heading's line
-     * index. Caller should have checked [OrgDocument.hasPrefaceContent].
+     * index. Caller should have checked [OrgDocument.hasIntro].
      */
-    fun wrapPrefaceInHeading(doc: OrgDocument): Pair<String, Int> {
-        val at = doc.prefaceBodyStart
+    fun wrapIntroInHeading(doc: OrgDocument): Pair<String, Int> {
+        val at = doc.introStart
         val lines = doc.lines.toMutableList()
         lines.add(at, "* ")
         return lines.joinToString("\n") to at

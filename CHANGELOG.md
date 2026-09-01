@@ -61,13 +61,16 @@ re-uploads the APKs to the existing release instead of failing.
 
 ### Added
 - Content that sits before a file's first heading (or a file with no headings
-  at all, like an org-roam note) is no longer hidden. The outline shows it in
-  full above the headings as flowing body text with inline markup, inset so its
-  left edge lines up with the outline's leaf bullets; tapping it opens it in
-  read mode showing just that content, with a Read/Edit toggle (Edit opens the
-  preamble editor). This "preface note" is counted in the notebook's note total
+  at all, like an org-roam note) is no longer hidden. Grove calls it the file's
+  **intro** ("preface" stays reserved for the `#+` keyword lines above it). The
+  outline shows the intro in full above the headings as flowing body text with
+  inline markup, inset so its left edge lines up with the outline's leaf bullets;
+  tapping it opens it in read mode showing just that content, with a Read/Edit
+  toggle. Edit opens an editor scoped to the intro alone: the `#+` keyword lines
+  and the file's `:PROPERTIES:` drawer are not in the buffer, since each of those
+  has its own double-tap editor. The intro is counted in the notebook's note total
   and is full-text searchable.
-- In the preface's read-mode metadata sheet, picking a state, priority, tag,
+- In the intro's read-mode metadata sheet, picking a state, priority, tag,
   schedule/deadline or note first inserts a blank top-level heading above the
   content (so the content becomes its body), shows a toast, then applies the
   change and re-opens it as an ordinary note. Refile is hidden until the
@@ -80,13 +83,19 @@ re-uploads the APKs to the existing release instead of failing.
   entirely.
 - Double-tapping a `:PROPERTIES:` or `:LOGBOOK:` drawer now opens an editor
   scoped to just that drawer's raw text, the same way double-tapping the PREFACE
-  section opens the preamble editor. Works on the outline's file-level
+  section opens the preface editor. Works on the outline's file-level
   `:PROPERTIES:` drawer and on every heading's `:PROPERTIES:` / `:LOGBOOK:`
   drawer in read mode. Saving splices only that drawer back into the file.
 
 ### Changed
 - Double-tapping a PREFACE or `:PROPERTIES:` key/value row now registers anywhere
   on the row, not only when the tap lands exactly on the key or value text.
+- The PREFACE editor is now scoped to the file's `#+KEY:` lines instead of the
+  whole preamble. It no longer opens with the file-level `:PROPERTIES:` drawer
+  and the intro text in the buffer, both of which now have editors of their own,
+  so the three regions can no longer overwrite each other. Saving splices only
+  the keyword lines back, leaving the blank line before the intro or the first
+  heading intact.
 - Settings › Help › Report a bug now offers two actions: "Send report via email"
   (unchanged: copies the report to the clipboard and opens a mail-app chooser)
   and "Open an issue on GitHub" (copies the same report and opens the Grove

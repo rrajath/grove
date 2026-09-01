@@ -64,13 +64,9 @@ import kotlinx.coroutines.delay
 import java.time.LocalTime
 
 /**
- * Raw org editor scoped to one region of a file: its preamble (the PREFACE section), a
- * file-level or per-heading `:PROPERTIES:` drawer, or a `:LOGBOOK:` drawer. Opened by
- * double-tapping the matching section (see [doubleTapToEdit] usage in `CollapsibleKvSection`
- * / `CollapsibleLogSection`). Deliberately a smaller sibling of [EditNoteScreen]: no
- * Read/Edit toggle, metadata sheet, or blank-heading validation, just the same
- * syntax-highlighted text field, dirty/save affordance, idle auto-save, and stale-file
- * handling.
+ * Raw org editor scoped to the file's preface: its leading `#+KEY:` lines. Opened by
+ * double-tapping the outline's PREFACE section. Covers only that keyword run: the
+ * property drawer above it and the intro below it have their own editors.
  */
 @Composable
 fun EditPrefaceScreen(
@@ -79,12 +75,36 @@ fun EditPrefaceScreen(
     viewModel: EditorViewModel = viewModel(factory = EditorViewModel.Factory),
 ) = EditRegionScreen(fileName, EditRegion.PREFACE, noteId = null, onBack = onBack, viewModel = viewModel)
 
+/**
+ * Raw org editor scoped to the file's intro: the heading-less content between the
+ * preface and the first `*` heading. Opened by double-tapping that content in read
+ * mode. Covers only the content itself, not the `#+KEY:` lines or the property
+ * drawer above it.
+ */
+@Composable
+fun EditIntroScreen(
+    fileName: String,
+    onBack: () -> Unit,
+    viewModel: EditorViewModel = viewModel(factory = EditorViewModel.Factory),
+) = EditRegionScreen(fileName, EditRegion.INTRO, noteId = null, onBack = onBack, viewModel = viewModel)
+
 /** One-word label for [region], used in this screen's title bar, save toast and leave dialog. */
 private fun regionLabel(region: EditRegion): String = when (region) {
+    EditRegion.INTRO -> "Intro"
     EditRegion.PREFACE -> "Preface"
     EditRegion.FILE_PROPERTIES, EditRegion.HEADING_PROPERTIES -> "Properties"
     EditRegion.HEADING_LOGBOOK -> "Logbook"
 }
+
+/**
+ * Raw org editor scoped to one region of a file: its preface, its intro, a file-level
+ * or per-heading `:PROPERTIES:` drawer, or a `:LOGBOOK:` drawer. Opened by double-tapping
+ * the matching section (see [doubleTapToEdit] usage in `CollapsibleKvSection` /
+ * `CollapsibleLogSection`). Deliberately a smaller sibling of [EditNoteScreen]: no
+ * Read/Edit toggle, metadata sheet, or blank-heading validation, just the same
+ * syntax-highlighted text field, dirty/save affordance, idle auto-save, and stale-file
+ * handling.
+ */
 
 @Composable
 fun EditRegionScreen(
@@ -102,13 +122,13 @@ fun EditRegionScreen(
     var confirmLeave by remember { mutableStateOf(false) }
     var lastAutoSavedAt by remember { mutableStateOf<LocalTime?>(null) }
     val focusRequester = remember { FocusRequester() }
-    // False until the preface has been loaded into the text field: the field's
+    // False until the region has been loaded into the text field: the field's
     // pre-load contents are not the user's edits and must not be reported.
     var fieldLoaded by remember { mutableStateOf(false) }
     // Text last written into the field programmatically (initial load only, here).
     // The snapshotFlow below echoes every write straight back; that echo must not
     // be reported as a user edit, which would wrongly mark a freshly opened
-    // preface dirty.
+    // region dirty.
     var echoToSkip by remember { mutableStateOf<String?>(null) }
 
     fun setText(text: String, cursor: TextRange) {
@@ -132,7 +152,7 @@ fun EditRegionScreen(
         }
     }
     // Report the user's own edits back to the view model. The programmatic write
-    // above is filtered out, so only real typing marks the preface dirty.
+    // above is filtered out, so only real typing marks the region dirty.
     LaunchedEffect(Unit) {
         snapshotFlow { textState.text.toString() }.collect { text ->
             if (!fieldLoaded) return@collect

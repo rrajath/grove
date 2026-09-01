@@ -1,13 +1,14 @@
 package com.rrajath.grove.org
 
 /**
- * Sentinel line index for the "preface note": a file's real content before its
- * first `*` heading, surfaced as its own note (outline row, read view, search
- * row). It has no headline line, so `-1` stands in wherever a note is addressed
+ * Sentinel line index for the "intro": a file's real content before its first
+ * `*` heading (org's zeroth section), surfaced as its own note (outline row,
+ * read view, search row). Distinct from the preface, which is the file's `#+KEY:`
+ * lines. The intro has no headline line, so `-1` stands in wherever a note is addressed
  * by (fileName, lineIndex) — the index rows, [com.rrajath.grove.ui.vault.NoteRef],
  * and search results.
  */
-const val PREFACE_LINE_INDEX = -1
+const val INTRO_LINE_INDEX = -1
 
 /** SCHEDULED / DEADLINE / CLOSED metadata from a headline's planning line. */
 data class Planning(
@@ -77,10 +78,10 @@ class OrgDocument(
      * A leading file-level `:PROPERTIES: … :END:` drawer (before the first
      * headline and before any `#+KEY:` lines), as ordered `:KEY:` → value
      * pairs in file order. Empty when the preamble has no such drawer, or when
-     * the drawer is unclosed (degrades exactly like [prefaceBodyStart], which
+     * the drawer is unclosed (degrades exactly like [introStart], which
      * treats an unclosed drawer as prose). The drawer must start on the very
      * first line of the file, matching org-mode's file-level property drawer
-     * rule and [prefaceBodyStart]'s own check.
+     * rule and [introStart]'s own check.
      */
     val filePropertyDrawer: List<Pair<String, String>> by lazy {
         if (preambleEnd == 0 ||
@@ -104,12 +105,12 @@ class OrgDocument(
     }
 
     /**
-     * First line index of real content in the preamble (the region before the
-     * first headline). Skips a leading file-level `:PROPERTIES: … :END:` drawer,
-     * `#+KEY:` lines and blank lines. Equals [preambleEnd] when the preamble is
-     * only a property drawer / keywords / blank lines (the common case).
+     * First line index of the intro: the real content in the preamble (the region
+     * before the first headline). Skips a leading file-level `:PROPERTIES: … :END:`
+     * drawer, `#+KEY:` lines and blank lines. Equals [preambleEnd] when the preamble
+     * is only a property drawer / keywords / blank lines (the common case).
      */
-    val prefaceBodyStart: Int by lazy {
+    val introStart: Int by lazy {
         var i = 0
         if (i < preambleEnd && lines[i].trim().equals(":PROPERTIES:", ignoreCase = true)) {
             val end = (i + 1 until preambleEnd).firstOrNull {
@@ -126,14 +127,14 @@ class OrgDocument(
         i
     }
 
-    /** Preamble lines from [prefaceBodyStart] up to the first headline. */
-    val prefaceBody: List<String> get() = lines.subList(prefaceBodyStart, preambleEnd)
+    /** The intro: preamble lines from [introStart] up to the first headline. */
+    val introBody: List<String> get() = lines.subList(introStart, preambleEnd)
 
-    /** Whether the file has real (non-keyword, non-drawer) content before its first headline. */
-    val hasPrefaceContent: Boolean get() = prefaceBody.any { it.isNotBlank() }
+    /** Whether the file has an intro: real (non-keyword, non-drawer) content before its first headline. */
+    val hasIntro: Boolean get() = introBody.any { it.isNotBlank() }
 
-    /** One-line label for the preface note: its first non-blank content line, trimmed. */
-    val prefaceTitle: String get() = prefaceBody.firstOrNull { it.isNotBlank() }?.trim().orEmpty()
+    /** One-line label for the intro note: its first non-blank content line, trimmed. */
+    val introTitle: String get() = introBody.firstOrNull { it.isNotBlank() }?.trim().orEmpty()
 
     fun serialize(): String = text
 

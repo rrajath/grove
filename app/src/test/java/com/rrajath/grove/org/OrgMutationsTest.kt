@@ -475,29 +475,83 @@ class OrgMutationsTest {
         assertTrue(!replaced.contains("** Second child"))
     }
 
+    // --- scoped preface / intro editors (prefaceRange / introRange / replaceLines) ---
+
+    private val introDoc = OrgParser.parse(
+        ":PROPERTIES:\n:ID: x\n:END:\n#+TITLE: Test\n#+FILETAGS: :db:\n\nIntro prose.\nMore of it.\n\n* First\nbody\n"
+    )
+
     @Test
-    fun `prefaceText returns only the lines before the first headline`() {
-        assertEquals("#+TITLE: Test\n", OrgMutations.prefaceText(doc))
+    fun `prefaceRange covers only the keyword run, below the drawer and above the intro`() {
+        val range = OrgMutations.prefaceRange(introDoc)!!
+        assertEquals(
+            "#+TITLE: Test\n#+FILETAGS: :db:",
+            OrgMutations.regionText(introDoc, range),
+        )
     }
 
     @Test
-    fun `replacePreface swaps the preamble and leaves the rest of the file untouched`() {
-        val replaced = OrgMutations.replacePreface(doc, "#+TITLE: Renamed\n#+FILETAGS: :journal:")
-        assertTrue(replaced.startsWith("#+TITLE: Renamed\n#+FILETAGS: :journal:\n* First :tag:"))
-        assertTrue(replaced.contains("** TODO [#A] Child task"))
-        assertTrue(!replaced.contains("#+TITLE: Test"))
+    fun `prefaceRange starts at line 0 when there is no file property drawer`() {
+        assertEquals("#+TITLE: Test", OrgMutations.regionText(doc, OrgMutations.prefaceRange(doc)!!))
+    }
+
+    @Test
+    fun `prefaceRange is null when the file opens with content`() {
+        assertNull(OrgMutations.prefaceRange(OrgParser.parse("Just prose.\n\n* First\n")))
+    }
+
+    @Test
+    fun `introRange covers only the heading-less content`() {
+        val range = OrgMutations.introRange(introDoc)!!
+        assertEquals("Intro prose.\nMore of it.", OrgMutations.regionText(introDoc, range))
+    }
+
+    @Test
+    fun `introRange is null when the preamble is only a drawer and keywords`() {
+        assertNull(OrgMutations.introRange(doc))
+    }
+
+    @Test
+    fun `introRange covers a whole heading-less file`() {
+        val roam = OrgParser.parse("#+title: T\n\nAll of it.\nEvery line.\n")
+        assertEquals("All of it.\nEvery line.", OrgMutations.regionText(roam, OrgMutations.introRange(roam)!!))
+    }
+
+    @Test
+    fun `saving the preface leaves the drawer, the intro and the headings alone`() {
+        val saved = OrgMutations.replaceLines(
+            introDoc,
+            OrgMutations.prefaceRange(introDoc)!!,
+            "#+TITLE: Renamed",
+        )
+        assertEquals(
+            ":PROPERTIES:\n:ID: x\n:END:\n#+TITLE: Renamed\n\nIntro prose.\nMore of it.\n\n* First\nbody\n",
+            saved,
+        )
+    }
+
+    @Test
+    fun `saving the intro leaves the preface, the drawer and the headings alone`() {
+        val saved = OrgMutations.replaceLines(
+            introDoc,
+            OrgMutations.introRange(introDoc)!!,
+            "Rewritten intro.",
+        )
+        assertEquals(
+            ":PROPERTIES:\n:ID: x\n:END:\n#+TITLE: Test\n#+FILETAGS: :db:\n\nRewritten intro.\n\n* First\nbody\n",
+            saved,
+        )
     }
 
     @Test
     fun `preface round-trips non-keyword lines it does not render`() {
         // The PREFACE UI (CollapsibleKvSection) only lists #+KEY lines, but the raw
-        // preamble region can also hold blank lines/comments; the editor must not
-        // silently drop them on save.
-        val withComment = OrgParser.parse("#+TITLE: Test\n# a stray comment\n\n* First\nbody\n")
-        assertEquals("#+TITLE: Test\n# a stray comment\n", OrgMutations.prefaceText(withComment))
-        val saved = OrgMutations.replacePreface(withComment, "#+TITLE: Test\n# an edited comment")
-        assertTrue(saved.contains("# an edited comment"))
-        assertTrue(saved.contains("* First"))
+        // region can also hold blank lines; the editor must not silently drop them.
+        val spaced = OrgParser.parse("#+TITLE: Test\n\n#+FILETAGS: :db:\n\n* First\nbody\n")
+        assertEquals(
+            "#+TITLE: Test\n\n#+FILETAGS: :db:",
+            OrgMutations.regionText(spaced, OrgMutations.prefaceRange(spaced)!!),
+        )
     }
 
     // --- scoped drawer editors (fileDrawerRange / headingDrawerRange / replaceLines) ---
@@ -556,11 +610,11 @@ class OrgMutationsTest {
     }
 
     @Test
-    fun `wrapPrefaceInHeading puts a blank heading above heading-less content`() {
+    fun `wrapIntroInHeading puts a blank heading above heading-less content`() {
         val roam = OrgParser.parse(
             ":PROPERTIES:\n:ID: abc\n:END:\n#+title: Note\n\nFirst para.\nSecond line.\n",
         )
-        val (text, line) = OrgMutations.wrapPrefaceInHeading(roam)
+        val (text, line) = OrgMutations.wrapIntroInHeading(roam)
         val parsed = OrgParser.parse(text)
         val hd = parsed.headlines.single()
         assertEquals(line, hd.lineIndex)
@@ -576,9 +630,9 @@ class OrgMutationsTest {
     }
 
     @Test
-    fun `wrapPrefaceInHeading keeps an existing first heading and its content`() {
+    fun `wrapIntroInHeading keeps an existing first heading and its content`() {
         val mixed = OrgParser.parse("#+title: T\n\nPreamble prose.\n\n* Timeline\nunder heading\n")
-        val (text, line) = OrgMutations.wrapPrefaceInHeading(mixed)
+        val (text, line) = OrgMutations.wrapIntroInHeading(mixed)
         val parsed = OrgParser.parse(text)
         val wrapped = parsed.headlines.first { it.lineIndex == line }
         assertEquals("", wrapped.title)

@@ -72,52 +72,52 @@ class OrgParserTest {
     }
 
     @Test
-    fun `preface helpers see real content before the first heading`() {
+    fun `intro helpers see real content before the first heading`() {
         val doc = OrgParser.parse(
             ":PROPERTIES:\n:ID: x\n:END:\n#+title: Roam note\n\nOriginally proposed by Hegel.\nMore prose.\n",
         )
-        assertTrue(doc.hasPrefaceContent)
-        assertEquals("Originally proposed by Hegel.", doc.prefaceTitle)
+        assertTrue(doc.hasIntro)
+        assertEquals("Originally proposed by Hegel.", doc.introTitle)
         assertEquals(
             listOf("Originally proposed by Hegel.", "More prose."),
-            doc.prefaceBody.filter { it.isNotBlank() },
+            doc.introBody.filter { it.isNotBlank() },
         )
     }
 
     @Test
-    fun `preface helpers see content that precedes a later heading`() {
+    fun `intro helpers see content that precedes a later heading`() {
         val doc = OrgParser.parse("#+title: T\n\nPreamble prose.\n\n* Timeline\nunder heading\n")
-        assertTrue(doc.hasPrefaceContent)
-        assertEquals("Preamble prose.", doc.prefaceTitle)
-        assertTrue(doc.prefaceBody.none { it.contains("Timeline") })
+        assertTrue(doc.hasIntro)
+        assertEquals("Preamble prose.", doc.introTitle)
+        assertTrue(doc.introBody.none { it.contains("Timeline") })
     }
 
     @Test
-    fun `no preface content when the preamble is only keywords and a drawer`() {
+    fun `no intro when the preamble is only keywords and a drawer`() {
         val doc = OrgParser.parse(":PROPERTIES:\n:ID: x\n:END:\n#+title: T\n\n* Heading\nbody\n")
-        assertTrue(!doc.hasPrefaceContent)
-        assertEquals("", doc.prefaceTitle)
-        assertEquals(doc.preambleEnd, doc.prefaceBodyStart)
+        assertTrue(!doc.hasIntro)
+        assertEquals("", doc.introTitle)
+        assertEquals(doc.preambleEnd, doc.introStart)
     }
 
     @Test
-    fun `no preface content for a plain heading-only file`() {
+    fun `no intro for a plain heading-only file`() {
         val doc = OrgParser.parse("* just a heading\nbody text\n")
-        assertTrue(!doc.hasPrefaceContent)
+        assertTrue(!doc.hasIntro)
     }
 
     @Test
     fun `filePropertyDrawer parses a leading file-level property drawer`() {
         val doc = OrgParser.parse(
-            ":PROPERTIES:\n:ID: 1a2b3c\n:CREATED: [2026-08-01]\n:END:\n#+TITLE: Kyoto trip\n\nSome preface prose.\n\n* First heading\n",
+            ":PROPERTIES:\n:ID: 1a2b3c\n:CREATED: [2026-08-01]\n:END:\n#+TITLE: Kyoto trip\n\nSome intro prose.\n\n* First heading\n",
         )
         assertEquals(
             listOf(":ID:" to "1a2b3c", ":CREATED:" to "[2026-08-01]"),
             doc.filePropertyDrawer,
         )
         // The drawer is not also dumped into the prose block.
-        assertEquals(listOf("Some preface prose."), doc.prefaceBody.filter { it.isNotBlank() })
-        assertEquals("Some preface prose.", doc.prefaceTitle)
+        assertEquals(listOf("Some intro prose."), doc.introBody.filter { it.isNotBlank() })
+        assertEquals("Some intro prose.", doc.introTitle)
     }
 
     @Test

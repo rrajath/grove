@@ -146,9 +146,9 @@ fun ReadNoteScreen(
     /** Favorited headlines in this file, matched per-heading by customId, marked with a ★. */
     favorites: List<FavoriteNote> = emptyList(),
     /**
-     * The preface (heading-less content) was just given a blank heading because a
+     * The intro (heading-less content) was just given a blank heading because a
      * metadata action needed one; the arg is that heading's line. The host re-opens
-     * the note at that line so it continues as an ordinary note. Preface refs only.
+     * the note at that line so it continues as an ordinary note. Intro refs only.
      */
     onPromotedToHeading: (Int) -> Unit = {},
     viewModel: DocumentViewModel = viewModel(factory = DocumentViewModel.Factory),
@@ -157,10 +157,10 @@ fun ReadNoteScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val allTags by viewModel.allTags.collectAsStateWithLifecycle()
     val refileState by viewModel.refile.collectAsStateWithLifecycle()
-    val prefacePromotedLine by viewModel.prefacePromotedLine.collectAsStateWithLifecycle()
-    LaunchedEffect(prefacePromotedLine) {
-        prefacePromotedLine?.let { line ->
-            viewModel.clearPrefacePromoted()
+    val introPromotedLine by viewModel.introPromotedLine.collectAsStateWithLifecycle()
+    LaunchedEffect(introPromotedLine) {
+        introPromotedLine?.let { line ->
+            viewModel.clearIntroPromoted()
             onPromotedToHeading(line)
         }
     }
@@ -218,8 +218,8 @@ fun ReadNoteScreen(
                 },
                 subtitle = {
                     (state as? DocumentUiState.Loaded)?.document?.let { doc ->
-                        if (noteRef.isPreface) {
-                            // No heading segment: the preface sits above every heading.
+                        if (noteRef.isIntro) {
+                            // No heading segment: the intro sits above every heading.
                             ReadModeBreadcrumb(noteRef.fileName, emptyList(), onOpenBreadcrumb)
                         } else doc.headlineFor(noteRef)?.let { h ->
                             val path = remember(doc, h) {
@@ -251,10 +251,10 @@ fun ReadNoteScreen(
             is DocumentUiState.Loaded -> {
                 val doc = s.document
                 val headline = doc.headlineFor(noteRef)
-                if (noteRef.isPreface && doc.hasPrefaceContent) {
+                if (noteRef.isIntro && doc.hasIntro) {
                     val listState = rememberLazyListState()
                     Box(Modifier.fillMaxSize().padding(padding)) {
-                        PrefaceContent(
+                        IntroContent(
                             doc = doc,
                             fileName = noteRef.fileName,
                             listState = listState,
@@ -332,7 +332,7 @@ fun ReadNoteScreen(
     if (metadataOpen) {
         val headline = currentHeadline
         val doc = (state as? DocumentUiState.Loaded)?.document
-        if (noteRef.isPreface && doc != null && doc.hasPrefaceContent) {
+        if (noteRef.isIntro && doc != null && doc.hasIntro) {
             // No heading yet: every chip first inserts a blank top-level heading
             // above the content (one atomic edit), then applies its change; the
             // screen then re-opens the note at that heading. Refile is hidden —
@@ -344,29 +344,29 @@ fun ReadNoteScreen(
                 allTags = allTags,
                 onChangeKeyword = { kw ->
                     metadataOpen = false
-                    viewModel.withPrefaceHeading("State → ${kw ?: "none"}") { d, h ->
+                    viewModel.withIntroHeading("State → ${kw ?: "none"}") { d, h ->
                         OrgMutations.changeKeyword(d, h, kw, d.keywords, now())
                     }
                 },
                 onSetPriority = { p ->
                     metadataOpen = false
-                    viewModel.withPrefaceHeading("Priority → ${p?.let { "#$it" } ?: "none"}") { d, h ->
+                    viewModel.withIntroHeading("Priority → ${p?.let { "#$it" } ?: "none"}") { d, h ->
                         OrgMutations.setPriority(d, h, p)
                     }
                 },
                 onSetTags = { tags ->
                     metadataOpen = false
-                    viewModel.withPrefaceHeading("") { d, h -> OrgMutations.setTags(d, h, tags) }
+                    viewModel.withIntroHeading("") { d, h -> OrgMutations.setTags(d, h, tags) }
                 },
                 onSetPlanningDates = { sched, dead ->
                     metadataOpen = false
-                    viewModel.withPrefaceHeading("Planning updated") { d, h ->
+                    viewModel.withIntroHeading("Planning updated") { d, h ->
                         OrgMutations.setPlanningDates(d, h, sched, dead)
                     }
                 },
                 onAddNote = { note ->
                     metadataOpen = false
-                    viewModel.withPrefaceHeading("Note added") { d, h ->
+                    viewModel.withIntroHeading("Note added") { d, h ->
                         OrgMutations.appendLogbookNote(
                             d, h, note.trim(),
                             OrgTimestamp(
@@ -451,11 +451,11 @@ private fun ReadModeBreadcrumb(
 /**
  * Read view for a file's heading-less content (everything before the first `*`).
  * Renders only that content, as org body blocks — no title, no heading, no
- * subtree. Double-tap switches to the preface editor; links and checkboxes work
+ * subtree. Double-tap switches to the intro editor; links and checkboxes work
  * as in [NoteContent].
  */
 @Composable
-private fun PrefaceContent(
+private fun IntroContent(
     doc: OrgDocument,
     fileName: String,
     listState: LazyListState,
@@ -479,7 +479,7 @@ private fun PrefaceContent(
             }
         }
     }
-    val body = remember(doc) { doc.prefaceBody.toList() }
+    val body = remember(doc) { doc.introBody.toList() }
 
     Box(Modifier.onGloballyPositioned { boxCoords = it }) {
         LazyColumn(
@@ -489,10 +489,10 @@ private fun PrefaceContent(
             },
             contentPadding = PaddingValues(start = 24.dp, end = 24.dp, top = 16.dp, bottom = 48.dp),
         ) {
-            item(key = "preface-body") {
+            item(key = "intro-body") {
                 SelectionContainer {
                     Column {
-                        BodyBlocks(body, doc.prefaceBodyStart, onToggleCheckbox, openLink, onLinkLongPress, onEdit)
+                        BodyBlocks(body, doc.introStart, onToggleCheckbox, openLink, onLinkLongPress, onEdit)
                     }
                 }
             }

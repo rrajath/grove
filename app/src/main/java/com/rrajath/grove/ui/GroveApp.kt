@@ -34,6 +34,7 @@ import com.rrajath.grove.settings.GroveSettings
 import com.rrajath.grove.ui.agenda.AgendaScreen
 import com.rrajath.grove.ui.capture.CaptureEditorScreen
 import com.rrajath.grove.ui.editor.EditNoteScreen
+import com.rrajath.grove.ui.editor.EditIntroScreen
 import com.rrajath.grove.ui.editor.EditPrefaceScreen
 import com.rrajath.grove.ui.editor.EditRegion
 import com.rrajath.grove.ui.editor.EditRegionScreen
@@ -366,11 +367,12 @@ private fun GroveNavigation(
                     // alongside `mode` (not a nav arg) so the mode toggle keeps not
                     // re-navigating/re-triggering the enter/exit transition.
                     var editTargetLine by rememberSaveable(noteId) { mutableStateOf<Int?>(null) }
-                    if (mode == "edit" && ref.isPreface) {
-                        // The preface has no heading to edit as a subtree: its editor
-                        // is scoped to the whole preamble (same screen as the outline's
-                        // PREFACE section). Back returns to the preface read view.
-                        EditPrefaceScreen(
+                    if (mode == "edit" && ref.isIntro) {
+                        // The intro has no heading to edit as a subtree: its editor is
+                        // scoped to just that content, since the preface and the file's
+                        // property drawer have editors of their own. Back returns to the
+                        // intro read view.
+                        EditIntroScreen(
                             fileName = ref.fileName,
                             onBack = { mode = "read" },
                         )
@@ -399,7 +401,7 @@ private fun GroveNavigation(
                             showPropertyDrawers = settings.showPropertyDrawers,
                             checklistStates = settings.checklistStates,
                             favorites = favoritesFor(favorites, ref.fileName),
-                            // The preface just got a blank heading (a metadata action
+                            // The intro just got a blank heading (a metadata action
                             // needed one); re-open the file at that heading so it
                             // continues as an ordinary note, replacing this entry.
                             onPromotedToHeading = { line ->

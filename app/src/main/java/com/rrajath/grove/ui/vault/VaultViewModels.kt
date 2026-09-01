@@ -15,7 +15,7 @@ import com.rrajath.grove.org.OrgHeadline
 import com.rrajath.grove.org.OrgMutations
 import com.rrajath.grove.org.OrgParser
 import com.rrajath.grove.org.OrgTimestamp
-import com.rrajath.grove.org.PREFACE_LINE_INDEX
+import com.rrajath.grove.org.INTRO_LINE_INDEX
 import com.rrajath.grove.settings.NotebookDisplayNameMode
 import com.rrajath.grove.settings.PinKind
 import com.rrajath.grove.settings.PinnedItem
@@ -545,14 +545,14 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
     val allTags: StateFlow<List<String>> = _allTags
 
     /**
-     * Set to the line of the blank heading [withPrefaceHeading] just inserted, so
-     * the read screen (currently showing the preface pseudo-note) can re-open it
-     * as a real note. Cleared by [clearPrefacePromoted] once consumed.
+     * Set to the line of the blank heading [withIntroHeading] just inserted, so
+     * the read screen (currently showing the intro pseudo-note) can re-open it
+     * as a real note. Cleared by [clearIntroPromoted] once consumed.
      */
-    private val _prefacePromotedLine = MutableStateFlow<Int?>(null)
-    val prefacePromotedLine: StateFlow<Int?> = _prefacePromotedLine
+    private val _introPromotedLine = MutableStateFlow<Int?>(null)
+    val introPromotedLine: StateFlow<Int?> = _introPromotedLine
 
-    fun clearPrefacePromoted() { _prefacePromotedLine.value = null }
+    fun clearIntroPromoted() { _introPromotedLine.value = null }
 
     private var eventId = 0L
 
@@ -666,21 +666,22 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
     }
 
     /**
-     * A metadata action was invoked on a file's heading-less preface, which has
+     * A metadata action was invoked on a file's intro, the heading-less content
+     * before its first heading, which has
      * no headline to hang metadata on. In one atomic edit: insert a blank
      * top-level heading directly above the content (so the content becomes its
      * body), then apply [mutate] to that heading. [describe] is the metadata
      * action's own toast (shown alongside the "added a heading" snack).
-     * Publishes the new heading's line via [prefacePromotedLine] so the read
+     * Publishes the new heading's line via [introPromotedLine] so the read
      * screen can re-open it as a normal note. Undoable in a single step.
      */
-    fun withPrefaceHeading(describe: String, mutate: (OrgDocument, OrgHeadline) -> String) {
+    fun withIntroHeading(describe: String, mutate: (OrgDocument, OrgHeadline) -> String) {
         val loaded = _state.value as? DocumentUiState.Loaded ?: return
         val vault = app.vault.value ?: return
-        if (!loaded.document.hasPrefaceContent) return
+        if (!loaded.document.hasIntro) return
         viewModelScope.launch {
             val (finalText, newLine, finalDoc) = withContext(Dispatchers.Default) {
-                val (wrapped, line) = OrgMutations.wrapPrefaceInHeading(loaded.document)
+                val (wrapped, line) = OrgMutations.wrapIntroInHeading(loaded.document)
                 val wrappedDoc = OrgParser.parse(wrapped, loaded.document.keywords)
                 val h = wrappedDoc.headlineAtLine(line)
                     ?: return@withContext Triple(wrapped, line, wrappedDoc)
@@ -690,10 +691,10 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
             undoSnapshot = UndoSnapshot(listOf(loaded.fileName to loaded.document.text))
             _state.value = DocumentUiState.Loaded(loaded.fileName, finalDoc)
             vault.save(loaded.fileName, finalText)
-            app.syncManager.requestSync("preface promoted to heading")
+            app.syncManager.requestSync("intro promoted to heading")
             showSnack("Added a blank heading for this content")
             if (describe.isNotEmpty()) showToast(describe)
-            _prefacePromotedLine.value = newLine
+            _introPromotedLine.value = newLine
         }
     }
 
@@ -1203,12 +1204,12 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
 data class NoteRef(val fileName: String, val lineIndex: Int, val customId: String? = null) {
     fun encode(): String = if (customId != null) "$fileName@$lineIndex#$customId" else "$fileName@$lineIndex"
 
-    /** True when this ref points at the file's heading-less preface (see [PREFACE_LINE_INDEX]). */
-    val isPreface: Boolean get() = lineIndex == PREFACE_LINE_INDEX
+    /** True when this ref points at the file's intro (see [INTRO_LINE_INDEX]). */
+    val isIntro: Boolean get() = lineIndex == INTRO_LINE_INDEX
 
     companion object {
-        /** A ref to [fileName]'s heading-less preface content. */
-        fun preface(fileName: String) = NoteRef(fileName, PREFACE_LINE_INDEX)
+        /** A ref to [fileName]'s intro: its heading-less content. */
+        fun intro(fileName: String) = NoteRef(fileName, INTRO_LINE_INDEX)
 
         fun decode(noteId: String): NoteRef? {
             val hash = noteId.indexOf('#')
