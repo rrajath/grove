@@ -33,6 +33,7 @@ object Routes {
     const val SETTINGS_SHARING = "settings/sharing"
     const val SETTINGS_BACKUP = "settings/backup"
     const val SETTINGS_BUG_REPORT = "settings/bug"
+    const val SETTINGS_TIPS = "settings/tips"
     const val TEMPLATE_EDIT = "template/{templateId}"
     const val SYNC_LOG = "settings/synclog"
     /**

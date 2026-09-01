@@ -45,6 +45,7 @@ fun SettingsScreen(
     onOpenSharing: () -> Unit,
     onOpenBackup: () -> Unit,
     onOpenBugReport: () -> Unit,
+    onOpenTips: () -> Unit,
 ) {
     val c = MaterialTheme.grove
     val pages = listOf(
@@ -97,6 +98,14 @@ fun SettingsScreen(
                     label = "Report a bug",
                     description = "Send an email or create an issue on GitHub",
                     onClick = onOpenBugReport,
+                ) {
+                    Text("›", fontFamily = PlexMono, fontSize = 14.sp, color = c.ink2)
+                }
+                RowDivider()
+                SettingsRow(
+                    label = "Tips & Tricks",
+                    description = "Shortcuts and gestures hiding in the app",
+                    onClick = onOpenTips,
                 ) {
                     Text("›", fontFamily = PlexMono, fontSize = 14.sp, color = c.ink2)
                 }

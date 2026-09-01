@@ -65,6 +65,7 @@ import com.rrajath.grove.ui.screens.settings.SettingsNotesScreen
 import com.rrajath.grove.ui.screens.settings.SettingsRemindersScreen
 import com.rrajath.grove.ui.screens.settings.SettingsSharingScreen
 import com.rrajath.grove.ui.screens.settings.SettingsSyncScreen
+import com.rrajath.grove.ui.screens.settings.SettingsTipsScreen
 import com.rrajath.grove.ui.screens.SyncLogScreen
 import com.rrajath.grove.ui.vault.NoteRef
 import com.rrajath.grove.ui.theme.GroveTheme
@@ -515,6 +516,7 @@ private fun GroveNavigation(
                     onOpenSharing = { navController.navigate(Routes.SETTINGS_SHARING) },
                     onOpenBackup = { navController.navigate(Routes.SETTINGS_BACKUP) },
                     onOpenBugReport = { navController.navigate(Routes.SETTINGS_BUG_REPORT) },
+                    onOpenTips = { navController.navigate(Routes.SETTINGS_TIPS) },
                 )
             }
             composable(Routes.SETTINGS_APPEARANCE) {
@@ -619,6 +621,9 @@ private fun GroveNavigation(
             }
             composable(Routes.SETTINGS_BUG_REPORT) {
                 SettingsBugReportScreen(onBack = { navController.popBackStack() })
+            }
+            composable(Routes.SETTINGS_TIPS) {
+                SettingsTipsScreen(onBack = { navController.popBackStack() })
             }
         }
     }
