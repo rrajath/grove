@@ -301,6 +301,40 @@ object OrgMutations {
     fun regionText(doc: OrgDocument, range: IntRange): String =
         doc.lines.subList(range.first, range.last + 1).joinToString("\n")
 
+    private val BLOCK_BEGIN = Regex("""^\s*#\+(?i:BEGIN_)(\S+)""")
+    private val BLOCK_END = Regex("""^\s*#\+(?i:END_)(\S+)\s*$""")
+    private val BLOCK_AFFILIATED =
+        Regex("""^\s*#\+(?i:ATTR_\S+|CAPTION|NAME|HEADER|HEADERS|RESULTS|PLOT)(?::| ).*$""")
+
+    /**
+     * Inclusive line range of the `#+BEGIN_x … #+END_x` block whose `#+BEGIN`
+     * line is at or nearest [approxBeginLine], markers included, plus any leading
+     * run of affiliated-keyword lines (`#+ATTR_*`, `#+CAPTION:`, `#+NAME:`, …)
+     * directly above it — matching what the read-mode drawer folds in. An
+     * unterminated block runs to the end of the file. Null when the file has no
+     * `#+BEGIN` line at all. The raw region the block editor scopes itself to.
+     */
+    fun blockRange(doc: OrgDocument, approxBeginLine: Int): IntRange? {
+        val lines = doc.lines
+        val beginLines = lines.indices.filter { BLOCK_BEGIN.containsMatchIn(lines[it]) }
+        if (beginLines.isEmpty()) return null
+        // Prefer a `#+BEGIN` at or after the tapped line, then fall back to the
+        // nearest one either side (an external edit may have shifted things).
+        val begin = beginLines.filter { it >= approxBeginLine }.minByOrNull { it - approxBeginLine }
+            ?: beginLines.minByOrNull { kotlin.math.abs(it - approxBeginLine) }!!
+        val kind = BLOCK_BEGIN.find(lines[begin])!!.groupValues[1]
+        var end = begin + 1
+        while (end < lines.size) {
+            val m = BLOCK_END.find(lines[end])
+            if (m != null && m.groupValues[1].equals(kind, ignoreCase = true)) break
+            end++
+        }
+        if (end >= lines.size) end = lines.size - 1
+        var start = begin
+        while (start > 0 && BLOCK_AFFILIATED.matches(lines[start - 1])) start--
+        return start..end
+    }
+
     /** Replace the line [range] with [newText] (a scoped drawer editor's save path). */
     fun replaceLines(doc: OrgDocument, range: IntRange, newText: String): String {
         val lines = doc.lines.toMutableList()

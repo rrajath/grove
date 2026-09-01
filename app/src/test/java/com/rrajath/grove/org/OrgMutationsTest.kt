@@ -609,6 +609,61 @@ class OrgMutationsTest {
         assertTrue(edited.trimEnd().endsWith("body line"))
     }
 
+    // --- scoped block editor (blockRange / replaceLines) ---
+
+    private val blockDoc = OrgParser.parse(
+        """
+        * Notes
+        Intro line.
+
+        #+CAPTION: A snippet
+        #+ATTR_LATEX: :width 0.8
+        #+BEGIN_SRC python
+        print("hi")
+        #+END_SRC
+
+        Between the blocks.
+
+        #+begin_quote
+        To be, or not to be.
+        #+end_quote
+        """.trimIndent() + "\n"
+    )
+
+    @Test
+    fun `blockRange spans the src block, its markers, and the affiliated lines above it`() {
+        // Read mode passes the block's first line (the first affiliated line, index 3).
+        val range = OrgMutations.blockRange(blockDoc, 3)!!
+        assertEquals(
+            "#+CAPTION: A snippet\n#+ATTR_LATEX: :width 0.8\n#+BEGIN_SRC python\nprint(\"hi\")\n#+END_SRC",
+            OrgMutations.regionText(blockDoc, range),
+        )
+    }
+
+    @Test
+    fun `blockRange resolves the nearest block when the tapped line drifts past its BEGIN`() {
+        // An external edit shifted the file: the tapped line now lands inside the quote block.
+        val range = OrgMutations.blockRange(blockDoc, 12)!!
+        assertEquals("#+begin_quote\nTo be, or not to be.\n#+end_quote", OrgMutations.regionText(blockDoc, range))
+    }
+
+    @Test
+    fun `blockRange is null for a file with no blocks`() {
+        assertNull(OrgMutations.blockRange(OrgParser.parse("* Just a heading\nbody\n"), 1))
+    }
+
+    @Test
+    fun `replaceLines swaps a block and leaves the rest byte-identical`() {
+        val range = OrgMutations.blockRange(blockDoc, 11)!!
+        val edited = OrgMutations.replaceLines(
+            blockDoc, range,
+            "#+begin_quote\nAll the world's a stage.\n#+end_quote",
+        )
+        assertTrue(edited.contains("All the world's a stage."))
+        assertTrue(edited.contains("print(\"hi\")"))
+        assertTrue(edited.trimEnd().endsWith("#+end_quote"))
+    }
+
     @Test
     fun `wrapIntroInHeading puts a blank heading above heading-less content`() {
         val roam = OrgParser.parse(

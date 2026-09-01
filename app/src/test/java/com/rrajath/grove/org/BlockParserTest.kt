@@ -2,6 +2,7 @@ package com.rrajath.grove.org
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class BlockParserTest {
@@ -15,28 +16,77 @@ class BlockParserTest {
     }
 
     @Test
-    fun `code block with language`() {
+    fun `src block with language`() {
         val blocks = BlockParser.parse(
             listOf("before", "#+BEGIN_SRC kotlin", "val x = 1", "#+END_SRC", "after")
         )
         assertEquals(3, blocks.size)
-        val code = blocks[1] as OrgBlock.CodeBlock
-        assertEquals("kotlin", code.language)
-        assertEquals(listOf("val x = 1"), code.lines)
+        val block = blocks[1] as OrgBlock.Block
+        assertEquals("SRC", block.kind)
+        assertEquals("kotlin", block.language)
+        assertEquals(listOf("val x = 1"), block.contentLines)
+        assertEquals(1, block.startLine)
     }
 
     @Test
     fun `example block and case-insensitive markers`() {
         val blocks = BlockParser.parse(listOf("#+begin_example", "raw", "#+end_example"))
-        val code = blocks[0] as OrgBlock.CodeBlock
-        assertNull(code.language)
-        assertEquals(listOf("raw"), code.lines)
+        val block = blocks[0] as OrgBlock.Block
+        assertEquals("EXAMPLE", block.kind)
+        assertNull(block.language)
+        assertEquals(listOf("raw"), block.contentLines)
     }
 
     @Test
-    fun `unterminated code block runs to end`() {
+    fun `quote block keeps its kind`() {
+        val blocks = BlockParser.parse(listOf("#+begin_quote", "To be, or not to be.", "#+end_quote"))
+        val block = blocks[0] as OrgBlock.Block
+        assertEquals("QUOTE", block.kind)
+        assertNull(block.language)
+        assertEquals(listOf("To be, or not to be."), block.contentLines)
+    }
+
+    @Test
+    fun `unterminated block runs to end`() {
         val blocks = BlockParser.parse(listOf("#+BEGIN_SRC", "a", "b"))
-        assertEquals(listOf("a", "b"), (blocks[0] as OrgBlock.CodeBlock).lines)
+        assertEquals(listOf("a", "b"), (blocks[0] as OrgBlock.Block).contentLines)
+    }
+
+    @Test
+    fun `mismatched end does not terminate a block`() {
+        val blocks = BlockParser.parse(
+            listOf("#+BEGIN_QUOTE", "one", "#+END_SRC", "two", "#+END_QUOTE")
+        )
+        assertEquals(1, blocks.size)
+        assertEquals(listOf("one", "#+END_SRC", "two"), (blocks[0] as OrgBlock.Block).contentLines)
+    }
+
+    @Test
+    fun `affiliated keywords directly above a block fold into it`() {
+        val blocks = BlockParser.parse(
+            listOf(
+                "#+CAPTION: A snippet",
+                "#+ATTR_LATEX: :width 0.8",
+                "#+BEGIN_SRC python",
+                "print('hi')",
+                "#+END_SRC",
+            )
+        )
+        assertEquals(1, blocks.size)
+        val block = blocks[0] as OrgBlock.Block
+        assertEquals("SRC", block.kind)
+        assertEquals("python", block.language)
+        assertEquals(listOf("#+CAPTION: A snippet", "#+ATTR_LATEX: :width 0.8"), block.affiliated)
+        assertEquals(listOf("print('hi')"), block.contentLines)
+        assertEquals(0, block.startLine)
+    }
+
+    @Test
+    fun `standalone affiliated keyword stays paragraph text`() {
+        val blocks = BlockParser.parse(listOf("#+ATTR_LATEX: :width 0.8", "some prose"))
+        assertEquals(1, blocks.size)
+        assertTrue(blocks[0] is OrgBlock.Paragraph)
+        assertEquals(listOf("#+ATTR_LATEX: :width 0.8", "some prose"), (blocks[0] as OrgBlock.Paragraph).lines)
     }
 
     @Test
@@ -88,7 +138,7 @@ class BlockParserTest {
         assertEquals(
             listOf(
                 OrgBlock.Paragraph::class, OrgBlock.ListBlock::class,
-                OrgBlock.Table::class, OrgBlock.CodeBlock::class,
+                OrgBlock.Table::class, OrgBlock.Block::class,
             ),
             blocks.map { it::class },
         )

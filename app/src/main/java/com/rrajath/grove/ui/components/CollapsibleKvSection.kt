@@ -105,6 +105,53 @@ fun CollapsibleLogSection(
     }
 }
 
+/**
+ * Collapsible, faded, monospace section for a `#+BEGIN_x … #+END_x` block
+ * (`QUOTE`, `SRC`, `EXAMPLE`, `VERSE`, `LATEX`, a custom name, …). Same
+ * header/body chrome as [CollapsibleKvSection]; [label] is the upper-cased block
+ * kind and [trailingLabel] (e.g. a `SRC` language) sits next to it. [affiliated]
+ * are the folded-in `#+ATTR_*` / `#+CAPTION:` / `#+NAME:` lines, shown dimmer
+ * above the content. Unlike the drawer sections this opens **expanded**: block
+ * content is note content, not metadata.
+ */
+@Composable
+fun CollapsibleBlockSection(
+    label: String,
+    trailingLabel: String?,
+    affiliated: List<String>,
+    contentLines: List<String>,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+    modifier: Modifier = Modifier,
+    /** Double-tapping anywhere in the block body opens an editor scoped to this block. */
+    onDoubleTap: (() -> Unit)? = null,
+) {
+    val c = MaterialTheme.grove
+    CollapsibleDrawer(
+        label = label,
+        count = contentLines.size,
+        expanded = expanded,
+        onToggle = onToggle,
+        modifier = modifier,
+        trailingLabel = trailingLabel,
+    ) {
+        affiliated.forEach { line ->
+            Text(
+                line.trim(),
+                fontFamily = PlexMono, fontSize = 12.sp, lineHeight = 1.5.em, color = c.ink3,
+                modifier = Modifier.doubleTapEditRow(onDoubleTap),
+            )
+        }
+        contentLines.forEach { line ->
+            Text(
+                line,
+                fontFamily = PlexMono, fontSize = 12.sp, lineHeight = 1.5.em, color = c.ink2,
+                modifier = Modifier.doubleTapEditRow(onDoubleTap),
+            )
+        }
+    }
+}
+
 @Composable
 private fun CollapsibleDrawer(
     label: String,
@@ -112,6 +159,7 @@ private fun CollapsibleDrawer(
     expanded: Boolean,
     onToggle: () -> Unit,
     modifier: Modifier = Modifier,
+    trailingLabel: String? = null,
     body: @Composable ColumnScope.() -> Unit,
 ) {
     val c = MaterialTheme.grove
@@ -137,6 +185,10 @@ private fun CollapsibleDrawer(
             )
             Spacer(Modifier.width(8.dp))
             Text(label, fontFamily = PlexMono, fontSize = 12.sp, color = c.ink3)
+            if (trailingLabel != null) {
+                Spacer(Modifier.width(8.dp))
+                Text(trailingLabel, fontFamily = PlexMono, fontSize = 11.sp, color = c.synKw)
+            }
             Spacer(Modifier.weight(1f))
             Text(count.toString(), fontFamily = PlexMono, fontSize = 11.sp, color = c.ink3)
         }

@@ -86,6 +86,7 @@ import com.rrajath.grove.org.OrgHeadline
 import com.rrajath.grove.org.OrgMutations
 import com.rrajath.grove.org.OrgTimestamp
 import com.rrajath.grove.settings.ChecklistStates
+import com.rrajath.grove.ui.components.CollapsibleBlockSection
 import com.rrajath.grove.ui.components.CollapsibleKvSection
 import com.rrajath.grove.ui.components.CollapsibleLogSection
 import com.rrajath.grove.ui.components.FavoriteStar
@@ -139,6 +140,11 @@ fun ReadNoteScreen(
      * owning heading.
      */
     onOpenDrawer: (kind: String, ref: NoteRef) -> Unit = { _, _ -> },
+    /**
+     * Double-tapping a `#+BEGIN_x … #+END_x` block opens an editor scoped to just that
+     * block. [line] is the absolute doc line of its `#+BEGIN` (or first affiliated line).
+     */
+    onOpenBlock: (fileName: String, line: Int) -> Unit = { _, _ -> },
     /** Settings toggle: show collapsible sections for `:PROPERTIES:`/`:LOGBOOK:` drawers. */
     showPropertyDrawers: Boolean = true,
     /** Settings: how many states tapping a checklist item cycles through. */
@@ -260,6 +266,7 @@ fun ReadNoteScreen(
                             listState = listState,
                             onOpenNote = onOpenNote,
                             onEdit = { onEdit(null) },
+                            onOpenBlock = { line -> onOpenBlock(noteRef.fileName, line) },
                             onToggleCheckbox = { line -> viewModel.toggleChecklistItem(line, checklistStates.marks) },
                             modifier = Modifier.fillMaxSize(),
                         )
@@ -298,6 +305,7 @@ fun ReadNoteScreen(
                             fileName = noteRef.fileName,
                             onEditAt = onEdit,
                             onOpenDrawer = onOpenDrawer,
+                            onOpenBlock = { line -> onOpenBlock(noteRef.fileName, line) },
                             onToggleCheckbox = { line -> viewModel.toggleChecklistItem(line, checklistStates.marks) },
                             showPropertyDrawers = showPropertyDrawers,
                             favorites = favorites,
@@ -461,6 +469,7 @@ private fun IntroContent(
     listState: LazyListState,
     onOpenNote: (NoteRef) -> Unit,
     onEdit: () -> Unit,
+    onOpenBlock: (Int) -> Unit,
     onToggleCheckbox: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -492,7 +501,7 @@ private fun IntroContent(
             item(key = "intro-body") {
                 SelectionContainer {
                     Column {
-                        BodyBlocks(body, doc.introStart, onToggleCheckbox, openLink, onLinkLongPress, onEdit)
+                        BodyBlocks(body, doc.introStart, onToggleCheckbox, openLink, onLinkLongPress, onEdit, onOpenBlock)
                     }
                 }
             }
@@ -523,6 +532,7 @@ private fun NoteContent(
     onOpenNote: (NoteRef) -> Unit,
     onEditAt: (Int?) -> Unit,
     onOpenDrawer: (kind: String, ref: NoteRef) -> Unit,
+    onOpenBlock: (Int) -> Unit,
     onToggleCheckbox: (Int) -> Unit,
     listState: LazyListState,
     modifier: Modifier = Modifier,
@@ -687,7 +697,7 @@ private fun NoteContent(
                         Spacer(Modifier.height(16.dp))
 
                         // Own body
-                        BodyBlocks(ownBody, headline.bodyStart, onToggleCheckbox, openLink, onLinkLongPress) { onEditAt(null) }
+                        BodyBlocks(ownBody, headline.bodyStart, onToggleCheckbox, openLink, onLinkLongPress, { onEditAt(null) }, onOpenBlock)
                     }
                 }
             }
@@ -816,7 +826,7 @@ private fun NoteContent(
                             // A folded heading shows only its title + "… N"; its
                             // body and descendants stay unmounted.
                             if (!childCollapsed) {
-                                BodyBlocks(body, child.bodyStart, onToggleCheckbox, openLink, onLinkLongPress) { onEditAt(child.lineIndex) }
+                                BodyBlocks(body, child.bodyStart, onToggleCheckbox, openLink, onLinkLongPress, { onEditAt(child.lineIndex) }, onOpenBlock)
                             }
                         }
                     }
@@ -989,9 +999,15 @@ private fun BodyBlocks(
     openTarget: (String) -> Unit,
     onLinkLongPress: (String, Offset, LayoutCoordinates) -> Unit,
     onEditAt: () -> Unit,
+    /** Double-tap on a `#+BEGIN_x` block body; arg is the absolute doc line of its first line. */
+    onOpenBlock: (Int) -> Unit = {},
 ) {
     val c = MaterialTheme.grove
     val blocks = remember(bodyLines) { BlockParser.parse(bodyLines) }
+    // Per-block expand state, keyed by the block's body-relative start line.
+    // Blocks open expanded (unlike the collapsed-by-default metadata drawers):
+    // their content is note content.
+    val blockExpanded = remember(bodyLines) { mutableStateMapOf<Int, Boolean>() }
 
     blocks.forEach { block ->
         when (block) {
@@ -1109,21 +1125,17 @@ private fun BodyBlocks(
                 Spacer(Modifier.height(12.dp))
             }
 
-            is OrgBlock.CodeBlock -> {
-                Column(
-                    Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(c.surface2)
-                        .padding(12.dp),
-                ) {
-                    block.lines.forEach { line ->
-                        PlainTappableLine(
-                            line, fontFamily = PlexMono, fontSize = 13.sp, color = c.ink,
-                            onDoubleTapAt = onEditAt,
-                        )
-                    }
-                }
+            is OrgBlock.Block -> {
+                val expanded = blockExpanded[block.startLine] ?: true
+                CollapsibleBlockSection(
+                    label = block.kind,
+                    trailingLabel = block.language,
+                    affiliated = block.affiliated,
+                    contentLines = block.contentLines,
+                    expanded = expanded,
+                    onToggle = { blockExpanded[block.startLine] = !expanded },
+                    onDoubleTap = { onOpenBlock(lineOffset + block.startLine) },
+                )
                 Spacer(Modifier.height(12.dp))
             }
 

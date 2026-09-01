@@ -59,6 +59,18 @@ re-uploads the APKs to the existing release instead of failing.
 
 ## [Unreleased]
 
+### Added
+- `#+BEGIN_x … #+END_x` blocks in a note body now render in read mode as
+  collapsible sections styled like the `:PROPERTIES:` / `:LOGBOOK:` drawers,
+  headed by the block type (`QUOTE`, `SRC`, `EXAMPLE`, `VERSE`, `CENTER`, a
+  custom name, …). `#+BEGIN_SRC` shows its language next to the `SRC` heading.
+  Any leading affiliated-keyword lines (`#+ATTR_LATEX:`, `#+CAPTION:`, `#+NAME:`,
+  `#+HEADER:`) directly above a block are folded into its section. Blocks open
+  expanded (they are note content, not metadata). Double-tapping a block's body
+  opens an editor scoped to just that block, markers included; saving splices
+  only that block back into the file. `#+BEGIN_EXAMPLE` blocks, previously drawn
+  as a plain code box, now use this style too.
+
 ## [1.2.0] - 2026-09-01
 
 ### Added

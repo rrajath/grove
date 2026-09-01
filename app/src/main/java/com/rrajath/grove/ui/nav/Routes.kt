@@ -18,6 +18,9 @@ object Routes {
      *  (file-level `:PROPERTIES:`), `headingProps` or `headingLog`; [noteId] is the
      *  encoded NoteRef of the owning heading (absent for `fileProps`). */
     const val DRAWER = "drawer/{fileName}?kind={kind}&noteId={noteId}"
+    /** A single `#+BEGIN_x … #+END_x` block, opened by double-tapping it in Read mode;
+     *  [line] is the absolute doc line of its `#+BEGIN` (or first affiliated line). */
+    const val BLOCK = "block/{fileName}?line={line}"
     const val CAPTURE = "capture"
     const val CAPTURE_TEMPLATE = "capture/{templateId}"
     const val SEARCH = "search?q={q}&notebook={notebook}"
@@ -74,6 +77,7 @@ object Routes {
     fun preface(fileName: String) = "preface/${encode(fileName)}"
     fun drawer(fileName: String, kind: String, noteId: String? = null) =
         "drawer/${encode(fileName)}?kind=$kind" + (noteId?.let { "&noteId=${encode(it)}" } ?: "")
+    fun block(fileName: String, line: Int) = "block/${encode(fileName)}?line=$line"
     fun capture(templateId: String? = null) =
         if (templateId == null) CAPTURE else "capture/${encode(templateId)}"
     fun conflict(notebookId: String) = "conflict/${encode(notebookId)}"

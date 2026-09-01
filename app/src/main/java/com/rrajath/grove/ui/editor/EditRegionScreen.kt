@@ -94,6 +94,15 @@ private fun regionLabel(region: EditRegion): String = when (region) {
     EditRegion.PREFACE -> "Preface"
     EditRegion.FILE_PROPERTIES, EditRegion.HEADING_PROPERTIES -> "Properties"
     EditRegion.HEADING_LOGBOOK -> "Logbook"
+    EditRegion.BLOCK -> "Block"
+}
+
+/** Title-cased block kind pulled from the buffer's `#+BEGIN_x` line (e.g. "Quote", "Src"), or "Block". */
+private fun blockLabelFromBuffer(buffer: String): String {
+    val begin = buffer.lineSequence().firstOrNull { Regex("""^\s*#\+(?i:BEGIN_)\S+""").containsMatchIn(it) }
+        ?: return "Block"
+    val kind = Regex("""^\s*#\+(?i:BEGIN_)(\S+)""").find(begin)?.groupValues?.get(1) ?: return "Block"
+    return kind.lowercase().replaceFirstChar { it.uppercase() }
 }
 
 /**
@@ -112,12 +121,14 @@ fun EditRegionScreen(
     region: EditRegion,
     noteId: String?,
     onBack: () -> Unit,
+    /** Absolute doc line of the tapped `#+BEGIN` (or its first affiliated line); [EditRegion.BLOCK] only. */
+    blockLine: Int = -1,
     viewModel: EditorViewModel = viewModel(factory = EditorViewModel.Factory),
 ) {
-    val label = regionLabel(region)
     val c = MaterialTheme.grove
     val context = LocalContext.current
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val label = if (region == EditRegion.BLOCK) blockLabelFromBuffer(state.buffer) else regionLabel(region)
     val textState = rememberTextFieldState()
     var confirmLeave by remember { mutableStateOf(false) }
     var lastAutoSavedAt by remember { mutableStateOf<LocalTime?>(null) }
@@ -144,7 +155,7 @@ fun EditRegionScreen(
     }
     androidx.activity.compose.BackHandler { leave() }
 
-    LaunchedEffect(fileName, noteId, region) { viewModel.loadRegion(fileName, noteId, region) }
+    LaunchedEffect(fileName, noteId, region) { viewModel.loadRegion(fileName, noteId, region, blockLine) }
     LaunchedEffect(state.loading) {
         if (!state.loading && state.error == null) {
             setText(state.buffer, TextRange(0))
@@ -239,7 +250,7 @@ fun EditRegionScreen(
             if (state.staleFile) {
                 StaleFileBanner(
                     onOverwrite = { viewModel.save(force = true) },
-                    onReload = { viewModel.dismissStale(); viewModel.loadRegion(fileName, noteId, region) },
+                    onReload = { viewModel.dismissStale(); viewModel.loadRegion(fileName, noteId, region, blockLine) },
                 )
             }
             Box(Modifier.weight(1f).fillMaxWidth()) {

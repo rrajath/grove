@@ -346,6 +346,15 @@ private fun GroveNavigation(
                     onBack = { navController.popBackStack() },
                 )
             }
+            composable(Routes.BLOCK) { entry ->
+                EditRegionScreen(
+                    fileName = entry.arguments?.getString("fileName").orEmpty(),
+                    region = EditRegion.BLOCK,
+                    noteId = null,
+                    blockLine = entry.arguments?.getString("line")?.toIntOrNull() ?: -1,
+                    onBack = { navController.popBackStack() },
+                )
+            }
             composable(
                 Routes.NOTE,
                 deepLinks = listOf(
@@ -398,6 +407,9 @@ private fun GroveNavigation(
                             },
                             onOpenDrawer = { kind, drawerRef ->
                                 navController.navigate(Routes.drawer(drawerRef.fileName, kind, drawerRef.encode()))
+                            },
+                            onOpenBlock = { fileName, line ->
+                                navController.navigate(Routes.block(fileName, line))
                             },
                             showPropertyDrawers = settings.showPropertyDrawers,
                             checklistStates = settings.checklistStates,

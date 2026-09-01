@@ -11,7 +11,28 @@ package com.rrajath.grove.org
 sealed class OrgBlock {
     data class Paragraph(val lines: List<String>, val startLine: Int = 0) : OrgBlock()
     data class ListBlock(val items: List<ListItem>) : OrgBlock()
-    data class CodeBlock(val language: String?, val lines: List<String>, val startLine: Int = 0) : OrgBlock()
+
+    /**
+     * A `#+BEGIN_x … #+END_x` block, rendered as a collapsible drawer keyed by
+     * [kind] (the upper-cased block type: `QUOTE`, `SRC`, `EXAMPLE`, `VERSE`,
+     * `CENTER`, `LATEX`, a custom name, …).
+     *
+     * [language] is the `#+BEGIN_SRC <lang>` token when [kind] is `SRC`, else null.
+     * [affiliated] holds any leading affiliated-keyword lines (`#+ATTR_*`,
+     * `#+CAPTION:`, `#+NAME:`, `#+HEADER:`, `#+RESULTS:`) that sat immediately
+     * above the `#+BEGIN` line, verbatim; they belong to this block and are shown
+     * in its drawer. [contentLines] is everything between the markers.
+     *
+     * [startLine] is the body-relative index of the block's first line — the
+     * first [affiliated] line when there is one, otherwise the `#+BEGIN` line.
+     */
+    data class Block(
+        val kind: String,
+        val language: String?,
+        val affiliated: List<String>,
+        val contentLines: List<String>,
+        val startLine: Int = 0,
+    ) : OrgBlock()
 
     /** Org tables render as monospace plain text in v1 (PRD decision #4). */
     data class Table(val lines: List<String>, val startLine: Int = 0) : OrgBlock()
@@ -29,10 +50,20 @@ object BlockParser {
 
     private val UNORDERED = Regex("""^(\s*)[-+]\s+(?:\[([ Xx-])\]\s+)?(.*)$""")
     private val ORDERED = Regex("""^(\s*)\d+[.)]\s+(?:\[([ Xx-])\]\s+)?(.*)$""")
-    private val BEGIN_SRC = Regex("""^\s*#\+(?i:BEGIN_SRC)\s*(\S*)""")
-    private val END_SRC = Regex("""^\s*#\+(?i:END_SRC)\s*$""")
-    private val BEGIN_EXAMPLE = Regex("""^\s*#\+(?i:BEGIN_EXAMPLE)""")
-    private val END_EXAMPLE = Regex("""^\s*#\+(?i:END_EXAMPLE)\s*$""")
+
+    /** `#+BEGIN_<type>` (any type); group 1 is the type, group 2 the trailing text (SRC language / switches). */
+    private val BEGIN = Regex("""^\s*#\+(?i:BEGIN_)(\S+)(.*)$""")
+
+    /** `#+END_<type>`; group 1 is the type. */
+    private val END = Regex("""^\s*#\+(?i:END_)(\S+)\s*$""")
+
+    /**
+     * An affiliated keyword line that attaches to the element right below it
+     * (`#+ATTR_LATEX:`, `#+ATTR_HTML:`, `#+CAPTION:`, `#+NAME:`, `#+HEADER:`,
+     * `#+RESULTS:`, `#+PLOT:`). When a run of these sits directly above a
+     * `#+BEGIN` line it is folded into that block's drawer.
+     */
+    private val AFFILIATED = Regex("""^\s*#\+(?i:ATTR_\S+|CAPTION|NAME|HEADER|HEADERS|RESULTS|PLOT)(?::| ).*$""")
 
     fun parse(bodyLines: List<String>): List<OrgBlock> {
         val blocks = mutableListOf<OrgBlock>()
@@ -49,24 +80,58 @@ object BlockParser {
             }
         }
 
+        /** Parse a `#+BEGIN_x … #+END_x` block that starts at [beginIndex]. */
+        fun parseBlock(beginIndex: Int, affiliated: List<String>, blockStart: Int) {
+            val m = BEGIN.find(bodyLines[beginIndex])!!
+            val kind = m.groupValues[1].uppercase()
+            val trailing = m.groupValues[2].trim()
+            val language = if (kind == "SRC") {
+                trailing.split(Regex("""\s+""")).firstOrNull()?.takeIf { it.isNotEmpty() }
+            } else {
+                null
+            }
+            var j = beginIndex + 1
+            val content = mutableListOf<String>()
+            while (j < bodyLines.size) {
+                val end = END.find(bodyLines[j])
+                if (end != null && end.groupValues[1].equals(kind, ignoreCase = true)) {
+                    j++ // consume the END line
+                    break
+                }
+                content.add(bodyLines[j])
+                j++
+            }
+            blocks.add(OrgBlock.Block(kind, language, affiliated, content, blockStart))
+            i = j
+        }
+
         while (i < bodyLines.size) {
             val line = bodyLines[i]
-            val srcMatch = BEGIN_SRC.find(line)
-            val exampleMatch = if (srcMatch == null) BEGIN_EXAMPLE.find(line) else null
             when {
-                srcMatch != null || exampleMatch != null -> {
+                BEGIN.containsMatchIn(line) -> {
                     flushParagraph()
-                    val language = srcMatch?.groupValues?.get(1)?.takeIf { it.isNotEmpty() }
-                    val endPattern = if (srcMatch != null) END_SRC else END_EXAMPLE
-                    val code = mutableListOf<String>()
-                    i++
-                    val codeStart = i
-                    while (i < bodyLines.size && !endPattern.containsMatchIn(bodyLines[i])) {
-                        code.add(bodyLines[i])
+                    parseBlock(i, affiliated = emptyList(), blockStart = i)
+                }
+
+                AFFILIATED.matches(line) -> {
+                    // Collect the affiliated run; fold it into a block only when
+                    // one starts on the very next line. Otherwise it's ordinary
+                    // paragraph text (unchanged behaviour).
+                    val affStart = i
+                    val aff = mutableListOf<String>()
+                    var k = i
+                    while (k < bodyLines.size && AFFILIATED.matches(bodyLines[k])) {
+                        aff.add(bodyLines[k])
+                        k++
+                    }
+                    if (k < bodyLines.size && BEGIN.containsMatchIn(bodyLines[k])) {
+                        flushParagraph()
+                        parseBlock(k, affiliated = aff, blockStart = affStart)
+                    } else {
+                        if (para.isEmpty()) paraStart = i
+                        para.add(line)
                         i++
                     }
-                    blocks.add(OrgBlock.CodeBlock(language, code, codeStart))
-                    i++ // skip END line (or run past EOF, fine)
                 }
 
                 line.trimStart().startsWith("|") -> {

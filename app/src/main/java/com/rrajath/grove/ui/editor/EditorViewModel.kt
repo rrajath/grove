@@ -31,7 +31,7 @@ import kotlinx.coroutines.withContext
 import java.time.LocalDateTime
 
 /** Which scoped region of a file an [EditorViewModel] session is editing, if not a headline subtree. */
-enum class EditRegion { INTRO, PREFACE, FILE_PROPERTIES, HEADING_PROPERTIES, HEADING_LOGBOOK }
+enum class EditRegion { INTRO, PREFACE, FILE_PROPERTIES, HEADING_PROPERTIES, HEADING_LOGBOOK, BLOCK }
 
 data class EditorUiState(
     val loading: Boolean = true,
@@ -167,7 +167,7 @@ class EditorViewModel(private val app: GroveApplication) : ViewModel() {
      * [noteId] is the encoded [NoteRef] of the owning headline, required for the HEADING_*
      * regions and ignored otherwise.
      */
-    fun loadRegion(fileName: String, noteId: String?, region: EditRegion) {
+    fun loadRegion(fileName: String, noteId: String?, region: EditRegion, blockLine: Int = -1) {
         _state.update { it.copy(loading = true, error = null) }
         viewModelScope.launch {
             val vault = app.vault.value ?: run {
@@ -216,6 +216,13 @@ class EditorViewModel(private val app: GroveApplication) : ViewModel() {
                         return@launch
                     }
                     lineIndex = headline.lineIndex
+                    OrgMutations.regionText(doc, r) to r
+                }
+                EditRegion.BLOCK -> {
+                    val r = OrgMutations.blockRange(doc, blockLine) ?: run {
+                        _state.value = EditorUiState(loading = false, error = "This block is no longer here")
+                        return@launch
+                    }
                     OrgMutations.regionText(doc, r) to r
                 }
             }
@@ -439,6 +446,10 @@ class EditorViewModel(private val app: GroveApplication) : ViewModel() {
                     val marker = if (s.region == EditRegion.HEADING_LOGBOOK) ":LOGBOOK:" else ":PROPERTIES:"
                     val headline = doc.headlines.firstOrNull { it.lineIndex == s.lineIndex }
                     val range = headline?.let { OrgMutations.headingDrawerRange(doc, it, marker) } ?: s.regionRange
+                    if (range != null) OrgMutations.replaceLines(doc, range, savedBuffer) else appendFallback
+                }
+                EditRegion.BLOCK -> {
+                    val range = s.regionRange?.first?.let { OrgMutations.blockRange(doc, it) } ?: s.regionRange
                     if (range != null) OrgMutations.replaceLines(doc, range, savedBuffer) else appendFallback
                 }
                 null -> {
