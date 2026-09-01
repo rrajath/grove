@@ -61,6 +61,7 @@ import com.rrajath.grove.ui.screens.settings.SettingsAppearanceScreen
 import com.rrajath.grove.ui.screens.settings.SettingsBackupScreen
 import com.rrajath.grove.ui.screens.settings.SettingsBugReportScreen
 import com.rrajath.grove.ui.screens.settings.SettingsCaptureTemplatesScreen
+import com.rrajath.grove.ui.screens.settings.SettingsNotebooksScreen
 import com.rrajath.grove.ui.screens.settings.SettingsNotesScreen
 import com.rrajath.grove.ui.screens.settings.SettingsRemindersScreen
 import com.rrajath.grove.ui.screens.settings.SettingsSharingScreen
@@ -520,6 +521,7 @@ private fun GroveNavigation(
                 SettingsScreen(
                     onBack = { navController.popBackStack() },
                     onOpenAppearance = { navController.navigate(Routes.SETTINGS_APPEARANCE) },
+                    onOpenNotebooks = { navController.navigate(Routes.SETTINGS_NOTEBOOKS) },
                     onOpenCaptureTemplates = { navController.navigate(Routes.SETTINGS_CAPTURE_TEMPLATES) },
                     onOpenSync = { navController.navigate(Routes.SETTINGS_SYNC) },
                     onOpenNotes = { navController.navigate(Routes.SETTINGS_NOTES) },
@@ -537,10 +539,16 @@ private fun GroveNavigation(
                     onBack = { navController.popBackStack() },
                     onSetTheme = viewModel::setTheme,
                     onSetSyncAppIconWithTheme = viewModel::setSyncAppIconWithTheme,
+                    onSetFontSize = viewModel::setFontSize,
+                )
+            }
+            composable(Routes.SETTINGS_NOTEBOOKS) {
+                SettingsNotebooksScreen(
+                    settings = settings,
+                    onBack = { navController.popBackStack() },
                     onSetShowNotebookFileIcons = viewModel::setShowNotebookFileIcons,
                     onSetFlattenNotebookFolders = viewModel::setFlattenNotebookFolders,
                     onSetNotebookDisplayNameMode = viewModel::setNotebookDisplayNameMode,
-                    onSetFontSize = viewModel::setFontSize,
                 )
             }
             composable(Routes.SETTINGS_CAPTURE_TEMPLATES) {

@@ -123,9 +123,9 @@ sealed class NotebooksUiState {
         val lastSyncAt: Long?,
         /** Reminders waiting on POST_NOTIFICATIONS/exact-alarm access (permission banner). */
         val remindersPendingPermission: Int = 0,
-        /** Settings § Look and Feel toggle: draw the per-file icon tile on each row. */
+        /** Settings § Notebooks toggle: draw the per-file icon tile on each row. */
         val showFileIcons: Boolean = true,
-        /** Settings § Look and Feel toggle: render [flatRows]/[flatPinned] instead of the tree. */
+        /** Settings § Notebooks toggle: render [flatRows]/[flatPinned] instead of the tree. */
         val flat: Boolean = false,
         /** Flat mode only: every file as a path-grouped row (pinned content excluded). */
         val flatRows: List<NotebookItem> = emptyList(),
@@ -155,7 +155,7 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
     private data class TreeInputs(
         val items: List<NotebookItem>,
         val showFileIcons: Boolean,
-        /** Settings § Look and Feel: render one flat file list instead of the folder tree. */
+        /** Settings § Notebooks: render one flat file list instead of the folder tree. */
         val flattenFolders: Boolean,
         val expandedFolders: Set<String>,
         val vaultDisplayName: String,

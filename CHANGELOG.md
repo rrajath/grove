@@ -71,6 +71,11 @@ re-uploads the APKs to the existing release instead of failing.
   only that block back into the file. `#+BEGIN_EXAMPLE` blocks, previously drawn
   as a plain code box, now use this style too.
 
+### Changed
+- Settings has a new **Notebooks** page, directly under **Look and Feel**. The
+  "Show file icons in notebooks", "Flatten folders" and "Notebook display name"
+  settings moved there from Look and Feel; their values are unchanged.
+
 ## [1.2.0] - 2026-09-01
 
 ### Added

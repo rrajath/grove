@@ -23,8 +23,8 @@ Notebooks is Grove's home screen. Every `.org` file in your configured sync fold
 
 Every notebook card displays:
 
-- **Monogram icon**: a small colored tile showing the first letter of the notebook's name (its `#+TITLE:` when the display name is set to "Title", otherwise the filename). The color is customizable per notebook (long-press → *Change icon color*); hide the tiles list-wide with **Show file icons in notebooks** in Settings → Look and Feel.
-- **Notebook name**: the filename by default, or the file's `#+TITLE:` if you've set the notebook display name to "Title" in Settings → Notes
+- **Monogram icon**: a small colored tile showing the first letter of the notebook's name (its `#+TITLE:` when the display name is set to "Title", otherwise the filename). The color is customizable per notebook (long-press → *Change icon color*); hide the tiles list-wide with **Show file icons in notebooks** in Settings → Notebooks.
+- **Notebook name**: the filename by default, or the file's `#+TITLE:` if you've set the notebook display name to "Title" in Settings → Notebooks
 - **Note count and last-modified time**: e.g. "9 notes · 21 hours ago"
 - **Sync status pill**: appears when a notebook is mid-sync, freshly modified, or has a conflict
 
@@ -63,11 +63,19 @@ Subfolders in your sync directory show up as folder rows in the list. Long-press
 
 ### Flat list
 
-**Settings → Look and Feel → Flatten folders** collapses the tree: folder rows disappear and every note shows as its own row, with its folder path (`projects/clients/`) as a small subtitle. Notes at the top level look unchanged. The monogram letter still comes from the filename, not the folder. While flat mode is on, the drill-down view and expand/collapse-all are hidden, and **+** always creates at the vault root, but you can still move a note between folders from its long-press menu. Pinned notes and pinned folders' contents still show in the Pinned strip, as a flat list.
+**Settings → Notebooks → Flatten folders** collapses the tree: folder rows disappear and every note shows as its own row, with its folder path (`projects/clients/`) as a small subtitle. Notes at the top level look unchanged. The monogram letter still comes from the filename, not the folder. While flat mode is on, the drill-down view and expand/collapse-all are hidden, and **+** always creates at the vault root, but you can still move a note between folders from its long-press menu. Pinned notes and pinned folders' contents still show in the Pinned strip, as a flat list.
 
 ## Creating a notebook
 
 Tap **+** and give the new file a name. Grove creates an empty `.org` file in your sync folder immediately.
+
+## Settings
+
+**Settings → Notebooks** collects everything that shapes this list. All of it is view-only; nothing here changes anything on disk.
+
+- **Show file icons in notebooks**: whether each row carries its monogram tile. On by default; turn it off for a plainer, text-only list. The per-notebook color you pick is kept either way, it just isn't drawn while this is off.
+- **Flatten folders**: hide the folder tree and list every note in one flat list, each note showing its folder path as a subtitle (see [Flat list](#flat-list) above). Off by default.
+- **Notebook display name**: whether the list labels each notebook by its **Filename** or by its `#+TITLE:` (**Title**), falling back to the filename when a note has no title. The monogram letter follows the filename either way.
 
 ## Navigation drawer
 

@@ -1,18 +1,18 @@
 ---
 title: Themes & Appearance
-description: 11 built-in color themes, launcher icon theming, font size, and notebook-list display options.
+description: 11 built-in color themes, launcher icon theming, and font size.
 ---
 
 import ThemeShot from '../../../components/ThemeShot.astro';
 import settingsAppearanceLight from '../assets/light/settings-appearance.png';
 import settingsAppearanceDark from '../assets/dark/settings-appearance.png';
 
-Settings → Look and Feel is where Grove's visual presentation is configured, separate from note *content* settings like TODO keywords (see [Notes Behavior](/features/notes-behavior)).
+Settings → Look and Feel is where Grove's visual presentation is configured, separate from note *content* settings like TODO keywords (see [Notes Behavior](/features/notes-behavior)) and the [Notebooks](/features/notebooks#settings) list options, which have their own page.
 
 <ThemeShot
   light={settingsAppearanceLight}
   dark={settingsAppearanceDark}
-  alt="Look and Feel settings showing the Grove Light theme picker, Sync App Icon with Theme toggle, Show file icons in notebooks and Flatten folders toggles, a Filename/Title notebook display name control, and a Small/Medium/Large font size control"
+  alt="Look and Feel settings showing the Grove Light theme picker, a Sync App Icon with Theme toggle with a launcher-icon preview, and a Small/Medium/Large font size control"
   widths={[340, 680]}
   sizes="340px"
 />
@@ -34,15 +34,8 @@ The **Sync App Icon with Theme** toggle swaps the app's launcher icon (and the b
 
 A three-way segmented control: **Small / Medium / Large**, applied app-wide.
 
-## Notebook list
-
-- **Show file icons in notebooks**: whether each row of the [Notebooks](/features/notebooks) list carries its monogram tile. On by default; turn it off for a plainer, text-only list. The per-notebook color you pick is kept either way, it just isn't drawn while this is off.
-- **Flatten folders**: hide the folder tree and list every note in one flat list, each note showing its folder path as a subtitle. Top-level notes look unchanged. The drill-down view and expand/collapse-all are hidden while this is on; you can still move a note between folders from its long-press menu. Off by default. See [Notebooks](/features/notebooks).
-- **Notebook display name**: whether the list labels each notebook by its **Filename** or by its `#+TITLE:` (**Title**), falling back to the filename when a note has no title. The monogram letter follows the filename either way.
-
-These are view-only; turning them off or switching them doesn't change anything on disk.
-
 ## Related
 
+- [Notebooks](/features/notebooks#settings): file icons, folder flattening, and display names for the notebooks list
 - [Notes Behavior](/features/notes-behavior): TODO keywords, priorities, and other content-level settings
 - [Edit Mode](/features/edit-mode): where the syntax-highlighting colors from the active theme show up most
