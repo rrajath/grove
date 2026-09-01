@@ -139,6 +139,13 @@ fun OutlineScreen(
     onToggleDisplay: (OutlineToggle, Boolean) -> Unit = { _, _ -> },
     /** Settings toggle: show a collapsible section for file-level `#+` keywords, pinned at the top. */
     showPreface: Boolean = true,
+    /**
+     * Settings toggle "Show property drawers" (the same flag that gates heading
+     * `:PROPERTIES:` drawers in Read mode). When on, a leading file-level
+     * `:PROPERTIES:` drawer is shown as a collapsed key/value section above the
+     * PREFACE box.
+     */
+    showPropertyDrawers: Boolean = true,
     /** Double-tapping the PREFACE section: opens an editor scoped to just the preamble
      *  (everything before the first heading), mirroring double-tap-to-edit elsewhere. */
     onOpenPreface: (fileName: String) -> Unit = {},
@@ -171,6 +178,8 @@ fun OutlineScreen(
         mutableStateOf(setOf<Int>())
     }
     var prefaceExpanded by rememberSaveable(notebookId) { mutableStateOf(false) }
+    // Collapsed by default, like heading `:PROPERTIES:` drawers in Read mode.
+    var filePropsExpanded by rememberSaveable(notebookId) { mutableStateOf(false) }
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
 
     // Only one swipe panel open at a time; any mutation snaps it shut.
@@ -382,13 +391,23 @@ fun OutlineScreen(
                 // with no heading at all). It's not a headline, so it gets its
                 // own tap-only row above the outline, opening in read mode.
                 val showPrefaceRow = doc.hasPrefaceContent && narrowTarget == null
+                // A leading file-level `:PROPERTIES:` drawer, and the file-level
+                // `#+` keyword box, are only pinned here when there's no list
+                // below to scroll them with (no headings and no preface row).
+                // Otherwise the in-list items render them instead.
+                val pinnedHeader = doc.headlines.isEmpty() && !showPrefaceRow
                 Column(Modifier.fillMaxSize().padding(padding)) {
-                    // Pinned keyword box: only when there's no list below to scroll
-                    // it with (i.e. no headings and no preface row). Otherwise the
-                    // in-list `item(key = "preface")` renders it instead.
-                    if (showPreface && doc.preambleKeywords.isNotEmpty() &&
-                        doc.headlines.isEmpty() && !showPrefaceRow
-                    ) {
+                    if (pinnedHeader && showPropertyDrawers && doc.filePropertyDrawer.isNotEmpty()) {
+                        CollapsibleKvSection(
+                            label = ":PROPERTIES:",
+                            entries = doc.filePropertyDrawer,
+                            expanded = filePropsExpanded,
+                            onToggle = { filePropsExpanded = !filePropsExpanded },
+                            modifier = Modifier.padding(start = 10.dp, top = 8.dp, end = 10.dp),
+                            onDoubleTap = null,
+                        )
+                    }
+                    if (pinnedHeader && showPreface && doc.preambleKeywords.isNotEmpty()) {
                         CollapsibleKvSection(
                             label = "PREFACE",
                             entries = doc.preambleKeywords,
@@ -433,6 +452,18 @@ fun OutlineScreen(
                         // the headings — the file's own top-to-bottom order.
                         // Scrolls away with the rest of the outline instead of
                         // staying pinned above the list.
+                        if (showPropertyDrawers && doc.filePropertyDrawer.isNotEmpty()) {
+                            item(key = "fileProperties") {
+                                CollapsibleKvSection(
+                                    label = ":PROPERTIES:",
+                                    entries = doc.filePropertyDrawer,
+                                    expanded = filePropsExpanded,
+                                    onToggle = { filePropsExpanded = !filePropsExpanded },
+                                    modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
+                                    onDoubleTap = null,
+                                )
+                            }
+                        }
                         if (showPreface && doc.preambleKeywords.isNotEmpty()) {
                             item(key = "preface") {
                                 CollapsibleKvSection(

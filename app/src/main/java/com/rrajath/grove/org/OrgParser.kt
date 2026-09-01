@@ -74,6 +74,36 @@ class OrgDocument(
     }
 
     /**
+     * A leading file-level `:PROPERTIES: … :END:` drawer (before the first
+     * headline and before any `#+KEY:` lines), as ordered `:KEY:` → value
+     * pairs in file order. Empty when the preamble has no such drawer, or when
+     * the drawer is unclosed (degrades exactly like [prefaceBodyStart], which
+     * treats an unclosed drawer as prose). The drawer must start on the very
+     * first line of the file, matching org-mode's file-level property drawer
+     * rule and [prefaceBodyStart]'s own check.
+     */
+    val filePropertyDrawer: List<Pair<String, String>> by lazy {
+        if (preambleEnd == 0 ||
+            !lines[0].trim().equals(":PROPERTIES:", ignoreCase = true)
+        ) {
+            emptyList()
+        } else {
+            val end = (1 until preambleEnd).firstOrNull {
+                lines[it].trim().equals(":END:", ignoreCase = true)
+            }
+            if (end == null) {
+                emptyList()
+            } else {
+                (1 until end).mapNotNull { i ->
+                    OrgParser.PROPERTY_LINE.matchEntire(lines[i])?.let { m ->
+                        ":${m.groupValues[1]}:" to m.groupValues[2].trim()
+                    }
+                }
+            }
+        }
+    }
+
+    /**
      * First line index of real content in the preamble (the region before the
      * first headline). Skips a leading file-level `:PROPERTIES: … :END:` drawer,
      * `#+KEY:` lines and blank lines. Equals [preambleEnd] when the preamble is
@@ -201,7 +231,7 @@ object OrgParser {
     private val TAGS_AT_END = Regex("""\s+(:[A-Za-z0-9_@#%-]+(?::[A-Za-z0-9_@#%-]+)*:)\s*$""")
     private val PRIORITY = Regex("""^\[#([A-Za-z])\]\s*""")
     private val FILETAGS = Regex("""^#\+(?i:FILETAGS):\s*(.*)$""")
-    private val PROPERTY_LINE = Regex("""^\s*:([^:\s]+):\s*(.*)$""")
+    internal val PROPERTY_LINE = Regex("""^\s*:([^:\s]+):\s*(.*)$""")
     private val PLANNING_PART = Regex("""(SCHEDULED|DEADLINE|CLOSED):\s*""")
     internal val PREAMBLE_KEYWORD = Regex("""^#\+([A-Za-z][A-Za-z0-9_-]*):(.*)$""")
 

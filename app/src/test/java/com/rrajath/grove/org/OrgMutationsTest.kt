@@ -514,6 +514,10 @@ class OrgMutationsTest {
         // becomes the heading's body.
         assertTrue(text.substringBefore("* ").contains("#+title: Note"))
         assertEquals(listOf("First para.", "Second line."), parsed.bodyOf(hd).filter { it.isNotBlank() })
+        // The leading file-level property drawer stays a file-level drawer (not
+        // absorbed into the new heading, not duplicated).
+        assertEquals(listOf(":ID:" to "abc"), parsed.filePropertyDrawer)
+        assertTrue(hd.properties.isEmpty())
     }
 
     @Test

@@ -313,6 +313,7 @@ private fun GroveNavigation(
                     ),
                     onToggleDisplay = viewModel::setOutlineToggle,
                     showPreface = settings.showPreface,
+                    showPropertyDrawers = settings.showPropertyDrawers,
                     onOpenPreface = { fileName -> navController.navigate(Routes.preface(fileName)) },
                 )
             }

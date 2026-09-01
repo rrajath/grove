@@ -107,6 +107,52 @@ class OrgParserTest {
     }
 
     @Test
+    fun `filePropertyDrawer parses a leading file-level property drawer`() {
+        val doc = OrgParser.parse(
+            ":PROPERTIES:\n:ID: 1a2b3c\n:CREATED: [2026-08-01]\n:END:\n#+TITLE: Kyoto trip\n\nSome preface prose.\n\n* First heading\n",
+        )
+        assertEquals(
+            listOf(":ID:" to "1a2b3c", ":CREATED:" to "[2026-08-01]"),
+            doc.filePropertyDrawer,
+        )
+        // The drawer is not also dumped into the prose block.
+        assertEquals(listOf("Some preface prose."), doc.prefaceBody.filter { it.isNotBlank() })
+        assertEquals("Some preface prose.", doc.prefaceTitle)
+    }
+
+    @Test
+    fun `filePropertyDrawer is empty when there is no drawer`() {
+        val doc = OrgParser.parse("#+TITLE: T\n\nProse.\n\n* Heading\nbody\n")
+        assertTrue(doc.filePropertyDrawer.isEmpty())
+    }
+
+    @Test
+    fun `filePropertyDrawer is empty for a plain heading-only file`() {
+        val doc = OrgParser.parse("* just a heading\nbody\n")
+        assertTrue(doc.filePropertyDrawer.isEmpty())
+    }
+
+    @Test
+    fun `filePropertyDrawer degrades to empty for an unclosed drawer`() {
+        val doc = OrgParser.parse(":PROPERTIES:\n:ID: x\n#+TITLE: T\n\n* Heading\nbody\n")
+        assertTrue(doc.filePropertyDrawer.isEmpty())
+    }
+
+    @Test
+    fun `filePropertyDrawer only matches a drawer on the very first line`() {
+        // A drawer after keywords is not a file-level property drawer.
+        val doc = OrgParser.parse("#+TITLE: T\n:PROPERTIES:\n:ID: x\n:END:\n\n* Heading\n")
+        assertTrue(doc.filePropertyDrawer.isEmpty())
+    }
+
+    @Test
+    fun `filePropertyDrawer ignores a same-named drawer on the first heading`() {
+        val doc = OrgParser.parse("* Heading\n:PROPERTIES:\n:ID: abc\n:END:\nbody\n")
+        assertTrue(doc.filePropertyDrawer.isEmpty())
+        assertEquals("abc", doc.headlines[0].properties["ID"])
+    }
+
+    @Test
     fun `parses keyword priority and planning`() {
         val doc = OrgParser.parse(golden("travel.org"))
 

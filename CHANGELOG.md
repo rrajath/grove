@@ -72,6 +72,12 @@ re-uploads the APKs to the existing release instead of failing.
   content (so the content becomes its body), shows a toast, then applies the
   change and re-opens it as an ordinary note. Refile is hidden until the
   content has a heading.
+- A file-level `:PROPERTIES:` drawer at the very top of an `.org` file (before
+  the first heading) is now shown in the outline as a collapsed-by-default
+  key/value section above the PREFACE box, styled the same as the `:PROPERTIES:`
+  drawer on individual headings in read mode. It is display-only and gated by
+  the same "Show property drawers" setting. Previously this drawer was dropped
+  from the outline entirely.
 
 ### Fixed
 - Deleting a notebook whose trashed copy already exists no longer produces an
