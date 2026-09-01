@@ -807,56 +807,33 @@ private fun visibleHeadlines(headlines: List<OrgHeadline>, collapsed: Set<Int>):
 
 /**
  * Row for a file's heading-less content (everything before the first `*`), shown
- * above the outline. Tap-only: opens read mode scoped to that content. Styled
- * like an outline leaf row but with no asterisk, caret, chips or star, since it
- * isn't a headline. Label is the content's first non-blank line.
+ * above the outline. Renders that content in full as flowing body text with
+ * inline org markup applied — no synthesized heading, no leaf bullet, no
+ * truncation. Tap-only: opens read mode scoped to that content.
  */
 @Composable
 private fun PrefaceRow(doc: OrgDocument, onTap: () -> Unit) {
     val c = MaterialTheme.grove
-    val title = remember(doc.prefaceTitle, c) { annotateOrgInline(doc.prefaceTitle, c) }
-    val preview = remember(doc) {
-        doc.prefaceBody
-            .map { it.trim() }
-            .filter { it.isNotEmpty() }
-            .drop(1)
-            .take(2)
-            .joinToString("\n")
-            .take(200)
+    val content = remember(doc, c) {
+        annotateOrgInline(doc.prefaceBody.joinToString("\n").trim(), c)
     }
-    Row(
+    Box(
         Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(10.dp))
             .background(c.bg)
             .clickable(onClick = onTap)
-            .padding(top = 9.dp, bottom = 9.dp, end = 6.dp),
-        verticalAlignment = Alignment.Top,
+            // Left edge lines up with the leaf-row bullets, with matching padding
+            // on the right so the block reads as evenly inset.
+            .padding(vertical = 10.dp, horizontal = 21.dp),
     ) {
-        Box(Modifier.size(22.dp), contentAlignment = Alignment.Center) {
-            Canvas(Modifier.size(7.dp)) {
-                drawCircle(color = c.ink3, style = Stroke(width = 1.2.dp.toPx()))
-            }
-        }
-        Spacer(Modifier.width(7.dp))
-        Column(Modifier.weight(1f)) {
-            Text(
-                title,
-                fontFamily = PlexSans, fontWeight = FontWeight.Medium,
-                fontSize = 14.5.sp, color = c.ink,
-                maxLines = 1,
-                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-            )
-            if (preview.isNotEmpty()) {
-                Text(
-                    preview,
-                    fontFamily = PlexSans, fontSize = 12.5.sp, color = c.ink3,
-                    maxLines = 2,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(top = 2.dp),
-                )
-            }
-        }
+        Text(
+            content,
+            fontFamily = PlexSans,
+            fontSize = 13.5.sp,
+            lineHeight = 20.sp,
+            color = c.ink,
+        )
     }
 }
 
