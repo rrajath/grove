@@ -130,14 +130,22 @@ class Vault(
     /**
      * Soft delete: rename to `<name>.trash` so the file no longer lists as a
      * notebook but stays in the synced folder, recoverable from any device.
-     * Picks a fresh `.trash-N` name when one already exists (e.g. the notebook
-     * was deleted, recreated, and deleted again), and falls back to a hard
-     * delete if the provider refuses to rename.
+     * On a name collision (e.g. the notebook was deleted, recreated, and
+     * deleted again) the lowest free counter is inserted right before the
+     * final `.org` segment: `foo-1.org.trash`, `foo-2.org.trash`, ...
+     * Falls back to a hard delete if the provider refuses to rename.
      */
     suspend fun trashNotebook(name: String): Boolean {
         var trashName = "$name.trash"
-        var n = 2
-        while (store.exists(trashName)) trashName = "$name.trash-${n++}"
+        var n = 1
+        while (store.exists(trashName)) {
+            trashName = if (name.endsWith(".org")) {
+                "${name.dropLast(4)}-$n.org.trash"
+            } else {
+                "$name-$n.trash"
+            }
+            n++
+        }
         val ok = store.rename(name, trashName) || store.delete(name)
         if (ok) cache.keys.removeAll { it.name == name }
         return ok

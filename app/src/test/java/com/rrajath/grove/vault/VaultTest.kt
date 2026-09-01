@@ -37,8 +37,35 @@ class VaultTest {
         val v = vault()
         assertTrue(v.trashNotebook("n.org"))
         assertEquals(emptyList<String>(), v.notebooks().map { it.fileName })
-        assertTrue(tmp.root.resolve("n.org.trash-2").exists())
+        assertTrue(tmp.root.resolve("n-1.org.trash").exists())
         assertEquals("* Older deleted copy", tmp.root.resolve("n.org.trash").readText())
+    }
+
+    @Test
+    fun `trashNotebook inserts the counter before the org extension on collision`() = runTest {
+        tmp.newFile("foo.org").writeText("* First")
+        val v = vault()
+        assertTrue(v.trashNotebook("foo.org"))
+        assertEquals("* First", tmp.root.resolve("foo.org.trash").readText())
+
+        tmp.newFile("foo.org").writeText("* Second")
+        assertTrue(v.trashNotebook("foo.org"))
+        assertEquals("* Second", tmp.root.resolve("foo-1.org.trash").readText())
+
+        tmp.newFile("foo.org").writeText("* Third")
+        assertTrue(v.trashNotebook("foo.org"))
+        assertEquals("* Third", tmp.root.resolve("foo-2.org.trash").readText())
+    }
+
+    @Test
+    fun `trashNotebook counter goes before the org segment for nested paths`() = runTest {
+        tmp.newFolder("sub", "dir")
+        tmp.root.resolve("sub/dir/foo.org").writeText("* First")
+        tmp.root.resolve("sub/dir/foo.org.trash").writeText("* Older")
+        val v = vault()
+
+        assertTrue(v.trashNotebook("sub/dir/foo.org"))
+        assertTrue(tmp.root.resolve("sub/dir/foo-1.org.trash").exists())
     }
 
     @Test

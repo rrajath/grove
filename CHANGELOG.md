@@ -73,6 +73,12 @@ re-uploads the APKs to the existing release instead of failing.
   change and re-opens it as an ordinary note. Refile is hidden until the
   content has a heading.
 
+### Fixed
+- Deleting a notebook whose trashed copy already exists no longer produces an
+  awkward `name.org.trash-2` file. The collision counter now goes before the
+  extension (`name-1.org.trash`, `name-2.org.trash`), keeping a clean
+  `.org.trash` suffix on every trashed file.
+
 ## [1.1.1] - 2026-08-30
 - Agenda widget: a crowded meta line (date + inherited tags + filename) no longer wraps the trailing filename mid-word across several lines. When a row carries tags, the filename now moves to its own line below the rest of the strip; otherwise it stays inline. Individual chips truncate rather than wrap.
 
