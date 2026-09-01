@@ -74,6 +74,21 @@ enum class NotebookDisplayNameMode(val storageKey: String) {
 }
 
 /**
+ * Settings § Notebooks: what the notebooks list is sorted by. Pinned notebooks
+ * and folders always keep their pin order and are unaffected. A folder sorts by
+ * its most recently modified descendant file when [LAST_MODIFIED] is picked.
+ */
+enum class NotebookSortKey(val storageKey: String, val label: String) {
+    ALPHABETICAL("alphabetical", "Alphabetical"),
+    LAST_MODIFIED("last_modified", "Last modified");
+
+    companion object {
+        fun fromStorage(value: String?): NotebookSortKey =
+            entries.firstOrNull { it.storageKey == value } ?: ALPHABETICAL
+    }
+}
+
+/**
  * Read mode: how many states a tap cycles a checklist item's box through.
  * [marks] is the tap order, e.g. two-state `[ ]` → `[X]` → `[ ]`…
  */

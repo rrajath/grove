@@ -70,11 +70,19 @@ re-uploads the APKs to the existing release instead of failing.
   opens an editor scoped to just that block, markers included; saving splices
   only that block back into the file. `#+BEGIN_EXAMPLE` blocks, previously drawn
   as a plain code box, now use this style too.
+- **Settings › Notebooks › Notebooks sort order** sets how the notebooks list is
+  ordered: **Alphabetical** or **Last modified**, with a separate
+  **Ascending / Descending** toggle. It applies at every level — top-level
+  notebooks, folders (a folder sorts by its most recently edited note), notes
+  inside folders, the drill-down view and flat mode. Pinned notebooks and
+  folders always keep their pinned order. Default is Alphabetical, ascending.
 
 ### Changed
 - Settings has a new **Notebooks** page, directly under **Look and Feel**. The
   "Show file icons in notebooks", "Flatten folders" and "Notebook display name"
   settings moved there from Look and Feel; their values are unchanged.
+- Flatten-folders mode now orders its single list purely by the Notebooks sort
+  order rather than always grouping files by folder path first.
 
 ## [1.2.0] - 2026-09-01
 

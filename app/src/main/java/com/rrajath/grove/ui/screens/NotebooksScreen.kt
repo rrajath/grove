@@ -374,11 +374,12 @@ fun NotebooksScreen(
                     val currentDrill = drillDir
                     if (currentDrill != null) {
                         // Variant 1b: one folder as a full screen, rows never indent.
-                        val level = remember(s.notebooks, currentDrill, s.pinnedFolders, s.folderColors) {
+                        val level = remember(s.notebooks, currentDrill, s.pinnedFolders, s.folderColors, s.sort) {
                             drillLevel(
                                 s.notebooks, currentDrill,
                                 folderColors = s.folderColors,
                                 pinnedFolders = s.pinnedFolders.map { it.dir },
+                                sort = s.sort,
                             )
                         }
                         if (level.childFolders.isEmpty() && level.files.isEmpty()) {

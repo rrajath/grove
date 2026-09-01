@@ -106,6 +106,10 @@ data class GroveSettings(
      * the drill-down view, and expand/collapse all are hidden.
      */
     val flattenNotebookFolders: Boolean = false,
+    /** Notebook list sort key; pinned notebooks/folders keep their pin order regardless. */
+    val notebookSortKey: NotebookSortKey = NotebookSortKey.ALPHABETICAL,
+    /** Notebook list sort direction (pairs with [notebookSortKey]); true = A→Z / oldest→newest. */
+    val notebookSortAscending: Boolean = true,
     /** Destination file of the most recent successful refile; null until one has happened. */
     val lastRefileFile: String? = null,
     /** '/'-separated heading path within [lastRefileFile]; empty = top level. */
@@ -213,6 +217,8 @@ class SettingsRepository(private val context: Context) {
         val notebookDisplayNameMode = stringPreferencesKey("notebook_display_name_mode")
         val showNotebookFileIcons = booleanPreferencesKey("show_notebook_file_icons")
         val flattenNotebookFolders = booleanPreferencesKey("flatten_notebook_folders")
+        val notebookSortKey = stringPreferencesKey("notebook_sort_key")
+        val notebookSortAscending = booleanPreferencesKey("notebook_sort_ascending")
         val lastRefileFile = stringPreferencesKey("last_refile_file")
         val lastRefileHeadingPath = stringPreferencesKey("last_refile_heading_path")
         val autoArchiveDoneItems = booleanPreferencesKey("auto_archive_done_items")
@@ -266,6 +272,8 @@ class SettingsRepository(private val context: Context) {
             notebookDisplayNameMode = NotebookDisplayNameMode.fromStorage(prefs[Keys.notebookDisplayNameMode]),
             showNotebookFileIcons = prefs[Keys.showNotebookFileIcons] ?: true,
             flattenNotebookFolders = prefs[Keys.flattenNotebookFolders] ?: false,
+            notebookSortKey = NotebookSortKey.fromStorage(prefs[Keys.notebookSortKey]),
+            notebookSortAscending = prefs[Keys.notebookSortAscending] ?: true,
             lastRefileFile = prefs[Keys.lastRefileFile],
             lastRefileHeadingPath = prefs[Keys.lastRefileHeadingPath] ?: "",
             autoArchiveDoneItems = prefs[Keys.autoArchiveDoneItems] ?: false,
@@ -509,6 +517,14 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setFlattenNotebookFolders(enabled: Boolean) {
         context.settingsDataStore.edit { it[Keys.flattenNotebookFolders] = enabled }
+    }
+
+    suspend fun setNotebookSortKey(key: NotebookSortKey) {
+        context.settingsDataStore.edit { it[Keys.notebookSortKey] = key.storageKey }
+    }
+
+    suspend fun setNotebookSortAscending(ascending: Boolean) {
+        context.settingsDataStore.edit { it[Keys.notebookSortAscending] = ascending }
     }
 
     suspend fun setChecklistStates(states: ChecklistStates) {

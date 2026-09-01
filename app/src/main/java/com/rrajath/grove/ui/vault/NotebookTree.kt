@@ -1,5 +1,6 @@
 package com.rrajath.grove.ui.vault
 
+import com.rrajath.grove.settings.NotebookSortKey
 import com.rrajath.grove.settings.PinKind
 import com.rrajath.grove.settings.PinnedItem
 import com.rrajath.grove.ui.components.nameHashPaletteKey
@@ -33,6 +34,8 @@ data class FolderNode(
     val colorKey: String,
     /** `.org` files anywhere beneath [dir], recursively. */
     val recursiveOrgCount: Int,
+    /** Most recent `lastModified` of any file beneath [dir] — a folder's sort key under "Last modified". */
+    val lastModified: Long = 0L,
     /** Immediate child folders of [dir]. */
     val directFolderCount: Int,
     /** True when any file beneath [dir] has an unresolved sync conflict. */
@@ -43,6 +46,47 @@ data class FolderNode(
     val pinnedIndex: Int = -1,
 ) {
     val isPinned: Boolean get() = pinnedIndex >= 0
+}
+
+/**
+ * How the notebooks list is ordered (Settings § Notebooks). Pinned notebooks and
+ * folders are never sorted by this — they keep their pin order — so this only
+ * ever reorders the unpinned tree, drill-down and flat rows.
+ *
+ * The name tiebreaker stays ascending even when [ascending] is false, so an
+ * "newest first" list still reads A→Z within a single timestamp.
+ */
+data class NotebookSort(
+    val key: NotebookSortKey = NotebookSortKey.ALPHABETICAL,
+    val ascending: Boolean = true,
+) {
+    val fileComparator: Comparator<NotebookItem>
+        get() = when (key) {
+            NotebookSortKey.ALPHABETICAL -> byName { it.displayName.lowercase() }
+            NotebookSortKey.LAST_MODIFIED ->
+                byTime<NotebookItem> { it.lastModified }.thenBy { it.displayName.lowercase() }
+        }
+
+    val folderComparator: Comparator<FolderNode>
+        get() = when (key) {
+            NotebookSortKey.ALPHABETICAL -> byName { it.name.lowercase() }
+            NotebookSortKey.LAST_MODIFIED ->
+                byTime<FolderNode> { it.lastModified }.thenBy { it.name.lowercase() }
+        }
+
+    private inline fun <T> byName(crossinline selector: (T) -> String): Comparator<T> {
+        val c = compareBy(selector)
+        return if (ascending) c else c.reversed()
+    }
+
+    private inline fun <T> byTime(crossinline selector: (T) -> Long): Comparator<T> {
+        val c = compareBy(selector)
+        return if (ascending) c else c.reversed()
+    }
+
+    companion object {
+        val DEFAULT = NotebookSort()
+    }
 }
 
 /**
@@ -103,6 +147,7 @@ fun buildFolderNodes(
             depth = dir.split('/').size,
             colorKey = override ?: nameHashPaletteKey(dir),
             recursiveOrgCount = filesBeneath.size,
+            lastModified = filesBeneath.maxOfOrNull { it.lastModified } ?: 0L,
             directFolderCount = dirs.count { parentOf(it) == dir },
             hasConflictDescendant = filesBeneath.any { it.hasConflict },
             colorOverride = override,
@@ -127,8 +172,8 @@ fun pinnedFolderNodes(
 
 /**
  * Flatten [items] into display rows. Within every level folders come first, then
- * files, each alphabetical by lowercased display name (matching the flat-list
- * sort). A folder's children are emitted only when its `dir` is in [expanded].
+ * files, each ordered by [sort] (Settings § Notebooks; default alphabetical
+ * ascending). A folder's children are emitted only when its `dir` is in [expanded].
  *
  * A folder whose `dir` is in [pinnedFolders] is omitted entirely (its whole
  * subtree with it): a pinned folder lives only in the Pinned strip, exactly as a
@@ -141,6 +186,7 @@ fun buildNotebookTree(
     expanded: Set<String>,
     folderColors: Map<String, String> = emptyMap(),
     pinnedFolders: List<String> = emptyList(),
+    sort: NotebookSort = NotebookSort.DEFAULT,
 ): List<NotebookTreeRow> {
     val nodes = buildFolderNodes(items, folderColors, pinnedFolders)
     val pinnedDirs = pinnedFolders.toSet()
@@ -150,7 +196,7 @@ fun buildNotebookTree(
         nodes.values
             .filter { parentOf(it.dir) == dir }
             .filterNot { it.dir in pinnedDirs }
-            .sortedBy { it.name.lowercase() }
+            .sortedWith(sort.folderComparator)
             .forEach { node ->
                 val isOpen = node.dir in expanded
                 rows += NotebookTreeRow.Folder(node, isOpen)
@@ -159,7 +205,7 @@ fun buildNotebookTree(
         val fileDepth = if (dir.isEmpty()) 0 else dir.split('/').size
         items
             .filter { it.dir == dir }
-            .sortedBy { it.displayName.lowercase() }
+            .sortedWith(sort.fileComparator)
             .forEach { rows += NotebookTreeRow.File(it, fileDepth) }
     }
 
@@ -181,6 +227,7 @@ fun pinnedFolderSubtreeRows(
     expanded: Set<String>,
     folderColors: Map<String, String> = emptyMap(),
     pinnedFolders: List<String> = emptyList(),
+    sort: NotebookSort = NotebookSort.DEFAULT,
 ): List<NotebookTreeRow> {
     if (rootDir.isEmpty()) return emptyList()
     val nodes = buildFolderNodes(items, folderColors, pinnedFolders)
@@ -195,7 +242,7 @@ fun pinnedFolderSubtreeRows(
         nodes.values
             .filter { parentOf(it.dir) == dir }
             .filterNot { it.dir in pinnedDirs }
-            .sortedBy { it.name.lowercase() }
+            .sortedWith(sort.folderComparator)
             .forEach { node ->
                 val isOpen = node.dir in expanded
                 rows += NotebookTreeRow.Folder(node.copy(depth = node.depth - shift), isOpen)
@@ -204,7 +251,7 @@ fun pinnedFolderSubtreeRows(
         val fileDepth = dir.split('/').size - shift
         items
             .filter { it.dir == dir }
-            .sortedBy { it.displayName.lowercase() }
+            .sortedWith(sort.fileComparator)
             .forEach { rows += NotebookTreeRow.File(it, fileDepth) }
     }
 
@@ -281,16 +328,17 @@ fun drillLevel(
     dir: String,
     folderColors: Map<String, String> = emptyMap(),
     pinnedFolders: List<String> = emptyList(),
+    sort: NotebookSort = NotebookSort.DEFAULT,
 ): DrillLevel {
     val nodes = buildFolderNodes(items, folderColors, pinnedFolders)
     return DrillLevel(
         dir = dir,
         childFolders = nodes.values
             .filter { parentOf(it.dir) == dir }
-            .sortedBy { it.name.lowercase() },
+            .sortedWith(sort.folderComparator),
         files = items
             .filter { it.dir == dir }
-            .sortedBy { it.displayName.lowercase() },
+            .sortedWith(sort.fileComparator),
     )
 }
 
@@ -307,22 +355,18 @@ fun firstOpenExpandedDirs(plannedFileNames: Collection<String>): Set<String> =
         .filter { it.isNotEmpty() }
         .flatMapTo(mutableSetOf()) { ancestorDirs(it) }
 
-// --- flat mode (Settings § Look and Feel → "Flatten folders") ---
-
-/** Path-grouped file order: parent directory first, then display name; both case-insensitive. */
-private val flatRowOrder: Comparator<NotebookItem> =
-    compareBy({ it.dir.lowercase() }, { it.displayName.lowercase() })
+// --- flat mode (Settings § Notebooks → "Flatten folders") ---
 
 /**
  * The main file list for flat mode: every `.org` file as its own row, no folder
- * rows, grouped by parent directory then sorted by display name (so files in the
- * same folder cluster and root-level files come first). Files that live in the
- * Pinned strip — pinned files, and anything beneath a pinned folder — are pulled
- * out here, exactly as [buildNotebookTree] pulls a pinned subtree out of the tree.
+ * rows, ordered by [sort] (Settings § Notebooks). Files that live in the Pinned
+ * strip — pinned files, and anything beneath a pinned folder — are pulled out
+ * here, exactly as [buildNotebookTree] pulls a pinned subtree out of the tree.
  */
 fun flatNotebookRows(
     items: List<NotebookItem>,
     pinnedItems: List<PinnedItem> = emptyList(),
+    sort: NotebookSort = NotebookSort.DEFAULT,
 ): List<NotebookItem> {
     val pinnedFiles = pinnedItems.filter { it.kind == PinKind.FILE }.mapTo(mutableSetOf()) { it.path }
     val pinnedFolders = pinnedItems.filter { it.kind == PinKind.FOLDER }.map { it.path }
@@ -330,7 +374,7 @@ fun flatNotebookRows(
         pinnedFolders.any { dir == it || dir.startsWith("$it/") }
     return items
         .filterNot { it.fileName in pinnedFiles || underPinnedFolder(it.dir) }
-        .sortedWith(flatRowOrder)
+        .sortedWith(sort.fileComparator)
 }
 
 /**
@@ -343,6 +387,7 @@ fun flatNotebookRows(
 fun flatPinnedRows(
     items: List<NotebookItem>,
     pinnedItems: List<PinnedItem>,
+    sort: NotebookSort = NotebookSort.DEFAULT,
 ): List<NotebookItem> {
     val pinnedFiles = pinnedItems.filter { it.kind == PinKind.FILE }.mapTo(mutableSetOf()) { it.path }
     val pinnedFolders = pinnedItems.filter { it.kind == PinKind.FOLDER }.map { it.path }
@@ -360,7 +405,7 @@ fun flatPinnedRows(
                             f.fileName !in pinnedFiles &&
                             !underNestedPin(f.dir)
                     }
-                    .sortedWith(flatRowOrder)
+                    .sortedWith(sort.fileComparator)
             }
         }
     }

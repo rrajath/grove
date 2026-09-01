@@ -18,6 +18,7 @@ import com.rrajath.grove.org.OrgTimestamp
 import com.rrajath.grove.org.INTRO_LINE_INDEX
 import com.rrajath.grove.settings.NotebookDisplayNameMode
 import com.rrajath.grove.settings.PinKind
+import com.rrajath.grove.settings.NotebookSortKey
 import com.rrajath.grove.settings.PinnedItem
 import com.rrajath.grove.sync.SyncState
 import com.rrajath.grove.vault.AutoArchive
@@ -131,6 +132,8 @@ sealed class NotebooksUiState {
         val flatRows: List<NotebookItem> = emptyList(),
         /** Flat mode only: the Pinned strip as file rows (pinned files + pinned folders' files inline). */
         val flatPinned: List<NotebookItem> = emptyList(),
+        /** Settings § Notebooks sort order — for the drill-down view, which re-sorts one folder's rows. */
+        val sort: NotebookSort = NotebookSort.DEFAULT,
     ) : NotebooksUiState()
 }
 
@@ -163,6 +166,8 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
         val pinnedFolders: List<String>,
         /** The single ordered pin list (files + folders) that drives the strip. */
         val pinnedItems: List<PinnedItem>,
+        /** Settings § Notebooks sort order; never reorders pinned notebooks/folders. */
+        val sort: NotebookSort,
     )
 
     // Built separately from the sync banner inputs: syncManager.state ticks once
@@ -197,6 +202,7 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
             settings.folderColors,
             settings.pinnedFolders,
             settings.pinnedItems,
+            NotebookSort(settings.notebookSortKey, settings.notebookSortAscending),
         )
     }.distinctUntilChanged()
 
@@ -215,12 +221,12 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
             NotebooksUiState.Loaded(
                 notebooks = inputs.items.sortedWith(
                     compareBy<NotebookItem> { if (it.isPinned) it.pinnedIndex else Int.MAX_VALUE }
-                        .thenBy { it.displayName.lowercase() }
+                        .then(inputs.sort.fileComparator)
                 ),
                 pinned = inputs.items.filter { it.isPinned }.sortedBy { it.pinnedIndex },
                 flat = true,
-                flatRows = flatNotebookRows(inputs.items, inputs.pinnedItems),
-                flatPinned = flatPinnedRows(inputs.items, inputs.pinnedItems),
+                flatRows = flatNotebookRows(inputs.items, inputs.pinnedItems, inputs.sort),
+                flatPinned = flatPinnedRows(inputs.items, inputs.pinnedItems, inputs.sort),
                 folderColors = inputs.folderColors,
                 hasFolders = false,
                 vaultDisplayName = inputs.vaultDisplayName,
@@ -228,11 +234,12 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
                 lastSyncAt = lastResult?.completedAt,
                 remindersPendingPermission = remindersPending,
                 showFileIcons = inputs.showFileIcons,
+                sort = inputs.sort,
             )
         } else {
             val flat = inputs.items.sortedWith(
                 compareBy<NotebookItem> { if (it.isPinned) it.pinnedIndex else Int.MAX_VALUE }
-                    .thenBy { it.displayName.lowercase() }
+                    .then(inputs.sort.fileComparator)
             )
             val pinned = inputs.items.filter { it.isPinned }.sortedBy { it.pinnedIndex }
             // Folder nodes for the strip come from the full item list (a folder can
@@ -264,7 +271,7 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
                 .associate { node ->
                     node.dir to pinnedFolderSubtreeRows(
                         treeItems, node.dir, inputs.expandedFolders,
-                        inputs.folderColors, inputs.pinnedFolders,
+                        inputs.folderColors, inputs.pinnedFolders, inputs.sort,
                     )
                 }
             NotebooksUiState.Loaded(
@@ -272,7 +279,7 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
                 pinned = pinned,
                 pinnedStrip = pinnedStrip,
                 rows = buildNotebookTree(
-                    treeItems, inputs.expandedFolders, inputs.folderColors, inputs.pinnedFolders,
+                    treeItems, inputs.expandedFolders, inputs.folderColors, inputs.pinnedFolders, inputs.sort,
                 ),
                 pinnedFolders = pinnedFolderNodeList,
                 pinnedFolderExpansions = pinnedFolderExpansions,
@@ -285,6 +292,7 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
                 lastSyncAt = lastResult?.completedAt,
                 remindersPendingPermission = remindersPending,
                 showFileIcons = inputs.showFileIcons,
+                sort = inputs.sort,
             )
         }
     }.stateIn(viewModelScope, SharingStarted.Eagerly, NotebooksUiState.NoVault)

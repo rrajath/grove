@@ -549,6 +549,8 @@ private fun GroveNavigation(
                     onSetShowNotebookFileIcons = viewModel::setShowNotebookFileIcons,
                     onSetFlattenNotebookFolders = viewModel::setFlattenNotebookFolders,
                     onSetNotebookDisplayNameMode = viewModel::setNotebookDisplayNameMode,
+                    onSetNotebookSortKey = viewModel::setNotebookSortKey,
+                    onSetNotebookSortAscending = viewModel::setNotebookSortAscending,
                 )
             }
             composable(Routes.SETTINGS_CAPTURE_TEMPLATES) {

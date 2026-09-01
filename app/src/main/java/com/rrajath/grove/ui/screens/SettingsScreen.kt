@@ -51,7 +51,7 @@ fun SettingsScreen(
     val c = MaterialTheme.grove
     val pages = listOf(
         SettingsPage("Look and Feel", "Theme, app icon, font size", onOpenAppearance),
-        SettingsPage("Notebooks", "File icons, folder flattening, display names", onOpenNotebooks),
+        SettingsPage("Notebooks", "File icons, folder flattening, display names, sort order", onOpenNotebooks),
         SettingsPage("Capture Templates", "Quick-capture targets and shortcuts", onOpenCaptureTemplates),
         SettingsPage("Sync", "Folder, auto-sync, sync log", onOpenSync),
         SettingsPage("Notes", "TODO keywords, priorities, note display", onOpenNotes),

@@ -34,6 +34,15 @@ class PreferencesTest {
     }
 
     @Test
+    fun `notebook sort key round-trips and defaults to alphabetical`() {
+        for (pref in NotebookSortKey.entries) {
+            assertEquals(pref, NotebookSortKey.fromStorage(pref.storageKey))
+        }
+        assertEquals(NotebookSortKey.ALPHABETICAL, NotebookSortKey.fromStorage(null))
+        assertEquals(NotebookSortKey.ALPHABETICAL, NotebookSortKey.fromStorage("size"))
+    }
+
+    @Test
     fun `note open mode round-trips and defaults to read`() {
         for (pref in NoteOpenMode.entries) {
             assertEquals(pref, NoteOpenMode.fromStorage(pref.storageKey))

@@ -103,6 +103,12 @@ class AppViewModel(private val app: GroveApplication) : ViewModel() {
     fun setFlattenNotebookFolders(enabled: Boolean) =
         viewModelScope.launch { settingsRepository.setFlattenNotebookFolders(enabled) }
 
+    fun setNotebookSortKey(key: com.rrajath.grove.settings.NotebookSortKey) =
+        viewModelScope.launch { settingsRepository.setNotebookSortKey(key) }
+
+    fun setNotebookSortAscending(ascending: Boolean) =
+        viewModelScope.launch { settingsRepository.setNotebookSortAscending(ascending) }
+
     fun completeOnboarding() = viewModelScope.launch {
         // A brand-new install has nothing "new" to report: stamp the current build as
         // already seen, in the same write that flips onboardingDone, so the What's New

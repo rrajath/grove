@@ -1,5 +1,6 @@
 package com.rrajath.grove.ui.vault
 
+import com.rrajath.grove.settings.NotebookSortKey
 import com.rrajath.grove.settings.PinKind
 import com.rrajath.grove.settings.PinnedItem
 import com.rrajath.grove.ui.components.nameHashPaletteKey
@@ -150,6 +151,39 @@ class NotebookTreeTest {
         val rows = buildNotebookTree(items, expanded = setOf("projects"))
         val order = rows.filterIsInstance<NotebookTreeRow.File>().map { it.item.fileName }
         assertEquals(listOf("projects/zeta.org", "projects/alpha.org"), order)
+    }
+
+    @Test
+    fun `a descending sort reverses folders and files at every level`() {
+        val rows = buildNotebookTree(
+            vault, expanded = setOf("projects"),
+            sort = NotebookSort(NotebookSortKey.ALPHABETICAL, ascending = false),
+        )
+        val folders = rows.filterIsInstance<NotebookTreeRow.Folder>()
+            .filter { it.node.depth == 1 }.map { it.node.name }
+        assertEquals(listOf("projects", "areas", "archive"), folders)
+        val rootFiles = rows.filterIsInstance<NotebookTreeRow.File>()
+            .filter { it.depth == 0 }.map { it.item.fileName }
+        assertEquals(listOf("recipes.org", "journal.org", "inbox.org"), rootFiles)
+    }
+
+    @Test
+    fun `last-modified sort orders folders by their newest descendant file`() {
+        val items = listOf(
+            item("a/old.org").copy(lastModified = 10),
+            item("b/new.org").copy(lastModified = 90),
+        )
+        val newestFirst = NotebookSort(NotebookSortKey.LAST_MODIFIED, ascending = false)
+        val folders = buildNotebookTree(items, expanded = emptySet(), sort = newestFirst)
+            .filterIsInstance<NotebookTreeRow.Folder>().map { it.node.name }
+        assertEquals(listOf("b", "a"), folders)
+    }
+
+    @Test
+    fun `drillLevel honours the sort order`() {
+        val desc = drillLevel(vault, "", sort = NotebookSort(NotebookSortKey.ALPHABETICAL, ascending = false))
+        assertEquals(listOf("projects", "areas", "archive"), desc.childFolders.map { it.name })
+        assertEquals(listOf("recipes.org", "journal.org", "inbox.org"), desc.files.map { it.fileName })
     }
 
     @Test
@@ -354,19 +388,45 @@ class NotebookTreeTest {
     // --- flat mode (Settings § Look and Feel → "Flatten folders") ---
 
     @Test
-    fun `flatNotebookRows lists every file grouped by folder path then name`() {
+    fun `flatNotebookRows lists every file by display name under the default sort`() {
         val rows = flatNotebookRows(vault).map { it.fileName }
         assertEquals(
             listOf(
-                // root files first (empty dir sorts before any folder)
-                "inbox.org", "journal.org", "recipes.org",
                 "archive/2024.org",
+                "projects/clients/acme.org",
+                "projects/grove.org",
                 "areas/health.org",
-                "projects/grove.org", "projects/website.org",
-                "projects/clients/acme.org", "projects/clients/northwind.org",
+                "inbox.org",
+                "journal.org",
+                "projects/clients/northwind.org",
+                "recipes.org",
+                "projects/website.org",
             ),
             rows,
         )
+    }
+
+    @Test
+    fun `flatNotebookRows honours a descending alphabetical sort`() {
+        val rows = flatNotebookRows(
+            vault,
+            sort = NotebookSort(NotebookSortKey.ALPHABETICAL, ascending = false),
+        ).map { it.fileName }
+        assertEquals("projects/website.org", rows.first())
+        assertEquals("archive/2024.org", rows.last())
+    }
+
+    @Test
+    fun `flatNotebookRows honours a last-modified sort`() {
+        val items = listOf(
+            item("old.org").copy(lastModified = 100),
+            item("mid.org").copy(lastModified = 200),
+            item("new.org").copy(lastModified = 300),
+        )
+        val asc = flatNotebookRows(items, sort = NotebookSort(NotebookSortKey.LAST_MODIFIED, ascending = true))
+        assertEquals(listOf("old.org", "mid.org", "new.org"), asc.map { it.fileName })
+        val desc = flatNotebookRows(items, sort = NotebookSort(NotebookSortKey.LAST_MODIFIED, ascending = false))
+        assertEquals(listOf("new.org", "mid.org", "old.org"), desc.map { it.fileName })
     }
 
     @Test
@@ -388,11 +448,13 @@ class NotebookTreeTest {
             PinnedItem(PinKind.FILE, "recipes.org"),
             PinnedItem(PinKind.FOLDER, "projects"),
         )
+        // The pinned file stays first (pin order); the pinned folder's files
+        // follow, ordered by the notebook sort (default: display name A→Z).
         assertEquals(
             listOf(
                 "recipes.org",
-                "projects/grove.org", "projects/website.org",
-                "projects/clients/acme.org", "projects/clients/northwind.org",
+                "projects/clients/acme.org", "projects/grove.org",
+                "projects/clients/northwind.org", "projects/website.org",
             ),
             flatPinnedRows(vault, pins).map { it.fileName },
         )
