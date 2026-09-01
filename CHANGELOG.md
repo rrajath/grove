@@ -111,6 +111,12 @@ re-uploads the APKs to the existing release instead of failing.
   replaced by a note that both buttons copy the report to the clipboard.
 
 ### Fixed
+- A capture template's **Target file** (and the Settings › Sharing target file)
+  can now point at a notebook in a subfolder. The field already suggested nested
+  notebooks in its autocomplete, but picking one was rejected as containing an
+  invalid `/`, leaving Save disabled. Forward-slash paths are now accepted (each
+  segment validated, no leading/trailing slash, still must end in `.org`); a
+  missing target file and its parent folders are created on first capture.
 - Deleting a notebook whose trashed copy already exists no longer produces an
   awkward `name.org.trash-2` file. The collision counter now goes before the
   extension (`name-1.org.trash`, `name-2.org.trash`), keeping a clean

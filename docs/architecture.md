@@ -70,7 +70,7 @@ For the v1 local-folder backend, "sync" means **re-indexing**: the files are alr
 
 ## Capture (`capture/`)
 
-A `CaptureTemplate` is `(name, icon, target file, target location, template text)`, persisted as JSON in DataStore; built-in defaults are seeded until the user first saves.
+A `CaptureTemplate` is `(name, icon, target file, target location, template text)`, persisted as JSON in DataStore; built-in defaults are seeded until the user first saves. The target file is a vault-relative path (`FilenameValidation` accepts `/`-separated segments, not just a bare name), so a template can capture into a notebook in a subfolder; a missing target file (and its parent folders) is created on first capture.
 
 The pipeline at capture time:
 

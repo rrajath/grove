@@ -40,9 +40,26 @@ class FilenameValidationTest {
     }
 
     @Test
-    fun `path separators are invalid`() {
-        assertNotNull(error("sub/inbox.org"))
+    fun `forward-slash subfolder paths are valid`() {
+        assertNull(error("sub/inbox.org"))
+        assertNull(error("a/b/c/deep.org"))
+        assertNull(error("  projects/2025/notes.org  "))
+    }
+
+    @Test
+    fun `backslash is still invalid`() {
         assertNotNull(error("sub\\inbox.org"))
+    }
+
+    @Test
+    fun `malformed paths are invalid`() {
+        assertNotNull(error("/inbox.org"))
+        assertNotNull(error("sub/inbox.org/"))
+        assertNotNull(error("sub//inbox.org"))
+        assertNotNull(error("sub/../inbox.org"))
+        assertNotNull(error("./inbox.org"))
+        assertNotNull(error("sub/inbox"))
+        assertNotNull(error("sub/.org"))
     }
 
     @Test

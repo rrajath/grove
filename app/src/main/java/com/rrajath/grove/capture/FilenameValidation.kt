@@ -1,22 +1,36 @@
 package com.rrajath.grove.capture
 
-// Path separators plus the characters FAT/exFAT (the common case for the SAF
-// tree providers this app targets) reject outright, and C0 control characters.
-private val ILLEGAL_FILENAME_CHARS = Regex("""[/\\:*?"<>|\p{Cntrl}]""")
+// Characters FAT/exFAT (the common case for the SAF tree providers this app
+// targets) reject outright, plus the Windows path separator and C0 control
+// characters. Forward slash is allowed as a vault-relative path separator and
+// is validated segment-by-segment below, not by this set.
+private val ILLEGAL_SEGMENT_CHARS = Regex("""[\\:*?"<>|\p{Cntrl}]""")
 
-/** Validates a capture template's target-file name (PRD §7.4). */
+/** Validates a capture template's target-file path (PRD §7.4). */
 object FilenameValidation {
 
-    /** `null` when [name] is a valid `.org` filename; otherwise a user-facing reason. */
+    /**
+     * `null` when [name] is a valid `.org` target — a bare filename or a
+     * vault-relative path with `/`-separated segments (the notebook picker
+     * offers notebooks in subfolders); otherwise a user-facing reason.
+     */
     fun errorFor(name: String): String? {
         val trimmed = name.trim()
-        return when {
-            trimmed.isEmpty() -> "Enter a filename"
-            trimmed == "." || trimmed == ".." -> "Not a valid filename"
-            ILLEGAL_FILENAME_CHARS.containsMatchIn(trimmed) -> "Can't contain / \\ : * ? \" < > |"
-            !trimmed.endsWith(".org") -> "Filename must end in .org"
-            trimmed == ".org" -> "Enter a filename"
-            else -> null
+        if (trimmed.isEmpty()) return "Enter a filename"
+        if (trimmed.startsWith("/") || trimmed.endsWith("/")) return "Not a valid path"
+
+        val segments = trimmed.split("/")
+        segments.forEachIndexed { i, segment ->
+            when {
+                segment.isEmpty() -> return "Not a valid path"
+                segment == "." || segment == ".." -> return "Not a valid path"
+                ILLEGAL_SEGMENT_CHARS.containsMatchIn(segment) ->
+                    return "Can't contain \\ : * ? \" < > |"
+                i == segments.lastIndex && segment == ".org" -> return "Enter a filename"
+            }
         }
+
+        if (!trimmed.endsWith(".org")) return "Filename must end in .org"
+        return null
     }
 }
