@@ -63,9 +63,10 @@ Grove edits plain `.org` files in a folder you choose. There is no account, no p
 ## Roadmap
 Following is the list of features/enhancements I'm planning to make to this app:
 - [ ] Clickable org links
+- [ ] Image support
 - [ ] Nested search expressions
-- [ ] Tips & Tricks page
 - [ ] WebDAV support
+- [x] Tips & Tricks page
 
 ## Project layout
 
