@@ -80,8 +80,19 @@ re-uploads the APKs to the existing release instead of failing.
   mode** controls (Small / Medium / Large each). The read-mode size scales the
   rendered note, the edit-mode size scales the editor text, and they are
   independent of each other. Both default to Medium.
+- The **New notebook** dialog now validates the name as you type: the **Create**
+  button stays disabled for a name that ends in a slash or contains a reserved
+  filesystem character (`\ : * ? " < > |`). A helper line spells out that a slash
+  nests the notebook in folders, with the example `work/ideas.org`. The
+  **Rename notebook** dialog validates the same way.
 
 ### Changed
+- Deleting a notebook or a folder is now permanent. Android's Storage Access
+  Framework has no system trash for files in a folder you granted, so Grove no
+  longer renames the file to `<name>.org.trash` (those copies just piled up and
+  Grove could not read them back). Both actions now show a confirmation dialog
+  first; recovery, if the vault syncs with Syncthing, comes from its file
+  versioning. Any folder left empty by a delete or a rename is removed from disk.
 - Settings has a new **Notebooks** page, directly under **Look and Feel**. The
   "Show file icons in notebooks", "Flatten folders" and "Notebook display name"
   settings moved there from Look and Feel; their values are unchanged.
@@ -104,6 +115,13 @@ re-uploads the APKs to the existing release instead of failing.
   notification), cancelling the capture, then rotating no longer re-opens the
   same capture sheet. The launch Intent is now treated as a one-shot: it is
   cleared once navigated and is not re-read after a process-death recreation.
+- Creating a notebook with a name like `foo/` no longer makes a folder `foo`
+  containing a stray file named `.org`. Typing a real nested path such as
+  `foo/bar.org` or `foo/bar/baz.org` still creates the missing folders and the
+  file inside them.
+- Renaming a folder to the name of a folder you deleted earlier no longer fails
+  with "a folder with that name already exists". The delete now removes the old
+  folder from disk instead of leaving hidden `.org.trash` files behind in it.
 
 ## [1.2.0] - 2026-09-01
 

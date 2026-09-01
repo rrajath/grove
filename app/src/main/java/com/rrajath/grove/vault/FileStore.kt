@@ -55,6 +55,17 @@ interface FileStore {
     suspend fun delete(name: String): Boolean
 
     suspend fun exists(name: String): Boolean
+
+    /**
+     * Remove [dir] (a vault-relative directory) and any now-empty ancestor
+     * directories, stopping at the first one that still holds files or
+     * subdirectories, and never touching the vault root. Called after a
+     * delete or a folder move empties a directory so stale empty folders
+     * don't linger (and don't block a later folder rename onto that name).
+     * No-op for the root, and for stores where directories aren't real
+     * entities.
+     */
+    suspend fun pruneEmptyDirs(dir: String) {}
 }
 
 /** Directory names never descended into during vault traversal. */

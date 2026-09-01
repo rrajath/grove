@@ -46,6 +46,22 @@ class JvmFileStore(private val root: File) : FileStore {
 
     override suspend fun exists(name: String): Boolean = resolve(name).exists()
 
+    override suspend fun pruneEmptyDirs(dir: String) {
+        val trimmed = dir.trim('/')
+        if (trimmed.isEmpty()) return
+        // Deepest-first so an emptied parent whose only child was an (also now
+        // empty) subdirectory still collapses.
+        File(root, trimmed).takeIf { it.isDirectory }?.walkBottomUp()?.forEach { d ->
+            if (d.isDirectory && d.list()?.isEmpty() == true) d.delete()
+        }
+        var current = trimmed.substringBeforeLast('/', "")
+        while (current.isNotEmpty()) {
+            val d = File(root, current)
+            if (d.list()?.isEmpty() != true || !d.delete()) break
+            current = current.substringBeforeLast('/', "")
+        }
+    }
+
     private fun resolve(name: String): File {
         require(name.isNotBlank()) { "Empty vault path" }
         require(name.split('/').none { it == ".." }) { "Vault path must not contain '..': $name" }

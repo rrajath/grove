@@ -40,7 +40,7 @@ Terms used throughout the code, the UI, and these docs. Org-mode terms keep thei
 | **Sync mode** | When sync runs: Manual, On open/close (default), Periodic (WorkManager, ≥15 min), or Continuous (10 s polling while the app is foregrounded). |
 | **Conflict copy** | A `*.sync-conflict-*` file Syncthing drops next to a notebook when two devices edited it concurrently. Grove badges the notebook and offers the conflict picker. |
 | **Conflict picker** | The resolution UI: *keep current* / *keep conflict copy* / *keep both* (the copy's content is demoted under a `* CONFLICT` heading). No auto-merge in v1. |
-| **Trash** | Grove's soft delete: renaming `name.org` to `name.org.trash` (suffixed `-2`, `-3`… if taken). The file leaves the notebook list but stays in the synced folder, recoverable from any device. |
+| **Delete** | Permanent. SAF exposes no OS-level trash, so deleting a notebook or folder removes the file(s) outright and prunes any directory left empty. Recovery relies on the sync backend's own history (Syncthing file versioning). A confirmation dialog guards both. |
 | **`.orgzlyignore`** | An optional file of glob patterns (Orgzly convention) naming `.org` files the app should pretend don't exist. |
 | **Capture template** | `(name, icon, target file, target location, template text)`; see [architecture.md](architecture.md#capture-capture). |
 | **Target location** | Where a capture inserts: top of file, bottom of file, under a heading (matched by `CUSTOM_ID`, recommended, or exact title), or a datetree (date or datetime granularity). |

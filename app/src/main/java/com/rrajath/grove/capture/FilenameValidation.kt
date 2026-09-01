@@ -33,4 +33,33 @@ object FilenameValidation {
         if (!trimmed.endsWith(".org")) return "Filename must end in .org"
         return null
     }
+
+    /**
+     * Validates a name typed into the "New notebook" / "Rename notebook"
+     * dialogs, where the `.org` extension is optional and appended
+     * automatically. `null` when [name] resolves to a valid vault-relative
+     * `.org` path (a bare name, or `/`-separated segments to create the
+     * notebook inside nested folders); otherwise a user-facing reason.
+     *
+     * Same segment rules as [errorFor] minus the "must end in .org"
+     * requirement: a bare `foo` is fine, `foo/` is not.
+     */
+    fun errorForNewNotebook(name: String): String? {
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) return "Enter a name"
+        if (trimmed.startsWith("/") || trimmed.endsWith("/")) return "Not a valid path"
+
+        val stem = trimmed.removeSuffix(".org")
+        if (stem.isEmpty()) return "Enter a name"
+
+        stem.split("/").forEach { segment ->
+            when {
+                segment.isEmpty() -> return "Not a valid path"
+                segment == "." || segment == ".." -> return "Not a valid path"
+                ILLEGAL_SEGMENT_CHARS.containsMatchIn(segment) ->
+                    return "Can't contain \\ : * ? \" < > |"
+            }
+        }
+        return null
+    }
 }

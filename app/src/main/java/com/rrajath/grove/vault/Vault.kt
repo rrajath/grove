@@ -142,26 +142,17 @@ class Vault(
     }
 
     /**
-     * Soft delete: rename to `<name>.trash` so the file no longer lists as a
-     * notebook but stays in the synced folder, recoverable from any device.
-     * On a name collision (e.g. the notebook was deleted, recreated, and
-     * deleted again) the lowest free counter is inserted right before the
-     * final `.org` segment: `foo-1.org.trash`, `foo-2.org.trash`, ...
-     * Falls back to a hard delete if the provider refuses to rename.
+     * Permanently delete a notebook. SAF has no OS-level trash, so the file is
+     * removed outright; recovery relies on the sync backend's own history
+     * (Syncthing file versioning). Any directory left empty by the delete is
+     * pruned so stale folders don't linger.
      */
-    suspend fun trashNotebook(name: String): Boolean {
-        var trashName = "$name.trash"
-        var n = 1
-        while (store.exists(trashName)) {
-            trashName = if (name.endsWith(".org")) {
-                "${name.dropLast(4)}-$n.org.trash"
-            } else {
-                "$name-$n.trash"
-            }
-            n++
+    suspend fun deleteNotebook(name: String): Boolean {
+        val ok = store.delete(name)
+        if (ok) {
+            cache.keys.removeAll { it.name == name }
+            store.pruneEmptyDirs(name.substringBeforeLast('/', ""))
         }
-        val ok = store.rename(name, trashName) || store.delete(name)
-        if (ok) cache.keys.removeAll { it.name == name }
         return ok
     }
 
@@ -201,20 +192,27 @@ class Vault(
                 movedAny = true
             }
         }
+        if (movedAny) store.pruneEmptyDirs(trimmed)
         return if (movedAny) newDir else null
     }
 
     /**
-     * Soft-delete every `.org` notebook under [dir] (recursively) via
-     * [trashNotebook]. The folder itself disappears from the tree once its last
-     * file is gone, since folders are derived from file paths. Returns the count
-     * of files trashed.
+     * Permanently delete every `.org` notebook under [dir] (recursively), then
+     * prune the emptied directory. See [deleteNotebook] on the lack of an OS
+     * trash. Returns the count of files deleted.
      */
-    suspend fun trashFolder(dir: String): Int {
-        val prefix = "${dir.trim('/')}/"
-        return notebooks()
+    suspend fun deleteFolder(dir: String): Int {
+        val trimmed = dir.trim('/')
+        val prefix = "$trimmed/"
+        val deleted = notebooks()
             .filter { it.fileName.startsWith(prefix) }
-            .count { trashNotebook(it.fileName) }
+            .count {
+                val ok = store.delete(it.fileName)
+                if (ok) cache.keys.removeAll { c -> c.name == it.fileName }
+                ok
+            }
+        if (deleted > 0) store.pruneEmptyDirs(trimmed)
+        return deleted
     }
 
     suspend fun save(fileName: String, content: String) {

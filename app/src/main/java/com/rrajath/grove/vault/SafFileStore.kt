@@ -190,6 +190,41 @@ class SafFileStore(
 
     override suspend fun exists(name: String): Boolean = documentUri(name) != null
 
+    override suspend fun pruneEmptyDirs(dir: String): Unit = withContext(Dispatchers.IO) {
+        val trimmed = dir.trim('/')
+        if (trimmed.isEmpty()) return@withContext
+        if (dirDocIds.keys.none { it == trimmed || it.startsWith("$trimmed/") }) list()
+
+        // Descendants (and the dir itself) deepest-first, so an emptied parent
+        // whose only child was an also-empty subdirectory still collapses.
+        dirDocIds.keys
+            .filter { it == trimmed || it.startsWith("$trimmed/") }
+            .sortedByDescending { path -> path.count { it == '/' } }
+            .forEach { removeDirIfEmpty(it) }
+
+        var current = trimmed.substringBeforeLast('/', "")
+        while (current.isNotEmpty() && removeDirIfEmpty(current)) {
+            current = current.substringBeforeLast('/', "")
+        }
+    }
+
+    /** Deletes [path] if it has no child documents. Returns whether it was removed. */
+    private fun removeDirIfEmpty(path: String): Boolean {
+        val docId = dirDocIds[path] ?: return false
+        val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, docId)
+        val empty = resolver.query(
+            childrenUri,
+            arrayOf(DocumentsContract.Document.COLUMN_DOCUMENT_ID),
+            null, null, null,
+        )?.use { !it.moveToFirst() } ?: false
+        if (!empty) return false
+        val uri = DocumentsContract.buildDocumentUriUsingTree(treeUri, docId)
+        val removed = runCatching { DocumentsContract.deleteDocument(resolver, uri) }
+            .getOrDefault(false)
+        if (removed) dirDocIds.remove(path)
+        return removed
+    }
+
     private fun displayNameOf(uri: Uri): String? =
         resolver.query(
             uri, arrayOf(DocumentsContract.Document.COLUMN_DISPLAY_NAME), null, null, null,

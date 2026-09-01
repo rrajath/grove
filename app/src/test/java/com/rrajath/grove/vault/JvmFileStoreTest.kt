@@ -83,6 +83,30 @@ class JvmFileStoreTest {
     }
 
     @Test
+    fun `pruneEmptyDirs removes empty ancestors but stops at the first non-empty one`() = runTest {
+        val s = store()
+        s.create("a/b/c/note.org")
+        s.create("a/keep.org")
+
+        assertTrue(s.delete("a/b/c/note.org"))
+        s.pruneEmptyDirs("a/b/c")
+
+        assertFalse(tmp.root.resolve("a/b").exists()) // b and c collapsed
+        assertTrue(tmp.root.resolve("a").exists())    // a still has keep.org
+    }
+
+    @Test
+    fun `pruneEmptyDirs collapses a parent whose only child was an empty subdir`() = runTest {
+        val s = store()
+        s.create("proj/sub/x.org")
+
+        assertTrue(s.delete("proj/sub/x.org"))
+        s.pruneEmptyDirs("proj")
+
+        assertFalse(tmp.root.resolve("proj").exists())
+    }
+
+    @Test
     fun `resolve rejects parent traversal`() = runTest {
         val ex = runCatching { store().read("../escape.org") }.exceptionOrNull()
         assertTrue(ex is IllegalArgumentException)

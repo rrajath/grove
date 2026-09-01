@@ -48,18 +48,18 @@ Long-pressing a notebook card opens a context menu with:
 - **Resolve conflict**: jumps straight to the [conflict resolution](/features/conflict-resolution) screen when a Syncthing conflict copy exists for this file
 - **Delete**: see below
 
-### Deleting a notebook is non-destructive
+### Deleting a notebook is permanent
 
-Deleting a notebook doesn't remove the file. Grove renames it to `<name>.org.trash`, so it drops out of the notebook list but stays on disk, fully recoverable with any file browser or your sync tool. There's no in-app "restore from trash"; you get the file back by renaming it back to `.org` outside the app.
+Android's Storage Access Framework has no system trash for files in a folder you granted, so Grove deletes the file outright after a confirmation prompt. If your vault syncs with Syncthing and you have its file versioning turned on, the previous copy is kept on the peer and you can restore it from there. Otherwise the file is gone.
 
 ### Folder rows
 
 Subfolders in your sync directory show up as folder rows in the list. Long-pressing one opens its own menu:
 
 - **Pin to top** / **Unpin**: a pinned folder moves out of the tree and into the Pinned strip at the top of the list, taking everything inside it along. It shares that strip with pinned notebooks, in the order things were pinned. Tap it to expand its contents in place; a folder big enough to open as its own screen drills in instead
-- **Rename**: renames the folder and moves every `.org` file inside it, keeping each file's icon color and pinned position
+- **Rename**: renames the folder and moves every `.org` file inside it, keeping each file's icon color and pinned position. The old, now-empty folder is removed
 - **Change icon color**: pick the folder tile's color from the theme palette
-- **Delete**: moves every `.org` file inside the folder to the trash, the same non-destructive rename as deleting a single notebook. An empty folder simply stops showing once its last file is gone.
+- **Delete**: after a confirmation prompt, permanently deletes every `.org` file inside the folder (the same permanent delete as a single notebook) and removes the emptied folder
 
 ### Flat list
 
@@ -67,7 +67,9 @@ Subfolders in your sync directory show up as folder rows in the list. Long-press
 
 ## Creating a notebook
 
-Tap **+** and give the new file a name. Grove creates an empty `.org` file in your sync folder immediately.
+Tap **+** and give the new file a name. Grove creates an empty `.org` file in your sync folder immediately (the `.org` extension is added for you if you leave it off).
+
+Use a slash to put the notebook inside folders that don't exist yet: `work/ideas.org` creates a `work` folder with `ideas.org` in it, and `work/2026/log.org` nests two levels deep. A name that ends in a slash, or contains `\ : * ? " < > |`, is rejected and the **Create** button stays disabled.
 
 ## Settings
 

@@ -403,10 +403,10 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
         }
     }
 
-    fun trashNotebook(name: String) {
+    fun deleteNotebook(name: String) {
         val vault = app.vault.value ?: return
         viewModelScope.launch {
-            if (vault.trashNotebook(name)) {
+            if (vault.deleteNotebook(name)) {
                 app.database.indexDao().removeNotebook(name)
             }
             app.syncManager.requestSync("notebook deleted")
@@ -472,14 +472,14 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
     }
 
     /**
-     * Move every `.org` file under [dir] to the trash (recoverable), drop their
-     * index rows, clear the folder's icon colour + pin state, and request a sync.
+     * Permanently delete every `.org` file under [dir], drop their index rows,
+     * clear the folder's icon colour + pin state, and request a sync.
      */
     fun deleteFolder(dir: String) {
         val vault = app.vault.value ?: return
         viewModelScope.launch {
             val affected = affectedPaths(dir)
-            if (vault.trashFolder(dir) > 0) {
+            if (vault.deleteFolder(dir) > 0) {
                 affected.forEach { app.database.indexDao().removeNotebook(it) }
                 app.settingsRepository.deleteFolderStyle(dir)
                 app.syncManager.requestSync("folder deleted")

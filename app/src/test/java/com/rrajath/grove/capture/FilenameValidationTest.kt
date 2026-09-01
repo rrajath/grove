@@ -79,4 +79,43 @@ class FilenameValidationTest {
         assertEquals("Enter a filename", error(""))
         assertEquals("Filename must end in .org", error("inbox"))
     }
+
+    // --- errorForNewNotebook: .org optional, but bad paths still rejected ---
+
+    private fun newNb(name: String) = FilenameValidation.errorForNewNotebook(name)
+
+    @Test
+    fun `new notebook name accepts a bare name and appends org implicitly`() {
+        assertNull(newNb("Work"))
+        assertNull(newNb("2025 journal"))
+        assertNull(newNb("inbox.org"))
+    }
+
+    @Test
+    fun `new notebook name accepts nested folder paths`() {
+        assertNull(newNb("work/ideas"))
+        assertNull(newNb("work/ideas.org"))
+        assertNull(newNb("a/b/c/deep.org"))
+        assertNull(newNb("  clients/2025/notes  "))
+    }
+
+    @Test
+    fun `new notebook name rejects a trailing slash`() {
+        assertEquals("Not a valid path", newNb("foo/"))
+        assertEquals("Not a valid path", newNb("foo/bar/"))
+    }
+
+    @Test
+    fun `new notebook name rejects blank, malformed paths and reserved chars`() {
+        assertEquals("Enter a name", newNb(""))
+        assertEquals("Enter a name", newNb("   "))
+        assertEquals("Enter a name", newNb(".org"))
+        assertNotNull(newNb("/inbox"))
+        assertNotNull(newNb("sub//inbox"))
+        assertNotNull(newNb("sub/../inbox"))
+        assertNotNull(newNb("./inbox"))
+        assertNotNull(newNb(".."))
+        assertNotNull(newNb("in:box"))
+        assertNotNull(newNb("sub\\inbox"))
+    }
 }

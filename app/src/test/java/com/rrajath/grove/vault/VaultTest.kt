@@ -30,42 +30,28 @@ class VaultTest {
     }
 
     @Test
-    fun `trashNotebook hides the file and survives an existing trash copy`() = runTest {
+    fun `deleteNotebook removes the file for good`() = runTest {
         tmp.newFile("n.org").writeText("* Note")
-        tmp.newFile("n.org.trash").writeText("* Older deleted copy")
 
         val v = vault()
-        assertTrue(v.trashNotebook("n.org"))
+        assertTrue(v.deleteNotebook("n.org"))
         assertEquals(emptyList<String>(), v.notebooks().map { it.fileName })
-        assertTrue(tmp.root.resolve("n-1.org.trash").exists())
-        assertEquals("* Older deleted copy", tmp.root.resolve("n.org.trash").readText())
+        assertFalse(tmp.root.resolve("n.org").exists())
+        // No `.trash` copy is left behind.
+        assertTrue(tmp.root.list()!!.none { it.endsWith(".trash") })
     }
 
     @Test
-    fun `trashNotebook inserts the counter before the org extension on collision`() = runTest {
-        tmp.newFile("foo.org").writeText("* First")
-        val v = vault()
-        assertTrue(v.trashNotebook("foo.org"))
-        assertEquals("* First", tmp.root.resolve("foo.org.trash").readText())
-
-        tmp.newFile("foo.org").writeText("* Second")
-        assertTrue(v.trashNotebook("foo.org"))
-        assertEquals("* Second", tmp.root.resolve("foo-1.org.trash").readText())
-
-        tmp.newFile("foo.org").writeText("* Third")
-        assertTrue(v.trashNotebook("foo.org"))
-        assertEquals("* Third", tmp.root.resolve("foo-2.org.trash").readText())
-    }
-
-    @Test
-    fun `trashNotebook counter goes before the org segment for nested paths`() = runTest {
+    fun `deleteNotebook prunes the directory it empties`() = runTest {
         tmp.newFolder("sub", "dir")
         tmp.root.resolve("sub/dir/foo.org").writeText("* First")
-        tmp.root.resolve("sub/dir/foo.org.trash").writeText("* Older")
+        tmp.newFile("sub/keep.org").writeText("* Keep")
         val v = vault()
 
-        assertTrue(v.trashNotebook("sub/dir/foo.org"))
-        assertTrue(tmp.root.resolve("sub/dir/foo-1.org.trash").exists())
+        assertTrue(v.deleteNotebook("sub/dir/foo.org"))
+        // `sub/dir` is gone; `sub` survives because `keep.org` still lives there.
+        assertFalse(tmp.root.resolve("sub/dir").exists())
+        assertTrue(tmp.root.resolve("sub/keep.org").exists())
     }
 
     @Test
@@ -192,6 +178,8 @@ class VaultTest {
 
         assertEquals("area/new", v.renameFolder("area/old", "new"))
         assertEquals("* N", tmp.root.resolve("area/new/note.org").readText())
+        // The vacated source directory is not left on disk.
+        assertFalse(tmp.root.resolve("area/old").exists())
     }
 
     @Test
@@ -208,16 +196,31 @@ class VaultTest {
     }
 
     @Test
-    fun `trashFolder trashes every file and the folder drops out of the tree`() = runTest {
+    fun `deleteFolder removes every file and prunes the folder tree`() = runTest {
         tmp.newFolder("projects", "clients")
         tmp.root.resolve("projects/grove.org").writeText("* G")
         tmp.root.resolve("projects/clients/acme.org").writeText("* A")
         tmp.newFile("root.org").writeText("* R")
         val v = vault()
 
-        assertEquals(2, v.trashFolder("projects"))
+        assertEquals(2, v.deleteFolder("projects"))
         assertEquals(listOf("root.org"), v.notebooks().map { it.fileName })
-        assertTrue(tmp.root.resolve("projects/grove.org.trash").exists())
+        // Both the nested subfolder and the folder itself are gone from disk.
+        assertFalse(tmp.root.resolve("projects").exists())
+    }
+
+    @Test
+    fun `deleting a folder frees its name for a sibling folder rename`() = runTest {
+        tmp.newFolder("foo")
+        tmp.root.resolve("foo/a.org").writeText("* A")
+        tmp.newFolder("bar")
+        tmp.root.resolve("bar/b.org").writeText("* B")
+        val v = vault()
+
+        assertEquals(1, v.deleteFolder("foo"))
+        // The reported bug: this used to fail because `foo/a.org.trash` lingered.
+        assertEquals("foo", v.renameFolder("bar", "foo"))
+        assertEquals("* B", tmp.root.resolve("foo/b.org").readText())
     }
 
     // --- case-insensitive name-collision guard (SAF/FAT sync targets) ---

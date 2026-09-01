@@ -79,6 +79,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.rrajath.grove.capture.FilenameValidation
 import com.rrajath.grove.sync.SyncState
 import com.rrajath.grove.ui.components.ChangeIconColorDialog
 import com.rrajath.grove.ui.components.GroveTopBar
@@ -128,6 +129,8 @@ fun NotebooksScreen(
     var renameTarget by remember { mutableStateOf<String?>(null) }
     var styleTarget by remember { mutableStateOf<String?>(null) }
     var moveTarget by remember { mutableStateOf<String?>(null) }
+    // Non-null while the "Delete notebook?" confirmation is open; the file name.
+    var notebookDeleteTarget by remember { mutableStateOf<String?>(null) }
     // Folder long-press menu targets (variant 1a follow-up); the value is the folder's dir path.
     // Stored as the path (not the node) so each dialog reads the folder's live state on recompose.
     var folderRenameTarget by remember { mutableStateOf<String?>(null) }
@@ -292,7 +295,7 @@ fun NotebooksScreen(
                             onRename = { renameTarget = nb.fileName },
                             onMove = { moveTarget = nb.fileName },
                             onChangeIcon = { styleTarget = nb.fileName },
-                            onDelete = { viewModel.trashNotebook(nb.fileName) },
+                            onDelete = { notebookDeleteTarget = nb.fileName },
                             onForceReload = { viewModel.forceReload(nb.fileName) },
                             onPin = { viewModel.pinNotebook(nb.fileName) },
                             onUnpin = { viewModel.unpinNotebook(nb.fileName) },
@@ -551,6 +554,8 @@ fun NotebooksScreen(
             initial = "",
             confirmLabel = "Create",
             contextLabel = if (dir.isNotEmpty()) "in $dir/" else null,
+            validate = FilenameValidation::errorForNewNotebook,
+            helperText = "Use a slash to nest it in folders, e.g. work/ideas.org",
             onDismiss = { createInDir = null },
             // Closed by the editEvents collector: on success, or left open with a
             // toast when the name already exists.
@@ -581,6 +586,7 @@ fun NotebooksScreen(
             title = "Rename $target",
             initial = target,
             confirmLabel = "Rename",
+            validate = FilenameValidation::errorForNewNotebook,
             onDismiss = { renameTarget = null },
             // Closed by the editEvents collector (see the create dialog).
             onConfirm = { name -> viewModel.renameNotebook(target, name) },
@@ -654,8 +660,9 @@ fun NotebooksScreen(
                 },
                 text = {
                     Text(
-                        "This moves $count ${if (count == 1) "note" else "notes"} to the trash. " +
-                            "You can restore them from the synced folder.",
+                        "This permanently deletes $count ${if (count == 1) "note" else "notes"}. " +
+                            "If your vault syncs with Syncthing, you may be able to recover " +
+                            "them from its file versioning.",
                         fontFamily = PlexSans, fontSize = 13.sp, color = c.ink2,
                     )
                 },
@@ -674,6 +681,39 @@ fun NotebooksScreen(
                 },
             )
         }
+    }
+    notebookDeleteTarget?.let { target ->
+        val c = MaterialTheme.grove
+        AlertDialog(
+            onDismissRequest = { notebookDeleteTarget = null },
+            containerColor = c.surface,
+            title = {
+                Text(
+                    "Delete ${target.substringAfterLast('/').removeSuffix(".org")}?",
+                    fontFamily = PlexSans, fontWeight = FontWeight.SemiBold, color = c.ink,
+                )
+            },
+            text = {
+                Text(
+                    "This permanently deletes the notebook. If your vault syncs with " +
+                        "Syncthing, you may be able to recover it from its file versioning.",
+                    fontFamily = PlexSans, fontSize = 13.sp, color = c.ink2,
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.deleteNotebook(target)
+                        notebookDeleteTarget = null
+                    },
+                ) { Text("Delete", color = c.red, fontWeight = FontWeight.SemiBold) }
+            },
+            dismissButton = {
+                TextButton(onClick = { notebookDeleteTarget = null }) {
+                    Text("Cancel", color = c.ink2)
+                }
+            },
+        )
     }
 }
 
@@ -839,7 +879,7 @@ private fun Breadcrumb(
  * shown in the Pinned strip.
  *
  * Long-pressing the row opens a menu mirroring the file row's: pin/unpin,
- * rename, change icon colour, and delete (moves every descendant file to trash).
+ * rename, change icon colour, and delete (permanently deletes every descendant file).
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -961,7 +1001,7 @@ private fun FolderRow(
                 onClick = { menuOpen = false; onChangeColor() },
             )
             DropdownMenuItem(
-                text = { Text("Delete (to trash)", fontFamily = PlexSans, color = c.red) },
+                text = { Text("Delete", fontFamily = PlexSans, color = c.red) },
                 onClick = { menuOpen = false; onDelete() },
             )
         }
@@ -1087,7 +1127,7 @@ private fun FileRow(
                 )
             }
             DropdownMenuItem(
-                text = { Text("Delete (to trash)", fontFamily = PlexSans, color = c.red) },
+                text = { Text("Delete", fontFamily = PlexSans, color = c.red) },
                 onClick = { menuOpen = false; onDelete() },
             )
         }
@@ -1157,9 +1197,16 @@ private fun NameDialog(
     onConfirm: (String) -> Unit,
     contextLabel: String? = null,
     placeholder: String = "notebook.org",
+    // Returns a user-facing reason the name is invalid, or null when it's fine.
+    // When set, the confirm button stays disabled until the name validates.
+    validate: ((String) -> String?)? = null,
+    // Persistent hint under the field, shown while there's no validation error.
+    helperText: String? = null,
 ) {
     val c = MaterialTheme.grove
     var name by remember { mutableStateOf(initial) }
+    val error = if (name.isBlank()) null else validate?.invoke(name)
+    val canConfirm = name.isNotBlank() && error == null
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = c.surface,
@@ -1177,15 +1224,27 @@ private fun NameDialog(
                     value = name,
                     onValueChange = { name = it },
                     singleLine = true,
+                    isError = error != null,
                     placeholder = { Text(placeholder, fontFamily = PlexMono, color = c.ink3) },
                     textStyle = TextStyle(fontFamily = PlexMono, color = c.ink),
+                    supportingText = if (error != null || helperText != null) {
+                        {
+                            Text(
+                                error ?: helperText!!,
+                                fontFamily = PlexSans, fontSize = 12.sp,
+                                color = if (error != null) c.red else c.ink3,
+                            )
+                        }
+                    } else {
+                        null
+                    },
                 )
             }
         },
         confirmButton = {
             TextButton(
-                onClick = { if (name.isNotBlank()) onConfirm(name) },
-                enabled = name.isNotBlank(),
+                onClick = { if (canConfirm) onConfirm(name) },
+                enabled = canConfirm,
             ) { Text(confirmLabel, color = c.accent, fontWeight = FontWeight.SemiBold) }
         },
         dismissButton = {
