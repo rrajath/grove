@@ -49,14 +49,13 @@ import java.time.LocalDateTime
  * buttons (design spec §6).
  */
 /**
- * The three actions behind a long-press on the toolbar link button. When null
+ * The two actions behind a long-press on the toolbar link button. When null
  * (region editor, quick capture) the button is tap-only; when present (the main
  * note editor) long-press opens a flyout menu offering each one.
  */
 data class LinkFlyoutActions(
     val onHttps: () -> Unit,
     val onFileHeading: () -> Unit,
-    val onId: () -> Unit,
 )
 
 @Composable
@@ -116,7 +115,7 @@ fun EditorToolbar(
 /**
  * The `[[]]` button. Tap inserts the plain `[[link][description]]` template; a
  * long-press (when [flyout] is supplied) opens a menu next to the button with
- * the URL / file-heading / heading-by-id builders.
+ * the URL and file-or-heading builders.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -140,7 +139,6 @@ private fun RowScope.LinkToolButton(
             ) {
                 LinkMenuItem("URL") { menuOpen = false; flyout.onHttps() }
                 LinkMenuItem("File or heading") { menuOpen = false; flyout.onFileHeading() }
-                LinkMenuItem("Heading by ID") { menuOpen = false; flyout.onId() }
             }
         }
     }

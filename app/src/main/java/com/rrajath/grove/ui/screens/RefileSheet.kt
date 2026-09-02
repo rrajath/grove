@@ -64,12 +64,8 @@ fun RefileSheet(
     onPickLastUsed: () -> Unit,
     headerTitle: String = "Refile 1 note",
     confirmLabel: String = "Refile here",
-    /** Caption shown under the breadcrumb, e.g. to explain a restricted heading list. */
-    headerNote: String? = null,
-    /** When set, drill rows failing it are hidden (still reachable through visible ancestors). */
-    rowVisible: ((OrgHeadline) -> Boolean)? = null,
-    /** Overrides the default "a notebook is picked" rule for enabling the confirm button. */
-    confirmEnabled: Boolean? = null,
+    /** Shown in place of [confirmLabel] while sitting at a file's top level (no heading drilled into). */
+    topLevelConfirmLabel: String? = null,
 ) {
     val c = MaterialTheme.grove
     val doc = state.pickedDoc
@@ -129,10 +125,6 @@ fun RefileSheet(
                     Text(crumb, fontFamily = PlexSans, fontSize = 12.sp, color = c.ink2)
                 }
             }
-            headerNote?.let {
-                Spacer(Modifier.height(8.dp))
-                Text(it, fontFamily = PlexSans, fontSize = 11.5.sp, color = c.ink3)
-            }
             Spacer(Modifier.height(12.dp))
             val listState = remember(state.pickedFile, state.path) { LazyListState() }
             LazyColumn(
@@ -154,7 +146,6 @@ fun RefileSheet(
                     val rows = (level?.let { doc.directChildren(it) }
                         ?: doc.headlines.filter { doc.parent(it) == null })
                         .filter { it.lineIndex !in excluded }
-                        .filter { rowVisible?.invoke(it) ?: true }
                     if (rows.isEmpty()) {
                         item {
                             Text(
@@ -180,7 +171,9 @@ fun RefileSheet(
                 Modifier.padding(vertical = 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                val enabled = confirmEnabled ?: (state.pickedFile != null)
+                val enabled = state.pickedFile != null
+                val label = topLevelConfirmLabel?.takeIf { state.path.isEmpty() && doc != null }
+                    ?: confirmLabel
                 Box(
                     Modifier
                         .clip(RoundedCornerShape(12.dp))
@@ -205,7 +198,7 @@ fun RefileSheet(
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        confirmLabel,
+                        label,
                         fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
                         fontSize = 14.sp, color = if (enabled) c.accentInk else c.ink3,
                     )
