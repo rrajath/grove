@@ -40,10 +40,20 @@ A toolbar pinned above the keyboard gives one-tap access to common org markup:
 | U | `_underline_` |
 | `</>` | `=code=` |
 | ☑ | `- [ ]` checkbox item |
-| `[[ ]]` | link brackets |
+| `[[ ]]` | link brackets (tap); **long-press** for the link menu, below |
 | 🕐 | timestamp: tap for a date, long-press for date+time |
 | `*` | new heading |
 | `«` `»` | list indent/outdent |
+
+### Link menu
+
+A plain tap on `[[ ]]` inserts `[[link][description]]` with `link` selected. **Long-pressing** it opens a menu with three link builders:
+
+- **URL** inserts `[[https://][description]]` with the cursor right after `https://`, ready to type or paste the address. If you paste a URL that already starts with `https://` or `http://`, the duplicate scheme is folded away.
+- **File or heading** opens a drill-down picker (the same one used for refiling) to choose any heading in the vault. A heading in the note you're editing becomes `[[*Heading]]`; one in another file becomes `[[file:other.org::*Heading]]`. If the heading has an `ID` or `CUSTOM_ID`, Grove offers to use that instead — an id link keeps working after the heading is renamed or moved.
+- **Heading by ID** does the same, but only lists headings that have an `ID` or `CUSTOM_ID`, and always writes the id link.
+
+Text you have selected when you open the menu is kept as the link's description.
 
 ## Instant Read ↔ Edit switching
 
