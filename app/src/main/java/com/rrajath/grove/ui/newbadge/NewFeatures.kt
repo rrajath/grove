@@ -1,0 +1,58 @@
+package com.rrajath.grove.ui.newbadge
+
+/**
+ * One newly-shipped part of the app that should carry a "NEW" badge on every
+ * navigational element leading to it, until the user reaches it.
+ *
+ * The badge shows only for installs that were already on an *older* build than
+ * [since] — i.e. app updates, never fresh installs (see [NewBadgeState]).
+ *
+ * @param id stable identifier; also the token stored in
+ *   [com.rrajath.grove.settings.GroveSettings.seenNewFeatures].
+ * @param since the `versionCode` this feature shipped in (the numeric form of
+ *   `versionName`, `MAJOR*10000 + MINOR*100 + PATCH` — see CHANGELOG.md).
+ * @param anchors every anchor key that should show the badge (drawer item,
+ *   settings row, the destination itself, …).
+ * @param destination the anchor whose appearance on screen retires the feature:
+ *   once the user reaches it, the badge clears from every anchor at once.
+ */
+data class NewFeature(
+    val id: String,
+    val since: Int,
+    val anchors: Set<String>,
+    val destination: String,
+)
+
+/**
+ * Anchor keys a [NewBadge] can attach to. Plain strings so any composable — even
+ * a deep one that knows nothing about the feature registry — can render a badge
+ * for one.
+ */
+object NewAnchors {
+    const val DRAWER_SETTINGS = "drawer.settings"
+    const val SETTINGS_TIPS = "settings.tips"
+
+    /** A Tips & Tricks section, keyed by its [TipGroup] id. */
+    fun tipsGroup(id: String) = "tips.group.$id"
+}
+
+/**
+ * The registry of features that currently carry a NEW badge. Add an entry when a
+ * release ships something worth pointing at; drop it a release or two later, once
+ * every updating user has had a chance to see it.
+ */
+val NEW_FEATURES: List<NewFeature> = listOf(
+    NewFeature(
+        // The "Links" group is new to Tips & Tricks; point updating users at it.
+        // `since` is the versionCode of the release that ships this framework —
+        // bump it to match `gradle.properties` versionName when cutting the release.
+        id = "tips-links-group",
+        since = 10300,
+        anchors = setOf(
+            NewAnchors.DRAWER_SETTINGS,
+            NewAnchors.SETTINGS_TIPS,
+            NewAnchors.tipsGroup("links"),
+        ),
+        destination = NewAnchors.tipsGroup("links"),
+    ),
+)

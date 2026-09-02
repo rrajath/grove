@@ -137,6 +137,13 @@ re-uploads the APKs to the existing release instead of failing.
   An existing font-size choice carries over to both new controls on upgrade.
 - Flatten-folders mode now orders its single list purely by the Notebooks sort
   order rather than always grouping files by folder path first.
+- A small **NEW** badge now appears next to a navigational element that leads to
+  something added in a recent update, following the trail all the way down (for
+  example the nav-drawer **Settings** item, the **Settings › Tips & Tricks** row,
+  and the new Tips section itself). Reaching the new thing clears the badge from
+  every spot at once. Badges only show after an app update, never on a fresh
+  install. This release badges the new **Links** section in Tips & Tricks. Debug
+  builds get a **Settings › Developer › Reset New badges** action to replay them.
 
 ### Fixed
 - Status bar icons keep the right colour through a rotation. On a light theme

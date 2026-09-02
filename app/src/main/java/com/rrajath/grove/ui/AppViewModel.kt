@@ -21,6 +21,7 @@ import com.rrajath.grove.settings.SettingsRepository
 import com.rrajath.grove.settings.SettingsSerialization
 import com.rrajath.grove.settings.SyncMode
 import com.rrajath.grove.settings.ThemePreference
+import com.rrajath.grove.ui.newbadge.NewBadgeState
 import com.rrajath.grove.ui.vault.RefileNotebook
 import com.rrajath.grove.ui.vault.RefileUiState
 import com.rrajath.grove.ui.vault.headlineAtLine
@@ -154,6 +155,22 @@ class AppViewModel(private val app: GroveApplication) : ViewModel() {
         _whatsNew.value = emptyList()
         viewModelScope.launch { settingsRepository.setLastSeenChangelogBuild(com.rrajath.grove.BuildConfig.VERSION_CODE) }
     }
+
+    /** Which "NEW" feature badges are live (see `ui/newbadge`). */
+    val newBadgeState: StateFlow<NewBadgeState> = settingsRepository.settings
+        .map { NewBadgeState.from(it) }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, NewBadgeState.EMPTY)
+
+    /** Record the "was I here before this feature?" baseline on first run; a no-op after that. */
+    fun ensureNewBadgeBaseline() = viewModelScope.launch {
+        settingsRepository.ensureNewBadgeBaseline(com.rrajath.grove.BuildConfig.VERSION_CODE)
+    }
+
+    fun markNewFeaturesSeen(ids: List<String>) =
+        viewModelScope.launch { settingsRepository.markNewFeaturesSeen(ids) }
+
+    /** Debug menu (Settings › Developer): re-arm every NEW badge for testing. */
+    fun resetNewBadges() = viewModelScope.launch { settingsRepository.resetNewBadges() }
 
     fun setVaultTreeUri(uri: String) =
         viewModelScope.launch { settingsRepository.setVaultTreeUri(uri) }

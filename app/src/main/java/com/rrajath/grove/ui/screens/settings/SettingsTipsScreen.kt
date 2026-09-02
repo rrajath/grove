@@ -72,6 +72,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.rrajath.grove.ui.components.GroveTopBar
+import com.rrajath.grove.ui.newbadge.MarkNewFeatureSeen
+import com.rrajath.grove.ui.newbadge.NewAnchors
+import com.rrajath.grove.ui.newbadge.NewBadge
 import com.rrajath.grove.ui.screens.IconGlyph
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
@@ -139,7 +142,16 @@ fun SettingsTipsScreen(onBack: () -> Unit) {
             )
 
             groups.forEach { group ->
-                SectionLabel(group.label.uppercase())
+                // Reaching this screen (every group composes here, scroll or not)
+                // retires any NEW badge whose destination is one of these groups.
+                MarkNewFeatureSeen(NewAnchors.tipsGroup(group.id))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    SectionLabel(group.label.uppercase())
+                    NewBadge(
+                        NewAnchors.tipsGroup(group.id),
+                        Modifier.padding(start = 6.dp, bottom = 10.dp),
+                    )
+                }
                 SettingsGroup {
                     group.tips.forEachIndexed { i, tip ->
                         if (i > 0) RowDivider()
@@ -357,7 +369,7 @@ private data class Tip(
     val steps: List<String> = emptyList(),
 )
 
-private data class TipGroup(val label: String, val tips: List<Tip>)
+private data class TipGroup(val id: String, val label: String, val tips: List<Tip>)
 
 /**
  * Tip content, reworded from the author's notes in design/Grove.dc.html
@@ -366,6 +378,7 @@ private data class TipGroup(val label: String, val tips: List<Tip>)
  */
 private fun tipGroups(): List<TipGroup> = listOf(
     TipGroup(
+        "sync-saving",
         "Sync & saving",
         listOf(
             Tip(
@@ -385,6 +398,7 @@ private fun tipGroups(): List<TipGroup> = listOf(
         ),
     ),
     TipGroup(
+        "writing",
         "Writing",
         listOf(
             Tip(
@@ -410,6 +424,7 @@ private fun tipGroups(): List<TipGroup> = listOf(
         ),
     ),
     TipGroup(
+        "links",
         "Links",
         listOf(
             Tip(
@@ -438,6 +453,7 @@ private fun tipGroups(): List<TipGroup> = listOf(
         ),
     ),
     TipGroup(
+        "search",
         "Search",
         listOf(
             Tip(
@@ -453,6 +469,7 @@ private fun tipGroups(): List<TipGroup> = listOf(
         ),
     ),
     TipGroup(
+        "capture-automation",
         "Capture & automation",
         listOf(
             Tip(

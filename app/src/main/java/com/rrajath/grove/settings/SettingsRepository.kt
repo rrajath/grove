@@ -66,6 +66,19 @@ data class GroveSettings(
      * ordering.
      */
     val lastSeenChangelogBuild: Int? = null,
+    /**
+     * `BuildConfig.VERSION_CODE` the "NEW" feature-badge framework was first seeded at
+     * (see [SettingsRepository.ensureNewBadgeBaseline]). A feature badges only for
+     * installs already on an *older* build than the feature shipped in — i.e. updates,
+     * never fresh installs. Written once and never moved after; device-specific like
+     * [lastSeenChangelogBuild], so deliberately left out of [SettingsSerialization].
+     */
+    val newBadgeBaseline: Int? = null,
+    /**
+     * Ids of `ui/newbadge` features the user has already reached; their badges no
+     * longer show. Device-specific, like [newBadgeBaseline] — not exported.
+     */
+    val seenNewFeatures: Set<String> = emptySet(),
     /** Persisted SAF tree URI of the sync folder; null until the user picks one. */
     val vaultTreeUri: String? = null,
     val syncMode: SyncMode = SyncMode.ON_OPEN_CLOSE,
@@ -193,6 +206,8 @@ class SettingsRepository(private val context: Context) {
         val noteOpenMode = stringPreferencesKey("note_open_mode")
         val onboardingDone = booleanPreferencesKey("onboarding_done")
         val lastSeenChangelogBuild = intPreferencesKey("last_seen_changelog_build")
+        val newBadgeBaseline = intPreferencesKey("new_badge_baseline")
+        val seenNewFeatures = stringPreferencesKey("seen_new_features")
         val vaultTreeUri = stringPreferencesKey("vault_tree_uri")
         val syncMode = stringPreferencesKey("sync_mode")
         val periodicSyncMinutes = intPreferencesKey("periodic_sync_minutes")
@@ -267,6 +282,8 @@ class SettingsRepository(private val context: Context) {
             defaultNoteOpenMode = NoteOpenMode.fromStorage(prefs[Keys.noteOpenMode]),
             onboardingDone = prefs[Keys.onboardingDone] ?: false,
             lastSeenChangelogBuild = prefs[Keys.lastSeenChangelogBuild],
+            newBadgeBaseline = prefs[Keys.newBadgeBaseline],
+            seenNewFeatures = decodeStringSet(prefs[Keys.seenNewFeatures]),
             vaultTreeUri = prefs[Keys.vaultTreeUri],
             syncMode = SyncMode.fromStorage(prefs[Keys.syncMode]),
             periodicSyncMinutes = prefs[Keys.periodicSyncMinutes] ?: 30,
@@ -321,6 +338,10 @@ class SettingsRepository(private val context: Context) {
 
     /** `;`-joined directory paths; `;` can't appear in a path, `/` is the separator. */
     private fun decodeFolderSet(raw: String?): Set<String> =
+        raw?.split(';')?.filter { it.isNotEmpty() }?.toSet() ?: emptySet()
+
+    /** `;`-joined token set (feature ids); tokens never contain `;`. */
+    private fun decodeStringSet(raw: String?): Set<String> =
         raw?.split(';')?.filter { it.isNotEmpty() }?.toSet() ?: emptySet()
 
     private fun decodeTime(raw: String?): LocalTime =
@@ -468,6 +489,40 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setLastSeenChangelogBuild(build: Int) {
         context.settingsDataStore.edit { it[Keys.lastSeenChangelogBuild] = build }
+    }
+
+    /**
+     * Seed [GroveSettings.newBadgeBaseline] the first time the "NEW" badge framework
+     * runs, then never touch it again. A fresh install has already stamped
+     * [Keys.lastSeenChangelogBuild] with [currentBuild] during onboarding, so the
+     * baseline lands on the current build and nothing is badged; an updating install
+     * carries its older last-seen build, so features newer than that show a badge.
+     * (A rare pre-[Keys.lastSeenChangelogBuild] install seeds to [currentBuild] and
+     * misses this one release's badges — the same tradeoff the What's New check makes.)
+     */
+    suspend fun ensureNewBadgeBaseline(currentBuild: Int) {
+        context.settingsDataStore.edit { prefs ->
+            if (prefs[Keys.newBadgeBaseline] == null) {
+                prefs[Keys.newBadgeBaseline] = prefs[Keys.lastSeenChangelogBuild] ?: currentBuild
+            }
+        }
+    }
+
+    /** Retire the badges for [ids] — the user has reached those features. */
+    suspend fun markNewFeaturesSeen(ids: Collection<String>) {
+        if (ids.isEmpty()) return
+        context.settingsDataStore.edit { prefs ->
+            val merged = decodeStringSet(prefs[Keys.seenNewFeatures]) + ids
+            prefs[Keys.seenNewFeatures] = merged.joinToString(";")
+        }
+    }
+
+    /** Debug only: re-arm every NEW badge (clear the seen set, drop the baseline to 0). */
+    suspend fun resetNewBadges() {
+        context.settingsDataStore.edit { prefs ->
+            prefs.remove(Keys.seenNewFeatures)
+            prefs[Keys.newBadgeBaseline] = 0
+        }
     }
 
     suspend fun setVaultTreeUri(uri: String) {

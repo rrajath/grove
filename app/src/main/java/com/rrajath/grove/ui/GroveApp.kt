@@ -8,6 +8,7 @@ import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberUpdatedState
@@ -41,6 +42,8 @@ import com.rrajath.grove.ui.editor.EditRegionScreen
 import com.rrajath.grove.ui.capture.CapturePickerSheet
 import com.rrajath.grove.ui.capture.TemplateEditScreen
 import com.rrajath.grove.ui.nav.Routes
+import com.rrajath.grove.ui.newbadge.LocalNewBadges
+import com.rrajath.grove.ui.newbadge.NewBadges
 import com.rrajath.grove.ui.nav.navEnterTransition
 import com.rrajath.grove.ui.nav.navExitTransition
 import com.rrajath.grove.ui.nav.navPopEnterTransition
@@ -61,6 +64,7 @@ import com.rrajath.grove.ui.screens.settings.SettingsAppearanceScreen
 import com.rrajath.grove.ui.screens.settings.SettingsBackupScreen
 import com.rrajath.grove.ui.screens.settings.SettingsBugReportScreen
 import com.rrajath.grove.ui.screens.settings.SettingsCaptureTemplatesScreen
+import com.rrajath.grove.ui.screens.settings.SettingsDeveloperScreen
 import com.rrajath.grove.ui.screens.settings.SettingsNotebooksScreen
 import com.rrajath.grove.ui.screens.settings.SettingsNotesScreen
 import com.rrajath.grove.ui.screens.settings.SettingsRemindersScreen
@@ -240,6 +244,10 @@ private fun GroveNavigation(
         action()
     }
 
+    val newBadgeState by viewModel.newBadgeState.collectAsStateWithLifecycle()
+    val newBadges = NewBadges(newBadgeState) { ids -> viewModel.markNewFeaturesSeen(ids) }
+
+    CompositionLocalProvider(LocalNewBadges provides newBadges) {
     ModalNavigationDrawer(
         drawerState = drawerState,
         gesturesEnabled = currentRoute == Routes.NOTEBOOKS,
@@ -557,6 +565,7 @@ private fun GroveNavigation(
                     onOpenBackup = { navController.navigate(Routes.SETTINGS_BACKUP) },
                     onOpenBugReport = { navController.navigate(Routes.SETTINGS_BUG_REPORT) },
                     onOpenTips = { navController.navigate(Routes.SETTINGS_TIPS) },
+                    onOpenDeveloper = { navController.navigate(Routes.SETTINGS_DEVELOPER) },
                 )
             }
             composable(Routes.SETTINGS_APPEARANCE) {
@@ -674,11 +683,21 @@ private fun GroveNavigation(
             composable(Routes.SETTINGS_TIPS) {
                 SettingsTipsScreen(onBack = { navController.popBackStack() })
             }
+            composable(Routes.SETTINGS_DEVELOPER) {
+                SettingsDeveloperScreen(
+                    onBack = { navController.popBackStack() },
+                    onResetNewBadges = viewModel::resetNewBadges,
+                )
+            }
         }
+    }
     }
 
     LaunchedEffect(settings.onboardingDone) {
-        if (settings.onboardingDone) viewModel.checkWhatsNew()
+        if (settings.onboardingDone) {
+            viewModel.checkWhatsNew()
+            viewModel.ensureNewBadgeBaseline()
+        }
     }
     val whatsNew by viewModel.whatsNew.collectAsStateWithLifecycle()
     if (whatsNew.isNotEmpty()) {

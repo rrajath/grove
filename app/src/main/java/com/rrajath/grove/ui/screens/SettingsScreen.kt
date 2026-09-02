@@ -19,6 +19,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.rrajath.grove.R
 import com.rrajath.grove.ui.components.GroveTopBar
+import com.rrajath.grove.ui.newbadge.NewAnchors
+import com.rrajath.grove.ui.newbadge.NewBadge
 import com.rrajath.grove.ui.screens.settings.RowDivider
 import com.rrajath.grove.ui.screens.settings.SectionLabel
 import com.rrajath.grove.ui.screens.settings.SettingsGroup
@@ -47,6 +49,7 @@ fun SettingsScreen(
     onOpenBackup: () -> Unit,
     onOpenBugReport: () -> Unit,
     onOpenTips: () -> Unit,
+    onOpenDeveloper: () -> Unit,
 ) {
     val c = MaterialTheme.grove
     val pages = listOf(
@@ -109,7 +112,22 @@ fun SettingsScreen(
                     description = "Shortcuts and gestures hiding in the app",
                     onClick = onOpenTips,
                 ) {
+                    NewBadge(NewAnchors.SETTINGS_TIPS, Modifier.padding(end = 8.dp))
                     Text("›", fontFamily = PlexMono, fontSize = 14.sp, color = c.ink2)
+                }
+            }
+
+            if (com.rrajath.grove.BuildConfig.DEBUG) {
+                Spacer(Modifier.height(10.dp))
+                SectionLabel("DEVELOPER")
+                SettingsGroup {
+                    SettingsRow(
+                        label = "Developer tools",
+                        description = "Reset New badges and other debug actions",
+                        onClick = onOpenDeveloper,
+                    ) {
+                        Text("›", fontFamily = PlexMono, fontSize = 14.sp, color = c.ink2)
+                    }
                 }
             }
 
