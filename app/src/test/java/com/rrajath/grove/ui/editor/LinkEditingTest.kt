@@ -168,6 +168,26 @@ class LinkEditingTest {
         )
     }
 
+    // --- formatFileLink ---
+
+    @Test
+    fun `format file link, no description`() {
+        assertEquals("[[file:projects.org]]", formatFileLink("projects.org", null))
+    }
+
+    @Test
+    fun `format file link with a description`() {
+        assertEquals(
+            "[[file:../trips/japan.org][Japan trip]]",
+            formatFileLink("../trips/japan.org", "Japan trip"),
+        )
+    }
+
+    @Test
+    fun `format file link treats a blank description as none`() {
+        assertEquals("[[file:notes.org]]", formatFileLink("notes.org", ""))
+    }
+
     // --- insertHeadingLink ---
 
     @Test
@@ -224,5 +244,18 @@ class LinkEditingTest {
             OrgLinkTarget.FileCustomId("work/projects.org", "design"),
             target(link, "work/clients/acme.org"),
         )
+    }
+
+    @Test
+    fun `emitted cross-file link parses back to a File target`() {
+        val rel = relativeOrgPath("work/a.org", "notes/b.org")
+        val link = formatFileLink(rel, "the notes")
+        assertEquals(OrgLinkTarget.File("notes/b.org"), target(link, "work/a.org"))
+    }
+
+    @Test
+    fun `emitted same-file link parses back to the file being edited`() {
+        val link = formatFileLink("journal.org", null)
+        assertEquals(OrgLinkTarget.File("work/journal.org"), target(link, "work/journal.org"))
     }
 }

@@ -10,9 +10,8 @@ import com.rrajath.grove.org.TextEdit
  * so it stays JVM-testable without Compose runtime types.
  *
  * The plain tap on the link button still goes through [insertLinkTemplate] in
- * `EditorToolbar.kt`; this file is only the long-press menu's three actions
- * (URL, file/heading, heading-by-id) and the paste clean-up that follows a URL
- * insert.
+ * `EditorToolbar.kt`; this file is only the long-press menu's two actions (URL,
+ * file/heading) and the paste clean-up that follows a URL insert.
  */
 
 /**
@@ -115,6 +114,15 @@ fun formatHeadingLink(target: HeadingLinkTarget, description: String?): String {
     }
     return if (description.isNullOrEmpty()) "[[$body]]" else "[[$body][$description]]"
 }
+
+/**
+ * Render a whole-file link, `[[file:rel/path.org]]`, with an optional
+ * description. [relPath] is the target file made relative to the linking file's
+ * directory (see [relativeOrgPath]); for a link to the file being edited it is
+ * just that file's own name.
+ */
+fun formatFileLink(relPath: String, description: String?): String =
+    if (description.isNullOrEmpty()) "[[file:$relPath]]" else "[[file:$relPath][$description]]"
 
 /** Splice a finished link string over the current selection, cursor after it. */
 internal fun insertHeadingLink(value: TextFieldValue, linkText: String): TextFieldValue {
