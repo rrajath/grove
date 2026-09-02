@@ -23,6 +23,7 @@ import androidx.compose.foundation.text.InlineTextContent
 import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AddLink
 import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Autorenew
@@ -31,9 +32,11 @@ import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.EditCalendar
 import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.FormatSize
+import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.material.icons.filled.Tag
 import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material.icons.filled.UnfoldLess
 import androidx.compose.material.icons.filled.UnfoldMore
@@ -82,9 +85,11 @@ import com.rrajath.grove.ui.util.StringSetSaver
  * all" pill is replaced here with the outline view's fold/unfold icon action
  * (`UnfoldMore`/`UnfoldLess`): tap to expand every tip, tap again to collapse.
  *
- * Tip bodies and steps may embed `{{check}}`, `{{save}}`, `{{clock}}` or
- * `{{star}}` markers; [TipText] renders each as a small themed keycap of the
- * exact glyph the app shows for that control (see [tipGlyphContent]).
+ * Tip bodies and steps may embed `{{check}}`, `{{save}}`, `{{clock}}`, `{{star}}`
+ * or `{{link}}` markers; [TipText] renders each as a small themed keycap of the
+ * exact glyph the app shows for that control (see [tipGlyphContent]). Bare org
+ * link syntax in the copy (`[[link]]`, `[[link][description]]`, `https://`) is
+ * set in `PlexMono` `synLink`, matching the editor.
  */
 @Composable
 fun SettingsTipsScreen(onBack: () -> Unit) {
@@ -222,30 +227,41 @@ private fun TipRow(tip: Tip, open: Boolean, onToggle: () -> Unit) {
     }
 }
 
-// Android's ICU regex engine rejects a bare `}` (PatternSyntaxException at
-// class-init) even though the JVM accepts it, so the `{{…}}` braces are escaped.
-private val TIP_MARKUP_RE = Regex("\\{\\{(check|save|clock|star)\\}\\}|:PROPERTIES:|:LOGBOOK:")
+// Android's ICU regex engine rejects a bare `}` or `]` (PatternSyntaxException at
+// class-init) even though the JVM accepts them, so every brace and bracket is
+// escaped. Alternatives, in order: the `{{…}}` keycap markers; the two drawer
+// names; and bare org link syntax — a `https://` scheme or a `[[target]]` /
+// `[[target][description]]` bracket pair.
+private val TIP_MARKUP_RE = Regex(
+    "\\{\\{(check|save|clock|star|link)\\}\\}" +
+        "|:PROPERTIES:|:LOGBOOK:" +
+        "|https://" +
+        "|\\[\\[[^\\[\\]]*\\](?:\\[[^\\[\\]]*\\])?\\]",
+)
 
 /**
- * A 13sp `PlexSans` paragraph with two bits of markup expanded: `{{check}}` /
- * `{{save}}` / `{{clock}}` / `{{star}}` become inline keycaps (see
- * [tipGlyphContent]), and a literal `:PROPERTIES:` / `:LOGBOOK:` is set in
- * `PlexMono` `synProp` — the same drawer-name treatment the editor and the
- * read/outline drawers use.
+ * A 13sp `PlexSans` paragraph with its markup expanded: `{{check}}` / `{{save}}`
+ * / `{{clock}}` / `{{star}}` / `{{link}}` become inline keycaps (see
+ * [tipGlyphContent]); a literal `:PROPERTIES:` / `:LOGBOOK:` is set in `PlexMono`
+ * `synProp` (the drawer-name treatment the editor and drawers use); and bare
+ * link syntax (`https://`, `[[link]]`, `[[link][description]]`) is set in
+ * `PlexMono` `synLink`, matching how the editor colors it.
  */
 @Composable
 private fun TipText(text: String, color: Color, lineHeight: TextUnit) {
     val c = MaterialTheme.grove
-    val annotated = remember(text, c.synProp) {
+    val annotated = remember(text, c.synProp, c.synLink) {
         buildAnnotatedString {
             var last = 0
             TIP_MARKUP_RE.findAll(text).forEach { m ->
                 append(text.substring(last, m.range.first))
                 val glyph = m.groupValues[1]
-                if (glyph.isNotEmpty()) {
-                    appendInlineContent(glyph, m.value)
-                } else {
-                    withStyle(SpanStyle(fontFamily = PlexMono, color = c.synProp)) { append(m.value) }
+                when {
+                    glyph.isNotEmpty() -> appendInlineContent(glyph, m.value)
+                    m.value.startsWith(":") ->
+                        withStyle(SpanStyle(fontFamily = PlexMono, color = c.synProp)) { append(m.value) }
+                    else ->
+                        withStyle(SpanStyle(fontFamily = PlexMono, color = c.synLink)) { append(m.value) }
                 }
                 last = m.range.last + 1
             }
@@ -263,15 +279,16 @@ private fun TipText(text: String, color: Color, lineHeight: TextUnit) {
  * The inline keycaps used in tip copy, one per control the tips point at, each
  * drawn as the exact glyph that control uses in the app so it's recognisable:
  * the green [Check] sync tick from the Notebooks bar, the green [Save] icon from
- * the editor top bar, and the `PlexMono` clock / asterisk buttons from the
- * formatting toolbar (`EditorToolbar`, tinted `synTs` / `synStar`). Every keycap
- * sits on a `surface2` chip and reads at roughly the surrounding 13sp text size.
+ * the editor top bar, and the `PlexMono` clock / asterisk / `[[]]` buttons from
+ * the formatting toolbar (`EditorToolbar`, tinted `synTs` / `synStar` / `accent`).
+ * Every keycap sits on a `surface2` chip and reads at roughly the surrounding
+ * 13sp text size; the `[[]]` cap is wider to hold its four characters.
  */
 @Composable
 private fun tipGlyphContent(): Map<String, InlineTextContent> {
     val c = MaterialTheme.grove
-    fun chip(inner: @Composable BoxScope.() -> Unit) = InlineTextContent(
-        Placeholder(width = 2.0.em, height = 1.7.em, PlaceholderVerticalAlign.TextCenter),
+    fun chip(width: TextUnit = 2.0.em, inner: @Composable BoxScope.() -> Unit) = InlineTextContent(
+        Placeholder(width = width, height = 1.7.em, PlaceholderVerticalAlign.TextCenter),
     ) {
         Box(
             Modifier
@@ -292,6 +309,9 @@ private fun tipGlyphContent(): Map<String, InlineTextContent> {
         // the chip. The clock also renders small for its size, so it runs larger.
         "clock" to chip { GlyphText("◷", 17.sp, c.synTs, bold = false) },
         "star" to chip { GlyphText("*", 15.sp, c.synStar, bold = true) },
+        // The toolbar's link button, `[[]]` — four characters, so a wider cap,
+        // in the app's accent so it reads as a button next to the mono link text.
+        "link" to chip(width = 3.5.em) { GlyphText("[[]]", 12.5.sp, c.accent, bold = false) },
     )
 }
 
@@ -328,7 +348,8 @@ private data class TipGroup(val label: String, val tips: List<Tip>)
 
 /**
  * Tip content, reworded from the author's notes in design/Grove.dc.html
- * `tipVals()` (lines 3835-3868). `{{…}}` markers become inline keycaps.
+ * `tipVals()` (lines 3835-3868); the "Links" group is new to the app and has no
+ * prototype entry. `{{…}}` markers become inline keycaps.
  */
 private fun tipGroups(): List<TipGroup> = listOf(
     TipGroup(
@@ -372,6 +393,34 @@ private fun tipGroups(): List<TipGroup> = listOf(
                 "drawers", Icons.Default.EditNote, "Edit blocks and drawers in place",
                 "The preface keyword block and any :PROPERTIES: or :LOGBOOK: drawer each open in their own small " +
                     "editor. Double-tap a key/value row to edit just that block.",
+            ),
+        ),
+    ),
+    TipGroup(
+        "Links",
+        listOf(
+            Tip(
+                "link-follow", Icons.Default.Link, "Tap a link to follow it",
+                "In Read mode, tap any [[link]] to jump to its target. A link to a heading opens that " +
+                        "heading; a link to a whole file opens that file's outline. Web, email and phone links " +
+                        "open in the matching app. If nothing matches the link, a short message tells you and " +
+                        "you stay where you are.",
+            ),
+            Tip(
+                "link-build", Icons.Default.AddLink, "Let the toolbar write links for you",
+                "The {{link}} button on the formatting toolbar builds the link syntax so you never type the brackets.",
+                listOf(
+                    "Select some text first, then tap {{link}} to wrap it in a https:// link with that text as the label",
+                    "Tap with nothing selected to drop in an empty [[link][description]] template",
+                    "Long-press {{link}} to browse your vault and link straight to a file or a heading",
+                ),
+            ),
+            Tip(
+                "link-id", Icons.Default.Tag, "Link by ID so it survives moves",
+                "When a file or heading you pick has an ID, Grove offers to link by that instead of by name. " +
+                        "Choose it: an ID link keeps working after the target is renamed, moved, or refiled into " +
+                        "another file. To put an ID on every new heading automatically, turn on Settings › Notes › " +
+                        "Add ID to new notes.",
             ),
         ),
     ),

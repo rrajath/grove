@@ -184,11 +184,14 @@ re-uploads the APKs to the existing release instead of failing.
 - Settings › Help now has a **Tips & Tricks** page: a grouped, tap-to-expand
   list of shortcuts and gestures that the interface doesn't otherwise announce
   (viewing last sync/save times, autosave, inserting dates, cycling heading
-  levels, double-tap-to-edit, in-place drawer editing, swiping search results,
-  changing saved queries, capturing from the home-screen icon, auto-archiving).
-  Where a tip points at a specific control its description shows that control's
-  actual icon inline. The top bar carries the outline view's fold/unfold icon
-  to expand or collapse every tip at once.
+  levels, double-tap-to-edit, in-place drawer editing, following and building
+  links, linking by ID, swiping search results, changing saved queries,
+  capturing from the home-screen icon, auto-archiving). Where a tip points at a
+  specific control its description shows that control's actual icon inline,
+  including the toolbar's `[[]]` link button; bare link syntax in the copy
+  (`https://`, `[[link]]`) is set in the editor's monospace link style. The top
+  bar carries the outline view's fold/unfold icon to expand or collapse every
+  tip at once.
 - A file-level `:PROPERTIES:` drawer at the very top of an `.org` file (before
   the first heading) is now shown in the outline as a collapsed-by-default
   key/value section above the PREFACE box, styled the same as the `:PROPERTIES:`
