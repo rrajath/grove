@@ -142,8 +142,8 @@ fun SettingsTipsScreen(onBack: () -> Unit) {
             )
 
             groups.forEach { group ->
-                // Reaching this screen (every group composes here, scroll or not)
-                // retires any NEW badge whose destination is one of these groups.
+                // Leaving this screen retires any NEW badge whose destination is
+                // one of these groups (so the header badge shows for the visit).
                 MarkNewFeatureSeen(NewAnchors.tipsGroup(group.id))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     SectionLabel(group.label.uppercase())

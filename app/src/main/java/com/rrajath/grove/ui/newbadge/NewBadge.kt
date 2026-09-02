@@ -2,8 +2,10 @@ package com.rrajath.grove.ui.newbadge
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import com.rrajath.grove.ui.components.Pill
 import com.rrajath.grove.ui.theme.grove
@@ -33,16 +35,20 @@ fun NewBadge(anchorKey: String, modifier: Modifier = Modifier) {
 }
 
 /**
- * Marks every feature whose destination is [anchorKey] as seen when this enters
- * composition — reaching the destination clears the badge from the whole trail
- * (drawer item, settings row, section header, …) at once. Place it where the new
- * thing lives.
+ * Marks every feature whose destination is [anchorKey] as seen when this *leaves*
+ * composition — i.e. when the user navigates away from the screen the new thing
+ * lives on. Retiring on exit rather than on entry keeps any [NewBadge] at the
+ * destination itself (a section header, say) visible for the whole visit; the
+ * badge then clears from the entire trail — drawer item, settings row, header —
+ * at once. Place it where the new thing lives.
  */
 @Composable
 fun MarkNewFeatureSeen(anchorKey: String) {
-    val badges = LocalNewBadges.current
-    LaunchedEffect(anchorKey, badges) {
-        val reached = badges.state.featuresReachedAt(anchorKey)
-        if (reached.isNotEmpty()) badges.onFeaturesSeen(reached)
+    val badges by rememberUpdatedState(LocalNewBadges.current)
+    DisposableEffect(anchorKey) {
+        onDispose {
+            val reached = badges.state.featuresReachedAt(anchorKey)
+            if (reached.isNotEmpty()) badges.onFeaturesSeen(reached)
+        }
     }
 }
