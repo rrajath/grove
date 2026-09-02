@@ -296,7 +296,7 @@ fun EditRegionScreen(
             EditorToolbar(
                 onWrap = { marker -> textState.applyEdit { wrapSelection(it, marker) } },
                 onInsert = { snippet -> textState.applyEdit { insertAtCursor(it, snippet) } },
-                onLink = { textState.applyEdit(::insertLinkTemplate) },
+                onLink = { textState.applyEdit(::insertLinkFromToolbar) },
                 onHeading = {
                     textState.applyEdit {
                         val edit = LineEditing.insertHeadingStar(it.text, it.selection.start)

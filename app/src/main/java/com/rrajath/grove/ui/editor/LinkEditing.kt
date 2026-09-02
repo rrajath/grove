@@ -5,14 +5,25 @@ import androidx.compose.ui.text.input.TextFieldValue
 import com.rrajath.grove.org.TextEdit
 
 /**
- * Pure helpers behind the formatting toolbar's link flyout (long-press the
- * `[[]]` button). Everything here operates on plain strings / [TextFieldValue]
- * so it stays JVM-testable without Compose runtime types.
+ * Pure helpers behind the formatting toolbar's link button. Everything here
+ * operates on plain strings / [TextFieldValue] so it stays JVM-testable without
+ * Compose runtime types.
  *
- * The plain tap on the link button still goes through [insertLinkTemplate] in
- * `EditorToolbar.kt`; this file is only the long-press menu's two actions (URL,
- * file/heading) and the paste clean-up that follows a URL insert.
+ * Toolbar link button:
+ *  - tap, no selection -> [insertLinkTemplate] (`EditorToolbar.kt`)
+ *  - tap, with selection -> [insertHttpsLink]
+ *  - long-press -> the file/heading picker (main note editor only)
+ * [insertLinkFromToolbar] is the tap dispatcher; the paste clean-up below runs
+ * after a URL insert.
  */
+
+/**
+ * The toolbar link button's tap action: an `[[https://]]` scaffold when text is
+ * selected (that text becomes the description), or the neutral
+ * `[[link][description]]` template when nothing is selected.
+ */
+internal fun insertLinkFromToolbar(value: TextFieldValue): TextFieldValue =
+    if (value.selection.collapsed) insertLinkTemplate(value) else insertHttpsLink(value)
 
 /**
  * Insert an `[[https://][description]]` link and park the cursor immediately

@@ -38,6 +38,25 @@ class LinkEditingTest {
         assertEquals(TextRange(14), result.selection)
     }
 
+    // --- insertLinkFromToolbar (tap dispatcher) ---
+
+    @Test
+    fun `toolbar tap with no selection inserts the neutral link template`() {
+        val result = insertLinkFromToolbar(TextFieldValue("see ", TextRange(4)))
+
+        assertEquals("see [[link][description]]", result.text)
+        // "link" is selected so the URL can be typed over it.
+        assertEquals(TextRange(6, 10), result.selection)
+    }
+
+    @Test
+    fun `toolbar tap with a selection inserts the https scaffold`() {
+        val result = insertLinkFromToolbar(TextFieldValue("See my note here", TextRange(4, 11)))
+
+        assertEquals("See [[https://][my note]] here", result.text)
+        assertEquals(TextRange(14), result.selection)
+    }
+
     // --- collapseDoubledScheme ---
 
     @Test

@@ -40,22 +40,25 @@ A toolbar pinned above the keyboard gives one-tap access to common org markup:
 | U | `_underline_` |
 | `</>` | `=code=` |
 | ☑ | `- [ ]` checkbox item |
-| `[[ ]]` | link brackets (tap); **long-press** for the link menu, below |
+| `[[ ]]` | link at the cursor (tap); **long-press** for the file/heading picker, below |
 | 🕐 | timestamp: tap for a date, long-press for date+time |
 | `*` | new heading |
 | `«` `»` | list indent/outdent |
 
-### Link menu
+### Inserting a link
 
-A plain tap on `[[ ]]` inserts `[[link][description]]` with `link` selected. **Long-pressing** it opens a menu with two link builders:
+**Tapping** `[[ ]]`:
 
-- **URL** inserts `[[https://][description]]` with the cursor right after `https://`, ready to type or paste the address. If you paste a URL that already starts with `https://` or `http://`, the duplicate scheme is folded away.
-- **File or heading** opens a drill-down picker (the same one used for refiling).
-  - At a notebook's top level, **Link to this file** writes `[[file:other.org]]` (just `[[file:name.org]]` for a link into the note you're editing).
-  - Drill into a heading and **Link to this heading** writes `[[*Heading]]` for a heading in the note you're editing, or `[[file:other.org::*Heading]]` for one in another file.
-  - If the picked file has a file-level `ID`, or the picked heading has an `ID` or `CUSTOM_ID`, Grove asks whether to use that instead — an id link keeps working after the target is renamed or moved.
+- with **text selected**, inserts `[[https://][<your text>]]` with the cursor right after `https://`, ready to type or paste the address. If you paste a URL that already starts with `https://` or `http://`, the duplicate scheme is folded away.
+- with **nothing selected**, inserts `[[link][description]]` with `link` selected, ready to type over.
 
-Text you have selected when you open the menu is kept as the link's description.
+**Long-pressing** `[[ ]]` opens a drill-down picker (the same one used for refiling) to link to a file or heading anywhere in the vault:
+
+- At a notebook's top level, **Link to this file** writes `[[file:other.org]]` (just `[[file:name.org]]` for a link into the note you're editing).
+- Drill into a heading and **Link to this heading** writes `[[*Heading]]` for a heading in the note you're editing, or `[[file:other.org::*Heading]]` for one in another file.
+- If the picked file has a file-level `ID`, or the picked heading has an `ID` or `CUSTOM_ID`, Grove asks whether to use that instead — an id link keeps working after the target is renamed or moved.
+
+Text you have selected when you long-press is kept as the link's description. With nothing selected, the link is named after its target — the heading title, or the file's `#+TITLE:` (falling back to its file name).
 
 ## Instant Read ↔ Edit switching
 

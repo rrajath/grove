@@ -132,10 +132,10 @@ fun EditNoteScreen(
         }
     }
 
-    // --- toolbar link flyout (long-press the [[]] button) ---
-    // The selection at the moment a flyout option was chosen: its text is the
-    // link description, and the picked link is spliced back over this range once
-    // the sheet / dialog closes (by which time the field's own selection has
+    // --- toolbar link picker (long-press the [[]] button) ---
+    // The selection at the moment the picker was opened: its text is the link
+    // description, and the picked link is spliced back over this range once the
+    // sheet / dialog closes (by which time the field's own selection has
     // collapsed).
     var pendingLinkSel by remember { mutableStateOf<TextRange?>(null) }
     var pendingLinkDesc by remember { mutableStateOf<String?>(null) }
@@ -166,10 +166,20 @@ fun EditNoteScreen(
     fun confirmLinkPick(r: RefileUiState) {
         val doc = r.pickedDoc ?: return
         val file = r.pickedFile ?: return
-        val desc = pendingLinkDesc
         viewModel.linkPickerCancel()
 
         val heading = r.path.lastOrNull()?.let { doc.headlineAtLine(it) }
+        // With text selected the selection is the description; with nothing
+        // selected the link falls back to naming its target (the heading title,
+        // or the file's #+TITLE: / base name).
+        val desc = pendingLinkDesc ?: if (heading != null) {
+            heading.title
+        } else {
+            doc.preambleKeywords
+                .firstOrNull { it.first.equals("#+TITLE:", ignoreCase = true) }
+                ?.second?.takeIf { it.isNotBlank() }
+                ?: file.substringAfterLast('/').removeSuffix(".org")
+        }
         if (heading == null) {
             // File-level link. A file:-link is always relative to the editing
             // file's directory (just the name for a link into the same file).
@@ -463,7 +473,7 @@ fun EditNoteScreen(
             EditorToolbar(
                 onWrap = { marker -> textState.applyEdit { wrapSelection(it, marker) } },
                 onInsert = { snippet -> textState.applyEdit { insertAtCursor(it, snippet) } },
-                onLink = { textState.applyEdit(::insertLinkTemplate) },
+                onLink = { textState.applyEdit(::insertLinkFromToolbar) },
                 onHeading = {
                     textState.applyEdit {
                         val edit = LineEditing.insertHeadingStar(it.text, it.selection.start)
@@ -476,13 +486,10 @@ fun EditNoteScreen(
                             ?.let { edit -> TextFieldValue(edit.text, TextRange(edit.cursor)) }
                     }
                 },
-                linkFlyout = LinkFlyoutActions(
-                    onHttps = { textState.applyEdit(::insertHttpsLink) },
-                    onFileHeading = {
-                        captureLinkSelection()
-                        viewModel.startLinkPicker()
-                    },
-                ),
+                onLinkLongPress = {
+                    captureLinkSelection()
+                    viewModel.startLinkPicker()
+                },
             )
         }
     }

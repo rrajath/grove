@@ -69,16 +69,19 @@ re-uploads the APKs to the existing release instead of failing.
   `[[file:name.org]]` opens the file's outline. `http`/`mailto`/`tel` and other
   external schemes are handed to the OS. A link that resolves to nothing shows a
   "not found" toast.
-- **Long-pressing the link button** in the note editor's formatting toolbar opens
-  a menu with two link builders. **URL** inserts `[[https://][…]]` with the
+- **The link button** in the note editor's formatting toolbar now does more.
+  Tapping it with **text selected** inserts `[[https://][<selection>]]` with the
   cursor on the scheme, and folds the scheme if you then paste a URL that already
-  has one. **File or heading** opens a drill-down picker (the refile sheet, minus
-  refile/archive). At a file's top level, **Link to this file** writes
-  `[[file:path.org]]`; drill into a heading and **Link to this heading** writes
-  `[[*Heading]]` (same file) or `[[file:path.org::*Heading]]` (another file). If
-  the picked file or heading carries an `:ID:` (or a heading `:CUSTOM_ID:`), a
-  prompt offers to use that instead, since an id link survives a rename or move.
-  A plain tap still inserts the `[[link][description]]` template.
+  has one; tapping it with nothing selected still inserts the
+  `[[link][description]]` template. **Long-pressing** it opens a drill-down
+  picker (the refile sheet, minus refile/archive). At a file's top level, **Link
+  to this file** writes `[[file:path.org]]`; drill into a heading and **Link to
+  this heading** writes `[[*Heading]]` (same file) or
+  `[[file:path.org::*Heading]]` (another file). With text selected it becomes the
+  link description; with nothing selected the link is named after its target (the
+  heading title, or the file's `#+TITLE:` / file name). If the picked file or
+  heading carries an `:ID:` (or a heading `:CUSTOM_ID:`), a prompt offers to use
+  that instead, since an id link survives a rename or move.
 - `#+BEGIN_x … #+END_x` blocks in a note body now render in read mode as
   collapsible sections styled like the `:PROPERTIES:` / `:LOGBOOK:` drawers,
   headed by the block type (`QUOTE`, `SRC`, `EXAMPLE`, `VERSE`, `CENTER`, a

@@ -83,7 +83,7 @@ import com.rrajath.grove.ui.editor.orgInputTransformation
 import com.rrajath.grove.ui.editor.OrgSyntaxHighlight
 import com.rrajath.grove.ui.editor.applyEdit
 import com.rrajath.grove.ui.editor.insertAtCursor
-import com.rrajath.grove.ui.editor.insertLinkTemplate
+import com.rrajath.grove.ui.editor.insertLinkFromToolbar
 import com.rrajath.grove.ui.editor.wrapSelection
 import com.rrajath.grove.ui.screens.IconGlyph
 import com.rrajath.grove.settings.FontSizePreference
@@ -393,7 +393,7 @@ fun CaptureEditorScreen(
             if (!readMode) EditorToolbar(
                 onWrap = { marker -> textState.applyEdit { wrapSelection(it, marker) } },
                 onInsert = { snippet -> textState.applyEdit { insertAtCursor(it, snippet) } },
-                onLink = { textState.applyEdit(::insertLinkTemplate) },
+                onLink = { textState.applyEdit(::insertLinkFromToolbar) },
                 onHeading = {
                     textState.applyEdit {
                         val edit = LineEditing.insertHeadingStar(it.text, it.selection.start)
