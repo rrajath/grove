@@ -65,6 +65,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.LineHeightStyle
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
@@ -87,9 +88,10 @@ import com.rrajath.grove.ui.util.StringSetSaver
  *
  * Tip bodies and steps may embed `{{check}}`, `{{save}}`, `{{clock}}`, `{{star}}`
  * or `{{link}}` markers; [TipText] renders each as a small themed keycap of the
- * exact glyph the app shows for that control (see [tipGlyphContent]). Bare org
- * link syntax in the copy (`[[link]]`, `[[link][description]]`, `https://`) is
- * set in `PlexMono` `synLink`, matching the editor.
+ * exact glyph the app shows for that control (see [tipGlyphContent]). `{{readlink}}`
+ * renders a non-interactive sample of a read-mode link, and bare org link syntax
+ * in the copy (`[[link]]`, `[[link][description]]`, `https://`) is set in
+ * `PlexMono` `synLink`, matching the editor.
  */
 @Composable
 fun SettingsTipsScreen(onBack: () -> Unit) {
@@ -229,11 +231,13 @@ private fun TipRow(tip: Tip, open: Boolean, onToggle: () -> Unit) {
 
 // Android's ICU regex engine rejects a bare `}` or `]` (PatternSyntaxException at
 // class-init) even though the JVM accepts them, so every brace and bracket is
-// escaped. Alternatives, in order: the `{{…}}` keycap markers; the two drawer
+// escaped. Alternatives, in order: the `{{…}}` keycap markers; `{{readlink}}`,
+// which renders the word "link" the way read mode paints a link; the two drawer
 // names; and bare org link syntax — a `https://` scheme or a `[[target]]` /
 // `[[target][description]]` bracket pair.
 private val TIP_MARKUP_RE = Regex(
     "\\{\\{(check|save|clock|star|link)\\}\\}" +
+        "|\\{\\{readlink\\}\\}" +
         "|:PROPERTIES:|:LOGBOOK:" +
         "|https://" +
         "|\\[\\[[^\\[\\]]*\\](?:\\[[^\\[\\]]*\\])?\\]",
@@ -242,10 +246,12 @@ private val TIP_MARKUP_RE = Regex(
 /**
  * A 13sp `PlexSans` paragraph with its markup expanded: `{{check}}` / `{{save}}`
  * / `{{clock}}` / `{{star}}` / `{{link}}` become inline keycaps (see
- * [tipGlyphContent]); a literal `:PROPERTIES:` / `:LOGBOOK:` is set in `PlexMono`
- * `synProp` (the drawer-name treatment the editor and drawers use); and bare
- * link syntax (`https://`, `[[link]]`, `[[link][description]]`) is set in
- * `PlexMono` `synLink`, matching how the editor colors it.
+ * [tipGlyphContent]); `{{readlink}}` becomes the word "link" in `synLink` +
+ * underline — a non-interactive sample of read mode's own link styling; a
+ * literal `:PROPERTIES:` / `:LOGBOOK:` is set in `PlexMono` `synProp` (the
+ * drawer-name treatment the editor and drawers use); and bare link syntax
+ * (`https://`, `[[link]]`, `[[link][description]]`) is set in `PlexMono`
+ * `synLink`, matching how the editor colors it.
  */
 @Composable
 private fun TipText(text: String, color: Color, lineHeight: TextUnit) {
@@ -258,6 +264,13 @@ private fun TipText(text: String, color: Color, lineHeight: TextUnit) {
                 val glyph = m.groupValues[1]
                 when {
                     glyph.isNotEmpty() -> appendInlineContent(glyph, m.value)
+                    // A display-only echo of read mode's link paint. No
+                    // LinkAnnotation, so a tap just toggles the row like any
+                    // other tip text; it never navigates.
+                    m.value == "{{readlink}}" ->
+                        withStyle(SpanStyle(color = c.synLink, textDecoration = TextDecoration.Underline)) {
+                            append("link")
+                        }
                     m.value.startsWith(":") ->
                         withStyle(SpanStyle(fontFamily = PlexMono, color = c.synProp)) { append(m.value) }
                     else ->
@@ -401,7 +414,7 @@ private fun tipGroups(): List<TipGroup> = listOf(
         listOf(
             Tip(
                 "link-follow", Icons.Default.Link, "Tap a link to follow it",
-                "In Read mode, tap any [[link]] to jump to its target. A link to a heading opens that " +
+                "In Read mode, tap any {{readlink}} to jump to its target. A link to a heading opens that " +
                         "heading; a link to a whole file opens that file's outline. Web, email and phone links " +
                         "open in the matching app. If nothing matches the link, a short message tells you and " +
                         "you stay where you are.",
@@ -417,7 +430,7 @@ private fun tipGroups(): List<TipGroup> = listOf(
             ),
             Tip(
                 "link-id", Icons.Default.Tag, "Link by ID so it survives moves",
-                "When a file or heading you pick has an ID, Grove offers to link by that instead of by name. " +
+                "When a file or heading you pick has an ID (or CUSTOM_ID), Grove offers to link by that instead of by name. " +
                         "Choose it: an ID link keeps working after the target is renamed, moved, or refiled into " +
                         "another file. To put an ID on every new heading automatically, turn on Settings › Notes › " +
                         "Add ID to new notes.",

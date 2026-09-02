@@ -188,10 +188,11 @@ re-uploads the APKs to the existing release instead of failing.
   links, linking by ID, swiping search results, changing saved queries,
   capturing from the home-screen icon, auto-archiving). Where a tip points at a
   specific control its description shows that control's actual icon inline,
-  including the toolbar's `[[]]` link button; bare link syntax in the copy
-  (`https://`, `[[link]]`) is set in the editor's monospace link style. The top
-  bar carries the outline view's fold/unfold icon to expand or collapse every
-  tip at once.
+  including the toolbar's `[[]]` link button; the "follow a link" tip shows a
+  sample styled the way read mode paints a link (display only, tapping it goes
+  nowhere), and bare link syntax in the copy (`https://`, `[[link]]`) is set in
+  the editor's monospace link style. The top bar carries the outline view's
+  fold/unfold icon to expand or collapse every tip at once.
 - A file-level `:PROPERTIES:` drawer at the very top of an `.org` file (before
   the first heading) is now shown in the outline as a collapsed-by-default
   key/value section above the PREFACE box, styled the same as the `:PROPERTIES:`
