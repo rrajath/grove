@@ -60,6 +60,15 @@ re-uploads the APKs to the existing release instead of failing.
 ## [Unreleased]
 
 ### Added
+- Tapping an Org link in read mode now resolves it and navigates in-app.
+  `[[*Heading]]` and `[[Heading]]` (no scheme) jump to the read view of a
+  matching heading in the same file. `[[#custom-id]]` and `[[id:UUID]]` jump to
+  the heading with that `CUSTOM_ID` / `ID` anywhere in the vault.
+  `[[file:name.org::#custom-id]]` opens that heading in the named file (falling
+  back to the file's outline if only the heading is missing), and a bare
+  `[[file:name.org]]` opens the file's outline. `http`/`mailto`/`tel` and other
+  external schemes are handed to the OS. A link that resolves to nothing shows a
+  "not found" toast.
 - `#+BEGIN_x … #+END_x` blocks in a note body now render in read mode as
   collapsible sections styled like the `:PROPERTIES:` / `:LOGBOOK:` drawers,
   headed by the block type (`QUOTE`, `SRC`, `EXAMPLE`, `VERSE`, `CENTER`, a

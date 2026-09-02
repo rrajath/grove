@@ -1,5 +1,6 @@
 package com.rrajath.grove.ui.vault
 
+import android.content.Intent
 import android.net.Uri
 import android.provider.DocumentsContract
 import androidx.lifecycle.ViewModel
@@ -8,10 +9,13 @@ import androidx.lifecycle.viewModelScope
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.viewmodel.CreationExtras
 import com.rrajath.grove.GroveApplication
+import com.rrajath.grove.data.NoteKey
 import com.rrajath.grove.org.ArchiveLocation
 import com.rrajath.grove.org.ArchiveTarget
 import com.rrajath.grove.org.OrgDocument
 import com.rrajath.grove.org.OrgHeadline
+import com.rrajath.grove.org.OrgLinkParser
+import com.rrajath.grove.org.OrgLinkTarget
 import com.rrajath.grove.org.OrgMutations
 import com.rrajath.grove.org.OrgParser
 import com.rrajath.grove.org.OrgTimestamp
@@ -22,8 +26,10 @@ import com.rrajath.grove.settings.NotebookSortKey
 import com.rrajath.grove.settings.PinnedItem
 import com.rrajath.grove.sync.SyncState
 import com.rrajath.grove.vault.AutoArchive
+import com.rrajath.grove.vault.Notebook
 import com.rrajath.grove.vault.StateChangeResult
 import com.rrajath.grove.vault.Vault
+import com.rrajath.grove.vault.matchOpenedFileToNotebook
 import com.rrajath.grove.vault.vaultPath
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
@@ -511,6 +517,18 @@ data class OutlineToast(val message: String, val id: Long)
 /** Undoable-operation snackbar (design spec: ~4.2s with an UNDO action). */
 data class OutlineSnack(val message: String, val id: Long)
 
+/** Outcome of resolving a tapped org link; see [DocumentViewModel.openOrgLink]. */
+sealed interface LinkResolution {
+    /** Open Read mode of a heading (in this file or another). */
+    data class Note(val ref: NoteRef) : LinkResolution
+    /** Open a whole file's outline. */
+    data class Outline(val fileName: String) : LinkResolution
+    /** Hand a URI to the OS (`http`, `mailto`, `tel`, …). */
+    data class External(val uri: String) : LinkResolution
+    /** Nothing matched; [label] is shown to the user. */
+    data class NotFound(val label: String) : LinkResolution
+}
+
 /** One step of refile-picker drill-down state (design spec Gestures screen). */
 @Immutable
 data class RefileNotebook(val fileName: String, val noteCount: Int)
@@ -608,6 +626,113 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
                 .distinct()
                 .sorted()
         }
+    }
+
+    // --- org link navigation ---
+
+    /**
+     * Resolve a tapped org link ([rawTarget] is the string between `[[ ]]`, or a
+     * bare URL) against the current document, the note index, and the vault, then
+     * drive the matching navigation. [currentFile] is the file the link lives in
+     * (relative `file:` links resolve against its directory). An `id:`, heading,
+     * or `::#custom-id` target opens Read mode of that heading via [onOpenNote];
+     * a whole-file target opens that file's outline via [onOpenOutline]; an
+     * external scheme is handed to the OS; anything unresolved shows a toast.
+     */
+    fun openOrgLink(
+        rawTarget: String,
+        currentFile: String,
+        onOpenNote: (NoteRef) -> Unit,
+        onOpenOutline: (fileName: String) -> Unit,
+    ) {
+        val doc = (_state.value as? DocumentUiState.Loaded)?.document
+        viewModelScope.launch {
+            when (val resolution = resolveOrgLink(rawTarget, currentFile, doc)) {
+                is LinkResolution.Note -> onOpenNote(resolution.ref)
+                is LinkResolution.Outline -> onOpenOutline(resolution.fileName)
+                is LinkResolution.External -> runCatching {
+                    app.startActivity(
+                        Intent(Intent.ACTION_VIEW, Uri.parse(resolution.uri))
+                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    )
+                }.onFailure { showToast("Couldn't open $rawTarget") }
+                is LinkResolution.NotFound -> showToast("Couldn't find “${resolution.label}”")
+            }
+        }
+    }
+
+    private suspend fun resolveOrgLink(
+        rawTarget: String,
+        currentFile: String,
+        doc: OrgDocument?,
+    ): LinkResolution {
+        val dao = app.database.indexDao()
+        val vault = app.vault.value
+
+        fun noteIn(file: String, headline: OrgHeadline) =
+            LinkResolution.Note(NoteRef(file, headline.lineIndex, headline.customId ?: headline.id))
+        // [id] is the heading's :ID:/:CUSTOM_ID: when known, so the ref re-resolves
+        // by id even if the indexed line has drifted (see OrgDocument.headlineFor).
+        fun noteAt(key: NoteKey, id: String? = null) =
+            LinkResolution.Note(NoteRef(key.fileName, key.lineIndex, id))
+
+        return when (val t = OrgLinkParser.parse(rawTarget, currentFile)) {
+            is OrgLinkTarget.External -> LinkResolution.External(t.uri)
+
+            is OrgLinkTarget.Id -> {
+                doc?.findById(t.id)?.let { return noteIn(currentFile, it) }
+                dao.noteLocationByOrgId(t.id)?.let { return noteAt(it, t.id) }
+                LinkResolution.NotFound("id:${t.id}")
+            }
+
+            is OrgLinkTarget.CustomId -> {
+                doc?.findByCustomId(t.customId)?.let { return noteIn(currentFile, it) }
+                dao.noteLocationByCustomId(t.customId)?.let { return noteAt(it, t.customId) }
+                LinkResolution.NotFound("#${t.customId}")
+            }
+
+            is OrgLinkTarget.Heading -> {
+                doc?.let { findHeadlineByTitle(it, t.text) }?.let { return noteIn(currentFile, it) }
+                LinkResolution.NotFound(t.text)
+            }
+
+            is OrgLinkTarget.File ->
+                resolveNotebook(t.path, dao)?.let { LinkResolution.Outline(it) }
+                    ?: LinkResolution.NotFound(t.path)
+
+            is OrgLinkTarget.FileHeading -> {
+                val file = resolveNotebook(t.path, dao) ?: return LinkResolution.NotFound(t.path)
+                val headline = vault?.open(file)?.let { findHeadlineByTitle(it, t.text) }
+                // The file resolved; if the heading is gone, its outline is the
+                // best graceful landing rather than a dead end.
+                if (headline != null) noteIn(file, headline) else LinkResolution.Outline(file)
+            }
+
+            is OrgLinkTarget.FileCustomId -> {
+                val file = resolveNotebook(t.path, dao) ?: return LinkResolution.NotFound(t.path)
+                val headline = vault?.open(file)?.findByCustomId(t.customId)
+                if (headline != null) noteIn(file, headline) else LinkResolution.Outline(file)
+            }
+
+            is OrgLinkTarget.Fuzzy -> {
+                // A no-scheme `[[Heading]]` link only ever targets a heading in
+                // the current file (like `[[*Heading]]`, minus the leading star).
+                doc?.let { findHeadlineByTitle(it, t.text) }?.let { return noteIn(currentFile, it) }
+                LinkResolution.NotFound(t.text)
+            }
+        }
+    }
+
+    private fun findHeadlineByTitle(doc: OrgDocument, text: String): OrgHeadline? {
+        val wanted = text.trim()
+        return doc.findByTitle(wanted)
+            ?: doc.headlines.firstOrNull { it.title.equals(wanted, ignoreCase = true) }
+    }
+
+    /** Match a link's file path to an indexed notebook (exact path, then basename). */
+    private suspend fun resolveNotebook(path: String, dao: com.rrajath.grove.data.IndexDao): String? {
+        val known = dao.notebooks().map { Notebook(it.fileName, it.noteCount, it.lastModified) }
+        return matchOpenedFileToNotebook(path, known)?.fileName
     }
 
     // --- structural outline operations (PRD §5.3) ---

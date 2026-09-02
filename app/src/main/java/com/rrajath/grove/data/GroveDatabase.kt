@@ -199,6 +199,14 @@ abstract class IndexDao {
     @Query("SELECT DISTINCT tags FROM notes WHERE tags != ''")
     abstract suspend fun allTagStrings(): List<String>
 
+    /** Where a heading with this `:ID:` lives, for resolving `[[id:…]]` links vault-wide. */
+    @Query("SELECT fileName, lineIndex FROM notes WHERE orgId = :id LIMIT 1")
+    abstract suspend fun noteLocationByOrgId(id: String): NoteKey?
+
+    /** Where a heading with this `:CUSTOM_ID:` lives, for resolving `[[#id]]` links vault-wide. */
+    @Query("SELECT fileName, lineIndex FROM notes WHERE customId = :customId LIMIT 1")
+    abstract suspend fun noteLocationByCustomId(customId: String): NoteKey?
+
     @Query(
         "SELECT fileName, keyword, isDone, inheritedTags, scheduled, deadline FROM notes"
     )

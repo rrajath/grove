@@ -58,7 +58,6 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.core.net.toUri
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
@@ -91,6 +90,7 @@ import com.rrajath.grove.ui.components.CollapsibleBlockSection
 import com.rrajath.grove.ui.components.CollapsibleKvSection
 import com.rrajath.grove.ui.components.CollapsibleLogSection
 import com.rrajath.grove.ui.components.FavoriteStar
+import com.rrajath.grove.ui.components.GroveToast
 import com.rrajath.grove.ui.components.GroveTopBar
 import com.rrajath.grove.ui.components.GroveUndoSnackbar
 import com.rrajath.grove.ui.editor.MetadataSheet
@@ -137,6 +137,11 @@ fun ReadNoteScreen(
      */
     onOpenBreadcrumb: (Int?) -> Unit = {},
     /**
+     * A tapped org link resolved to a whole file (`[[file:other.org]]`): open
+     * that file's outline. Heading/`id:` links go through [onOpenNote] instead.
+     */
+    onOpenOutline: (fileName: String) -> Unit = {},
+    /**
      * Double-tapping a `:PROPERTIES:` or `:LOGBOOK:` drawer opens an editor scoped to just
      * that drawer. [kind] is `"headingProps"` or `"headingLog"`; [ref] identifies the
      * owning heading.
@@ -175,6 +180,12 @@ fun ReadNoteScreen(
         }
     }
     val snack by viewModel.snack.collectAsStateWithLifecycle()
+    val toast by viewModel.toast.collectAsStateWithLifecycle()
+    // Resolves a tapped org link (heading/id: → Read mode, whole file → outline,
+    // external scheme → OS, unresolved → toast). See DocumentViewModel.openOrgLink.
+    val onOpenLink: (String) -> Unit = remember(viewModel, onOpenNote, onOpenOutline, noteRef.fileName) {
+        { target -> viewModel.openOrgLink(target, noteRef.fileName, onOpenNote, onOpenOutline) }
+    }
     var metadataOpen by remember { mutableStateOf(false) }
     // Set on a completed move (refileConfirm/refileToArchive/refileToLastUsed), not a plain
     // cancel/back-out. The move itself (file write + the "Refiled to X" snack) runs async in
@@ -266,9 +277,8 @@ fun ReadNoteScreen(
                     Box(Modifier.fillMaxSize().padding(padding)) {
                         IntroContent(
                             doc = doc,
-                            fileName = noteRef.fileName,
                             listState = listState,
-                            onOpenNote = onOpenNote,
+                            onOpenLink = onOpenLink,
                             onEdit = { onEdit(null) },
                             onOpenBlock = { line -> onOpenBlock(noteRef.fileName, line) },
                             onToggleCheckbox = { line -> viewModel.toggleChecklistItem(line, checklistStates.marks) },
@@ -306,7 +316,7 @@ fun ReadNoteScreen(
                                 .pointerInput(Unit) {
                                     detectTapGestures(onDoubleTap = { onEdit(null) })
                                 },
-                            onOpenNote = onOpenNote,
+                            onOpenLink = onOpenLink,
                             fileName = noteRef.fileName,
                             onEditAt = onEdit,
                             onOpenDrawer = onOpenDrawer,
@@ -335,6 +345,13 @@ fun ReadNoteScreen(
                 refileSnackSeen = false
                 viewModel.undo()
             },
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(padding)
+                .padding(bottom = 16.dp),
+        )
+        GroveToast(
+            toast = toast,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(padding)
@@ -471,21 +488,17 @@ private fun ReadModeBreadcrumb(
 @Composable
 private fun IntroContent(
     doc: OrgDocument,
-    fileName: String,
     listState: LazyListState,
-    onOpenNote: (NoteRef) -> Unit,
+    onOpenLink: (String) -> Unit,
     onEdit: () -> Unit,
     onOpenBlock: (Int) -> Unit,
     onToggleCheckbox: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val c = MaterialTheme.grove
-    val context = LocalContext.current
     var boxCoords by remember { mutableStateOf<LayoutCoordinates?>(null) }
     var linkMenuState by remember { mutableStateOf<Pair<String, IntOffset>?>(null) }
-    val openLink: (String) -> Unit = remember(doc, fileName, context, onOpenNote) {
-        { openOrgTarget(it, doc, fileName, context, onOpenNote) }
-    }
+    val openLink = onOpenLink
     val onLinkLongPress: (String, Offset, LayoutCoordinates) -> Unit = remember {
         { target, textLocalPos, textCoords ->
             boxCoords?.let {
@@ -535,7 +548,7 @@ private fun NoteContent(
     doc: OrgDocument,
     headline: OrgHeadline,
     fileName: String,
-    onOpenNote: (NoteRef) -> Unit,
+    onOpenLink: (String) -> Unit,
     onEditAt: (Int?) -> Unit,
     onOpenDrawer: (kind: String, ref: NoteRef) -> Unit,
     onOpenBlock: (Int) -> Unit,
@@ -546,17 +559,12 @@ private fun NoteContent(
     favorites: List<FavoriteNote> = emptyList(),
 ) {
     val c = MaterialTheme.grove
-    val context = LocalContext.current
     // Per-section collapse state, reset when the viewed note changes; all
     // sections start collapsed (design/Grove.dc.html lines 499-552).
     val collapsibleExpanded = remember(fileName, headline.lineIndex) { mutableStateMapOf<String, Boolean>() }
     var boxCoords by remember { mutableStateOf<LayoutCoordinates?>(null) }
     var linkMenuState by remember { mutableStateOf<Pair<String, IntOffset>?>(null) }
-    // Remembered so rows keep stable callbacks and can skip recomposition:
-    // e.g. opening the link menu (state change below) must not re-render rows.
-    val openLink: (String) -> Unit = remember(doc, fileName, context, onOpenNote) {
-        { openOrgTarget(it, doc, fileName, context, onOpenNote) }
-    }
+    val openLink = onOpenLink
     val onLinkLongPress: (String, Offset, LayoutCoordinates) -> Unit = remember {
         { target, textLocalPos, textCoords ->
             // Convert text-local position to outer-Box-local position
@@ -1198,27 +1206,4 @@ private fun PlainTappableLine(
             onDoubleTap = onDoubleTapAt,
         ),
     )
-}
-
-/** Resolve an org link target: internal id/custom-id jumps to the note, else opens externally. */
-private fun openOrgTarget(
-    target: String,
-    doc: OrgDocument,
-    fileName: String,
-    context: android.content.Context,
-    onOpenNote: (NoteRef) -> Unit,
-) {
-    when {
-        target.startsWith("id:") ->
-            doc.findById(target.removePrefix("id:"))
-                ?.let { onOpenNote(NoteRef(fileName, it.lineIndex)) }
-
-        target.startsWith("#") ->
-            doc.findByCustomId(target.removePrefix("#"))
-                ?.let { onOpenNote(NoteRef(fileName, it.lineIndex)) }
-
-        else -> runCatching {
-            context.startActivity(Intent(Intent.ACTION_VIEW, target.toUri()))
-        }
-    }
 }

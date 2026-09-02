@@ -423,6 +423,7 @@ private fun GroveNavigation(
                             noteRef = ref,
                             onBack = { navController.popBackStack() },
                             onOpenNote = { target -> navController.navigate(Routes.note(target.encode())) },
+                            onOpenOutline = { fileName -> navController.navigate(Routes.outline(fileName)) },
                             onEdit = { targetLine -> editTargetLine = targetLine; mode = "edit" },
                             // null (file breadcrumb) opens the full outline; a heading's
                             // line index narrows the outline to that heading's subtree.
