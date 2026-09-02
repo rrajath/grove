@@ -63,7 +63,10 @@ re-uploads the APKs to the existing release instead of failing.
 - Tapping an Org link in read mode now resolves it and navigates in-app.
   `[[*Heading]]` and `[[Heading]]` (no scheme) jump to the read view of a
   matching heading in the same file. `[[#custom-id]]` and `[[id:UUID]]` jump to
-  the heading with that `CUSTOM_ID` / `ID` anywhere in the vault.
+  the heading with that `CUSTOM_ID` / `ID` anywhere in the vault; an `[[id:UUID]]`
+  whose id is a file's file-level `:ID:` (in the property drawer above the first
+  heading) opens that file's outline. These lookups are index-backed, so they
+  stay fast in a vault with thousands of files.
   `[[file:name.org::#custom-id]]` opens that heading in the named file (falling
   back to the file's outline if only the heading is missing), and a bare
   `[[file:name.org]]` opens the file's outline. `http`/`mailto`/`tel` and other

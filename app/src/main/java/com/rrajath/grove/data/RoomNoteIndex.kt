@@ -84,6 +84,7 @@ class RoomNoteIndex(
                 lastModified = lastModified,
                 conflictFileName = conflictFileName,
                 title = doc.preambleKeywords.firstOrNull { it.first.equals("#+TITLE:", ignoreCase = true) }?.second,
+                orgId = doc.filePropertyDrawer.firstOrNull { it.first.equals(":ID:", ignoreCase = true) }?.second,
             ),
             notes,
         )

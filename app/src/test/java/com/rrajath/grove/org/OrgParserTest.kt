@@ -121,6 +121,17 @@ class OrgParserTest {
     }
 
     @Test
+    fun `fileId is the drawer's ID, or null without one`() {
+        assertEquals(
+            "1a2b3c",
+            OrgParser.parse(":PROPERTIES:\n:ID: 1a2b3c\n:END:\n#+TITLE: T\n\n* H\n").fileId,
+        )
+        assertEquals(null, OrgParser.parse("#+TITLE: T\n\n* H\n").fileId)
+        // A drawer :ID: on the first heading is not a file-level id.
+        assertEquals(null, OrgParser.parse("* H\n:PROPERTIES:\n:ID: abc\n:END:\n").fileId)
+    }
+
+    @Test
     fun `filePropertyDrawer is empty when there is no drawer`() {
         val doc = OrgParser.parse("#+TITLE: T\n\nProse.\n\n* Heading\nbody\n")
         assertTrue(doc.filePropertyDrawer.isEmpty())

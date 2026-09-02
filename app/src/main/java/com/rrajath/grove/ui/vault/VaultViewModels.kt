@@ -681,7 +681,11 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
 
             is OrgLinkTarget.Id -> {
                 doc?.findById(t.id)?.let { return noteIn(currentFile, it) }
+                // A file-level `:ID:` (the leading property drawer) targets the
+                // whole file: land on its outline, the way `[[file:…]]` does.
+                if (doc?.fileId == t.id) return LinkResolution.Outline(currentFile)
                 dao.noteLocationByOrgId(t.id)?.let { return noteAt(it, t.id) }
+                dao.notebookByOrgId(t.id)?.let { return LinkResolution.Outline(it) }
                 LinkResolution.NotFound("id:${t.id}")
             }
 

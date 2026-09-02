@@ -184,8 +184,7 @@ fun EditNoteScreen(
             // File-level link. A file:-link is always relative to the editing
             // file's directory (just the name for a link into the same file).
             val relPath = relativeOrgPath(state.fileName, file)
-            val fileId = doc.filePropertyDrawer
-                .firstOrNull { it.first.equals(":ID:", ignoreCase = true) }?.second
+            val fileId = doc.fileId
             if (fileId != null) {
                 linkIdChoice = LinkIdChoice(
                     withId = formatHeadingLink(HeadingLinkTarget.ById(fileId), desc),

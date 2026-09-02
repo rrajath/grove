@@ -141,6 +141,27 @@ class NotesFtsTest {
         assertEquals(1, keysMatching("\"unrelated\"").size)
     }
 
+    @Test
+    fun fileLevelIdIndexedOnTheNotebookRowForWholeFileLinks() = runBlocking {
+        indexFile(
+            "roam/hegel.org",
+            ":PROPERTIES:\n:ID: 5f3c-file-id\n:END:\n#+title: Hegel\n\n* Phenomenology\nbody\n",
+        )
+        // A file-level :ID: resolves to the file, not to any note row.
+        assertEquals("roam/hegel.org", db.indexDao().notebookByOrgId("5f3c-file-id"))
+        assertEquals(null, db.indexDao().noteLocationByOrgId("5f3c-file-id"))
+        assertEquals(null, db.indexDao().notebookByOrgId("no-such-id"))
+    }
+
+    @Test
+    fun reindexingClearsAStaleFileLevelId() = runBlocking {
+        indexFile("n.org", ":PROPERTIES:\n:ID: old-id\n:END:\n#+title: N\n\n* H\n")
+        assertEquals("n.org", db.indexDao().notebookByOrgId("old-id"))
+
+        indexFile("n.org", "#+title: N\n\n* H\n")
+        assertEquals(null, db.indexDao().notebookByOrgId("old-id"))
+    }
+
     private suspend fun indexFile(fileName: String, text: String) {
         index.indexNotebook(
             fileName = fileName,

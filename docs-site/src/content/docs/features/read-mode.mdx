@@ -28,6 +28,16 @@ Grove parses the note's org markup and renders it through a custom `AnnotatedStr
 - Tag pills, TODO/keyword chip, and priority tag at the top
 - Collapsible drawers (`:LOGBOOK:`, `:PROPERTIES:`): tap to expand
 
+## Following links
+
+Tap a `[[target][description]]` link to jump to what it points at:
+
+- A heading link (`[[id:...]]`, `[[#custom-id]]`, `[[*Heading]]`, `[[file:other.org::*Heading]]`) opens that heading in Read mode.
+- A whole-file link opens that file's [Outline View](/features/outline-view). This includes an `[[id:...]]` link whose id matches a file-level `:ID:` (one in the property drawer above the first heading), not a heading.
+- An external link (`https:`, `mailto:`, `tel:`, ...) is handed to the system.
+
+Id and custom-id links resolve across the whole vault from the rebuildable index, so they keep working after the target file is renamed or moved. If nothing matches, Grove shows a brief "Couldn't find" message instead of navigating.
+
 ## Breadcrumbs
 
 Above the title, a breadcrumb trail (`tasks › Finish Q3 roadmap deck`) shows the notebook and heading path. Tapping the notebook name jumps back to Outline View, narrowed to this note's position.

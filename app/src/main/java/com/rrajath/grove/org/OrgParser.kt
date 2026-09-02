@@ -105,6 +105,15 @@ class OrgDocument(
     }
 
     /**
+     * The file-level `:ID:` from the leading [filePropertyDrawer], if any. This is
+     * an org-id target for the whole file: a `[[id:…]]` link matching it resolves
+     * to the file's outline.
+     */
+    val fileId: String? by lazy {
+        filePropertyDrawer.firstOrNull { it.first.equals(":ID:", ignoreCase = true) }?.second
+    }
+
+    /**
      * First line index of the intro: the real content in the preamble (the region
      * before the first headline). Skips a leading file-level `:PROPERTIES: … :END:`
      * drawer, `#+KEY:` lines and blank lines. Equals [preambleEnd] when the preamble

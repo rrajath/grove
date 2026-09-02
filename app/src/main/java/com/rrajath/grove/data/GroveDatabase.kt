@@ -24,7 +24,13 @@ import kotlinx.coroutines.flow.Flow
  * Rebuildable index over the vault (PRD §13): never the source of truth;
  * always derivable by re-parsing the .org files.
  */
-@Entity(tableName = "notebooks")
+@Entity(
+    tableName = "notebooks",
+    // Backs the file-level `[[id:…]]` lookup in `resolveOrgLink`: an `:ID:` in a
+    // file's leading property drawer resolves to that file's outline, indexed so
+    // the lookup stays O(log n) as the vault grows to thousands of files.
+    indices = [Index("orgId")],
+)
 data class NotebookEntity(
     @PrimaryKey val fileName: String,
     /** Last indexed revision ("mtime:size"). */
@@ -35,6 +41,12 @@ data class NotebookEntity(
     val conflictFileName: String?,
     /** Cached `#+TITLE:` preamble value, so the list doesn't re-parse files just to display it. */
     val title: String? = null,
+    /**
+     * The `:ID:` from the file's leading `:PROPERTIES:` drawer (before the first
+     * headline), if any. Lets `[[id:…]]` links that target a whole file resolve
+     * to its outline. Null for a stub row and for files with no file-level ID.
+     */
+    val orgId: String? = null,
     /**
      * False for a lightweight stub row inserted at discovery time (file listed
      * but not yet parsed): note count / title are placeholders until the
@@ -60,6 +72,10 @@ data class NotebookEntity(
         Index("priority"),
         Index("scheduled"),
         Index("deadline"),
+        // Back the vault-wide `[[id:…]]` / `[[#custom-id]]` link lookups so they
+        // probe an index instead of scanning every note row.
+        Index("orgId"),
+        Index("customId"),
     ],
 )
 data class NoteEntity(
@@ -202,6 +218,13 @@ abstract class IndexDao {
     /** Where a heading with this `:ID:` lives, for resolving `[[id:…]]` links vault-wide. */
     @Query("SELECT fileName, lineIndex FROM notes WHERE orgId = :id LIMIT 1")
     abstract suspend fun noteLocationByOrgId(id: String): NoteKey?
+
+    /**
+     * The file whose leading property drawer carries this `:ID:`, for resolving a
+     * `[[id:…]]` link that targets a whole file (→ its outline). Indexed lookup.
+     */
+    @Query("SELECT fileName FROM notebooks WHERE orgId = :id LIMIT 1")
+    abstract suspend fun notebookByOrgId(id: String): String?
 
     /** Where a heading with this `:CUSTOM_ID:` lives, for resolving `[[#id]]` links vault-wide. */
     @Query("SELECT fileName, lineIndex FROM notes WHERE customId = :customId LIMIT 1")
@@ -375,6 +398,12 @@ interface ReminderDao {
 
 @Database(
     entities = [NotebookEntity::class, NoteEntity::class, SyncLogEntity::class, ReminderEntity::class],
+    // v11: added NotebookEntity.orgId (file-level `:ID:` from the leading property
+    // drawer, so `[[id:…]]` links to a whole file resolve to its outline) and
+    // secondary indices on notebooks.orgId / notes.orgId / notes.customId so the
+    // link lookups probe an index instead of scanning. Destructive migration
+    // drops the (rebuildable) index; the next sync repopulates it from the .org
+    // files, no file data touched.
     // v10: NotebookEntity.fileName / NoteEntity.fileName / notes_fts.fileName are
     // now vault-relative paths ("projects/acme.org"), not bare names, since the
     // vault can contain subfolders. No column change; destructive migration just
@@ -389,7 +418,7 @@ interface ReminderDao {
     // v5: added NotebookEntity.isIndexed (stub vs fully-parsed notebook rows);
     // v4: added NotebookEntity.title (cached #+TITLE: preamble value). Destructive
     // migration drops the index so the next sync rebuilds it from the .org files.
-    version = 10,
+    version = 11,
     exportSchema = false,
 )
 abstract class GroveDatabase : RoomDatabase() {
