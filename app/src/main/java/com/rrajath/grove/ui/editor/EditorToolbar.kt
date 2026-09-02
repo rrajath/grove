@@ -6,6 +6,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -13,9 +14,16 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.TextAutoSize
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -31,6 +39,7 @@ import androidx.compose.ui.unit.sp
 import com.rrajath.grove.R
 import com.rrajath.grove.org.OrgTimestamp
 import com.rrajath.grove.ui.theme.PlexMono
+import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
 import java.time.LocalDateTime
 
@@ -39,6 +48,17 @@ import java.time.LocalDateTime
  * both editing surfaces offer the same bold/italic/underline/code/link/etc.
  * buttons (design spec §6).
  */
+/**
+ * The three actions behind a long-press on the toolbar link button. When null
+ * (region editor, quick capture) the button is tap-only; when present (the main
+ * note editor) long-press opens a flyout menu offering each one.
+ */
+data class LinkFlyoutActions(
+    val onHttps: () -> Unit,
+    val onFileHeading: () -> Unit,
+    val onId: () -> Unit,
+)
+
 @Composable
 fun EditorToolbar(
     onWrap: (Char) -> Unit,
@@ -46,6 +66,7 @@ fun EditorToolbar(
     onLink: () -> Unit,
     onHeading: () -> Unit,
     onIndent: (Int) -> Unit,
+    linkFlyout: LinkFlyoutActions? = null,
 ) {
     val c = MaterialTheme.grove
     // Each button gets equal width (RowScope.weight) so the row always fits
@@ -64,7 +85,7 @@ fun EditorToolbar(
         ToolButton(icon = R.drawable.ic_format_underlined, color = c.ink, modifier = Modifier.weight(1f)) { onWrap('_') }
         ToolButton(icon = R.drawable.ic_code, color = c.ink, modifier = Modifier.weight(1f)) { onWrap('~') }
         ToolButton(icon = R.drawable.ic_check_box, color = c.ink, modifier = Modifier.weight(1f)) { onInsert("\n- [ ] ") }
-        ToolButton("[[]]", c.synLink, Modifier.weight(1f)) { onLink() }
+        LinkToolButton(onLink = onLink, flyout = linkFlyout)
         // The clock glyph is drawn smaller than the letters at a given size, so
         // bump its font so it reads at the same height as the other buttons.
         // Tap inserts an inactive date-only stamp; long-press adds the time
@@ -90,6 +111,48 @@ fun EditorToolbar(
         ToolButton("«", c.ink, Modifier.weight(1f)) { onIndent(-1) }
         ToolButton("»", c.ink, Modifier.weight(1f)) { onIndent(+1) }
     }
+}
+
+/**
+ * The `[[]]` button. Tap inserts the plain `[[link][description]]` template; a
+ * long-press (when [flyout] is supplied) opens a menu next to the button with
+ * the URL / file-heading / heading-by-id builders.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun RowScope.LinkToolButton(
+    onLink: () -> Unit,
+    flyout: LinkFlyoutActions?,
+) {
+    val c = MaterialTheme.grove
+    var menuOpen by remember { mutableStateOf(false) }
+    Box(Modifier.weight(1f)) {
+        ToolButton(
+            "[[]]", c.synLink, Modifier.fillMaxWidth(),
+            onLongClick = flyout?.let { { menuOpen = true } },
+            onClick = onLink,
+        )
+        if (flyout != null) {
+            DropdownMenu(
+                expanded = menuOpen,
+                onDismissRequest = { menuOpen = false },
+                containerColor = c.surface,
+            ) {
+                LinkMenuItem("URL") { menuOpen = false; flyout.onHttps() }
+                LinkMenuItem("File or heading") { menuOpen = false; flyout.onFileHeading() }
+                LinkMenuItem("Heading by ID") { menuOpen = false; flyout.onId() }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LinkMenuItem(label: String, onClick: () -> Unit) {
+    val c = MaterialTheme.grove
+    DropdownMenuItem(
+        text = { Text(label, fontFamily = PlexSans, fontSize = 14.sp, color = c.ink) },
+        onClick = onClick,
+    )
 }
 
 @OptIn(ExperimentalFoundationApi::class)
