@@ -93,6 +93,7 @@ import com.rrajath.grove.ui.components.annotateOrgInline
 import com.rrajath.grove.data.FavoriteNote
 import com.rrajath.grove.data.matches
 import com.rrajath.grove.ui.components.favoriteIcon
+import com.rrajath.grove.ui.components.favoriteIconFilled
 import com.rrajath.grove.ui.components.searchIcon
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
@@ -526,10 +527,12 @@ fun OutlineScreen(
                                         noteDialogFor = h.lineIndex
                                     },
                                     SwipeAction(
-                                        label = "Fav",
+                                        // Filled star + "Unfav" once the row is a
+                                        // favorite, so the panel reflects current state.
+                                        label = if (isFavorite) "Unfav" else "Fav",
                                         fg = c.accent,
                                         bg = c.accentSoft,
-                                        icon = favoriteIcon(),
+                                        icon = if (isFavorite) favoriteIconFilled() else favoriteIcon(),
                                         onClick = toggleFavorite,
                                     ),
                                 ),
@@ -1023,14 +1026,16 @@ private fun OutlineNode(
                 }
             }
             // Body preview: first two non-empty lines, keeping the line breaks
-            // so multi-line content stays readable.
+            // so multi-line content stays readable. Feed the Text a third line
+            // (when there is one) so it overflows past maxLines = 2 and draws a
+            // trailing ellipsis — the cue that there's more content below.
             val preview = remember(doc, headline) {
                 doc.bodyOf(headline)
                     .map { it.trim() }
                     .filter { it.isNotEmpty() }
-                    .take(2)
+                    .take(3)
                     .joinToString("\n")
-                    .take(200)
+                    .take(240)
             }
             if (preview.isNotEmpty()) {
                 Text(

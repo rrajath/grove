@@ -92,16 +92,25 @@ re-uploads the APKs to the existing release instead of failing.
 - The **New notebook** dialog now validates the name as you type: the **Create**
   button stays disabled for a name that ends in a slash or contains a reserved
   filesystem character (`\ : * ? " < > |`). A helper line spells out that a slash
-  nests the notebook in folders, with the example `work/ideas.org`. The
+  nests the notebook in folders, with the example `work/ideas`. The
   **Rename notebook** dialog validates the same way.
 
 ### Changed
+- The **New notebook** and **Rename notebook** dialogs now show a fixed `.org`
+  next to the name you are typing, so it is clear the extension is added for you.
+  The field holds just the stem; nested paths like `work/ideas` still work.
+- The Outline row swipe panel's **Fav** action now reflects state: on a heading
+  that is already a favorite it shows a filled star and reads **Unfav**.
+- IDs that Grove writes into a note (`:ID:` on a new or shared note, and the
+  `:CUSTOM_ID:` added when you favorite a heading) are now upper-case, matching
+  the form Emacs `org-id` uses. Existing IDs in the vault are left as they are.
 - Deleting a notebook or a folder is now permanent. Android's Storage Access
   Framework has no system trash for files in a folder you granted, so Grove no
   longer renames the file to `<name>.org.trash` (those copies just piled up and
   Grove could not read them back). Both actions now show a confirmation dialog
-  first; recovery, if the vault syncs with Syncthing, comes from its file
-  versioning. Any folder left empty by a delete or a rename is removed from disk.
+  first, spelling out how many notes go and that it "cannot be undone" (recovery,
+  if the vault syncs with Syncthing, is via its file versioning). Any folder left
+  empty by a delete or a rename is removed from disk.
 - Settings has a new **Notebooks** page, directly under **Look and Feel**. The
   "Show file icons in notebooks", "Flatten folders" and "Notebook display name"
   settings moved there from Look and Feel; their values are unchanged.
@@ -114,6 +123,12 @@ re-uploads the APKs to the existing release instead of failing.
   order rather than always grouping files by folder path first.
 
 ### Fixed
+- Status bar icons keep the right colour through a rotation. On a light theme
+  they stayed dark on portrait but flipped to white when turned landscape (and
+  stayed white on the way back); the bar appearance is now re-asserted on every
+  configuration change, not just on a theme switch.
+- An Outline heading with more than two lines of content now ends its preview
+  with an ellipsis, so it is clear there is more text than the two lines shown.
 - Rotating the screen no longer discards in-progress work. `MainActivity` now
   declares `android:configChanges` for orientation and every other runtime
   config, so a rotation (or a dark-mode / font-scale change) re-lays-out the UI

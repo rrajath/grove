@@ -73,7 +73,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -554,8 +557,10 @@ fun NotebooksScreen(
             initial = "",
             confirmLabel = "Create",
             contextLabel = if (dir.isNotEmpty()) "in $dir/" else null,
+            placeholder = "ideas",
+            filenameSuffix = ".org",
             validate = FilenameValidation::errorForNewNotebook,
-            helperText = "Use a slash to nest it in folders, e.g. work/ideas.org",
+            helperText = "Use a slash to nest it in folders, e.g. work/ideas",
             onDismiss = { createInDir = null },
             // Closed by the editEvents collector: on success, or left open with a
             // toast when the name already exists.
@@ -586,6 +591,7 @@ fun NotebooksScreen(
             title = "Rename $target",
             initial = target,
             confirmLabel = "Rename",
+            filenameSuffix = ".org",
             validate = FilenameValidation::errorForNewNotebook,
             onDismiss = { renameTarget = null },
             // Closed by the editEvents collector (see the create dialog).
@@ -659,10 +665,15 @@ fun NotebooksScreen(
                     )
                 },
                 text = {
+                    val subject = if (count == 1) "1 notebook" else "$count notebooks"
                     Text(
-                        "This permanently deletes $count ${if (count == 1) "note" else "notes"}. " +
-                            "If your vault syncs with Syncthing, you may be able to recover " +
-                            "them from its file versioning.",
+                        buildAnnotatedString {
+                            append("This will ")
+                            withStyle(SpanStyle(color = c.red, fontWeight = FontWeight.Bold)) {
+                                append("permanently delete")
+                            }
+                            append(" $subject and cannot be undone. Are you sure?")
+                        },
                         fontFamily = PlexSans, fontSize = 13.sp, color = c.ink2,
                     )
                 },
@@ -684,6 +695,7 @@ fun NotebooksScreen(
     }
     notebookDeleteTarget?.let { target ->
         val c = MaterialTheme.grove
+        val nb = (state as? NotebooksUiState.Loaded)?.notebooks?.firstOrNull { it.fileName == target }
         AlertDialog(
             onDismissRequest = { notebookDeleteTarget = null },
             containerColor = c.surface,
@@ -694,9 +706,22 @@ fun NotebooksScreen(
                 )
             },
             text = {
+                // Note count from the row, when the notebook has been indexed;
+                // otherwise fall back to naming the notebook itself.
+                val count = nb?.takeIf { it.isIndexed }?.noteCount
+                val subject = when {
+                    count == null -> "this notebook"
+                    count == 1 -> "1 note"
+                    else -> "$count notes"
+                }
                 Text(
-                    "This permanently deletes the notebook. If your vault syncs with " +
-                        "Syncthing, you may be able to recover it from its file versioning.",
+                    buildAnnotatedString {
+                        append("This will ")
+                        withStyle(SpanStyle(color = c.red, fontWeight = FontWeight.Bold)) {
+                            append("permanently delete")
+                        }
+                        append(" $subject and cannot be undone. Are you sure?")
+                    },
                     fontFamily = PlexSans, fontSize = 13.sp, color = c.ink2,
                 )
             },
@@ -1202,10 +1227,18 @@ private fun NameDialog(
     validate: ((String) -> String?)? = null,
     // Persistent hint under the field, shown while there's no validation error.
     helperText: String? = null,
+    // A fixed extension (e.g. ".org") shown as a non-editable suffix inside the
+    // field; the field then holds just the stem, and it's re-appended on confirm.
+    filenameSuffix: String? = null,
 ) {
     val c = MaterialTheme.grove
-    var name by remember { mutableStateOf(initial) }
-    val error = if (name.isBlank()) null else validate?.invoke(name)
+    var name by remember {
+        mutableStateOf(filenameSuffix?.let { initial.removeSuffix(it) } ?: initial)
+    }
+    // Normalise so the callback always gets exactly one trailing suffix, whether
+    // the user left it off or typed it in themselves.
+    val resolved = filenameSuffix?.let { name.removeSuffix(it) + it } ?: name
+    val error = if (name.isBlank()) null else validate?.invoke(resolved)
     val canConfirm = name.isNotBlank() && error == null
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -1226,6 +1259,9 @@ private fun NameDialog(
                     singleLine = true,
                     isError = error != null,
                     placeholder = { Text(placeholder, fontFamily = PlexMono, color = c.ink3) },
+                    suffix = filenameSuffix?.let {
+                        { Text(it, fontFamily = PlexMono, color = c.ink3) }
+                    },
                     textStyle = TextStyle(fontFamily = PlexMono, color = c.ink),
                     supportingText = if (error != null || helperText != null) {
                         {
@@ -1243,7 +1279,7 @@ private fun NameDialog(
         },
         confirmButton = {
             TextButton(
-                onClick = { if (canConfirm) onConfirm(name) },
+                onClick = { if (canConfirm) onConfirm(resolved) },
                 enabled = canConfirm,
             ) { Text(confirmLabel, color = c.accent, fontWeight = FontWeight.SemiBold) }
         },

@@ -3,13 +3,13 @@ package com.rrajath.grove.capture
 import com.rrajath.grove.GroveApplication
 import com.rrajath.grove.R
 import com.rrajath.grove.org.OrgMutations
+import com.rrajath.grove.org.newOrgId
 import com.rrajath.grove.settings.GroveSettings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import java.time.LocalDateTime
-import java.util.UUID
 
 /**
  * Decides how content shared into Grove becomes an org note (PRD §10):
@@ -72,7 +72,7 @@ object ShareIntake {
             doc,
             note.heading,
             OrgMutations.NewNoteOptions(
-                id = if (settings.addIdToNewNotes) UUID.randomUUID().toString() else null,
+                id = if (settings.addIdToNewNotes) newOrgId() else null,
                 createdAt = if (settings.addCreatedToNewNotes) LocalDateTime.now() else null,
                 body = note.body,
             ),

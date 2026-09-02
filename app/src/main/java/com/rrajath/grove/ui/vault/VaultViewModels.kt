@@ -20,6 +20,7 @@ import com.rrajath.grove.org.OrgMutations
 import com.rrajath.grove.org.OrgParser
 import com.rrajath.grove.org.OrgTimestamp
 import com.rrajath.grove.org.INTRO_LINE_INDEX
+import com.rrajath.grove.org.newOrgId
 import com.rrajath.grove.settings.NotebookDisplayNameMode
 import com.rrajath.grove.settings.PinKind
 import com.rrajath.grove.settings.NotebookSortKey
@@ -49,7 +50,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
-import java.util.UUID
 
 /**
  * The vault folder's own name, from its SAF tree URI — e.g. a URI whose tree
@@ -784,7 +784,7 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
         val loaded = _state.value as? DocumentUiState.Loaded ?: return onResolved(null)
         val vault = app.vault.value ?: return onResolved(null)
         viewModelScope.launch {
-            val newId = UUID.randomUUID().toString()
+            val newId = newOrgId()
             val newText = withContext(Dispatchers.Default) {
                 OrgMutations.upsertProperty(loaded.document, headline, "CUSTOM_ID", newId)
             }
@@ -948,7 +948,7 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
             val (newText, lineIndex) = insert(
                 loaded.document,
                 OrgMutations.NewNoteOptions(
-                    id = if (settings.addIdToNewNotes) UUID.randomUUID().toString() else null,
+                    id = if (settings.addIdToNewNotes) newOrgId() else null,
                     createdAt = if (settings.addCreatedToNewNotes) LocalDateTime.now() else null,
                 ),
             )
