@@ -12,8 +12,10 @@ import com.rrajath.grove.org.TextEdit
 
 /**
  * Org-aware typing behaviour shared by the note editor and quick capture:
- * continues lists on Enter and capitalizes the first letter typed into a
- * heading, including right after a TODO keyword (e.g. `"* TODO "`).
+ * continues lists on Enter, capitalizes the first letter typed into a heading
+ * (including right after a TODO keyword, e.g. `"* TODO "`), and collapses a
+ * doubled URL scheme after a link's scheme was pre-inserted and a full URL then
+ * pasted over the cursor.
  *
  * An [InputTransformation] runs only for genuine user input (soft/hard
  * keyboard, paste, accessibility). Programmatic [TextFieldState.edit] writes
@@ -28,7 +30,8 @@ fun orgInputTransformation(keywords: OrgKeywords = OrgKeywords.DEFAULT) = InputT
 
     val afterList = if (insertedSoloNewlineAt(cursor)) LineEditing.continueListOnEnter(typed, cursor) else null
     val base = afterList ?: TextEdit(typed, cursor)
-    val result = LineEditing.capitalizeHeadingOnType(old, base.text, base.cursor, keywords) ?: base
+    val capitalized = LineEditing.capitalizeHeadingOnType(old, base.text, base.cursor, keywords) ?: base
+    val result = collapseDoubledScheme(capitalized.text, capitalized.cursor) ?: capitalized
 
     if (result.text != typed || result.cursor != cursor) {
         replace(0, length, result.text)
