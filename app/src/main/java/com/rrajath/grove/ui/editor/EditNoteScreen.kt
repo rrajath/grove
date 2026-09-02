@@ -131,6 +131,62 @@ fun EditNoteScreen(
         }
     }
 
+    // --- toolbar link flyout (long-press the [[]] button) ---
+    // The selection at the moment a flyout option was chosen: its text is the
+    // link description, and the picked link is spliced back over this range once
+    // the sheet / dialog closes (by which time the field's own selection has
+    // collapsed).
+    var pendingLinkSel by remember { mutableStateOf<TextRange?>(null) }
+    var pendingLinkDesc by remember { mutableStateOf<String?>(null) }
+    // Set when a picked heading has an :ID:/:CUSTOM_ID: and the user must choose
+    // between an id link and a heading-name link. Holds both, pre-formatted.
+    var linkIdChoice by remember { mutableStateOf<Pair<String, String>?>(null) }
+    val linkPicker by viewModel.linkPicker.collectAsStateWithLifecycle()
+
+    fun captureLinkSelection() {
+        val sel = textState.selection
+        pendingLinkSel = sel
+        pendingLinkDesc = if (sel.collapsed) null else textState.text.substring(sel.min, sel.max)
+    }
+
+    fun spliceLink(linkText: String) {
+        val sel = pendingLinkSel ?: textState.selection
+        val lo = sel.min.coerceIn(0, textState.text.length)
+        val hi = sel.max.coerceIn(lo, textState.text.length)
+        textState.edit {
+            replace(lo, hi, linkText)
+            selection = TextRange(lo + linkText.length)
+        }
+        pendingLinkSel = null
+        pendingLinkDesc = null
+    }
+
+    /** Turn the drilled-to heading into a link, asking about the id first when relevant. */
+    fun confirmLinkPick(picker: LinkPickerUiState) {
+        val r = picker.refile
+        val doc = r.pickedDoc ?: return
+        val file = r.pickedFile ?: return
+        val h = r.path.lastOrNull()?.let { doc.headlineAtLine(it) } ?: return
+        val relPath = if (file == state.fileName) null else relativeOrgPath(state.fileName, file)
+        val desc = pendingLinkDesc
+        val hasId = h.id != null || h.customId != null
+        viewModel.linkPickerCancel()
+
+        when {
+            picker.mode == LinkPickerMode.ID_ONLY || (picker.mode == LinkPickerMode.FILE_HEADING && !hasId) ->
+                spliceLink(
+                    formatHeadingLink(
+                        if (hasId) resilientHeadingTarget(h.id, h.customId, relPath)
+                        else HeadingLinkTarget.ByName(h.title, relPath),
+                        desc,
+                    ),
+                )
+            else -> linkIdChoice =
+                formatHeadingLink(resilientHeadingTarget(h.id, h.customId, relPath), desc) to
+                    formatHeadingLink(HeadingLinkTarget.ByName(h.title, relPath), desc)
+        }
+    }
+
     /** Validate heading before saving; shows alert if blank, otherwise saves. */
     fun trySave(onSaved: () -> Unit) {
         if (viewModel.isCurrentHeadingBlank()) {
@@ -405,8 +461,79 @@ fun EditNoteScreen(
                             ?.let { edit -> TextFieldValue(edit.text, TextRange(edit.cursor)) }
                     }
                 },
+                linkFlyout = LinkFlyoutActions(
+                    onHttps = { textState.applyEdit(::insertHttpsLink) },
+                    onFileHeading = {
+                        captureLinkSelection()
+                        viewModel.startLinkPicker(LinkPickerMode.FILE_HEADING)
+                    },
+                    onId = {
+                        captureLinkSelection()
+                        viewModel.startLinkPicker(LinkPickerMode.ID_ONLY)
+                    },
+                ),
             )
         }
+    }
+
+    linkPicker?.let { picker ->
+        val r = picker.refile
+        val idOnly = picker.mode == LinkPickerMode.ID_ONLY
+        val leaf = r.pickedDoc?.let { doc -> r.path.lastOrNull()?.let { doc.headlineAtLine(it) } }
+        RefileSheet(
+            state = r,
+            currentFileName = state.fileName,
+            currentDoc = null,
+            onPickNotebook = viewModel::linkPickerPickNotebook,
+            onDrillInto = viewModel::linkPickerDrillInto,
+            onBack = viewModel::linkPickerBack,
+            onCancel = viewModel::linkPickerCancel,
+            onConfirm = { confirmLinkPick(picker) },
+            onArchive = {},
+            onPickLastUsed = {},
+            headerTitle = "Link to a heading",
+            confirmLabel = "Link to this heading",
+            headerNote = if (idOnly) "Showing only headings with an ID or CUSTOM_ID." else null,
+            rowVisible = if (idOnly) ({ h -> headingHasId(h) || r.pickedDoc?.subtree(h).orEmpty().any(::headingHasId) })
+            else null,
+            confirmEnabled = when {
+                leaf == null -> false
+                idOnly -> headingHasId(leaf)
+                else -> true
+            },
+        )
+    }
+
+    linkIdChoice?.let { (withId, withName) ->
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { linkIdChoice = null },
+            containerColor = c.surface,
+            title = {
+                Text(
+                    "Use the heading's ID?",
+                    fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
+                    fontSize = 16.sp, color = c.ink,
+                )
+            },
+            text = {
+                Text(
+                    "An ID link keeps working if the heading is later renamed or moved to another file.",
+                    fontFamily = PlexSans, fontSize = 14.sp, color = c.ink2,
+                )
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    linkIdChoice = null
+                    spliceLink(withId)
+                }) { Text("Use ID", color = c.accent, fontWeight = FontWeight.SemiBold) }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    linkIdChoice = null
+                    spliceLink(withName)
+                }) { Text("Use heading name", color = c.ink2) }
+            },
+        )
     }
 
     if (metadataOpen) {
@@ -575,6 +702,10 @@ fun EditNoteScreen(
  * first line (the root heading), or an out-of-range line — all of which fall
  * back to the caller's default cursor placement.
  */
+/** Whether a heading carries an `:ID:` or `:CUSTOM_ID:` — the link flyout's "Heading by ID" gate. */
+private fun headingHasId(h: com.rrajath.grove.org.OrgHeadline): Boolean =
+    h.id != null || h.customId != null
+
 private fun charOffsetForLine(buffer: String, bufferStartLine: Int, targetLineIndex: Int?): Int? {
     val relativeLine = (targetLineIndex ?: return null) - bufferStartLine
     if (relativeLine <= 0) return null
