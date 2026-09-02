@@ -11,7 +11,10 @@ import com.rrajath.grove.org.OrgParser
 import com.rrajath.grove.org.OrgTimestamp
 import com.rrajath.grove.ui.vault.NoteRef
 import com.rrajath.grove.ui.vault.OutlineSnack
+import com.rrajath.grove.ui.vault.RefileNotebook
+import com.rrajath.grove.ui.vault.RefileUiState
 import com.rrajath.grove.ui.vault.factory
+import com.rrajath.grove.ui.vault.headlineAtLine
 import com.rrajath.grove.ui.vault.headlineFor
 import com.rrajath.grove.vault.AutoArchive
 import com.rrajath.grove.vault.StateChangeResult
@@ -501,7 +504,99 @@ class EditorViewModel(private val app: GroveApplication) : ViewModel() {
         }
     }
 
+    // --- link-to-heading picker (toolbar link flyout: "File or heading" / "Heading by ID") ---
+
+    private val _linkPicker = MutableStateFlow<LinkPickerUiState?>(null)
+    val linkPicker: StateFlow<LinkPickerUiState?> = _linkPicker
+
+    /**
+     * Open the drill-down heading picker. Reuses [RefileUiState] the way
+     * `AppViewModel`'s archive-location picker does (no source subtree, so
+     * `sourceLine = -1`). The file being edited is pre-picked, since linking to
+     * a heading in the same note is the common case.
+     */
+    fun startLinkPicker(mode: LinkPickerMode) {
+        val currentFile = _state.value.fileName
+        _linkPicker.value = LinkPickerUiState(mode, RefileUiState(sourceLine = -1))
+        viewModelScope.launch {
+            val vault = app.vault.value ?: return@launch
+            val notebooks = vault.notebooks()
+                .map { RefileNotebook(it.fileName, it.noteCount) }
+                .toImmutableList()
+            val currentDoc = currentFile.takeIf { it.isNotEmpty() }?.let { vault.open(it) }
+            _linkPicker.update { s ->
+                s?.copy(
+                    refile = s.refile.copy(
+                        notebooks = notebooks,
+                        pickedFile = currentDoc?.let { currentFile },
+                        pickedDoc = currentDoc,
+                    ),
+                )
+            }
+        }
+    }
+
+    fun linkPickerPickNotebook(fileName: String) {
+        viewModelScope.launch {
+            val doc = app.vault.value?.open(fileName) ?: run {
+                showSnack("Couldn't open ${fileName.removeSuffix(".org")}")
+                return@launch
+            }
+            _linkPicker.update {
+                it?.copy(refile = it.refile.copy(pickedFile = fileName, pickedDoc = doc, path = persistentListOf()))
+            }
+        }
+    }
+
+    fun linkPickerDrillInto(line: Int) {
+        _linkPicker.update {
+            it?.copy(refile = it.refile.copy(path = (it.refile.path + line).toImmutableList()))
+        }
+    }
+
+    /** Pop one drill level, or return to the notebook list from a file's top level. */
+    fun linkPickerBack() {
+        _linkPicker.update { s ->
+            val r = s?.refile ?: return@update s
+            s.copy(
+                refile = if (r.path.isNotEmpty()) r.copy(path = r.path.dropLast(1).toImmutableList())
+                else r.copy(pickedFile = null, pickedDoc = null),
+            )
+        }
+    }
+
+    fun linkPickerCancel() {
+        _linkPicker.value = null
+    }
+
+    /**
+     * The file name + headline the picker is currently drilled to, or null at a
+     * file's top level (nothing to link to yet).
+     */
+    fun linkPickerTarget(): Pair<String, OrgHeadline>? {
+        val r = _linkPicker.value?.refile ?: return null
+        val file = r.pickedFile ?: return null
+        val doc = r.pickedDoc ?: return null
+        val line = r.path.lastOrNull() ?: return null
+        return doc.headlineAtLine(line)?.let { file to it }
+    }
+
     companion object {
         val Factory = factory { EditorViewModel(it) }
     }
 }
+
+/** The toolbar link flyout's two heading-picker variants. */
+enum class LinkPickerMode {
+    /** Any heading; if it carries an id / custom id, offer to use that instead. */
+    FILE_HEADING,
+
+    /** Only headings that (or whose descendants) carry an id / custom id; always used as an id link. */
+    ID_ONLY,
+}
+
+data class LinkPickerUiState(
+    val mode: LinkPickerMode,
+    /** Drill-down state, reused from the refile picker (no source subtree). */
+    val refile: RefileUiState,
+)
