@@ -15,6 +15,7 @@ import com.rrajath.grove.org.OrgMutations
 import com.rrajath.grove.org.OrgTimestamp
 import com.rrajath.grove.search.DatePresence
 import com.rrajath.grove.search.FacetNarrowing
+import com.rrajath.grove.search.FilenameMatcher
 import com.rrajath.grove.search.FtsQuery
 import com.rrajath.grove.search.NoteCandidateQuery
 import com.rrajath.grove.search.NoteMeta
@@ -145,7 +146,22 @@ data class SearchResult(
 )
 
 @Immutable
-data class SearchFileGroup(val fileName: String, val results: ImmutableList<SearchResult>)
+data class SearchFileGroup(
+    val fileName: String,
+    val results: ImmutableList<SearchResult>,
+    /** Set when the query's text also matched this notebook's file name: the
+     *  group floats above content-only groups and shows a tappable file row. */
+    val nameMatch: FilenameMatch? = null,
+)
+
+/** The file-name hit behind a [SearchFileGroup.nameMatch]. */
+@Immutable
+data class FilenameMatch(
+    /** Offsets within the base file name to emphasise in the file row. */
+    val ranges: ImmutableList<IntRange>,
+    /** [FilenameMatcher.Quality] ordinal; higher sorts higher. */
+    val quality: Int,
+)
 
 @Immutable
 data class SearchCatalog(
@@ -549,6 +565,7 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
         }
 
         val notes = loadCandidates(textQuery, filters)
+        val facetRows = facets.value.orEmpty()
 
         withContext(Dispatchers.Default) {
             val today = LocalDate.now()
@@ -561,14 +578,44 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
             filtered.forEach { note ->
                 byFile.getOrPut(note.fileName) { mutableListOf() }.add(toResult(note, terms, today))
             }
-            val groups = byFile.map { (file, results) ->
-                SearchFileGroup(file, results.toImmutableList())
+
+            // Additive pass: a file whose *name* matches the query's text floats
+            // above every content-only group and gets its own tappable file row,
+            // even when nothing inside it matched. Notebook scoping from the
+            // Filters sheet still applies.
+            val nameHits = textQuery
+                ?.let { FilenameMatcher.match(facetRows.map(NoteFacets::fileName), it) }
+                ?.filter { hit ->
+                    (filters.notebooks.isEmpty() || hit.fileName in filters.notebooks) &&
+                        hit.fileName !in filters.excludedNotebooks
+                }
+                .orEmpty()
+            val hitByFile = nameHits.associateBy { it.fileName }
+            val lastModifiedByFile = facetRows.groupingBy { it.fileName }
+                .fold(Long.MIN_VALUE) { acc, row -> maxOf(acc, row.lastModified) }
+            val nameFiles = nameHits
+                .sortedWith(
+                    compareByDescending<FilenameMatcher.Hit> { it.quality }
+                        .thenByDescending { lastModifiedByFile[it.fileName] ?: Long.MIN_VALUE }
+                        .thenBy { it.fileName.lowercase() },
+                )
+                .map { it.fileName }
+
+            val orderedFiles = (nameFiles + byFile.keys.filterNot { it in hitByFile }).distinct()
+            val groups = orderedFiles.map { file ->
+                SearchFileGroup(
+                    fileName = file,
+                    results = byFile[file].orEmpty().toImmutableList(),
+                    nameMatch = hitByFile[file]?.let { hit ->
+                        FilenameMatch(hit.ranges.toImmutableList(), hit.quality.ordinal)
+                    },
+                )
             }.toImmutableList()
 
             _state.value = _state.value.copy(
                 filters = filters,
                 groups = groups,
-                resultCount = filtered.size,
+                resultCount = filtered.size + nameHits.count { it.fileName !in byFile },
                 notebookCount = groups.size,
                 isBlank = false,
                 matchedTerms = terms.toImmutableList(),
@@ -753,6 +800,7 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
         val inheritedTags: List<String>,
         val scheduledDate: LocalDate?,
         val deadlineDate: LocalDate?,
+        val lastModified: Long,
     )
 
     private fun NoteFacetRow.toFacets() = NoteFacets(
@@ -762,6 +810,7 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
         inheritedTags = inheritedTags.split(':').filter { it.isNotEmpty() },
         scheduledDate = scheduled?.let { OrgTimestamp.parse(it)?.date },
         deadlineDate = deadline?.let { OrgTimestamp.parse(it)?.date },
+        lastModified = lastModified,
     )
 
     companion object {

@@ -95,6 +95,7 @@ import com.rrajath.grove.ui.components.SwipeCommitRow
 import com.rrajath.grove.ui.components.annotateOrgInline
 import com.rrajath.grove.ui.components.ResultRowContent
 import com.rrajath.grove.ui.components.ScrollJumpButtons
+import com.rrajath.grove.ui.components.notebookIcon
 import com.rrajath.grove.ui.components.searchIcon
 import com.rrajath.grove.ui.screens.IconGlyph
 import com.rrajath.grove.ui.theme.PlexMono
@@ -121,6 +122,8 @@ fun SearchScreen(
     initialQuery: String?,
     onBack: () -> Unit,
     onOpenNote: (NoteRef) -> Unit,
+    /** A result whose notebook file name matched the query: open that notebook's outline. */
+    onOpenOutline: (fileName: String) -> Unit = {},
     /**
      * Notebook to pin the search to on entry (the Outline's search action passes
      * the file you were reading). The pin is an ordinary notebook filter from
@@ -270,6 +273,7 @@ fun SearchScreen(
                         matchedTerms = state.matchedTerms,
                         collapsedFiles = collapsedFiles,
                         onOpenNote = onOpenNote,
+                        onOpenOutline = onOpenOutline,
                         onOpenStatePicker = { statePickerFor = it },
                         onOpenSchedulePicker = { schedulePickerFor = it },
                     )
@@ -792,6 +796,7 @@ private fun GroupedResultsList(
     matchedTerms: List<String>,
     collapsedFiles: androidx.compose.runtime.snapshots.SnapshotStateMap<String, Boolean>,
     onOpenNote: (NoteRef) -> Unit,
+    onOpenOutline: (fileName: String) -> Unit,
     onOpenStatePicker: (SearchResult) -> Unit,
     onOpenSchedulePicker: (SearchResult) -> Unit,
 ) {
@@ -803,9 +808,22 @@ private fun GroupedResultsList(
                 FileGroupHeader(
                     fileName = group.fileName,
                     count = group.results.size,
+                    isNameMatch = group.nameMatch != null,
                     collapsed = collapsed,
                     onToggle = { collapsedFiles[group.fileName] = !collapsed },
                 )
+            }
+            group.nameMatch?.let { nameMatch ->
+                // Stays visible even when the group is collapsed: it is the
+                // file itself matching, not one of the line matches.
+                item(key = "filematch-${group.fileName}", contentType = "filematch") {
+                    FileMatchRow(
+                        fileName = group.fileName,
+                        nameMatch = nameMatch,
+                        showDivider = group.results.isNotEmpty() && !collapsed,
+                        onOpen = { onOpenOutline(group.fileName) },
+                    )
+                }
             }
             if (!collapsed) {
                 itemsIndexed(group.results, key = { _, r -> "${group.fileName}-${r.lineIndex}" }, contentType = { _, _ -> "result" }) { index, result ->
@@ -831,7 +849,13 @@ private fun GroupedResultsList(
 }
 
 @Composable
-private fun FileGroupHeader(fileName: String, count: Int, collapsed: Boolean, onToggle: () -> Unit) {
+private fun FileGroupHeader(
+    fileName: String,
+    count: Int,
+    isNameMatch: Boolean,
+    collapsed: Boolean,
+    onToggle: () -> Unit,
+) {
     val c = MaterialTheme.grove
     val angle by animateFloatAsState(if (collapsed) -90f else 0f, label = "groupCaret")
     Row(
@@ -849,7 +873,87 @@ private fun FileGroupHeader(fileName: String, count: Int, collapsed: Boolean, on
         Spacer(Modifier.width(9.dp))
         Text(fileName, fontFamily = PlexMono, fontWeight = FontWeight.SemiBold, fontSize = 12.5.sp, color = c.ink)
         Spacer(Modifier.width(9.dp))
-        Text("$count " + if (count == 1) "match" else "matches", fontFamily = PlexSans, fontSize = 11.5.sp, color = c.ink3)
+        val label = when {
+            count == 0 && isNameMatch -> "file match"
+            count == 1 -> "1 match"
+            else -> "$count matches"
+        }
+        Text(label, fontFamily = PlexSans, fontSize = 11.5.sp, color = c.ink3)
+    }
+}
+
+/**
+ * The synthetic first row of a group whose notebook *file name* matched the
+ * query (see [FilenameMatch]). Tapping it opens that notebook's outline. Shown
+ * even when the group is collapsed, and it is the only row when no line inside
+ * the file matched.
+ */
+@Composable
+private fun FileMatchRow(
+    fileName: String,
+    nameMatch: FilenameMatch,
+    showDivider: Boolean,
+    onOpen: () -> Unit,
+) {
+    val c = MaterialTheme.grove
+    Column {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .clickable(onClick = onOpen)
+                .padding(start = 16.dp, top = 10.dp, end = 11.dp, bottom = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                notebookIcon(),
+                contentDescription = null,
+                tint = c.accent,
+                modifier = Modifier.size(15.dp),
+            )
+            Spacer(Modifier.width(10.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    highlightedFileName(fileName, nameMatch.ranges, c),
+                    fontFamily = PlexMono,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 13.sp,
+                    color = c.ink,
+                )
+                Text(
+                    "Notebook name match",
+                    fontFamily = PlexSans,
+                    fontSize = 11.5.sp,
+                    color = c.ink3,
+                    modifier = Modifier.padding(top = 1.dp),
+                )
+            }
+            Spacer(Modifier.width(8.dp))
+            Text("›", fontFamily = PlexMono, fontSize = 15.sp, color = c.ink3)
+        }
+        if (showDivider) HorizontalDivider(color = c.line)
+    }
+}
+
+/** The base file name with the query-matched offsets emphasised. */
+private fun highlightedFileName(
+    fileName: String,
+    ranges: List<IntRange>,
+    c: com.rrajath.grove.ui.theme.GroveColors,
+): AnnotatedString {
+    val base = fileName.substringAfterLast('/')
+    return buildAnnotatedString {
+        append(base)
+        ranges.forEach { range ->
+            val start = range.first.coerceIn(0, base.length)
+            val end = (range.last + 1).coerceIn(start, base.length)
+            if (end > start) {
+                addStyle(
+                    SpanStyle(color = c.amber, background = c.amberSoft, fontWeight = FontWeight.SemiBold),
+                    start, end,
+                )
+            }
+        }
     }
 }
 

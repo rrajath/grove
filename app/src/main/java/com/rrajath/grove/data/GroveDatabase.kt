@@ -181,6 +181,8 @@ data class NoteFacetRow(
     val inheritedTags: String,
     val scheduled: String?,
     val deadline: String?,
+    /** Mirror of the notebook's mtime, for recency-ranking filename matches. */
+    val lastModified: Long,
 )
 
 /**
@@ -231,7 +233,7 @@ abstract class IndexDao {
     abstract suspend fun noteLocationByCustomId(customId: String): NoteKey?
 
     @Query(
-        "SELECT fileName, keyword, isDone, inheritedTags, scheduled, deadline FROM notes"
+        "SELECT fileName, keyword, isDone, inheritedTags, scheduled, deadline, lastModified FROM notes"
     )
     abstract fun noteFacets(): Flow<List<NoteFacetRow>>
 

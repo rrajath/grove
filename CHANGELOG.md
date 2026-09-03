@@ -60,6 +60,10 @@ re-uploads the APKs to the existing release instead of failing.
 ## [Unreleased]
 
 ### Added
+- Search now matches notebook **file names**, not just note text. A file whose
+  name matches your query is listed first, above the content results, as a
+  tappable row that opens its outline, even when nothing inside that file
+  matched.
 - The read-mode metadata sheet now has a **★ Favorite** action next to Add note
   and Refile; it pins the note to the drawer's Favorites and toggles back off on
   a second tap. Works on heading-less notes too, without adding a heading.

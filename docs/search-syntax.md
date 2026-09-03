@@ -16,7 +16,7 @@ An empty query matches everything.
 
 | Syntax | Matches notes that… | Example |
 |---|---|---|
-| `word` | contain the text in their heading or body (case-insensitive substring, anywhere in the word: `meet` matches `committee`) | `meeting` |
+| `word` | contain the text in their heading or body (case-insensitive substring, anywhere in the word: `meet` matches `committee`). A `word` is also matched against notebook **file names** / vault-relative paths: a file whose name matches is listed first, above the content results, and opens its outline when tapped | `meeting` |
 | `i.STATE` | have that TODO keyword (case-insensitive); `i.none` = no keyword | `i.todo`, `i.in-progress`, `.i.done` |
 | `b.NAME` | live in that notebook (`.org` suffix optional) | `b.inbox`, `b.journal.org` |
 | `t.TAG` | have the tag, **including inherited** tags from ancestor headings and `#+FILETAGS:`. Substring match: `t.bee` matches `:beeblebrox:` | `t.work` |

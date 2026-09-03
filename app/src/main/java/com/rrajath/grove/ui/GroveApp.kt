@@ -549,6 +549,7 @@ private fun GroveNavigation(
                     initialNotebook = entry.arguments?.getString("notebook"),
                     onBack = { navController.popBackStack() },
                     onOpenNote = { ref -> navController.navigate(Routes.note(ref.encode())) },
+                    onOpenOutline = { fileName -> navController.navigate(Routes.outline(fileName)) },
                 )
             }
             composable(

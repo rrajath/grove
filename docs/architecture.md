@@ -91,7 +91,9 @@ Capture is reachable from the notebook-list FAB, a Glance home-screen widget, th
 
 Because the FTS5 module is absent from Android's platform SQLite (which is why Room only offers `@Fts3`/`@Fts4`), the database runs on `BundledSQLiteDriver` from `androidx.sqlite:sqlite-bundled`. The `notes_fts` virtual table is created by hand in a `RoomDatabase.Callback` and read through `@RawQuery`; if creation ever fails, `IndexDao.ftsAvailable` stays false and everything degrades to the full scan rather than breaking.
 
-`SearchViewModel` no longer holds the whole vault in memory. It keeps only a `NoteFacetRow` projection (no titles, no bodies) to build the filter catalog and the blank-state quick counts, and loads full rows per search, scoped to the candidates. The Agenda screen likewise reads only rows that actually have a SCHEDULED or DEADLINE. `NoteMeta` lazily caches its parsed scheduled/deadline/closed/created dates; sorting and the agenda view use those instead of re-running the timestamp regex per comparison.
+`FilenameMatcher` is an additive pass layered on top of this, not part of it: it matches a query's plain-text terms against notebook file names / vault-relative paths straight off the `NoteFacetRow` projection the view model already holds, with no query and no effect on `QueryMatcher` or the FTS parity guarantee. A file whose name matches floats above every content-only group (ranked exact base name > prefix > substring, then `lastModified`) and gets a synthetic `FileMatchRow` that opens its outline, even when nothing inside it matched.
+
+`SearchViewModel` no longer holds the whole vault in memory. It keeps only a `NoteFacetRow` projection (no titles, no bodies) to build the filter catalog, the blank-state quick counts, and the file-name match pass above, and loads full rows per search, scoped to the candidates. The Agenda screen likewise reads only rows that actually have a SCHEDULED or DEADLINE. `NoteMeta` lazily caches its parsed scheduled/deadline/closed/created dates; sorting and the agenda view use those instead of re-running the timestamp regex per comparison.
 
 ## Agenda (`ui/agenda/`)
 

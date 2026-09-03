@@ -36,7 +36,7 @@ Free-text terms combine with `AND`/`OR`/`NOT`, plus facet prefixes:
 | `o.` | sort directive |
 | `ad.N` | agenda-mode grouping |
 
-As you type, matches highlight inline and results group by notebook under collapsible, sticky-header sections:
+As you type, matches highlight inline and results group by notebook under collapsible, sticky-header sections. A free-text term is also matched against notebook **file names** (the full vault-relative path, so `work` finds `work/planning.org`): a file whose name matches floats above every content-only result as a tappable row that opens its outline, even when nothing inside that file matched the query.
 
 <ThemeShot
   light={searchLight}
@@ -69,6 +69,8 @@ Long-press any search (in the drawer or the quick-start list) to **Rename** or *
 ## How it's indexed
 
 Results are backed by a SQLite FTS5 full-text index (`RoomNoteIndex`) for speed. Queries that FTS5 can't reliably narrow (short terms, negation, non-ASCII text, date-window arithmetic) fall back to a full scan automatically, so results stay correct even when the index can't help.
+
+File-name matching is a separate, lightweight pass over the vault's file list that the search screen already keeps in memory; it never changes how note content is matched.
 
 ## Related
 
