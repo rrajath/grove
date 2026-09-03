@@ -235,7 +235,7 @@ fun MetadataSheet(
                 TagsColonRow(tags = selectedTags, onRemove = { tag -> onSetTags(selectedTags - tag) })
                 Text(
                     "tap an existing tag to remove it",
-                    fontFamily = PlexSans, fontSize = 10.sp, color = c.ink3,
+                    fontFamily = PlexSans, fontSize = 12.sp, color = c.ink3,
                     modifier = Modifier.padding(top = 4.dp),
                 )
             }
