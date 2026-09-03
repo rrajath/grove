@@ -32,6 +32,12 @@ object NewAnchors {
     const val DRAWER_SETTINGS = "drawer.settings"
     const val SETTINGS_TIPS = "settings.tips"
 
+    /** The Settings hub row leading to the Notes page. */
+    const val SETTINGS_NOTES = "settings.notes"
+
+    /** The "New note cursor" row inside Settings § Notes. */
+    const val SETTINGS_NOTES_NEW_NOTE_CURSOR = "settings.notes.newNoteCursor"
+
     /** The top-bar "☰" glyph. A feature reached through it lists this so the
      *  glyph carries a corner dot until the feature is seen. */
     const val TOPBAR_MENU = "topbar.menu"
@@ -59,5 +65,19 @@ val NEW_FEATURES: List<NewFeature> = listOf(
             NewAnchors.tipsGroup("links"),
         ),
         destination = NewAnchors.tipsGroup("links"),
+    ),
+    NewFeature(
+        // Settings § Notes gained a "New note cursor" lever (heading vs body).
+        // `since` is the versionCode of the release that ships it — bump it to
+        // match `gradle.properties` versionName when cutting the release.
+        id = "notes-new-note-cursor",
+        since = 10400,
+        anchors = setOf(
+            NewAnchors.TOPBAR_MENU,
+            NewAnchors.DRAWER_SETTINGS,
+            NewAnchors.SETTINGS_NOTES,
+            NewAnchors.SETTINGS_NOTES_NEW_NOTE_CURSOR,
+        ),
+        destination = NewAnchors.SETTINGS_NOTES_NEW_NOTE_CURSOR,
     ),
 )

@@ -101,6 +101,9 @@ class AppViewModel(private val app: GroveApplication) : ViewModel() {
     fun setDefaultNoteOpenMode(mode: NoteOpenMode) =
         viewModelScope.launch { settingsRepository.setDefaultNoteOpenMode(mode) }
 
+    fun setNewNoteCursor(cursor: com.rrajath.grove.settings.NewNoteCursor) =
+        viewModelScope.launch { settingsRepository.setNewNoteCursor(cursor) }
+
     fun setShowNotebookFileIcons(enabled: Boolean) =
         viewModelScope.launch { settingsRepository.setShowNotebookFileIcons(enabled) }
 

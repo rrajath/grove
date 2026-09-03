@@ -28,7 +28,12 @@ import com.rrajath.grove.ui.screens.settings.SettingsRow
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.grove
 
-private data class SettingsPage(val title: String, val description: String, val onClick: () -> Unit)
+private data class SettingsPage(
+    val title: String,
+    val description: String,
+    val onClick: () -> Unit,
+    val badge: (@Composable () -> Unit)? = null,
+)
 
 /**
  * Settings hub (design spec §11, split into one page per section): a plain
@@ -57,7 +62,12 @@ fun SettingsScreen(
         SettingsPage("Notebooks", "File icons, folder flattening, display names, sort order", onOpenNotebooks),
         SettingsPage("Capture Templates", "Quick-capture targets and shortcuts", onOpenCaptureTemplates),
         SettingsPage("Sync", "Folder, auto-sync, sync log", onOpenSync),
-        SettingsPage("Notes", "TODO keywords, priorities, note display", onOpenNotes),
+        SettingsPage(
+            "Notes",
+            "TODO keywords, priorities, note display",
+            onClick = onOpenNotes,
+            badge = { NewDot(NewAnchors.SETTINGS_NOTES) },
+        ),
         SettingsPage("Agenda", "Swipe actions on agenda rows", onOpenAgenda),
         SettingsPage("Reminders", "Notifications for SCHEDULED/DEADLINE", onOpenReminders),
         SettingsPage("Sharing", "Where shared content lands", onOpenSharing),
@@ -90,7 +100,12 @@ fun SettingsScreen(
             SettingsGroup {
                 pages.forEachIndexed { i, page ->
                     if (i > 0) RowDivider()
-                    SettingsRow(label = page.title, description = page.description, onClick = page.onClick) {
+                    SettingsRow(
+                        label = page.title,
+                        description = page.description,
+                        labelBadge = page.badge,
+                        onClick = page.onClick,
+                    ) {
                         Text("›", fontFamily = PlexMono, fontSize = 14.sp, color = c.ink2)
                     }
                 }

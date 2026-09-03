@@ -63,6 +63,22 @@ enum class NoteOpenMode(val storageKey: String) {
     }
 }
 
+/**
+ * Settings § Notes: where the caret lands when a note is created for immediate
+ * editing (the outline "+" FAB). [HEADING] parks it just after the "* " ready to
+ * type a title; [BODY] parks it on the blank body line below, which is the
+ * historical behavior and the default.
+ */
+enum class NewNoteCursor(val storageKey: String) {
+    HEADING("heading"),
+    BODY("body");
+
+    companion object {
+        fun fromStorage(value: String?): NewNoteCursor =
+            entries.firstOrNull { it.storageKey == value } ?: BODY
+    }
+}
+
 enum class NotebookDisplayNameMode(val storageKey: String) {
     FILENAME("filename"),
     TITLE("title");

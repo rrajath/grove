@@ -171,6 +171,36 @@ class LineEditingTest {
         assertEquals("* title\n* ", edit.text)
     }
 
+    // --- new-note caret ---
+
+    @Test
+    fun `new-note caret body mode parks at the end and leaves text alone`() {
+        val edit = LineEditing.newNoteCaret("* \n", heading = false)
+        assertEquals("* \n", edit.text)
+        assertEquals(3, edit.cursor)
+    }
+
+    @Test
+    fun `new-note caret heading mode lands just after the star and space`() {
+        val edit = LineEditing.newNoteCaret("* \n", heading = true)
+        assertEquals("* \n", edit.text)
+        assertEquals(2, edit.cursor)
+    }
+
+    @Test
+    fun `new-note caret heading mode inserts the missing space`() {
+        val edit = LineEditing.newNoteCaret("*\nbody", heading = true)
+        assertEquals("* \nbody", edit.text)
+        assertEquals(2, edit.cursor)
+    }
+
+    @Test
+    fun `new-note caret heading mode skips past a property drawer below the heading`() {
+        val edit = LineEditing.newNoteCaret("* \n:PROPERTIES:\n:ID: x\n:END:\n", heading = true)
+        assertEquals(2, edit.cursor)
+        assertEquals("* \n:PROPERTIES:\n:ID: x\n:END:\n", edit.text)
+    }
+
     // --- list indent buttons ---
 
     @Test

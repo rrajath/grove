@@ -59,6 +59,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rrajath.grove.org.LineEditing
 import com.rrajath.grove.settings.FontSizePreference
+import com.rrajath.grove.settings.NewNoteCursor
 import com.rrajath.grove.ui.components.GroveTopBar
 import com.rrajath.grove.ui.components.GroveUndoSnackbar
 import com.rrajath.grove.ui.components.ScrollJumpButtons
@@ -97,6 +98,8 @@ fun EditNoteScreen(
     initialCursorLine: Int? = null,
     /** Settings § Notes: font-size lever for the editor field. App chrome is unaffected. */
     editModeFontSize: FontSizePreference = FontSizePreference.MEDIUM,
+    /** Settings § Notes: caret placement for a freshly created note (only used when [isNewNote]). */
+    newNoteCursor: NewNoteCursor = NewNoteCursor.BODY,
     viewModel: EditorViewModel = viewModel(factory = EditorViewModel.Factory),
 ) {
     val c = MaterialTheme.grove
@@ -280,12 +283,17 @@ fun EditNoteScreen(
     LaunchedEffect(state.loading) {
         if (!state.loading && state.error == null) {
             if (isNewNote) {
-                // FAB-created heading has no body yet (just the "* " line,
-                // plus an optional :PROPERTIES: drawer): append a blank body
-                // line and park the cursor there so the keyboard opens ready
-                // for content, instead of on the heading line.
+                // FAB-created heading has no body yet (just the "* " line, plus
+                // an optional :PROPERTIES: drawer): append a blank body line, then
+                // park the cursor per Settings § Notes — on that body line (the
+                // default, keyboard ready for content) or right after the "* " to
+                // type the title first.
                 val bodyText = state.buffer + "\n"
-                setText(bodyText, TextRange(bodyText.length))
+                val edit = LineEditing.newNoteCaret(
+                    bodyText,
+                    heading = newNoteCursor == NewNoteCursor.HEADING,
+                )
+                setText(edit.text, TextRange(edit.cursor))
             } else {
                 val targetOffset = charOffsetForLine(state.buffer, state.lineIndex, initialCursorLine)
                 val cursor = targetOffset ?: state.buffer.length.coerceAtMost(

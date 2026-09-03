@@ -89,6 +89,8 @@ data class GroveSettings(
     val defaultPriority: Char? = null,
     val addIdToNewNotes: Boolean = false,
     val addCreatedToNewNotes: Boolean = true,
+    /** Where the caret lands in a note created for immediate editing (outline "+" FAB). */
+    val newNoteCursor: NewNoteCursor = NewNoteCursor.BODY,
     /** Per-notebook last-used note mode overrides: "file.org" → "read"/"edit". */
     val notebookModes: Map<String, String> = emptyMap(),
     /** Per-notebook monogram color overrides: "file.org" → palette key ("green"…). */
@@ -215,6 +217,7 @@ class SettingsRepository(private val context: Context) {
         val defaultPriority = stringPreferencesKey("default_priority")
         val addIdToNewNotes = booleanPreferencesKey("add_id_to_new_notes")
         val addCreatedToNewNotes = booleanPreferencesKey("add_created_to_new_notes")
+        val newNoteCursor = stringPreferencesKey("new_note_cursor")
         val notebookModes = stringPreferencesKey("notebook_modes")
 
         /**
@@ -291,6 +294,7 @@ class SettingsRepository(private val context: Context) {
             defaultPriority = prefs[Keys.defaultPriority]?.firstOrNull(),
             addIdToNewNotes = prefs[Keys.addIdToNewNotes] ?: false,
             addCreatedToNewNotes = prefs[Keys.addCreatedToNewNotes] ?: true,
+            newNoteCursor = NewNoteCursor.fromStorage(prefs[Keys.newNoteCursor]),
             notebookModes = decodeModes(prefs[Keys.notebookModes]),
             notebookColors = decodeModes(prefs[Keys.notebookColors]),
             folderColors = decodeModes(prefs[Keys.folderColors]),
@@ -412,6 +416,7 @@ class SettingsRepository(private val context: Context) {
             else p[Keys.defaultPriority] = s.defaultPriority.toString()
             p[Keys.addIdToNewNotes] = s.addIdToNewNotes
             p[Keys.addCreatedToNewNotes] = s.addCreatedToNewNotes
+            p[Keys.newNoteCursor] = s.newNoteCursor.storageKey
             p[Keys.notebookModes] = encodeModes(s.notebookModes)
             p[Keys.notebookColors] = encodeModes(s.notebookColors)
             p[Keys.folderColors] = encodeModes(s.folderColors)
@@ -470,6 +475,10 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setDefaultNoteOpenMode(mode: NoteOpenMode) {
         context.settingsDataStore.edit { it[Keys.noteOpenMode] = mode.storageKey }
+    }
+
+    suspend fun setNewNoteCursor(cursor: NewNoteCursor) {
+        context.settingsDataStore.edit { it[Keys.newNoteCursor] = cursor.storageKey }
     }
 
     /**

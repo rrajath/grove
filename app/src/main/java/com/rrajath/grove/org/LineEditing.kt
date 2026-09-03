@@ -172,6 +172,28 @@ object LineEditing {
     }
 
     /**
+     * Caret placement for a note created for immediate editing (outline "+" FAB).
+     * When [heading] is true the caret parks just past the "* " that begins the
+     * first line, inserting the single space when the stars have none so the line
+     * stays a valid heading the moment the user types; when false it parks at the
+     * very end (the blank body line), the historical default. Returns [text]
+     * unchanged in the space-already-present and body cases.
+     */
+    fun newNoteCaret(text: String, heading: Boolean): TextEdit {
+        if (!heading) return TextEdit(text, text.length)
+        val lineEnd = text.indexOf('\n').let { if (it == -1) text.length else it }
+        var stars = 0
+        while (stars < lineEnd && text[stars] == '*') stars++
+        if (stars == 0) return TextEdit(text, text.length)
+        val hasSpace = stars < text.length && text[stars] == ' '
+        return if (hasSpace) {
+            TextEdit(text, stars + 1)
+        } else {
+            TextEdit(text.substring(0, stars) + " " + text.substring(stars), stars + 1)
+        }
+    }
+
+    /**
      * Toolbar `*` button: on an empty heading line (`* `, `** `…) demote it by
      * one star; anywhere else start a new heading on the next line.
      */

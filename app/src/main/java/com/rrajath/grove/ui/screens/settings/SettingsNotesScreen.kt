@@ -25,8 +25,12 @@ import androidx.compose.ui.unit.sp
 import com.rrajath.grove.settings.ChecklistStates
 import com.rrajath.grove.settings.FontSizePreference
 import com.rrajath.grove.settings.GroveSettings
+import com.rrajath.grove.settings.NewNoteCursor
 import com.rrajath.grove.settings.NoteOpenMode
 import com.rrajath.grove.ui.components.SegmentedControl
+import com.rrajath.grove.ui.newbadge.MarkNewFeatureSeen
+import com.rrajath.grove.ui.newbadge.NewAnchors
+import com.rrajath.grove.ui.newbadge.NewDot
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
@@ -46,6 +50,7 @@ fun SettingsNotesScreen(
     onSetChecklistStates: (ChecklistStates) -> Unit,
     onSetAddId: (Boolean) -> Unit,
     onSetAddCreated: (Boolean) -> Unit,
+    onSetNewNoteCursor: (NewNoteCursor) -> Unit,
     onSetAutoArchiveDoneItems: (Boolean) -> Unit,
     onOpenArchiveLocationPicker: () -> Unit,
 ) {
@@ -66,6 +71,9 @@ fun SettingsNotesScreen(
     }
 
     SettingsPageScaffold(title = "Notes", onBack = onBack) {
+        // Leaving this screen retires the "New note cursor" NEW dot from its whole
+        // trail (menu glyph, drawer, Settings hub row, the row itself).
+        MarkNewFeatureSeen(NewAnchors.SETTINGS_NOTES_NEW_NOTE_CURSOR)
         SettingsGroup {
             Column(Modifier.padding(horizontal = 15.dp, vertical = 10.dp)) {
                 Text(
@@ -182,6 +190,19 @@ fun SettingsNotesScreen(
                 checked = settings.addCreatedToNewNotes,
                 onToggle = onSetAddCreated,
             )
+            RowDivider()
+            SettingsRow(
+                label = "New note cursor",
+                description = "Where the cursor lands in a note you just created",
+                labelBadge = { NewDot(NewAnchors.SETTINGS_NOTES_NEW_NOTE_CURSOR) },
+            ) {
+                SegmentedControl(
+                    options = listOf("Heading", "Body"),
+                    selectedIndex = settings.newNoteCursor.ordinal,
+                    onSelect = { onSetNewNoteCursor(NewNoteCursor.entries[it]) },
+                    modifier = Modifier.width(160.dp),
+                )
+            }
             RowDivider()
             ToggleRow(
                 label = "Auto-archive done items?",

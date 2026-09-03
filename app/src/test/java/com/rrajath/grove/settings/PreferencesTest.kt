@@ -51,6 +51,15 @@ class PreferencesTest {
     }
 
     @Test
+    fun `new note cursor round-trips and defaults to body`() {
+        for (pref in NewNoteCursor.entries) {
+            assertEquals(pref, NewNoteCursor.fromStorage(pref.storageKey))
+        }
+        assertEquals(NewNoteCursor.BODY, NewNoteCursor.fromStorage(null))
+        assertEquals(NewNoteCursor.BODY, NewNoteCursor.fromStorage("footer"))
+    }
+
+    @Test
     fun `checklist states round-trips and defaults to two`() {
         for (pref in ChecklistStates.entries) {
             assertEquals(pref, ChecklistStates.fromStorage(pref.storageKey))

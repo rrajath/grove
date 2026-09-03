@@ -432,6 +432,7 @@ private fun GroveNavigation(
                             isNewNote = isNew,
                             initialCursorLine = editTargetLine,
                             editModeFontSize = settings.editModeFontSize,
+                            newNoteCursor = settings.newNoteCursor,
                             onBack = { navController.popBackStack() },
                             onSwitchToRead = { editTargetLine = null; mode = "read" },
                         )
@@ -637,6 +638,7 @@ private fun GroveNavigation(
                     onSetChecklistStates = viewModel::setChecklistStates,
                     onSetAddId = viewModel::setAddIdToNewNotes,
                     onSetAddCreated = viewModel::setAddCreatedToNewNotes,
+                    onSetNewNoteCursor = viewModel::setNewNoteCursor,
                     onSetAutoArchiveDoneItems = viewModel::setAutoArchiveDoneItems,
                     onOpenArchiveLocationPicker = viewModel::startArchiveLocationPick,
                 )

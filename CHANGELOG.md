@@ -76,6 +76,9 @@ re-uploads the APKs to the existing release instead of failing.
 - Org tables now render as a real grid in Read mode, with the header row bolded
   and pinned while the body scrolls. Wide tables scroll sideways with the header
   tracking the columns. The editor still shows the raw `| a | b |` text.
+- Settings § Notes has a **New note cursor** lever: keep the cursor on the body
+  line (the default) or place it in the heading, right after the `* `, so a new
+  note opens ready for you to type its title.
 
 ### Changed
 - The formatting toolbar's link button now uses a URL you already copied. Select
