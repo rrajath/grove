@@ -185,6 +185,8 @@ fun TemplateEditScreen(
                     colorKey = colorKey ?: nameHashPaletteKey(editingId),
                     size = 56.dp,
                     cornerRadius = 12.dp,
+                    dashedBorder = true,
+                    addBadge = true,
                     modifier = Modifier.combinedClickable(
                         onClick = { showColorDialog = true },
                         onLongClick = { showColorDialog = true },
@@ -292,6 +294,7 @@ fun TemplateEditScreen(
             currentColorKey = colorKey ?: nameHashPaletteKey(editingId),
             onPickColor = { colorKey = it },
             onDismiss = { showColorDialog = false },
+            templateIcon = true,
         )
     }
 }

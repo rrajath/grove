@@ -1,5 +1,6 @@
 package com.rrajath.grove.ui.components
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -9,8 +10,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
@@ -20,7 +23,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -69,10 +78,33 @@ private fun nameHash(name: String): Int =
 fun nameHashPaletteKey(name: String): String =
     MONOGRAM_PALETTE_KEYS[nameHash(name) % MONOGRAM_PALETTE_KEYS.size]
 
+/** A rounded-rect dashed stroke drawn inside the node's bounds, matching CSS `1px dashed`. */
+private fun Modifier.dashedBorder(color: Color, cornerRadius: Dp, strokeWidth: Dp = 0.75.dp): Modifier =
+    drawWithContent {
+        drawContent()
+        val w = strokeWidth.toPx()
+        val r = cornerRadius.toPx()
+        drawRoundRect(
+            color = color,
+            topLeft = androidx.compose.ui.geometry.Offset(w / 2, w / 2),
+            size = androidx.compose.ui.geometry.Size(this.size.width - w, this.size.height - w),
+            cornerRadius = CornerRadius(r, r),
+            style = Stroke(
+                width = w,
+                pathEffect = PathEffect.dashPathEffect(floatArrayOf(2.5.dp.toPx(), 2.5.dp.toPx()), 0f),
+            ),
+        )
+    }
+
 /**
  * A [size]-square rounded tile with [letter] centred in it, tinted by [colorKey].
  * Apply a `combinedClickable`/`clickable` [modifier] at the call site to make it
  * interactive (e.g. long-press to open [ChangeIconColorDialog]).
+ *
+ * Capture-template tiles set [dashedBorder] and [addBadge] (design: prototype capture
+ * picker) — a dashed outline in the palette colour and a small `+` badge overhanging
+ * the bottom-right corner. The badge is drawn outside the tile bounds, so callers must
+ * not clip the row it sits in.
  */
 @Composable
 fun MonogramTile(
@@ -81,24 +113,51 @@ fun MonogramTile(
     modifier: Modifier = Modifier,
     size: Dp = 42.dp,
     cornerRadius: Dp = 12.dp,
+    dashedBorder: Boolean = false,
+    addBadge: Boolean = false,
 ) {
     val c = MaterialTheme.grove
     val (fg, bg) = monogramPalette(c, colorKey)
-    Box(
-        Modifier
-            .size(size)
-            .clip(RoundedCornerShape(cornerRadius))
-            .background(bg)
-            .then(modifier),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            letter,
-            fontFamily = PlexMono,
-            fontWeight = FontWeight.SemiBold,
-            fontSize = (size.value * 0.40f).sp,
-            color = fg,
-        )
+    Box(Modifier.size(size)) {
+        Box(
+            Modifier
+                .matchParentSize()
+                .clip(RoundedCornerShape(cornerRadius))
+                .background(bg)
+                .then(if (dashedBorder) Modifier.dashedBorder(fg, cornerRadius) else Modifier)
+                .then(modifier),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                letter,
+                fontFamily = PlexMono,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = (size.value * 0.40f).sp,
+                color = fg,
+            )
+        }
+        if (addBadge) {
+            Box(
+                Modifier
+                    .align(Alignment.BottomEnd)
+                    .offset(x = size * 0.10f, y = size * 0.10f)
+                    .size(size * 0.36f)
+                    .clip(CircleShape)
+                    .background(c.surface)
+                    .border(0.75.dp, fg, CircleShape),
+            ) {
+                // A geometry-drawn "+" so it is exactly centred (a text glyph's
+                // baseline padding leaves it sitting slightly high in the circle).
+                Canvas(Modifier.matchParentSize()) {
+                    val cx = this.size.width / 2f
+                    val cy = this.size.height / 2f
+                    val arm = this.size.minDimension * 0.26f
+                    val stroke = this.size.minDimension * 0.11f
+                    drawLine(fg, Offset(cx - arm, cy), Offset(cx + arm, cy), stroke, StrokeCap.Round)
+                    drawLine(fg, Offset(cx, cy - arm), Offset(cx, cy + arm), stroke, StrokeCap.Round)
+                }
+            }
+        }
     }
 }
 
@@ -116,6 +175,8 @@ fun ChangeIconColorDialog(
     onDismiss: () -> Unit,
     /** When set, the preview tile shows this glyph (e.g. `▪` for a folder) instead of [letter]. */
     glyph: String? = null,
+    /** Preview a capture-template tile (dashed outline + `+` badge) rather than a plain one. */
+    templateIcon: Boolean = false,
 ) {
     val c = MaterialTheme.grove
     AlertDialog(
@@ -144,7 +205,13 @@ fun ChangeIconColorDialog(
                             Text(glyph, fontFamily = PlexMono, fontSize = 15.sp, color = fg)
                         }
                     } else {
-                        MonogramTile(letter = letter, colorKey = currentColorKey, size = 42.dp)
+                        MonogramTile(
+                            letter = letter,
+                            colorKey = currentColorKey,
+                            size = 42.dp,
+                            dashedBorder = templateIcon,
+                            addBadge = templateIcon,
+                        )
                     }
                     Spacer(Modifier.width(12.dp))
                     Column {

@@ -106,6 +106,8 @@ private fun TemplateRow(template: CaptureTemplate, onClick: () -> Unit) {
             colorKey = template.color ?: nameHashPaletteKey(template.id),
             size = 44.dp,
             cornerRadius = 13.dp,
+            dashedBorder = true,
+            addBadge = true,
         )
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {

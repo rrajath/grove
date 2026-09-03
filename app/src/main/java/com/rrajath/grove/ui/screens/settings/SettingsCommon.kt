@@ -240,6 +240,8 @@ internal fun TemplateSettingsRow(
             colorKey = template.color ?: nameHashPaletteKey(template.id),
             size = 30.dp,
             cornerRadius = 9.dp,
+            dashedBorder = true,
+            addBadge = true,
         )
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
