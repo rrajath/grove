@@ -85,6 +85,9 @@ re-uploads the APKs to the existing release instead of failing.
   hint whenever at least one tag is set.
 
 ### Fixed
+- The search results list now snaps back to the top on every keystroke. It used
+  to keep the previous scroll offset, so refining a query while scrolled down
+  left you looking at the middle or bottom of the new, shorter result set.
 - Read mode now keeps every line break inside a paragraph. A single newline you
   typed in edit mode used to be collapsed into a space, joining the lines into
   one block of text; now each line stays on its own line. A blank line still

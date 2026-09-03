@@ -160,6 +160,20 @@ fun SearchScreen(
         }
     }
 
+    // Restart the results at the top whenever a *query edit* produces a new
+    // result set. Keying on the results (not the query) is deliberate: the query
+    // updates on the keystroke but results land ~300ms later on the debounce, so
+    // a query-keyed reset would scroll the stale list and the fresh one would
+    // still inherit the old offset. Guarding on the query means a background
+    // re-run (a sync finishing mid-search) doesn't yank the user off their spot.
+    var lastScrolledQuery by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(state.groups) {
+        if (state.query != lastScrolledQuery) {
+            listState.scrollToItem(0)
+            lastScrolledQuery = state.query
+        }
+    }
+
     LaunchedEffect(initialQuery) {
         if (!initialQuery.isNullOrBlank()) viewModel.submit(initialQuery)
         else focusRequester.requestFocus()
