@@ -40,6 +40,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextRange
@@ -153,6 +154,7 @@ fun EditRegionScreen(
 ) {
     val c = MaterialTheme.grove
     val context = LocalContext.current
+    val clipboard = LocalClipboard.current
     val state by viewModel.state.collectAsStateWithLifecycle()
     val label = if (region == EditRegion.BLOCK) blockLabelFromBuffer(state.buffer) else regionLabel(region)
     val textState = rememberTextFieldState()
@@ -310,7 +312,7 @@ fun EditRegionScreen(
             EditorToolbar(
                 onWrap = { marker -> textState.applyEdit { wrapSelection(it, marker) } },
                 onInsert = { snippet -> textState.applyEdit { insertAtCursor(it, snippet) } },
-                onLink = { textState.applyEdit(::insertLinkFromToolbar) },
+                onLink = { textState.applyToolbarLink(clipboard) },
                 onHeading = {
                     textState.applyEdit {
                         val edit = LineEditing.insertHeadingStar(it.text, it.selection.start)

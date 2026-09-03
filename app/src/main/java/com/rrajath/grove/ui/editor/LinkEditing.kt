@@ -10,20 +10,78 @@ import com.rrajath.grove.org.TextEdit
  * Compose runtime types.
  *
  * Toolbar link button:
+ *  - tap, text selected, a URL on the clipboard -> [insertClipboardLink]
+ *  - tap, text selected, nothing URL-shaped on the clipboard -> [insertHttpsLink]
  *  - tap, no selection -> [insertLinkTemplate] (`EditorToolbar.kt`)
- *  - tap, with selection -> [insertHttpsLink]
  *  - long-press -> the file/heading picker (main note editor only)
  * [insertLinkFromToolbar] is the tap dispatcher; the paste clean-up below runs
- * after a URL insert.
+ * after a URL insert. The clipboard read that feeds [insertLinkFromToolbar] is
+ * `pasteableUrlOnClipboard` (`LinkClipboard.kt`).
  */
 
 /**
- * The toolbar link button's tap action: an `[[https://]]` scaffold when text is
- * selected (that text becomes the description), or the neutral
- * `[[link][description]]` template when nothing is selected.
+ * The toolbar link button's tap action:
+ *  - [clipboardText] is URL-shaped -> drop it straight in as the link target
+ *    ([insertClipboardLink]); mirrors Emacs `org-insert-link` picking a URL out
+ *    of the kill ring so the user never retypes or trims what they just copied.
+ *  - otherwise, text selected -> the `[[https://][<selection>]]` scaffold.
+ *  - otherwise -> the neutral `[[link][description]]` template.
+ *
+ * [clipboardText] is whatever the caller read from the system clipboard, or null
+ * when it chose not to look; this function decides if it is URL-shaped enough.
  */
-internal fun insertLinkFromToolbar(value: TextFieldValue): TextFieldValue =
-    if (value.selection.collapsed) insertLinkTemplate(value) else insertHttpsLink(value)
+internal fun insertLinkFromToolbar(
+    value: TextFieldValue,
+    clipboardText: String? = null,
+): TextFieldValue {
+    val url = clipboardText?.trim()?.takeIf(::looksLikePasteableUrl)
+    return when {
+        url != null -> insertClipboardLink(value, url)
+        value.selection.collapsed -> insertLinkTemplate(value)
+        else -> insertHttpsLink(value)
+    }
+}
+
+private val PASTEABLE_URL = Regex("""^(https?|ftp|file)://\S+$""")
+private val PASTEABLE_MAILTO = Regex("""^mailto:[^\s@]+@\S+$""")
+private val PASTEABLE_WWW = Regex("""^www\.\S+\.\S+$""")
+
+/**
+ * A loose check that [s] is a single-token URL worth dropping straight into a
+ * link's target slot: an explicit scheme (`https://`, `http://`, `ftp://`,
+ * `file://`), a `mailto:` address, or a bare `www.` host. Deliberately rejects
+ * bare domains like `example.org` — too easy to match ordinary prose the user
+ * happened to leave on the clipboard.
+ */
+internal fun looksLikePasteableUrl(s: String): Boolean {
+    if (s.isEmpty() || s.length > 2048 || s.any(Char::isWhitespace)) return false
+    return PASTEABLE_URL.matches(s) || PASTEABLE_MAILTO.matches(s) || PASTEABLE_WWW.matches(s)
+}
+
+/**
+ * Build a finished link from a [url] the caller found on the clipboard — no
+ * scaffold, no typing. A non-empty selection becomes the description and the
+ * cursor lands after the link; a collapsed selection gets the literal
+ * `description` placeholder left selected, ready to type a label over.
+ */
+internal fun insertClipboardLink(value: TextFieldValue, url: String): TextFieldValue {
+    val sel = value.selection
+    val text = value.text
+    if (sel.collapsed) {
+        val prefix = "[[$url]["
+        val template = prefix + "description" + "]]"
+        val descStart = sel.min + prefix.length
+        return TextFieldValue(
+            text.substring(0, sel.min) + template + text.substring(sel.max),
+            TextRange(descStart, descStart + "description".length),
+        )
+    }
+    val template = "[[$url][" + text.substring(sel.min, sel.max) + "]]"
+    return TextFieldValue(
+        text.substring(0, sel.min) + template + text.substring(sel.max),
+        TextRange(sel.min + template.length),
+    )
+}
 
 /**
  * Insert an `[[https://][description]]` link and park the cursor immediately

@@ -438,7 +438,8 @@ private fun tipGroups(): List<TipGroup> = listOf(
                 "link-build", Icons.Default.AddLink, "Let the toolbar write links for you",
                 "The {{link}} button on the formatting toolbar builds the link syntax so you never type the brackets.",
                 listOf(
-                    "Select some text first, then tap {{link}} to wrap it in a https:// link with that text as the label",
+                    "Copy a link first, then select some text and tap {{link}}: the copied link becomes the target and your text becomes the label, nothing to type",
+                    "No link copied? Select text and tap {{link}} for a https:// scaffold, then just paste your URL over it, https:// and all",
                     "Tap with nothing selected to drop in an empty [[link][description]] template",
                     "Long-press {{link}} to browse your vault and link straight to a file or a heading",
                 ),

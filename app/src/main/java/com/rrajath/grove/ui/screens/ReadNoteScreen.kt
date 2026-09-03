@@ -1034,31 +1034,16 @@ private fun BodyBlocks(
     blocks.forEach { block ->
         when (block) {
             is OrgBlock.Paragraph -> {
-                // A standalone timestamp line (e.g. a journal entry's inactive
-                // timestamp) starts its own line rather than running into the
-                // text that follows it with just a joining space.
-                val firstLine = block.lines.first().trim()
-                if (block.lines.size > 1 && isStandaloneTimestamp(firstLine)) {
-                    OrgText(
-                        firstLine,
-                        onOpenLink = openTarget, onLinkLongPress = onLinkLongPress,
-                        onDoubleTapAt = onEditAt,
-                        style = TextStyle(fontFamily = PlexSerif, fontSize = 16.sp, lineHeight = 1.65.em, color = c.ink),
-                    )
-                    OrgText(
-                        block.lines.drop(1).joinToString(" ") { it.trim() },
-                        onOpenLink = openTarget, onLinkLongPress = onLinkLongPress,
-                        onDoubleTapAt = onEditAt,
-                        style = TextStyle(fontFamily = PlexSerif, fontSize = 16.sp, lineHeight = 1.65.em, color = c.ink),
-                    )
-                } else {
-                    OrgText(
-                        block.lines.joinToString(" ") { it.trim() },
-                        onOpenLink = openTarget, onLinkLongPress = onLinkLongPress,
-                        onDoubleTapAt = onEditAt,
-                        style = TextStyle(fontFamily = PlexSerif, fontSize = 16.sp, lineHeight = 1.65.em, color = c.ink),
-                    )
-                }
+                // Each source line in the paragraph keeps its own visual line
+                // (join with "\n", not " "): a single newline in edit mode is a
+                // line break in read mode too. A blank line already separates
+                // paragraphs upstream in BlockParser.
+                OrgText(
+                    block.lines.joinToString("\n") { it.trim() },
+                    onOpenLink = openTarget, onLinkLongPress = onLinkLongPress,
+                    onDoubleTapAt = onEditAt,
+                    style = TextStyle(fontFamily = PlexSerif, fontSize = 16.sp, lineHeight = 1.65.em, color = c.ink),
+                )
                 Spacer(Modifier.height(12.dp))
             }
 
@@ -1188,12 +1173,6 @@ private fun BodyBlocks(
             }
         }
     }
-}
-
-/** True when [line] (already trimmed) is nothing but a single org timestamp. */
-private fun isStandaloneTimestamp(line: String): Boolean {
-    val (_, range) = OrgTimestamp.parseWithRange(line) ?: return false
-    return range.first == 0 && range.last == line.length - 1
 }
 
 /** A single plain (non-org-markup) line (code/table content) that maps a

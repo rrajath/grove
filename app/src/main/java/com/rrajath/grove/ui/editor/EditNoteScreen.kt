@@ -45,6 +45,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextRange
@@ -100,6 +101,7 @@ fun EditNoteScreen(
 ) {
     val c = MaterialTheme.grove
     val context = LocalContext.current
+    val clipboard = LocalClipboard.current
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snack by viewModel.snack.collectAsStateWithLifecycle()
     val textState = rememberTextFieldState()
@@ -472,7 +474,7 @@ fun EditNoteScreen(
             EditorToolbar(
                 onWrap = { marker -> textState.applyEdit { wrapSelection(it, marker) } },
                 onInsert = { snippet -> textState.applyEdit { insertAtCursor(it, snippet) } },
-                onLink = { textState.applyEdit(::insertLinkFromToolbar) },
+                onLink = { textState.applyToolbarLink(clipboard) },
                 onHeading = {
                     textState.applyEdit {
                         val edit = LineEditing.insertHeadingStar(it.text, it.selection.start)

@@ -57,6 +57,72 @@ class LinkEditingTest {
         assertEquals(TextRange(14), result.selection)
     }
 
+    // --- insertLinkFromToolbar with a URL on the clipboard ---
+
+    @Test
+    fun `a clipboard url becomes the target, the selection becomes the description`() {
+        val result = insertLinkFromToolbar(
+            TextFieldValue("See my note here", TextRange(4, 11)),
+            clipboardText = "https://example.com/page",
+        )
+
+        assertEquals("See [[https://example.com/page][my note]] here", result.text)
+        // Cursor parked right after the closing "]]".
+        assertEquals(TextRange("See [[https://example.com/page][my note]]".length), result.selection)
+    }
+
+    @Test
+    fun `a clipboard url is trimmed of surrounding whitespace before use`() {
+        val result = insertLinkFromToolbar(
+            TextFieldValue("x", TextRange(0, 1)),
+            clipboardText = "  https://example.com \n",
+        )
+
+        assertEquals("[[https://example.com][x]]", result.text)
+    }
+
+    @Test
+    fun `a clipboard url with no selection leaves the description placeholder selected`() {
+        val result = insertLinkFromToolbar(
+            TextFieldValue("see ", TextRange(4)),
+            clipboardText = "https://example.com",
+        )
+
+        assertEquals("see [[https://example.com][description]]", result.text)
+        val descStart = "see [[https://example.com][".length
+        assertEquals(TextRange(descStart, descStart + "description".length), result.selection)
+    }
+
+    @Test
+    fun `clipboard text that is not url-shaped falls back to the https scaffold`() {
+        val result = insertLinkFromToolbar(
+            TextFieldValue("See my note here", TextRange(4, 11)),
+            clipboardText = "just some copied prose",
+        )
+
+        assertEquals("See [[https://][my note]] here", result.text)
+    }
+
+    // --- looksLikePasteableUrl ---
+
+    @Test
+    fun `looksLikePasteableUrl accepts explicit schemes, mailto and www hosts`() {
+        assertEquals(true, looksLikePasteableUrl("https://example.com"))
+        assertEquals(true, looksLikePasteableUrl("http://a.b/c?d=e&f=g"))
+        assertEquals(true, looksLikePasteableUrl("ftp://files.example.com/x"))
+        assertEquals(true, looksLikePasteableUrl("mailto:me@example.com"))
+        assertEquals(true, looksLikePasteableUrl("www.example.com/page"))
+    }
+
+    @Test
+    fun `looksLikePasteableUrl rejects bare domains, prose and blanks`() {
+        assertEquals(false, looksLikePasteableUrl("example.com"))
+        assertEquals(false, looksLikePasteableUrl("see https://example.com for details"))
+        assertEquals(false, looksLikePasteableUrl("Reticulating splines"))
+        assertEquals(false, looksLikePasteableUrl(""))
+        assertEquals(false, looksLikePasteableUrl("   "))
+    }
+
     // --- collapseDoubledScheme ---
 
     @Test

@@ -71,10 +71,20 @@ re-uploads the APKs to the existing release instead of failing.
   Double-tapping a run opens the scoped editor, the same as for other blocks.
 
 ### Changed
+- The formatting toolbar's link button now uses a URL you already copied. Select
+  some text, tap **[[]]**, and if the clipboard holds a link it becomes the
+  target with your text as the label, nothing to type or trim. With nothing
+  URL-shaped on the clipboard it still drops the `https://` scaffold, and you can
+  paste your full URL straight over it. The clipboard is only read when text is
+  selected, so the paste toast stays out of the way otherwise.
 - The metadata sheet's tag list shows a small "tap an existing tag to remove it"
   hint whenever at least one tag is set.
 
 ### Fixed
+- Read mode now keeps every line break inside a paragraph. A single newline you
+  typed in edit mode used to be collapsed into a space, joining the lines into
+  one block of text; now each line stays on its own line. A blank line still
+  starts a new paragraph.
 - The metadata sheet's tag search/create suggestion list now opens above the
   text field instead of below it, so it no longer sits under the on-screen
   keyboard while you type. It flips back to opening downward only when the
