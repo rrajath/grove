@@ -92,14 +92,19 @@ internal fun SettingsPageScaffold(
 }
 
 @Composable
-internal fun SectionLabel(text: String) {
-    Text(
-        text,
-        fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
-        fontSize = 12.sp, letterSpacing = 1.sp,
-        color = MaterialTheme.grove.accent,
-        modifier = Modifier.padding(start = 4.dp, top = 4.dp, bottom = 10.dp),
-    )
+internal fun SectionLabel(text: String, trailing: (@Composable () -> Unit)? = null) {
+    Row(
+        Modifier.padding(start = 4.dp, top = 4.dp, bottom = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text,
+            fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
+            fontSize = 12.sp, letterSpacing = 1.sp,
+            color = MaterialTheme.grove.accent,
+        )
+        if (trailing != null) Box(Modifier.padding(start = 8.dp)) { trailing() }
+    }
 }
 
 @Composable
@@ -126,6 +131,7 @@ internal fun SettingsRow(
     label: String,
     description: String? = null,
     descriptionContent: (@Composable () -> Unit)? = null,
+    labelBadge: (@Composable () -> Unit)? = null,
     onClick: (() -> Unit)? = null,
     trailing: @Composable () -> Unit,
 ) {
@@ -138,11 +144,16 @@ internal fun SettingsRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
-            Text(
-                label,
-                fontFamily = PlexSans, fontWeight = FontWeight.Medium,
-                fontSize = 14.5.sp, color = MaterialTheme.grove.ink,
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    label,
+                    fontFamily = PlexSans, fontWeight = FontWeight.Medium,
+                    fontSize = 14.5.sp, color = MaterialTheme.grove.ink,
+                )
+                if (labelBadge != null) {
+                    Box(Modifier.padding(start = 8.dp)) { labelBadge() }
+                }
+            }
             if (descriptionContent != null) {
                 Box(Modifier.padding(top = 2.dp)) { descriptionContent() }
             } else if (description != null) {

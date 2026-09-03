@@ -94,6 +94,8 @@ import com.rrajath.grove.ui.components.monogramLetter
 import com.rrajath.grove.ui.components.monogramPalette
 import com.rrajath.grove.ui.components.nameHashPaletteKey
 import com.rrajath.grove.ui.components.searchIcon
+import com.rrajath.grove.ui.newbadge.NewAnchors
+import com.rrajath.grove.ui.newbadge.NewDotBadge
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
@@ -208,7 +210,11 @@ fun NotebooksScreen(
                 )
             } else {
                 GroveTopBar(
-                    leading = { IconGlyph("☰", onClick = onOpenDrawer) },
+                    leading = {
+                        NewDotBadge(NewAnchors.TOPBAR_MENU) {
+                            IconGlyph("☰", onClick = onOpenDrawer)
+                        }
+                    },
                     title = {
                         Text(
                             "Notebooks",

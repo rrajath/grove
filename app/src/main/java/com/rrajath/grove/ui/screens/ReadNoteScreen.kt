@@ -103,6 +103,8 @@ import com.rrajath.grove.ui.components.doubleTapToEdit
 import com.rrajath.grove.ui.components.linkPressHandler
 import com.rrajath.grove.ui.components.orgInlineLinks
 import com.rrajath.grove.ui.components.ScrollJumpButtons
+import com.rrajath.grove.ui.newbadge.NewAnchors
+import com.rrajath.grove.ui.newbadge.NewDotBadge
 import com.rrajath.grove.ui.theme.ContentFontScale
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
@@ -231,7 +233,9 @@ fun ReadNoteScreen(
             GroveTopBar(
                 leading = { IconGlyph("←", onClick = onBack) },
                 actions = {
-                    IconGlyph("☰", onClick = { metadataOpen = true })
+                    NewDotBadge(NewAnchors.TOPBAR_MENU) {
+                        IconGlyph("☰", onClick = { metadataOpen = true })
+                    }
                     SegmentedControl(
                         options = listOf("Read", "Edit"),
                         selectedIndex = 0,

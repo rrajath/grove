@@ -74,7 +74,7 @@ import androidx.compose.ui.unit.sp
 import com.rrajath.grove.ui.components.GroveTopBar
 import com.rrajath.grove.ui.newbadge.MarkNewFeatureSeen
 import com.rrajath.grove.ui.newbadge.NewAnchors
-import com.rrajath.grove.ui.newbadge.NewBadge
+import com.rrajath.grove.ui.newbadge.NewDot
 import com.rrajath.grove.ui.screens.IconGlyph
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
@@ -142,15 +142,11 @@ fun SettingsTipsScreen(onBack: () -> Unit) {
             )
 
             groups.forEach { group ->
-                // Leaving this screen retires any NEW badge whose destination is
-                // one of these groups (so the header badge shows for the visit).
+                // Leaving this screen retires any NEW dot whose destination is
+                // one of these groups (so the header dot shows for the visit).
                 MarkNewFeatureSeen(NewAnchors.tipsGroup(group.id))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    SectionLabel(group.label.uppercase())
-                    NewBadge(
-                        NewAnchors.tipsGroup(group.id),
-                        Modifier.padding(start = 6.dp, bottom = 10.dp),
-                    )
+                SectionLabel(group.label.uppercase()) {
+                    NewDot(NewAnchors.tipsGroup(group.id))
                 }
                 SettingsGroup {
                     group.tips.forEachIndexed { i, tip ->

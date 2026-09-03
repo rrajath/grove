@@ -24,13 +24,17 @@ data class NewFeature(
 )
 
 /**
- * Anchor keys a [NewBadge] can attach to. Plain strings so any composable — even
- * a deep one that knows nothing about the feature registry — can render a badge
+ * Anchor keys a [NewDot] can attach to. Plain strings so any composable — even
+ * a deep one that knows nothing about the feature registry — can render a dot
  * for one.
  */
 object NewAnchors {
     const val DRAWER_SETTINGS = "drawer.settings"
     const val SETTINGS_TIPS = "settings.tips"
+
+    /** The top-bar "☰" glyph. A feature reached through it lists this so the
+     *  glyph carries a corner dot until the feature is seen. */
+    const val TOPBAR_MENU = "topbar.menu"
 
     /** A Tips & Tricks section, keyed by its [TipGroup] id. */
     fun tipsGroup(id: String) = "tips.group.$id"
@@ -49,6 +53,7 @@ val NEW_FEATURES: List<NewFeature> = listOf(
         id = "tips-links-group",
         since = 10300,
         anchors = setOf(
+            NewAnchors.TOPBAR_MENU,
             NewAnchors.DRAWER_SETTINGS,
             NewAnchors.SETTINGS_TIPS,
             NewAnchors.tipsGroup("links"),

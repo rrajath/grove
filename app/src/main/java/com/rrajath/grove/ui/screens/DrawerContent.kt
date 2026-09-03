@@ -46,7 +46,7 @@ import com.rrajath.grove.ui.components.searchIcon
 import com.rrajath.grove.ui.components.settingsIcon
 import com.rrajath.grove.ui.nav.Routes
 import com.rrajath.grove.ui.newbadge.NewAnchors
-import com.rrajath.grove.ui.newbadge.NewBadge
+import com.rrajath.grove.ui.newbadge.NewDot
 import com.rrajath.grove.ui.theme.GroveLightColors
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
@@ -146,7 +146,7 @@ fun GroveDrawerContent(
             icon = settingsIcon(),
             label = "Settings",
             active = false,
-            trailing = { NewBadge(NewAnchors.DRAWER_SETTINGS) },
+            badge = { NewDot(NewAnchors.DRAWER_SETTINGS) },
         ) { onNavigate(Routes.SETTINGS) }
     }
 
@@ -252,7 +252,7 @@ private fun DrawerItem(
     active: Boolean,
     icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
     onLongClick: (() -> Unit)? = null,
-    trailing: (@Composable () -> Unit)? = null,
+    badge: (@Composable () -> Unit)? = null,
     onClick: () -> Unit,
 ) {
     val c = MaterialTheme.grove
@@ -285,9 +285,8 @@ private fun DrawerItem(
             fontSize = 14.5.sp,
             color = if (active) c.accent else c.ink,
         )
-        if (trailing != null) {
-            Spacer(Modifier.weight(1f))
-            trailing()
+        if (badge != null) {
+            Box(Modifier.padding(start = 8.dp)) { badge() }
         }
     }
 }
