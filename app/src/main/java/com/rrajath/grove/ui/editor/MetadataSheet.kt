@@ -1,6 +1,7 @@
 package com.rrajath.grove.ui.editor
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -10,13 +11,13 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -31,9 +32,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntRect
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
 import com.rrajath.grove.org.OrgHeadline
 import com.rrajath.grove.org.OrgKeywords
@@ -159,46 +167,65 @@ fun MetadataSheet(
                     allTags.filter { it !in selectedTags && it.contains(tagQuery, ignoreCase = true) }.take(8)
                 }
                 val exactMatch = allTags.any { it.equals(tagQuery, ignoreCase = true) }
+                val showCreate = tagQuery.isNotBlank() && !exactMatch
+                val hasSuggestions = showCreate || filtered.isNotEmpty()
 
-                DropdownMenu(
-                    expanded = tagMenuOpen,
-                    // Dismissal must not wipe what's been typed: the popup can be
-                    // dismissed by transient causes (keyboard/sheet still settling
-                    // into place) that have nothing to do with the user abandoning
-                    // their input. Only picking a tag clears the query.
-                    onDismissRequest = { tagMenuOpen = false },
-                    containerColor = c.surface,
-                    // Non-focusable: the popup must not steal IME focus from the
-                    // OutlinedTextField above it, or typed characters never reach
-                    // the field it's supposed to be filtering as you type.
-                    properties = PopupProperties(focusable = false),
-                ) {
-                    Column(Modifier.width(230.dp).padding(horizontal = 12.dp, vertical = 6.dp)) {
-                        if (tagQuery.isNotBlank() && !exactMatch) {
-                            Text(
-                                "Create tag “$tagQuery”",
-                                fontFamily = PlexSans, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = c.accent,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .clickable { pickTag(tagQuery) }
-                                    .padding(horizontal = 8.dp, vertical = 9.dp),
-                            )
-                            if (filtered.isNotEmpty()) {
-                                Spacer(Modifier.height(4.dp))
-                                HorizontalDivider(color = c.line)
+                if (tagMenuOpen && hasSuggestions) {
+                    val gapPx = with(LocalDensity.current) { 6.dp.roundToPx() }
+                    Popup(
+                        // Fly up: the list opens above the field so it never sits
+                        // under the IME, which is docked directly below the field
+                        // once it has focus.
+                        popupPositionProvider = remember(gapPx) { FlyUpPositionProvider(gapPx) },
+                        // Dismissal must not wipe what's been typed: the popup can be
+                        // dismissed by transient causes (keyboard/sheet still settling
+                        // into place) that have nothing to do with the user abandoning
+                        // their input. Only picking a tag clears the query.
+                        onDismissRequest = { tagMenuOpen = false },
+                        // Non-focusable: the popup must not steal IME focus from the
+                        // OutlinedTextField above it, or typed characters never reach
+                        // the field it's supposed to be filtering as you type.
+                        properties = PopupProperties(focusable = false),
+                    ) {
+                        Column(
+                            Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                // surface2 (one layer up from the sheet's own surface)
+                                // plus a hairline border does the separating: the design
+                                // system reserves Modifier.shadow for the FAB and sheets.
+                                .background(c.surface2)
+                                .border(1.dp, c.line, RoundedCornerShape(12.dp))
+                                .width(230.dp)
+                                .heightIn(max = 240.dp)
+                                .verticalScroll(rememberScrollState())
+                                .padding(horizontal = 12.dp, vertical = 6.dp),
+                        ) {
+                            if (showCreate) {
+                                Text(
+                                    "Create tag “$tagQuery”",
+                                    fontFamily = PlexSans, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = c.accent,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .clickable { pickTag(tagQuery) }
+                                        .padding(horizontal = 8.dp, vertical = 9.dp),
+                                )
+                                if (filtered.isNotEmpty()) {
+                                    Spacer(Modifier.height(4.dp))
+                                    HorizontalDivider(color = c.line)
+                                }
                             }
-                        }
-                        filtered.forEach { tag ->
-                            Text(
-                                tag,
-                                fontFamily = PlexSans, fontSize = 13.sp, color = c.ink,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .clickable { pickTag(tag) }
-                                    .padding(horizontal = 8.dp, vertical = 9.dp),
-                            )
+                            filtered.forEach { tag ->
+                                Text(
+                                    tag,
+                                    fontFamily = PlexSans, fontSize = 13.sp, color = c.ink,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .clickable { pickTag(tag) }
+                                        .padding(horizontal = 8.dp, vertical = 9.dp),
+                                )
+                            }
                         }
                     }
                 }
@@ -287,6 +314,27 @@ fun MetadataSheet(
                 noteDialogOpen = false
             },
         )
+    }
+}
+
+/**
+ * Positions a popup so its bottom edge sits [gapPx] above the anchor, left edges
+ * aligned. Opens downward instead only when there isn't room above (the field is
+ * near the top of the screen). Keeps the tag suggestion list clear of the IME,
+ * which docks directly under the focused text field.
+ */
+private class FlyUpPositionProvider(private val gapPx: Int) : PopupPositionProvider {
+    override fun calculatePosition(
+        anchorBounds: IntRect,
+        windowSize: IntSize,
+        layoutDirection: LayoutDirection,
+        popupContentSize: IntSize,
+    ): IntOffset {
+        val maxX = (windowSize.width - popupContentSize.width).coerceAtLeast(0)
+        val x = anchorBounds.left.coerceIn(0, maxX)
+        val above = anchorBounds.top - popupContentSize.height - gapPx
+        val y = if (above >= 0) above else anchorBounds.bottom + gapPx
+        return IntOffset(x, y)
     }
 }
 

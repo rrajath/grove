@@ -67,6 +67,12 @@ re-uploads the APKs to the existing release instead of failing.
 ### Changed
 - The metadata sheet's tag list shows a small "tap an existing tag to remove it"
   hint whenever at least one tag is set.
+
+### Fixed
+- The metadata sheet's tag search/create suggestion list now opens above the
+  text field instead of below it, so it no longer sits under the on-screen
+  keyboard while you type. It flips back to opening downward only when the
+  field is too close to the top of the screen.
 - Capture-template monogram tiles now carry a dashed outline and a small "+"
   badge on the bottom-right corner, matching the design prototype. The letter
   and colour are unchanged. Applies in the quick-capture sheet, the Capture
