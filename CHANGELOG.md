@@ -59,6 +59,8 @@ re-uploads the APKs to the existing release instead of failing.
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-09-03
+
 ### Added
 - Tapping an Org link in read mode now resolves it and navigates in-app.
   `[[*Heading]]` and `[[Heading]]` (no scheme) jump to the read view of a
