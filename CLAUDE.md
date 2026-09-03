@@ -86,7 +86,7 @@ Whenever a task adds, modifies, or styles any UI element, read that file first a
 
 ## Other guidelines
 - Whenever anything gets added, modified or deleted in the Settings pages, modify the Import/Export Settings workflows accordingly.
-- After every commit, update the CHANGELOG.md file with the changelog.
+- After every commit, update the CHANGELOG.md file with the changelog. Keep the description short; 1-2 sentences.
 
 ## Key Design Decisions (from PRD §15)
 
