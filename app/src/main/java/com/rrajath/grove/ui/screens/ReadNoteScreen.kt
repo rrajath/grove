@@ -95,6 +95,7 @@ import com.rrajath.grove.ui.components.GroveToast
 import com.rrajath.grove.ui.components.GroveTopBar
 import com.rrajath.grove.ui.components.GroveUndoSnackbar
 import com.rrajath.grove.ui.editor.MetadataSheet
+import com.rrajath.grove.ui.components.OrgTableView
 import com.rrajath.grove.ui.components.Pill
 import com.rrajath.grove.ui.components.SegmentedControl
 import com.rrajath.grove.ui.components.annotateOrgInline
@@ -1149,50 +1150,9 @@ private fun BodyBlocks(
             }
 
             is OrgBlock.Table -> {
-                // v1 decision: tables as monospace plain text
-                Column(
-                    Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(c.surface)
-                        .padding(10.dp),
-                ) {
-                    block.lines.forEach { line ->
-                        PlainTappableLine(
-                            line, fontFamily = PlexMono, fontSize = 12.5.sp, color = c.ink,
-                            onDoubleTapAt = onEditAt,
-                        )
-                    }
-                    Text(
-                        "table rendering coming in v2",
-                        fontFamily = PlexMono, fontSize = 10.5.sp, color = c.ink3,
-                        modifier = Modifier.padding(top = 6.dp),
-                    )
-                }
+                OrgTableView(block.lines, onDoubleTap = onEditAt)
                 Spacer(Modifier.height(12.dp))
             }
         }
     }
-}
-
-/** A single plain (non-org-markup) line (code/table content) that maps a
- * double-tap to edit mode at the tapped character. */
-@Composable
-private fun PlainTappableLine(
-    line: String,
-    fontFamily: androidx.compose.ui.text.font.FontFamily,
-    fontSize: androidx.compose.ui.unit.TextUnit,
-    color: Color,
-    onDoubleTapAt: () -> Unit,
-) {
-    var layout by remember { mutableStateOf<TextLayoutResult?>(null) }
-    Text(
-        line,
-        fontFamily = fontFamily, fontSize = fontSize, color = color,
-        onTextLayout = { layout = it },
-        modifier = Modifier.doubleTapToEdit(
-            layoutResult = { layout },
-            onDoubleTap = onDoubleTapAt,
-        ),
-    )
 }

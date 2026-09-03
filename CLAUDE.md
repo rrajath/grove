@@ -82,7 +82,7 @@ Whenever a task adds, modifies, or styles any UI element, read that file first a
 
 - Use `BasicTextField` with a custom `VisualTransformation` to tokenize org lines and apply `SpanStyle` per syntax token in edit mode.
 - For read mode, build a custom `AnnotatedString` renderer mapping org AST nodes to Compose composables (`Text`, `Column`, etc.); no `WebView`.
-- Org table rendering is deferred to v2 — show as monospace plain text in v1.
+- Org tables render in Read mode via `OrgTableView` (`ui/components/OrgTableView.kt`) + `parseOrgTable` (`org/OrgTable.kt`): a grid with a pinned, bolded header row, shared horizontal scroll, and a height-capped scrolling body. The editor still shows the raw `| a | b |` text. Cell-level inline markup and column alignment are left for later.
 
 ## Other guidelines
 - Whenever anything gets added, modified or deleted in the Settings pages, modify the Import/Export Settings workflows accordingly.
