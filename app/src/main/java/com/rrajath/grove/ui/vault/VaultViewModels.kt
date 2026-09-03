@@ -9,7 +9,9 @@ import androidx.lifecycle.viewModelScope
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.viewmodel.CreationExtras
 import com.rrajath.grove.GroveApplication
+import com.rrajath.grove.data.FavoriteNote
 import com.rrajath.grove.data.NoteKey
+import com.rrajath.grove.data.matches
 import com.rrajath.grove.org.ArchiveLocation
 import com.rrajath.grove.org.ArchiveTarget
 import com.rrajath.grove.org.OrgDocument
@@ -799,6 +801,56 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
             vault.save(loaded.fileName, newText)
             app.syncManager.requestSync("favorite added custom id")
             onResolved(newId)
+        }
+    }
+
+    /**
+     * Read-mode metadata sheet: pin/unpin [headline] to the nav drawer's Favorites.
+     * Adds resolve a stable `:CUSTOM_ID:` first (via [ensureCustomId]) so the favorite
+     * survives external edits that shift line numbers.
+     */
+    fun toggleFavorite(headline: OrgHeadline) {
+        val loaded = _state.value as? DocumentUiState.Loaded ?: return
+        val fileName = loaded.fileName
+        viewModelScope.launch {
+            val existing = app.favoritesRepository.favorites.first().firstOrNull { it.matches(headline) }
+            if (existing != null) {
+                app.favoritesRepository.removeFavorite(existing.fileName, existing.lineIndex, existing.customId)
+                showToast("Removed favorite")
+            } else {
+                ensureCustomId(headline) { customId ->
+                    viewModelScope.launch {
+                        app.favoritesRepository.addFavorite(
+                            FavoriteNote(fileName, headline.lineIndex, headline.title, customId),
+                        )
+                    }
+                    showToast("★ Added to favorites")
+                }
+            }
+        }
+    }
+
+    /**
+     * Favorite toggle for a file's heading-less intro. The favorite is keyed at
+     * [INTRO_LINE_INDEX] (no `:CUSTOM_ID:`, since there's no heading to write one on),
+     * so favoriting the intro never forces a blank heading onto the file.
+     */
+    fun toggleIntroFavorite() {
+        val loaded = _state.value as? DocumentUiState.Loaded ?: return
+        val doc = loaded.document
+        val fileName = loaded.fileName
+        if (!doc.hasIntro) return
+        viewModelScope.launch {
+            val existing = app.favoritesRepository.favorites.first()
+                .firstOrNull { it.fileName == fileName && it.lineIndex == INTRO_LINE_INDEX }
+            if (existing != null) {
+                app.favoritesRepository.removeFavorite(fileName, INTRO_LINE_INDEX, null)
+                showToast("Removed favorite")
+            } else {
+                val title = doc.introTitle.ifBlank { fileName.removeSuffix(".org") }
+                app.favoritesRepository.addFavorite(FavoriteNote(fileName, INTRO_LINE_INDEX, title, null))
+                showToast("★ Added to favorites")
+            }
         }
     }
 

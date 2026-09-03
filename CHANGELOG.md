@@ -59,6 +59,15 @@ re-uploads the APKs to the existing release instead of failing.
 
 ## [Unreleased]
 
+### Added
+- The read-mode metadata sheet now has a **★ Favorite** action next to Add note
+  and Refile; it pins the note to the drawer's Favorites and toggles back off on
+  a second tap. Works on heading-less notes too, without adding a heading.
+
+### Changed
+- The metadata sheet's tag list shows a small "tap an existing tag to remove it"
+  hint whenever at least one tag is set.
+
 ## [1.3.0] - 2026-09-03
 
 ### Added

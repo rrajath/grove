@@ -68,6 +68,11 @@ fun MetadataSheet(
     onDismiss: () -> Unit,
     /** Hidden for an unsaved capture draft: nothing exists on disk yet to refile. */
     showRefile: Boolean = true,
+    /** Read mode only: offer a Favorite toggle that pins this note to the nav drawer. */
+    showFavorite: Boolean = false,
+    /** Whether the note shown is already a favorite; flips the action's label to "Favorited". */
+    isFavorite: Boolean = false,
+    onToggleFavorite: () -> Unit = {},
 ) {
     val c = MaterialTheme.grove
     var planningOpen by remember { mutableStateOf(false) }
@@ -201,6 +206,11 @@ fun MetadataSheet(
             if (selectedTags.isNotEmpty()) {
                 Spacer(Modifier.height(8.dp))
                 TagsColonRow(tags = selectedTags, onRemove = { tag -> onSetTags(selectedTags - tag) })
+                Text(
+                    "tap an existing tag to remove it",
+                    fontFamily = PlexSans, fontSize = 10.sp, color = c.ink3,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
             }
 
             SheetLabel("Schedule/Deadline")
@@ -211,7 +221,10 @@ fun MetadataSheet(
             )
 
             Spacer(Modifier.height(16.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(20.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
                 Text(
                     "+ Add note",
                     fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
@@ -229,6 +242,17 @@ fun MetadataSheet(
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
                             .clickable(onClick = onRefile)
+                            .padding(vertical = 6.dp),
+                    )
+                }
+                if (showFavorite) {
+                    Text(
+                        if (isFavorite) "★ Favorited" else "★ Favorite",
+                        fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
+                        fontSize = 13.sp, color = c.accent,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable(onClick = onToggleFavorite)
                             .padding(vertical = 6.dp),
                     )
                 }

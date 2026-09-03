@@ -79,6 +79,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rrajath.grove.data.FavoriteNote
 import com.rrajath.grove.data.matches
 import com.rrajath.grove.org.BlockParser
+import com.rrajath.grove.org.INTRO_LINE_INDEX
 import com.rrajath.grove.org.OrgBlock
 import com.rrajath.grove.org.OrgDocument
 import com.rrajath.grove.org.OrgHeadline
@@ -410,6 +411,9 @@ fun ReadNoteScreen(
                 },
                 onRefile = {},
                 showRefile = false,
+                showFavorite = true,
+                isFavorite = favorites.any { it.lineIndex == INTRO_LINE_INDEX },
+                onToggleFavorite = { viewModel.toggleIntroFavorite() },
                 onDismiss = { metadataOpen = false },
             )
         } else if (headline != null && doc != null) {
@@ -423,6 +427,9 @@ fun ReadNoteScreen(
                 onSetPlanningDates = { sched, dead -> viewModel.setPlanningDates(headline, sched, dead) },
                 onAddNote = { note -> viewModel.addNote(headline, note) },
                 onRefile = { metadataOpen = false; viewModel.startRefile(headline) },
+                showFavorite = true,
+                isFavorite = favorites.any { it.matches(headline) },
+                onToggleFavorite = { viewModel.toggleFavorite(headline) },
                 onDismiss = { metadataOpen = false },
             )
         }
