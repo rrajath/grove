@@ -73,6 +73,9 @@ re-uploads the APKs to the existing release instead of failing.
   keyword lines fold into one block labelled "KEYWORDS"; a lone line gets a
   block named after the keyword. A blank line separates one run from the next.
   Double-tapping a run opens the scoped editor, the same as for other blocks.
+- Org tables now render as a real grid in Read mode, with the header row bolded
+  and pinned while the body scrolls. Wide tables scroll sideways with the header
+  tracking the columns. The editor still shows the raw `| a | b |` text.
 
 ### Changed
 - The formatting toolbar's link button now uses a URL you already copied. Select
