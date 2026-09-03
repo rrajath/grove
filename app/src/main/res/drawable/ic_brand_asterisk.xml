@@ -1,0 +1,37 @@
+<!--
+  The Grove org-asterisk mark: five rounded spokes radiating from center at
+  36/108/180/252/324 degrees, matching ui/components/BrandMark.kt's drawAsterisk
+  (design/Grove.dc.html spokeSet). White fill so callers tint it at draw time.
+  Each spoke is a vertical stadium 5.25 wide by 12 tall, rooted at the center.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <group android:pivotX="12" android:pivotY="12" android:rotation="36">
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M9.375,14.625 a2.625,2.625 0 0 1 5.25,0 v6.75 a2.625,2.625 0 0 1 -5.25,0 z" />
+    </group>
+    <group android:pivotX="12" android:pivotY="12" android:rotation="108">
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M9.375,14.625 a2.625,2.625 0 0 1 5.25,0 v6.75 a2.625,2.625 0 0 1 -5.25,0 z" />
+    </group>
+    <group android:pivotX="12" android:pivotY="12" android:rotation="180">
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M9.375,14.625 a2.625,2.625 0 0 1 5.25,0 v6.75 a2.625,2.625 0 0 1 -5.25,0 z" />
+    </group>
+    <group android:pivotX="12" android:pivotY="12" android:rotation="252">
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M9.375,14.625 a2.625,2.625 0 0 1 5.25,0 v6.75 a2.625,2.625 0 0 1 -5.25,0 z" />
+    </group>
+    <group android:pivotX="12" android:pivotY="12" android:rotation="324">
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M9.375,14.625 a2.625,2.625 0 0 1 5.25,0 v6.75 a2.625,2.625 0 0 1 -5.25,0 z" />
+    </group>
+</vector>

@@ -126,6 +126,15 @@ fun GroveApp(
     }
 }
 
+/**
+ * True while this entry is the one on screen. Guards a dismiss/navigation
+ * callback that can fire a second time after the entry is already popped (a fast
+ * double back-press): a popped entry drops below RESUMED, so the late callback
+ * no-ops instead of popping another entry off the back stack.
+ */
+private fun androidx.navigation.NavBackStackEntry.isResumed() =
+    lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)
+
 /** Favorites scoped to [fileName], for resolving each row's ★ by customId rather than raw line index. */
 private fun favoritesFor(
     favorites: List<com.rrajath.grove.data.FavoriteNote>,
@@ -489,9 +498,15 @@ private fun GroveNavigation(
             composable(
                 Routes.CAPTURE,
                 deepLinks = listOf(androidx.navigation.navDeepLink { uriPattern = "grove://capture" }),
-            ) {
+            ) { entry ->
                 CapturePickerSheet(
-                    onDismiss = { navController.popBackStack() },
+                    // A quick double back-press used to pop twice: once from the
+                    // sheet's own onDismissRequest and once from the system back
+                    // dispatcher. On the widget's shallow deep-link back stack
+                    // that popped past the start destination and left the NavHost
+                    // empty (a blank white screen). Ignore the second callback:
+                    // the entry is no longer RESUMED once it has been popped.
+                    onDismiss = { if (entry.isResumed()) navController.popBackStack() },
                     onPickTemplate = { template ->
                         navController.navigate(Routes.capture(template.id)) {
                             popUpTo(Routes.CAPTURE) { inclusive = true }

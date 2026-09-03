@@ -14,10 +14,16 @@ import androidx.glance.appwidget.provideContent
 import androidx.glance.action.clickable
 import androidx.glance.background
 import androidx.glance.color.ColorProvider
+import androidx.glance.ColorFilter
+import androidx.glance.Image
+import androidx.glance.ImageProvider
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Row
+import androidx.glance.layout.Spacer
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.padding
+import androidx.glance.layout.size
+import androidx.glance.layout.width
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
@@ -25,6 +31,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.rrajath.grove.MainActivity
+import com.rrajath.grove.R
 
 /**
  * Home-screen "Capture" widget (PRD §8): one tap opens the capture picker
@@ -37,6 +44,10 @@ class CaptureWidget : GlanceAppWidget() {
             GlanceTheme {
                 val intent = Intent(Intent.ACTION_VIEW, "grove://capture".toUri())
                     .setClass(context, MainActivity::class.java)
+                // The mark is drawn from a vector (ic_brand_asterisk), not a "✱"
+                // text glyph: U+2731 is absent from many device system fonts, so
+                // the glyph rendered as blank or tofu on those phones.
+                val markColor = ColorProvider(Color(0xFFFFFAF2), Color(0xFF1A160D))
                 Row(
                     modifier = GlanceModifier
                         .fillMaxSize()
@@ -47,10 +58,17 @@ class CaptureWidget : GlanceAppWidget() {
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
+                    Image(
+                        provider = ImageProvider(R.drawable.ic_brand_asterisk),
+                        contentDescription = null,
+                        colorFilter = ColorFilter.tint(markColor),
+                        modifier = GlanceModifier.size(15.dp),
+                    )
+                    Spacer(GlanceModifier.width(8.dp))
                     Text(
-                        "✱  Capture",
+                        "Capture",
                         style = TextStyle(
-                            color = ColorProvider(Color(0xFFFFFAF2), Color(0xFF1A160D)),
+                            color = markColor,
                             fontWeight = FontWeight.Medium,
                             fontSize = 15.sp,
                         ),

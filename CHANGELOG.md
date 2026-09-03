@@ -93,6 +93,15 @@ re-uploads the APKs to the existing release instead of failing.
   badge on the bottom-right corner, matching the design prototype. The letter
   and colour are unchanged. Applies in the quick-capture sheet, the Capture
   Templates settings list, the template editor, and the icon-colour dialog.
+- The home-screen Capture widget now draws the Grove asterisk from a vector
+  instead of a "✱" text character, so the mark shows on devices whose system
+  font lacks that glyph (it was rendering blank or as a missing-glyph box).
+- Fixed a blank white screen when opening the Capture widget and pressing back
+  twice in quick succession. The second press no longer pops past the start of
+  the back stack.
+- Updated Jetpack Glance to 1.2.0, which fixes a bug where the Capture widget
+  could redraw itself as the Agenda widget (or vice versa) after the widget or
+  the in-app Agenda had been used.
 
 ## [1.3.0] - 2026-09-03
 
