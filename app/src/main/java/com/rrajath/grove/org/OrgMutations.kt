@@ -303,19 +303,39 @@ object OrgMutations {
 
     private val BLOCK_BEGIN = Regex("""^\s*#\+(?i:BEGIN_)(\S+)""")
     private val BLOCK_END = Regex("""^\s*#\+(?i:END_)(\S+)\s*$""")
-    private val BLOCK_AFFILIATED =
-        Regex("""^\s*#\+(?i:ATTR_\S+|CAPTION|NAME|HEADER|HEADERS|RESULTS|PLOT)(?::| ).*$""")
+
+    /** Any standalone `#+KEYWORD:` line — mirrors `BlockParser.KEYWORD`. */
+    private val BLOCK_AFFILIATED = Regex("""^\s*#\+(?!(?i:BEGIN_|END_))[A-Za-z][\w-]*:.*$""")
 
     /**
      * Inclusive line range of the `#+BEGIN_x … #+END_x` block whose `#+BEGIN`
      * line is at or nearest [approxBeginLine], markers included, plus any leading
      * run of affiliated-keyword lines (`#+ATTR_*`, `#+CAPTION:`, `#+NAME:`, …)
      * directly above it — matching what the read-mode drawer folds in. An
-     * unterminated block runs to the end of the file. Null when the file has no
-     * `#+BEGIN` line at all. The raw region the block editor scopes itself to.
+     * unterminated block runs to the end of the file.
+     *
+     * When [approxBeginLine] instead points at a standalone `#+KEYWORD:` run that
+     * has no `#+BEGIN` below it, the range is that consecutive keyword run —
+     * matching the collapsible keyword block read mode renders for it.
+     *
+     * Null when the file has no `#+BEGIN` line and no keyword run at the tapped
+     * line. The raw region the block editor scopes itself to.
      */
     fun blockRange(doc: OrgDocument, approxBeginLine: Int): IntRange? {
         val lines = doc.lines
+
+        // Standalone keyword run: the tapped line is a `#+KEYWORD:` line whose
+        // run isn't immediately followed by a `#+BEGIN` (which would make these
+        // the block's affiliated keywords, handled by the `#+BEGIN` path below).
+        if (approxBeginLine in lines.indices && BLOCK_AFFILIATED.matches(lines[approxBeginLine])) {
+            var s = approxBeginLine
+            var e = approxBeginLine
+            while (s > 0 && BLOCK_AFFILIATED.matches(lines[s - 1])) s--
+            while (e < lines.size - 1 && BLOCK_AFFILIATED.matches(lines[e + 1])) e++
+            val foldsIntoBlock = e + 1 < lines.size && BLOCK_BEGIN.containsMatchIn(lines[e + 1])
+            if (!foldsIntoBlock) return s..e
+        }
+
         val beginLines = lines.indices.filter { BLOCK_BEGIN.containsMatchIn(lines[it]) }
         if (beginLines.isEmpty()) return null
         // Prefer a `#+BEGIN` at or after the tapped line, then fall back to the

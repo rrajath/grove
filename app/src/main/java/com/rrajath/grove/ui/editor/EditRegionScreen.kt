@@ -107,12 +107,26 @@ private fun regionLabel(region: EditRegion): String = when (region) {
     EditRegion.BLOCK -> "Block"
 }
 
-/** Title-cased block kind pulled from the buffer's `#+BEGIN_x` line (e.g. "Quote", "Src"), or "Block". */
+/**
+ * Title-cased block kind for this screen's title bar. Pulled from the buffer's
+ * `#+BEGIN_x` line (e.g. "Quote", "Src"); for a standalone `#+KEYWORD:` run it is
+ * "Keywords" (several lines) or the keyword's own name ("Caption"). "Block" as a
+ * last resort.
+ */
 private fun blockLabelFromBuffer(buffer: String): String {
-    val begin = buffer.lineSequence().firstOrNull { Regex("""^\s*#\+(?i:BEGIN_)\S+""").containsMatchIn(it) }
-        ?: return "Block"
-    val kind = Regex("""^\s*#\+(?i:BEGIN_)(\S+)""").find(begin)?.groupValues?.get(1) ?: return "Block"
-    return kind.lowercase().replaceFirstChar { it.uppercase() }
+    val lines = buffer.lineSequence().toList()
+    val begin = lines.firstOrNull { Regex("""^\s*#\+(?i:BEGIN_)\S+""").containsMatchIn(it) }
+    if (begin != null) {
+        val kind = Regex("""^\s*#\+(?i:BEGIN_)(\S+)""").find(begin)?.groupValues?.get(1) ?: return "Block"
+        return kind.lowercase().replaceFirstChar { it.uppercase() }
+    }
+    val keyword = Regex("""^\s*#\+(?!(?i:BEGIN_|END_))([A-Za-z][\w-]*):""")
+    val names = lines.mapNotNull { keyword.find(it)?.groupValues?.get(1) }
+    return when {
+        names.isEmpty() -> "Block"
+        names.size == 1 -> names[0].lowercase().replaceFirstChar { it.uppercase() }
+        else -> "Keywords"
+    }
 }
 
 /**

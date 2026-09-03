@@ -653,6 +653,15 @@ class OrgMutationsTest {
     }
 
     @Test
+    fun `blockRange spans a standalone keyword run with no BEGIN below it`() {
+        val doc = OrgParser.parse(
+            "* Notes\nprose\n\n#+CAPTION: foo\n#+NAME: bar\n\nmore prose\n"
+        )
+        val range = OrgMutations.blockRange(doc, 4)!!
+        assertEquals("#+CAPTION: foo\n#+NAME: bar", OrgMutations.regionText(doc, range))
+    }
+
+    @Test
     fun `replaceLines swaps a block and leaves the rest byte-identical`() {
         val range = OrgMutations.blockRange(blockDoc, 11)!!
         val edited = OrgMutations.replaceLines(

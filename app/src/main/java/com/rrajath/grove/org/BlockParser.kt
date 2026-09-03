@@ -17,6 +17,11 @@ sealed class OrgBlock {
      * [kind] (the upper-cased block type: `QUOTE`, `SRC`, `EXAMPLE`, `VERSE`,
      * `CENTER`, `LATEX`, a custom name, …).
      *
+     * Also used for a run of standalone `#+KEYWORD:` lines that has no
+     * `#+BEGIN`/`#+END` at all ([keywordRun] true): [kind] is `KEYWORDS` when the
+     * run has two or more lines, otherwise the sole keyword's upper-cased name
+     * (`CAPTION`, `NAME`, …). [contentLines] holds the raw keyword lines, verbatim.
+     *
      * [language] is the `#+BEGIN_SRC <lang>` token when [kind] is `SRC`, else null.
      * [affiliated] holds any leading affiliated-keyword lines (`#+ATTR_*`,
      * `#+CAPTION:`, `#+NAME:`, `#+HEADER:`, `#+RESULTS:`) that sat immediately
@@ -24,7 +29,8 @@ sealed class OrgBlock {
      * in its drawer. [contentLines] is everything between the markers.
      *
      * [startLine] is the body-relative index of the block's first line — the
-     * first [affiliated] line when there is one, otherwise the `#+BEGIN` line.
+     * first [affiliated] line when there is one, otherwise the `#+BEGIN` line
+     * (or the first keyword line, for a [keywordRun]).
      */
     data class Block(
         val kind: String,
@@ -32,6 +38,7 @@ sealed class OrgBlock {
         val affiliated: List<String>,
         val contentLines: List<String>,
         val startLine: Int = 0,
+        val keywordRun: Boolean = false,
     ) : OrgBlock()
 
     /** Org tables render as monospace plain text in v1 (PRD decision #4). */
@@ -58,12 +65,16 @@ object BlockParser {
     private val END = Regex("""^\s*#\+(?i:END_)(\S+)\s*$""")
 
     /**
-     * An affiliated keyword line that attaches to the element right below it
-     * (`#+ATTR_LATEX:`, `#+ATTR_HTML:`, `#+CAPTION:`, `#+NAME:`, `#+HEADER:`,
-     * `#+RESULTS:`, `#+PLOT:`). When a run of these sits directly above a
-     * `#+BEGIN` line it is folded into that block's drawer.
+     * Any standalone `#+KEYWORD:` line (`#+CAPTION:`, `#+NAME:`, `#+ATTR_HTML:`,
+     * `#+TBLFM:`, a custom keyword, …) — anything that isn't a `#+BEGIN_`/`#+END_`
+     * marker. A run of these directly above a `#+BEGIN` line folds into that
+     * block's drawer; on its own it becomes its own collapsible block.
      */
-    private val AFFILIATED = Regex("""^\s*#\+(?i:ATTR_\S+|CAPTION|NAME|HEADER|HEADERS|RESULTS|PLOT)(?::| ).*$""")
+    private val KEYWORD = Regex("""^\s*#\+(?!(?i:BEGIN_|END_))[A-Za-z][\w-]*:.*$""")
+
+    /** The upper-cased keyword name of a [KEYWORD] line (`#+CAPTION: x` -> `CAPTION`). */
+    private fun keywordName(line: String): String =
+        Regex("""^\s*#\+([A-Za-z][\w-]*):""").find(line)?.groupValues?.get(1)?.uppercase() ?: "KEYWORD"
 
     fun parse(bodyLines: List<String>): List<OrgBlock> {
         val blocks = mutableListOf<OrgBlock>()
@@ -113,24 +124,35 @@ object BlockParser {
                     parseBlock(i, affiliated = emptyList(), blockStart = i)
                 }
 
-                AFFILIATED.matches(line) -> {
-                    // Collect the affiliated run; fold it into a block only when
-                    // one starts on the very next line. Otherwise it's ordinary
-                    // paragraph text (unchanged behaviour).
-                    val affStart = i
-                    val aff = mutableListOf<String>()
+                KEYWORD.matches(line) -> {
+                    // Collect the consecutive keyword run. If a `#+BEGIN` starts
+                    // on the very next line, the run is that block's affiliated
+                    // keywords and folds into its drawer. Otherwise the run is its
+                    // own collapsible block: `KEYWORDS` for several lines, the
+                    // keyword's own name for a one-off.
+                    val runStart = i
+                    val run = mutableListOf<String>()
                     var k = i
-                    while (k < bodyLines.size && AFFILIATED.matches(bodyLines[k])) {
-                        aff.add(bodyLines[k])
+                    while (k < bodyLines.size && KEYWORD.matches(bodyLines[k])) {
+                        run.add(bodyLines[k])
                         k++
                     }
+                    flushParagraph()
                     if (k < bodyLines.size && BEGIN.containsMatchIn(bodyLines[k])) {
-                        flushParagraph()
-                        parseBlock(k, affiliated = aff, blockStart = affStart)
+                        parseBlock(k, affiliated = run, blockStart = runStart)
                     } else {
-                        if (para.isEmpty()) paraStart = i
-                        para.add(line)
-                        i++
+                        val kind = if (run.size >= 2) "KEYWORDS" else keywordName(run[0])
+                        blocks.add(
+                            OrgBlock.Block(
+                                kind = kind,
+                                language = null,
+                                affiliated = emptyList(),
+                                contentLines = run,
+                                startLine = runStart,
+                                keywordRun = true,
+                            )
+                        )
+                        i = k
                     }
                 }
 

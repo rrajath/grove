@@ -1026,8 +1026,9 @@ private fun BodyBlocks(
     val c = MaterialTheme.grove
     val blocks = remember(bodyLines) { BlockParser.parse(bodyLines) }
     // Per-block expand state, keyed by the block's body-relative start line.
-    // Blocks open expanded (unlike the collapsed-by-default metadata drawers):
-    // their content is note content.
+    // `#+BEGIN` blocks open expanded (unlike the collapsed-by-default metadata
+    // drawers): their content is note content. A standalone keyword run is
+    // metadata, so it opens collapsed.
     val blockExpanded = remember(bodyLines) { mutableStateMapOf<Int, Boolean>() }
 
     blocks.forEach { block ->
@@ -1147,7 +1148,9 @@ private fun BodyBlocks(
             }
 
             is OrgBlock.Block -> {
-                val expanded = blockExpanded[block.startLine] ?: true
+                // `#+BEGIN` blocks open expanded (their content is note content);
+                // a standalone keyword run opens collapsed, like a metadata drawer.
+                val expanded = blockExpanded[block.startLine] ?: !block.keywordRun
                 CollapsibleBlockSection(
                     label = block.kind,
                     trailingLabel = block.language,

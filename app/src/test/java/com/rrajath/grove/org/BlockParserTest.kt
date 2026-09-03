@@ -1,6 +1,7 @@
 package com.rrajath.grove.org
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -82,11 +83,56 @@ class BlockParserTest {
     }
 
     @Test
-    fun `standalone affiliated keyword stays paragraph text`() {
+    fun `a lone standalone keyword is its own block, named for the keyword`() {
         val blocks = BlockParser.parse(listOf("#+ATTR_LATEX: :width 0.8", "some prose"))
+        assertEquals(2, blocks.size)
+        val block = blocks[0] as OrgBlock.Block
+        assertEquals("ATTR_LATEX", block.kind)
+        assertTrue(block.keywordRun)
+        assertNull(block.language)
+        assertEquals(listOf("#+ATTR_LATEX: :width 0.8"), block.contentLines)
+        assertEquals(0, block.startLine)
+        assertEquals(listOf("some prose"), (blocks[1] as OrgBlock.Paragraph).lines)
+    }
+
+    @Test
+    fun `a run of standalone keywords groups into one KEYWORDS block`() {
+        val blocks = BlockParser.parse(
+            listOf("before", "", "#+CAPTION: foo", "#+NAME: bar", "#+ATTR_HTML: :class x", "after")
+        )
+        assertEquals(3, blocks.size)
+        assertEquals(listOf("before"), (blocks[0] as OrgBlock.Paragraph).lines)
+        val block = blocks[1] as OrgBlock.Block
+        assertEquals("KEYWORDS", block.kind)
+        assertTrue(block.keywordRun)
+        assertEquals(
+            listOf("#+CAPTION: foo", "#+NAME: bar", "#+ATTR_HTML: :class x"),
+            block.contentLines,
+        )
+        assertEquals(2, block.startLine)
+        assertEquals(listOf("after"), (blocks[2] as OrgBlock.Paragraph).lines)
+    }
+
+    @Test
+    fun `a blank line breaks a keyword run into separate blocks`() {
+        val blocks = BlockParser.parse(
+            listOf("#+CAPTION: foo", "#+NAME: bar", "", "#+RESULTS: baz")
+        )
+        assertEquals(2, blocks.size)
+        assertEquals("KEYWORDS", (blocks[0] as OrgBlock.Block).kind)
+        assertEquals("RESULTS", (blocks[1] as OrgBlock.Block).kind)
+    }
+
+    @Test
+    fun `a keyword run directly above a block still folds into it`() {
+        val blocks = BlockParser.parse(
+            listOf("#+CAPTION: c", "#+NAME: n", "#+BEGIN_SRC sh", "ls", "#+END_SRC")
+        )
         assertEquals(1, blocks.size)
-        assertTrue(blocks[0] is OrgBlock.Paragraph)
-        assertEquals(listOf("#+ATTR_LATEX: :width 0.8", "some prose"), (blocks[0] as OrgBlock.Paragraph).lines)
+        val block = blocks[0] as OrgBlock.Block
+        assertEquals("SRC", block.kind)
+        assertFalse(block.keywordRun)
+        assertEquals(listOf("#+CAPTION: c", "#+NAME: n"), block.affiliated)
     }
 
     @Test

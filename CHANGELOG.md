@@ -63,6 +63,12 @@ re-uploads the APKs to the existing release instead of failing.
 - The read-mode metadata sheet now has a **★ Favorite** action next to Add note
   and Refile; it pins the note to the drawer's Favorites and toggles back off on
   a second tap. Works on heading-less notes too, without adding a heading.
+- Standalone `#+` keyword lines in a note body (`#+CAPTION:`, `#+NAME:`,
+  `#+ATTR_HTML:`, and the like) now render as their own collapsible block in
+  Read mode instead of running into the surrounding text. Several consecutive
+  keyword lines fold into one block labelled "KEYWORDS"; a lone line gets a
+  block named after the keyword. A blank line separates one run from the next.
+  Double-tapping a run opens the scoped editor, the same as for other blocks.
 
 ### Changed
 - The metadata sheet's tag list shows a small "tap an existing tag to remove it"
