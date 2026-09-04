@@ -59,6 +59,16 @@ re-uploads the APKs to the existing release instead of failing.
 
 ## [Unreleased]
 
+### Added
+- Settings § Notes has an **Auto-save notes** toggle (on by default). Turn it off
+  and an editor never writes on its own: no 5-second idle save, and the file
+  changes only when you tap the save icon or pick Save on the way out.
+
+### Changed
+- Switching between Read and Edit no longer saves the note. Read mode renders
+  your unsaved edits instead, folds its own changes (a checkbox tap, a metadata
+  edit) back into them, and asks to save or discard when you leave the note.
+
 ## [1.4.0] - 2026-09-04
 
 ### Added
