@@ -104,6 +104,10 @@ re-uploads the APKs to the existing release instead of failing.
   background job that observes it (about 40 of them); now it is built once and
   handed out. Most noticeable while expanding and collapsing folders in the
   Notebooks tree, which writes a preference on every tap.
+- The Agenda no longer re-buckets its whole list when an unrelated preference
+  changes. Expanding a folder, pinning a notebook, or changing a notebook colour
+  used to make the Agenda tab rebuild in the background; it now only reacts to
+  the eight settings it actually shows.
 
 ### Fixed
 - The search results list now snaps back to the top on every keystroke. It used

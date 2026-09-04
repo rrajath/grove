@@ -28,6 +28,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
@@ -95,6 +96,33 @@ data class AgendaUiState(
 }
 
 /**
+ * Projection of [GroveSettings] onto just the fields [AgendaViewModel] reads, so
+ * an unrelated preference write does not trigger a full agenda recompute. All
+ * `equals`/`hashCode` via `data class`; used only as a `distinctUntilChangedBy` key.
+ */
+private data class AgendaPrefs(
+    val groupingToday: AgendaGrouping,
+    val groupingUpcoming: AgendaGrouping,
+    val stateFilterToday: AgendaStateFilter,
+    val stateFilterUpcoming: AgendaStateFilter,
+    val showTags: Boolean,
+    val showFile: Boolean,
+    val swipeLeft: AgendaSwipeAction,
+    val swipeRight: AgendaSwipeAction,
+) {
+    constructor(s: GroveSettings) : this(
+        s.agendaGroupingToday,
+        s.agendaGroupingUpcoming,
+        s.agendaStateFilterToday,
+        s.agendaStateFilterUpcoming,
+        s.agendaShowTags,
+        s.agendaShowFile,
+        s.agendaSwipeLeftAction,
+        s.agendaSwipeRightAction,
+    )
+}
+
+/**
  * The "Agenda A · focus" screen from `design/Grove.dc.html`: today's work first,
  * an overdue card above it, and a levers panel that re-buckets the same list by
  * date, priority, tag, or file.
@@ -144,10 +172,16 @@ class AgendaViewModel(private val app: GroveApplication) : ViewModel() {
 
     init {
         viewModelScope.launch {
-            app.settingsRepository.settings.collect { settings ->
-                prefs = settings
-                recompute()
-            }
+            // Gate on the handful of fields the agenda actually reads. Without
+            // this, any DataStore write re-buckets the whole agenda — expanding
+            // a folder in Notebooks, pinning a notebook, a colour change, a
+            // dismissed NEW badge. Mirrors `TreeInputs` in VaultViewModels.
+            app.settingsRepository.settings
+                .distinctUntilChangedBy { AgendaPrefs(it) }
+                .collect { settings ->
+                    prefs = settings
+                    recompute()
+                }
         }
         viewModelScope.launch {
             app.keywords.collect { kw ->
