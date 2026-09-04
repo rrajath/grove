@@ -101,6 +101,12 @@ data class GroveSettings(
     val addCreatedToNewNotes: Boolean = true,
     /** Where the caret lands in a note created for immediate editing (outline "+" FAB). */
     val newNoteCursor: NewNoteCursor = NewNoteCursor.BODY,
+    /**
+     * Whether an editor writes the buffer to disk on its own after a 5s pause in
+     * typing. Off means the file changes only when the user asks: the floppy icon,
+     * or Save in the leave-with-unsaved-changes dialog.
+     */
+    val autoSaveNotes: Boolean = true,
     /** Per-notebook last-used note mode overrides: "file.org" → "read"/"edit". */
     val notebookModes: Map<String, String> = emptyMap(),
     /** Per-notebook monogram color overrides: "file.org" → palette key ("green"…). */
@@ -227,6 +233,7 @@ class SettingsRepository(private val context: Context, private val scope: Corout
         val addIdToNewNotes = booleanPreferencesKey("add_id_to_new_notes")
         val addCreatedToNewNotes = booleanPreferencesKey("add_created_to_new_notes")
         val newNoteCursor = stringPreferencesKey("new_note_cursor")
+        val autoSaveNotes = booleanPreferencesKey("auto_save_notes")
         val notebookModes = stringPreferencesKey("notebook_modes")
 
         /**
@@ -310,6 +317,7 @@ class SettingsRepository(private val context: Context, private val scope: Corout
             addIdToNewNotes = prefs[Keys.addIdToNewNotes] ?: false,
             addCreatedToNewNotes = prefs[Keys.addCreatedToNewNotes] ?: true,
             newNoteCursor = NewNoteCursor.fromStorage(prefs[Keys.newNoteCursor]),
+            autoSaveNotes = prefs[Keys.autoSaveNotes] ?: true,
             notebookModes = decodeModes(prefs[Keys.notebookModes]),
             notebookColors = decodeModes(prefs[Keys.notebookColors]),
             folderColors = decodeModes(prefs[Keys.folderColors]),
@@ -432,6 +440,7 @@ class SettingsRepository(private val context: Context, private val scope: Corout
             p[Keys.addIdToNewNotes] = s.addIdToNewNotes
             p[Keys.addCreatedToNewNotes] = s.addCreatedToNewNotes
             p[Keys.newNoteCursor] = s.newNoteCursor.storageKey
+            p[Keys.autoSaveNotes] = s.autoSaveNotes
             p[Keys.notebookModes] = encodeModes(s.notebookModes)
             p[Keys.notebookColors] = encodeModes(s.notebookColors)
             p[Keys.folderColors] = encodeModes(s.folderColors)
@@ -497,6 +506,10 @@ class SettingsRepository(private val context: Context, private val scope: Corout
 
     suspend fun setNewNoteCursor(cursor: NewNoteCursor) {
         context.settingsDataStore.edit { it[Keys.newNoteCursor] = cursor.storageKey }
+    }
+
+    suspend fun setAutoSaveNotes(enabled: Boolean) {
+        context.settingsDataStore.edit { it[Keys.autoSaveNotes] = enabled }
     }
 
     /**

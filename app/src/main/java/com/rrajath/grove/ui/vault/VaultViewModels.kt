@@ -585,6 +585,17 @@ data class RefileUiState(
     val lastUsedTarget: ArchiveTarget? = null,
 )
 
+/**
+ * A note editor's unsaved buffer, handed to [DocumentViewModel] while read mode is
+ * showing the very note the editor holds. Read mode then renders what was typed
+ * rather than what is on disk, which is what makes the Read/Edit toggle free of
+ * any write of its own (Settings § Notes → Auto-save notes).
+ *
+ * @param lineIndex the edited headline's line in the on-disk file.
+ * @param text the editor's current subtree text for that headline.
+ */
+data class PendingEdit(val fileName: String, val lineIndex: Int, val text: String)
+
 class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
 
     private val _state = MutableStateFlow<DocumentUiState>(DocumentUiState.Loading)
@@ -641,6 +652,69 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
         _focusedLine.value = line
     }
 
+    /** The open editor's unsaved buffer for this file, if any; see [setPendingEdit]. */
+    private var pending: PendingEdit? = null
+    private var onPendingBufferChanged: (String) -> Unit = {}
+    private var onPendingPersisted: () -> Unit = {}
+
+    /**
+     * Hand this view model the note editor's unsaved buffer (null when there is
+     * none). [onBufferChanged] receives the new subtree text whenever a read-mode
+     * mutation is folded into that buffer instead of written to disk;
+     * [onPersisted] fires when a mutation reshaped the file badly enough that the
+     * buffer had to go to disk with it, so the editor should let go of it.
+     */
+    fun setPendingEdit(
+        edit: PendingEdit?,
+        onBufferChanged: (String) -> Unit = {},
+        onPersisted: () -> Unit = {},
+    ) {
+        pending = edit
+        onPendingBufferChanged = onBufferChanged
+        onPendingPersisted = onPersisted
+    }
+
+    /** Splice the editor's unsaved subtree into a freshly read [doc], if it applies to it. */
+    private suspend fun withPending(fileName: String, doc: OrgDocument): OrgDocument {
+        val p = pending?.takeIf { it.fileName == fileName } ?: return doc
+        return withContext(Dispatchers.Default) {
+            val headline = doc.headlines.firstOrNull { it.lineIndex == p.lineIndex }
+                ?: return@withContext doc
+            if (OrgMutations.subtreeText(doc, headline) == p.text) return@withContext doc
+            OrgParser.parse(OrgMutations.replaceSubtree(doc, headline, p.text), doc.keywords)
+        }
+    }
+
+    /**
+     * Persist a mutation's [newText] — unless the note editor is holding unsaved
+     * changes to a subtree of this same file, in which case the mutation is folded
+     * back into that buffer and nothing reaches disk until the user saves. Only a
+     * mutation that left the subtree where the editor expects it can be buffered;
+     * one that restructured the file (a refile, delete or move) is written out as
+     * it stands — its text already carries the unsaved edits, so that write *is*
+     * the flush, and the editor is told to let its buffer go.
+     */
+    private suspend fun saveDoc(fileName: String, newText: String, syncReason: String) {
+        val vault = app.vault.value ?: return
+        val p = pending?.takeIf { it.fileName == fileName }
+        if (p != null) {
+            val subtree = withContext(Dispatchers.Default) {
+                val doc = OrgParser.parse(newText, app.keywords.value)
+                doc.headlines.firstOrNull { it.lineIndex == p.lineIndex }
+                    ?.let { OrgMutations.subtreeText(doc, it) }
+            }
+            if (subtree != null) {
+                pending = p.copy(text = subtree)
+                onPendingBufferChanged(subtree)
+                return
+            }
+            pending = null
+            onPendingPersisted()
+        }
+        vault.save(fileName, newText)
+        app.syncManager.requestSync(syncReason)
+    }
+
     fun load(fileName: String) {
         viewModelScope.launch {
             val vault = app.vault.value
@@ -651,7 +725,7 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
             _state.value = try {
                 val doc = vault.open(fileName)
                 if (doc == null) DocumentUiState.Error("$fileName not found")
-                else DocumentUiState.Loaded(fileName, doc)
+                else DocumentUiState.Loaded(fileName, withPending(fileName, doc))
             } catch (e: Exception) {
                 DocumentUiState.Error(e.message ?: "Could not open $fileName")
             }
@@ -792,6 +866,13 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
         // The focused line indexes the pre-undo document; don't let the
         // command bar act on whatever headline lands there after restore.
         _focusedLine.value = null
+        // The snapshot predates whatever the editor is holding, so restoring it
+        // would put the file back behind an unsaved buffer that could then clobber
+        // it again; the editor lets go of the buffer instead.
+        if (pending != null) {
+            pending = null
+            onPendingPersisted()
+        }
         viewModelScope.launch {
             snap.files.forEach { (name, text) -> vault.save(name, text) }
             snap.files.firstOrNull { it.first == loaded.fileName }?.let { (_, text) ->
@@ -833,8 +914,7 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
                 OrgParser.parse(newText, loaded.document.keywords)
             }
             _state.value = DocumentUiState.Loaded(loaded.fileName, newDoc)
-            vault.save(loaded.fileName, newText)
-            app.syncManager.requestSync("favorite added custom id")
+            saveDoc(loaded.fileName, newText, "favorite added custom id")
             onResolved(newId)
         }
     }
@@ -914,8 +994,7 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
             }
             undoSnapshot = UndoSnapshot(listOf(loaded.fileName to loaded.document.text))
             _state.value = DocumentUiState.Loaded(loaded.fileName, finalDoc)
-            vault.save(loaded.fileName, finalText)
-            app.syncManager.requestSync("intro promoted to heading")
+            saveDoc(loaded.fileName, finalText, "intro promoted to heading")
             showSnack("Added a blank heading for this content")
             if (describe.isNotEmpty()) showToast(describe)
             _introPromotedLine.value = newLine
@@ -949,8 +1028,7 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
             undoSnapshot = UndoSnapshot(listOf(loaded.fileName to loaded.document.text))
             _focusedLine.value = newFocus(newLine)
             _state.value = DocumentUiState.Loaded(loaded.fileName, newDoc)
-            vault.save(loaded.fileName, newText)
-            app.syncManager.requestSync("outline edit")
+            saveDoc(loaded.fileName, newText, "outline edit")
             showSnack(snackMessage)
         }
     }
@@ -1047,8 +1125,7 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
                 OrgParser.parse(newText, loaded.document.keywords)
             }
             _state.value = DocumentUiState.Loaded(loaded.fileName, newDoc)
-            vault.save(loaded.fileName, newText)
-            app.syncManager.requestSync("note added")
+            saveDoc(loaded.fileName, newText, "note added")
             onCreated(lineIndex)
         }
     }
@@ -1076,8 +1153,7 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
             ) {
                 is StateChangeResult.Plain -> {
                     _state.value = DocumentUiState.Loaded(loaded.fileName, result.doc)
-                    vault.save(loaded.fileName, result.text)
-                    app.syncManager.requestSync("state set")
+                    saveDoc(loaded.fileName, result.text, "state set")
                     showToast("State → ${keyword ?: "none"}")
                 }
                 is StateChangeResult.Archived -> {
@@ -1090,9 +1166,8 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
                     )
                     _focusedLine.value = null
                     _state.value = DocumentUiState.Loaded(loaded.fileName, result.sourceDoc)
-                    vault.save(loaded.fileName, result.sourceText)
                     if (result.destFile != loaded.fileName) vault.save(result.destFile, result.destText)
-                    app.syncManager.requestSync("state set")
+                    saveDoc(loaded.fileName, result.sourceText, "state set")
                     showSnack("Marked done. Refiled to ${result.label}")
                 }
             }
@@ -1122,8 +1197,7 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
                 OrgParser.parse(newText, loaded.document.keywords)
             }
             _state.value = DocumentUiState.Loaded(loaded.fileName, newDoc)
-            vault.save(loaded.fileName, newText)
-            app.syncManager.requestSync("checklist toggled")
+            saveDoc(loaded.fileName, newText, "checklist toggled")
         }
     }
 
@@ -1143,8 +1217,7 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
                 text to OrgParser.parse(text, loaded.document.keywords)
             }
             _state.value = DocumentUiState.Loaded(loaded.fileName, newDoc)
-            vault.save(loaded.fileName, newText)
-            app.syncManager.requestSync("priority set")
+            saveDoc(loaded.fileName, newText, "priority set")
             showToast("Priority → ${priority?.let { "#$it" } ?: "none"}")
         }
     }
@@ -1158,8 +1231,7 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
                 text to OrgParser.parse(text, loaded.document.keywords)
             }
             _state.value = DocumentUiState.Loaded(loaded.fileName, newDoc)
-            vault.save(loaded.fileName, newText)
-            app.syncManager.requestSync("tags set")
+            saveDoc(loaded.fileName, newText, "tags set")
         }
     }
 
@@ -1176,8 +1248,7 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
                 text to OrgParser.parse(text, loaded.document.keywords)
             }
             _state.value = DocumentUiState.Loaded(loaded.fileName, newDoc)
-            vault.save(loaded.fileName, newText)
-            app.syncManager.requestSync("planning edit")
+            saveDoc(loaded.fileName, newText, "planning edit")
             val fmt = DateTimeFormatter.ofPattern("EEE, MMM d")
             val parts = listOfNotNull(
                 scheduled?.let { "Scheduled · ${it.date.format(fmt)}" },
@@ -1201,8 +1272,7 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
                 text to OrgParser.parse(text, loaded.document.keywords)
             }
             _state.value = DocumentUiState.Loaded(loaded.fileName, newDoc)
-            vault.save(loaded.fileName, newText)
-            app.syncManager.requestSync("planning edit")
+            saveDoc(loaded.fileName, newText, "planning edit")
             showToast(
                 if (ts == null) "$label cleared"
                 else "$label · ${ts.date.format(DateTimeFormatter.ofPattern("EEE, MMM d"))}"
@@ -1227,8 +1297,7 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
                 text to OrgParser.parse(text, loaded.document.keywords)
             }
             _state.value = DocumentUiState.Loaded(loaded.fileName, newDoc)
-            vault.save(loaded.fileName, newText)
-            app.syncManager.requestSync("note added")
+            saveDoc(loaded.fileName, newText, "note added")
             showToast("Note added")
         }
     }
@@ -1355,9 +1424,8 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
         _state.value = DocumentUiState.Loaded(
             loaded.fileName, OrgParser.parse(write.sourceText, loaded.document.keywords),
         )
-        vault.save(loaded.fileName, write.sourceText)
         if (write.destFile != loaded.fileName) vault.save(write.destFile, write.destText)
-        app.syncManager.requestSync(syncReason)
+        saveDoc(loaded.fileName, write.sourceText, syncReason)
         showSnack("$verb to ${write.label}")
     }
 
@@ -1386,8 +1454,7 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
                 undoSnapshot = UndoSnapshot(listOf(loaded.fileName to loaded.document.text))
                 _focusedLine.value = null
                 _state.value = DocumentUiState.Loaded(loaded.fileName, result.second)
-                vault.save(loaded.fileName, result.first)
-                app.syncManager.requestSync("refile")
+                saveDoc(loaded.fileName, result.first, "refile")
                 showSnack("Refiled to $destLabel › ${targetTitle ?: "top level"}")
                 rememberRefileTarget(destFile, headingPath)
             } else {
@@ -1408,9 +1475,8 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
                 )
                 _focusedLine.value = null
                 _state.value = DocumentUiState.Loaded(loaded.fileName, newSourceDoc)
-                vault.save(loaded.fileName, newSourceText)
                 vault.save(destFile, newDestText)
-                app.syncManager.requestSync("refile")
+                saveDoc(loaded.fileName, newSourceText, "refile")
                 showSnack("Refiled to $destLabel › ${target?.title ?: "top level"}")
                 rememberRefileTarget(destFile, headingPath)
             }

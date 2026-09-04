@@ -100,6 +100,9 @@ fun EditNoteScreen(
     editModeFontSize: FontSizePreference = FontSizePreference.MEDIUM,
     /** Settings § Notes: caret placement for a freshly created note (only used when [isNewNote]). */
     newNoteCursor: NewNoteCursor = NewNoteCursor.BODY,
+    /** Settings § Notes: when false the idle timer below never fires, so the note is
+     *  written only by the save icon or the leave dialog's Save. */
+    autoSaveNotes: Boolean = true,
     viewModel: EditorViewModel = viewModel(factory = EditorViewModel.Factory),
 ) {
     val c = MaterialTheme.grove
@@ -279,10 +282,19 @@ fun EditNoteScreen(
     val scrollState = rememberScrollState()
     val editorLineHeightPx = with(LocalDensity.current) { (13.5f * 1.85f).sp.toPx() }
 
-    LaunchedEffect(noteRef) { viewModel.load(noteRef) }
+    // Whether the view model already holds unsaved changes for this note, i.e. we
+    // are coming back from read mode through the Read/Edit toggle — which never
+    // leaves this back-stack entry, so the buffer survived. Re-reading the file
+    // would drop it. Read during composition so both effects below see it.
+    val resumedDirty = remember(noteRef) {
+        val s = viewModel.state.value
+        s.dirty && s.region == null && s.fileName == noteRef.fileName
+    }
+
+    LaunchedEffect(noteRef) { if (!resumedDirty) viewModel.load(noteRef) }
     LaunchedEffect(state.loading) {
         if (!state.loading && state.error == null) {
-            if (isNewNote) {
+            if (isNewNote && !resumedDirty) {
                 // FAB-created heading has no body yet (just the "* " line, plus
                 // an optional :PROPERTIES: drawer): append a blank body line, then
                 // park the cursor per Settings § Notes — on that body line (the
@@ -302,7 +314,7 @@ fun EditNoteScreen(
                 setText(state.buffer, TextRange(cursor))
             }
             fieldLoaded = true
-            if (isNewNote) focusRequester.requestFocus()
+            if (isNewNote && !resumedDirty) focusRequester.requestFocus()
             // Scroll the tapped subheading into view. The buffer/cursor were
             // just set above, so scrollState's layout (and thus maxValue) is
             // still stale for this frame; give it two frames to catch up
@@ -346,7 +358,10 @@ fun EditNoteScreen(
     // still has unsaved changes. Re-keying on the buffer text resets the
     // debounce timer on every edit; an unchanged buffer (or one already saved
     // by another path, e.g. save-on-exit) is a no-op via the `dirty` check.
-    LaunchedEffect(state.buffer) {
+    // Switched off entirely by Settings § Notes → Auto-save notes, which leaves
+    // the save icon and the leave dialog as the only ways a note reaches disk.
+    LaunchedEffect(state.buffer, autoSaveNotes) {
+        if (!autoSaveNotes) return@LaunchedEffect
         delay(5_000)
         if (state.dirty) {
             viewModel.save {
@@ -402,7 +417,10 @@ fun EditNoteScreen(
                     SegmentedControl(
                         options = listOf("Read", "Edit"),
                         selectedIndex = 1,
-                        onSelect = { if (it == 0) trySave(onSaved = onSwitchToRead) },
+                        // Switching to read mode never writes: read mode renders this
+                        // buffer as-is (see PendingEdit), so the file changes only when
+                        // the user saves or the idle timer fires.
+                        onSelect = { if (it == 0) onSwitchToRead() },
                         modifier = Modifier.width(140.dp),
                     )
                 },
@@ -630,34 +648,16 @@ fun EditNoteScreen(
     }
 
     if (confirmLeave) {
-        androidx.compose.material3.AlertDialog(
-            onDismissRequest = { confirmLeave = false },
-            containerColor = c.surface,
-            title = {
-                Text(
-                    "Save changes?",
-                    fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
-                    fontSize = 16.sp, color = c.ink,
-                )
+        UnsavedNoteDialog(
+            onSave = {
+                confirmLeave = false
+                trySave(onSaved = onBack)
             },
-            text = {
-                Text(
-                    "This note has unsaved changes.",
-                    fontFamily = PlexSans, fontSize = 14.sp, color = c.ink2,
-                )
+            onDiscard = {
+                confirmLeave = false
+                onBack()
             },
-            confirmButton = {
-                androidx.compose.material3.TextButton(onClick = {
-                    confirmLeave = false
-                    trySave(onSaved = onBack)
-                }) { Text("Save", color = c.accent, fontWeight = FontWeight.SemiBold) }
-            },
-            dismissButton = {
-                androidx.compose.material3.TextButton(onClick = {
-                    confirmLeave = false
-                    onBack()
-                }) { Text("Discard", color = c.red) }
-            },
+            onDismiss = { confirmLeave = false },
         )
     }
 
@@ -781,3 +781,43 @@ private fun StaleFileBanner(onOverwrite: () -> Unit, onReload: () -> Unit) {
     }
 }
 
+/**
+ * "Save changes?" for a note about to be left with an unsaved buffer. Shown by the
+ * editor on back, and by the note route when read mode (which renders that same
+ * unsaved buffer) is left for good.
+ */
+@Composable
+fun UnsavedNoteDialog(
+    onSave: () -> Unit,
+    onDiscard: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val c = MaterialTheme.grove
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = c.surface,
+        title = {
+            Text(
+                "Save changes?",
+                fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
+                fontSize = 16.sp, color = c.ink,
+            )
+        },
+        text = {
+            Text(
+                "This note has unsaved changes.",
+                fontFamily = PlexSans, fontSize = 14.sp, color = c.ink2,
+            )
+        },
+        confirmButton = {
+            androidx.compose.material3.TextButton(onClick = onSave) {
+                Text("Save", color = c.accent, fontWeight = FontWeight.SemiBold)
+            }
+        },
+        dismissButton = {
+            androidx.compose.material3.TextButton(onClick = onDiscard) {
+                Text("Discard", color = c.red)
+            }
+        },
+    )
+}

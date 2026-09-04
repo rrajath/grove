@@ -247,6 +247,33 @@ class EditorViewModel(private val app: GroveApplication) : ViewModel() {
         _state.update { it.copy(buffer = text, dirty = true) }
     }
 
+    /**
+     * Read mode folded one of its own mutations (a checkbox tap, a metadata-sheet
+     * edit) into this still-unsaved buffer rather than writing the file. Bumps
+     * [EditorUiState.bufferRevision] so the editor field picks the text up the next
+     * time it composes; the buffer stays dirty, since nothing reached disk.
+     */
+    fun onBufferChangedExternally(text: String) {
+        _state.update {
+            if (it.buffer == text) it
+            else it.copy(buffer = text, dirty = true, bufferRevision = it.bufferRevision + 1)
+        }
+    }
+
+    /**
+     * A read-mode mutation restructured the file and carried this buffer to disk
+     * with it (see `DocumentViewModel.saveDoc`). The buffer is now what the file
+     * holds, so clear [EditorUiState.dirty] rather than let a later save write a
+     * stale subtree back over the result.
+     */
+    fun onBufferPersistedElsewhere() {
+        viewModelScope.launch {
+            val fileName = _state.value.fileName
+            val revision = app.vault.value?.revision(fileName)
+            _state.update { it.copy(dirty = false, loadedRevision = revision) }
+        }
+    }
+
     // Memoize the most recent parse so repeated currentHeadline reads and the
     // metadata mutations don't re-parse the same buffer over and over.
     private var parsedBuffer: String? = null

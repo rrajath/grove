@@ -33,6 +33,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.Save
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -117,6 +118,7 @@ import com.rrajath.grove.ui.util.IntSetSaver
 import com.rrajath.grove.ui.vault.DocumentUiState
 import com.rrajath.grove.ui.vault.DocumentViewModel
 import com.rrajath.grove.ui.vault.NoteRef
+import com.rrajath.grove.ui.vault.PendingEdit
 import com.rrajath.grove.ui.vault.breadcrumbFileLabel
 import com.rrajath.grove.ui.vault.headlineFor
 
@@ -170,6 +172,18 @@ fun ReadNoteScreen(
      * the note at that line so it continues as an ordinary note. Intro refs only.
      */
     onPromotedToHeading: (Int) -> Unit = {},
+    /**
+     * The note editor's unsaved buffer for this note, when it holds one. Read mode
+     * renders it in place of what is on disk, and folds its own mutations back into
+     * it, so switching Read ⇄ Edit never has to write the file.
+     */
+    pendingEdit: PendingEdit? = null,
+    /** A read-mode mutation was folded into [pendingEdit]; the arg is the new subtree text. */
+    onPendingBufferChanged: (String) -> Unit = {},
+    /** [pendingEdit] had to go to disk with a restructuring mutation; the editor should let it go. */
+    onPendingPersisted: () -> Unit = {},
+    /** Tapping the unsaved-changes indicator: write [pendingEdit] to disk now. */
+    onSavePending: () -> Unit = {},
     viewModel: DocumentViewModel = viewModel(factory = DocumentViewModel.Factory),
 ) {
     val c = MaterialTheme.grove
@@ -225,13 +239,37 @@ fun ReadNoteScreen(
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
-    LaunchedEffect(noteRef.fileName) { viewModel.load(noteRef.fileName) }
+    // Registered before the load below (SideEffect runs while composition is
+    // applied, LaunchedEffect bodies after) so the very first read already
+    // splices in the editor's unsaved buffer.
+    androidx.compose.runtime.SideEffect {
+        viewModel.setPendingEdit(pendingEdit, onPendingBufferChanged, onPendingPersisted)
+    }
+    // Re-keyed on pendingEdit as well: every edit the buffer picks up (in the
+    // editor, or from this screen's own mutations) re-splices into the rendered
+    // document.
+    LaunchedEffect(noteRef.fileName, pendingEdit) { viewModel.load(noteRef.fileName) }
 
     Scaffold(
         containerColor = c.bg,
         topBar = {
             GroveTopBar(
-                leading = { IconGlyph("←", onClick = onBack) },
+                leading = {
+                    IconGlyph("←", onClick = onBack)
+                    // Mirrors the editor's save icon: green means what's rendered
+                    // here is the editor's unsaved buffer, and a tap writes it.
+                    if (pendingEdit != null) {
+                        Icon(
+                            Icons.Outlined.Save,
+                            contentDescription = "Unsaved changes, tap to save",
+                            tint = c.green,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(10.dp))
+                                .clickable(onClick = onSavePending)
+                                .padding(10.dp),
+                        )
+                    }
+                },
                 actions = {
                     NewDotBadge(NewAnchors.TOPBAR_MENU) {
                         IconGlyph("☰", onClick = { metadataOpen = true })

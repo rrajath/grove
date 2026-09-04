@@ -17,6 +17,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -39,6 +40,8 @@ import com.rrajath.grove.ui.editor.EditIntroScreen
 import com.rrajath.grove.ui.editor.EditPrefaceScreen
 import com.rrajath.grove.ui.editor.EditRegion
 import com.rrajath.grove.ui.editor.EditRegionScreen
+import com.rrajath.grove.ui.editor.EditorViewModel
+import com.rrajath.grove.ui.editor.UnsavedNoteDialog
 import com.rrajath.grove.ui.capture.CapturePickerSheet
 import com.rrajath.grove.ui.capture.TemplateEditScreen
 import com.rrajath.grove.ui.nav.Routes
@@ -73,6 +76,7 @@ import com.rrajath.grove.ui.screens.settings.SettingsSyncScreen
 import com.rrajath.grove.ui.screens.settings.SettingsTipsScreen
 import com.rrajath.grove.ui.screens.SyncLogScreen
 import com.rrajath.grove.ui.vault.NoteRef
+import com.rrajath.grove.ui.vault.PendingEdit
 import com.rrajath.grove.ui.theme.ContentFontScale
 import com.rrajath.grove.ui.theme.GroveTheme
 import com.rrajath.grove.ui.theme.grove
@@ -371,6 +375,7 @@ private fun GroveNavigation(
                     fileName = fileName,
                     onBack = { navController.popBackStack() },
                     editModeFontSize = settings.editModeFontSize,
+                    autoSaveNotes = settings.autoSaveNotes,
                 )
             }
             composable(Routes.DRAWER) { entry ->
@@ -387,6 +392,7 @@ private fun GroveNavigation(
                     noteId = noteId,
                     onBack = { navController.popBackStack() },
                     editModeFontSize = settings.editModeFontSize,
+                    autoSaveNotes = settings.autoSaveNotes,
                 )
             }
             composable(Routes.BLOCK) { entry ->
@@ -397,6 +403,7 @@ private fun GroveNavigation(
                     blockLine = entry.arguments?.getString("line")?.toIntOrNull() ?: -1,
                     onBack = { navController.popBackStack() },
                     editModeFontSize = settings.editModeFontSize,
+                    autoSaveNotes = settings.autoSaveNotes,
                 )
             }
             composable(
@@ -421,6 +428,46 @@ private fun GroveNavigation(
                     // alongside `mode` (not a nav arg) so the mode toggle keeps not
                     // re-navigating/re-triggering the enter/exit transition.
                     var editTargetLine by rememberSaveable(noteId) { mutableStateOf<Int?>(null) }
+                    // Hoisted so read mode can see what the editor is holding: the
+                    // Read/Edit toggle writes nothing, so an unsaved buffer has to
+                    // survive the switch and be rendered by read mode (PendingEdit).
+                    // Same ViewModelStore (this back-stack entry) as the one
+                    // EditNoteScreen would create for itself.
+                    val editorViewModel: EditorViewModel = viewModel(factory = EditorViewModel.Factory)
+                    val editorState by editorViewModel.state.collectAsStateWithLifecycle()
+                    val pendingEdit = if (
+                        editorState.dirty &&
+                        editorState.region == null &&
+                        editorState.fileName == ref.fileName &&
+                        !ref.isIntro
+                    ) {
+                        PendingEdit(editorState.fileName, editorState.lineIndex, editorState.buffer)
+                    } else {
+                        null
+                    }
+                    // Leaving the note entirely (not the Read/Edit toggle) is the last
+                    // chance to keep an unsaved buffer, so read mode asks the same
+                    // question the editor does.
+                    var confirmLeavePending by remember(noteId) { mutableStateOf(false) }
+                    val leaveRead: () -> Unit = {
+                        if (pendingEdit != null) confirmLeavePending = true else { navController.popBackStack() }
+                    }
+                    androidx.activity.compose.BackHandler(
+                        enabled = mode == "read" && pendingEdit != null,
+                    ) { confirmLeavePending = true }
+                    if (confirmLeavePending) {
+                        UnsavedNoteDialog(
+                            onSave = {
+                                confirmLeavePending = false
+                                editorViewModel.save { navController.popBackStack() }
+                            },
+                            onDiscard = {
+                                confirmLeavePending = false
+                                navController.popBackStack()
+                            },
+                            onDismiss = { confirmLeavePending = false },
+                        )
+                    }
                     if (mode == "edit" && ref.isIntro) {
                         // The intro has no heading to edit as a subtree: its editor is
                         // scoped to just that content, since the preface and the file's
@@ -430,6 +477,7 @@ private fun GroveNavigation(
                             fileName = ref.fileName,
                             onBack = { mode = "read" },
                             editModeFontSize = settings.editModeFontSize,
+                            autoSaveNotes = settings.autoSaveNotes,
                         )
                     } else if (mode == "edit") {
                         EditNoteScreen(
@@ -438,13 +486,19 @@ private fun GroveNavigation(
                             initialCursorLine = editTargetLine,
                             editModeFontSize = settings.editModeFontSize,
                             newNoteCursor = settings.newNoteCursor,
+                            autoSaveNotes = settings.autoSaveNotes,
                             onBack = { navController.popBackStack() },
                             onSwitchToRead = { editTargetLine = null; mode = "read" },
+                            viewModel = editorViewModel,
                         )
                     } else {
                         ReadNoteScreen(
                             noteRef = ref,
-                            onBack = { navController.popBackStack() },
+                            onBack = leaveRead,
+                            pendingEdit = pendingEdit,
+                            onPendingBufferChanged = editorViewModel::onBufferChangedExternally,
+                            onPendingPersisted = editorViewModel::onBufferPersistedElsewhere,
+                            onSavePending = { editorViewModel.save() },
                             onOpenNote = { target -> navController.navigate(Routes.note(target.encode())) },
                             onOpenOutline = { fileName -> navController.navigate(Routes.outline(fileName)) },
                             onEdit = { targetLine -> editTargetLine = targetLine; mode = "edit" },
@@ -643,6 +697,7 @@ private fun GroveNavigation(
                     onSetAddId = viewModel::setAddIdToNewNotes,
                     onSetAddCreated = viewModel::setAddCreatedToNewNotes,
                     onSetNewNoteCursor = viewModel::setNewNoteCursor,
+                    onSetAutoSaveNotes = viewModel::setAutoSaveNotes,
                     onSetAutoArchiveDoneItems = viewModel::setAutoArchiveDoneItems,
                     onOpenArchiveLocationPicker = viewModel::startArchiveLocationPick,
                 )

@@ -173,6 +173,7 @@ internal fun ToggleRow(
     label: String,
     checked: Boolean,
     description: String? = null,
+    labelBadge: (@Composable () -> Unit)? = null,
     onToggle: (Boolean) -> Unit,
 ) {
     val c = MaterialTheme.grove
@@ -184,11 +185,16 @@ internal fun ToggleRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
-            Text(
-                label,
-                fontFamily = PlexSans, fontWeight = FontWeight.Medium,
-                fontSize = 14.5.sp, color = c.ink,
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    label,
+                    fontFamily = PlexSans, fontWeight = FontWeight.Medium,
+                    fontSize = 14.5.sp, color = c.ink,
+                )
+                if (labelBadge != null) {
+                    Box(Modifier.padding(start = 8.dp)) { labelBadge() }
+                }
+            }
             if (description != null) {
                 Text(
                     description,

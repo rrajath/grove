@@ -76,10 +76,11 @@ fun EditPrefaceScreen(
     fileName: String,
     onBack: () -> Unit,
     editModeFontSize: FontSizePreference = FontSizePreference.MEDIUM,
+    autoSaveNotes: Boolean = true,
     viewModel: EditorViewModel = viewModel(factory = EditorViewModel.Factory),
 ) = EditRegionScreen(
     fileName, EditRegion.PREFACE, noteId = null, onBack = onBack,
-    editModeFontSize = editModeFontSize, viewModel = viewModel,
+    editModeFontSize = editModeFontSize, autoSaveNotes = autoSaveNotes, viewModel = viewModel,
 )
 
 /**
@@ -93,10 +94,11 @@ fun EditIntroScreen(
     fileName: String,
     onBack: () -> Unit,
     editModeFontSize: FontSizePreference = FontSizePreference.MEDIUM,
+    autoSaveNotes: Boolean = true,
     viewModel: EditorViewModel = viewModel(factory = EditorViewModel.Factory),
 ) = EditRegionScreen(
     fileName, EditRegion.INTRO, noteId = null, onBack = onBack,
-    editModeFontSize = editModeFontSize, viewModel = viewModel,
+    editModeFontSize = editModeFontSize, autoSaveNotes = autoSaveNotes, viewModel = viewModel,
 )
 
 /** One-word label for [region], used in this screen's title bar, save toast and leave dialog. */
@@ -150,6 +152,9 @@ fun EditRegionScreen(
     blockLine: Int = -1,
     /** Settings § Notes: font-size lever for the editor field. App chrome is unaffected. */
     editModeFontSize: FontSizePreference = FontSizePreference.MEDIUM,
+    /** Settings § Notes: when false the idle timer below never fires, so the region
+     *  is written only by the save icon or the leave dialog's Save. */
+    autoSaveNotes: Boolean = true,
     viewModel: EditorViewModel = viewModel(factory = EditorViewModel.Factory),
 ) {
     val c = MaterialTheme.grove
@@ -205,8 +210,10 @@ fun EditRegionScreen(
     val highlight = remember(c, state.keywords) { OrgSyntaxHighlight(c, state.keywords) }
 
     // Idle auto-save: wait for a 5s pause in typing, then save if the buffer
-    // still has unsaved changes, matching EditNoteScreen's convention.
-    LaunchedEffect(state.buffer) {
+    // still has unsaved changes, matching EditNoteScreen's convention. Switched
+    // off entirely by Settings § Notes → Auto-save notes.
+    LaunchedEffect(state.buffer, autoSaveNotes) {
+        if (!autoSaveNotes) return@LaunchedEffect
         delay(5_000)
         if (state.dirty) {
             viewModel.save {

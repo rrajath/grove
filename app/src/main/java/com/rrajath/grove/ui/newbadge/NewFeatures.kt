@@ -44,6 +44,9 @@ object NewAnchors {
     /** The "New note cursor" row inside Settings § Notes. */
     const val SETTINGS_NOTES_NEW_NOTE_CURSOR = "settings.notes.newNoteCursor"
 
+    /** The "Auto-save notes" toggle inside Settings § Notes. */
+    const val SETTINGS_NOTES_AUTO_SAVE = "settings.notes.autoSave"
+
     /** The top-bar "☰" glyph. A feature reached through it lists this so the
      *  glyph carries a corner dot until the feature is seen. */
     const val TOPBAR_MENU = "topbar.menu"
@@ -100,6 +103,22 @@ val NEW_FEATURES: List<NewFeature> = listOf(
             NewAnchors.SETTINGS_APPEARANCE_TEXT_SIZE,
         ),
         destination = NewAnchors.SETTINGS_APPEARANCE_TEXT_SIZE,
+    ),
+    NewFeature(
+        // Settings § Notes gained an "Auto-save notes" switch. Off means an editor
+        // never writes on its own: no 5s idle save, and switching to Read no longer
+        // saves either (Read renders the unsaved buffer instead).
+        // `since` is the versionCode of the release that ships it — bump it to
+        // match `gradle.properties` versionName when cutting the release.
+        id = "notes-auto-save",
+        since = 10500,
+        anchors = setOf(
+            NewAnchors.TOPBAR_MENU,
+            NewAnchors.DRAWER_SETTINGS,
+            NewAnchors.SETTINGS_NOTES,
+            NewAnchors.SETTINGS_NOTES_AUTO_SAVE,
+        ),
+        destination = NewAnchors.SETTINGS_NOTES_AUTO_SAVE,
     ),
     NewFeature(
         // Read-mode checkboxes now toggle done on tap and in-progress on

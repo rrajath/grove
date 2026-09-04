@@ -49,6 +49,7 @@ fun SettingsNotesScreen(
     onSetAddId: (Boolean) -> Unit,
     onSetAddCreated: (Boolean) -> Unit,
     onSetNewNoteCursor: (NewNoteCursor) -> Unit,
+    onSetAutoSaveNotes: (Boolean) -> Unit,
     onSetAutoArchiveDoneItems: (Boolean) -> Unit,
     onOpenArchiveLocationPicker: () -> Unit,
 ) {
@@ -69,9 +70,10 @@ fun SettingsNotesScreen(
     }
 
     SettingsPageScaffold(title = "Notes", onBack = onBack) {
-        // Leaving this screen retires the "New note cursor" NEW dot from its whole
-        // trail (menu glyph, drawer, Settings hub row, the row itself).
+        // Leaving this screen retires each of its NEW dots from its whole trail
+        // (menu glyph, drawer, Settings hub row, the row itself).
         MarkNewFeatureSeen(NewAnchors.SETTINGS_NOTES_NEW_NOTE_CURSOR)
+        MarkNewFeatureSeen(NewAnchors.SETTINGS_NOTES_AUTO_SAVE)
         SettingsGroup {
             Column(Modifier.padding(horizontal = 15.dp, vertical = 10.dp)) {
                 Text(
@@ -189,6 +191,15 @@ fun SettingsNotesScreen(
                     modifier = Modifier.width(160.dp),
                 )
             }
+            RowDivider()
+            ToggleRow(
+                label = "Auto-save notes",
+                description = "Saves an open editor 5 seconds after you stop typing. Off means a note is " +
+                        "written only when you tap the save icon, so read mode shows your unsaved edits until then",
+                checked = settings.autoSaveNotes,
+                labelBadge = { NewDot(NewAnchors.SETTINGS_NOTES_AUTO_SAVE) },
+                onToggle = onSetAutoSaveNotes,
+            )
             RowDivider()
             ToggleRow(
                 label = "Auto-archive done items?",
