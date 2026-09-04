@@ -125,33 +125,62 @@ private fun parentOf(dir: String): String = dir.substringBeforeLast('/', "")
 fun allFolderDirs(items: List<NotebookItem>): Set<String> =
     items.flatMapTo(mutableSetOf()) { ancestorDirs(it.dir) }
 
+/** Mutable tally for one directory while [buildFolderNodes] walks the file list. */
+private class FolderTally {
+    var recursiveOrgCount = 0
+    var lastModified = 0L
+    var hasConflictDescendant = false
+    var directFolderCount = 0
+}
+
 /**
  * Build a [FolderNode] for every directory reachable from [items]. [folderColors]
  * maps a vault-relative dir to a user-chosen palette key; [pinnedFolders] is the
  * ordered pin list. Both default to empty for call sites that don't care (tests,
  * the first-open heuristic).
+ *
+ * One pass over [items], walking each file's ancestor chain and accumulating into
+ * a per-directory tally. The obvious shape — a `filter` over the whole item list
+ * once per directory, plus a `count` over the whole dir set for the child count —
+ * is O(files x dirs + dirs²) and, on the Notebooks screen, ran on every emission.
  */
 fun buildFolderNodes(
     items: List<NotebookItem>,
     folderColors: Map<String, String> = emptyMap(),
     pinnedFolders: List<String> = emptyList(),
 ): Map<String, FolderNode> {
-    val dirs = allFolderDirs(items)
-    return dirs.associateWith { dir ->
-        val prefix = "$dir/"
-        val filesBeneath = items.filter { it.dir == dir || it.dir.startsWith(prefix) }
+    val tallies = LinkedHashMap<String, FolderTally>()
+    for (item in items) {
+        var dir = item.dir
+        while (dir.isNotEmpty()) {
+            val tally = tallies.getOrPut(dir) { FolderTally() }
+            tally.recursiveOrgCount++
+            if (item.lastModified > tally.lastModified) tally.lastModified = item.lastModified
+            if (item.hasConflict) tally.hasConflictDescendant = true
+            dir = parentOf(dir)
+        }
+    }
+    // Second pass: a child dir is often created before its parent (each file's
+    // chain is walked deepest-first), so the direct-child counts can only be
+    // settled once every directory is present.
+    for (dir in tallies.keys) {
+        val parent = parentOf(dir)
+        if (parent.isNotEmpty()) tallies.getValue(parent).directFolderCount++
+    }
+    val pinOrder = pinnedFolders.withIndex().associate { (i, dir) -> dir to i }
+    return tallies.mapValues { (dir, tally) ->
         val override = folderColors[dir]
         FolderNode(
             dir = dir,
             name = dir.substringAfterLast('/'),
-            depth = dir.split('/').size,
+            depth = dir.count { it == '/' } + 1,
             colorKey = override ?: nameHashPaletteKey(dir),
-            recursiveOrgCount = filesBeneath.size,
-            lastModified = filesBeneath.maxOfOrNull { it.lastModified } ?: 0L,
-            directFolderCount = dirs.count { parentOf(it) == dir },
-            hasConflictDescendant = filesBeneath.any { it.hasConflict },
+            recursiveOrgCount = tally.recursiveOrgCount,
+            lastModified = tally.lastModified,
+            directFolderCount = tally.directFolderCount,
+            hasConflictDescendant = tally.hasConflictDescendant,
             colorOverride = override,
-            pinnedIndex = pinnedFolders.indexOf(dir),
+            pinnedIndex = pinOrder[dir] ?: -1,
         )
     }
 }
@@ -165,8 +194,9 @@ fun pinnedFolderNodes(
     items: List<NotebookItem>,
     folderColors: Map<String, String> = emptyMap(),
     pinnedFolders: List<String> = emptyList(),
+    prebuiltNodes: Map<String, FolderNode>? = null,
 ): List<FolderNode> {
-    val nodes = buildFolderNodes(items, folderColors, pinnedFolders)
+    val nodes = prebuiltNodes ?: buildFolderNodes(items, folderColors, pinnedFolders)
     return pinnedFolders.mapNotNull { nodes[it] }
 }
 
@@ -187,14 +217,16 @@ fun buildNotebookTree(
     folderColors: Map<String, String> = emptyMap(),
     pinnedFolders: List<String> = emptyList(),
     sort: NotebookSort = NotebookSort.DEFAULT,
+    prebuiltNodes: Map<String, FolderNode>? = null,
 ): List<NotebookTreeRow> {
-    val nodes = buildFolderNodes(items, folderColors, pinnedFolders)
+    val nodes = prebuiltNodes ?: buildFolderNodes(items, folderColors, pinnedFolders)
     val pinnedDirs = pinnedFolders.toSet()
+    val byParent = nodes.values.groupBy { parentOf(it.dir) }
+    val filesByDir = items.groupBy { it.dir }
     val rows = mutableListOf<NotebookTreeRow>()
 
     fun emitLevel(dir: String) {
-        nodes.values
-            .filter { parentOf(it.dir) == dir }
+        byParent[dir].orEmpty()
             .filterNot { it.dir in pinnedDirs }
             .sortedWith(sort.folderComparator)
             .forEach { node ->
@@ -202,9 +234,8 @@ fun buildNotebookTree(
                 rows += NotebookTreeRow.Folder(node, isOpen)
                 if (isOpen) emitLevel(node.dir)
             }
-        val fileDepth = if (dir.isEmpty()) 0 else dir.split('/').size
-        items
-            .filter { it.dir == dir }
+        val fileDepth = if (dir.isEmpty()) 0 else dir.count { it == '/' } + 1
+        filesByDir[dir].orEmpty()
             .sortedWith(sort.fileComparator)
             .forEach { rows += NotebookTreeRow.File(it, fileDepth) }
     }
@@ -228,10 +259,13 @@ fun pinnedFolderSubtreeRows(
     folderColors: Map<String, String> = emptyMap(),
     pinnedFolders: List<String> = emptyList(),
     sort: NotebookSort = NotebookSort.DEFAULT,
+    prebuiltNodes: Map<String, FolderNode>? = null,
 ): List<NotebookTreeRow> {
     if (rootDir.isEmpty()) return emptyList()
-    val nodes = buildFolderNodes(items, folderColors, pinnedFolders)
+    val nodes = prebuiltNodes ?: buildFolderNodes(items, folderColors, pinnedFolders)
     val pinnedDirs = pinnedFolders.toSet()
+    val byParent = nodes.values.groupBy { parentOf(it.dir) }
+    val filesByDir = items.groupBy { it.dir }
     // rootDir renders flush (depth 0) in the strip; a direct child folder has
     // absolute depth rootDepth + 1 and should land at effective depth 2 (one
     // indent step once FolderRow subtracts its own 1), so shift by rootDepth - 1.
@@ -239,8 +273,7 @@ fun pinnedFolderSubtreeRows(
     val rows = mutableListOf<NotebookTreeRow>()
 
     fun emitLevel(dir: String) {
-        nodes.values
-            .filter { parentOf(it.dir) == dir }
+        byParent[dir].orEmpty()
             .filterNot { it.dir in pinnedDirs }
             .sortedWith(sort.folderComparator)
             .forEach { node ->
@@ -248,9 +281,8 @@ fun pinnedFolderSubtreeRows(
                 rows += NotebookTreeRow.Folder(node.copy(depth = node.depth - shift), isOpen)
                 if (isOpen) emitLevel(node.dir)
             }
-        val fileDepth = dir.split('/').size - shift
-        items
-            .filter { it.dir == dir }
+        val fileDepth = dir.count { it == '/' } + 1 - shift
+        filesByDir[dir].orEmpty()
             .sortedWith(sort.fileComparator)
             .forEach { rows += NotebookTreeRow.File(it, fileDepth) }
     }
@@ -329,8 +361,9 @@ fun drillLevel(
     folderColors: Map<String, String> = emptyMap(),
     pinnedFolders: List<String> = emptyList(),
     sort: NotebookSort = NotebookSort.DEFAULT,
+    prebuiltNodes: Map<String, FolderNode>? = null,
 ): DrillLevel {
-    val nodes = buildFolderNodes(items, folderColors, pinnedFolders)
+    val nodes = prebuiltNodes ?: buildFolderNodes(items, folderColors, pinnedFolders)
     return DrillLevel(
         dir = dir,
         childFolders = nodes.values
