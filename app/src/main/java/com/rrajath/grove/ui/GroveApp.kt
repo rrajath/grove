@@ -41,6 +41,8 @@ import com.rrajath.grove.ui.editor.EditPrefaceScreen
 import com.rrajath.grove.ui.editor.EditRegion
 import com.rrajath.grove.ui.editor.EditRegionScreen
 import com.rrajath.grove.ui.editor.EditorViewModel
+import com.rrajath.grove.ui.editor.DiscardBlankHeadingDialog
+import com.rrajath.grove.ui.editor.EmptyHeadingAlertDialog
 import com.rrajath.grove.ui.editor.UnsavedNoteDialog
 import com.rrajath.grove.ui.capture.CapturePickerSheet
 import com.rrajath.grove.ui.capture.TemplateEditScreen
@@ -445,21 +447,37 @@ private fun GroveNavigation(
                     } else {
                         null
                     }
-                    // Leaving the note entirely (not the Read/Edit toggle) is the last
-                    // chance to keep an unsaved buffer, so read mode asks the same
-                    // question the editor does.
+                    // Leaving the note entirely (not the Read/Edit toggle, which never
+                    // validates or writes) mirrors EditNoteScreen's own leave(): a
+                    // just-created, never-titled note offers to discard it outright;
+                    // any other unsaved buffer asks to save or discard; saving with a
+                    // still-blank heading is blocked the same way trySave() blocks it.
                     var confirmLeavePending by remember(noteId) { mutableStateOf(false) }
+                    var confirmDiscardBlankHeadingRead by remember(noteId) { mutableStateOf(false) }
+                    var showEmptyHeadingAlertRead by remember(noteId) { mutableStateOf(false) }
                     val leaveRead: () -> Unit = {
-                        if (pendingEdit != null) confirmLeavePending = true else { navController.popBackStack() }
+                        when {
+                            isNew && editorViewModel.isCurrentHeadingBlank() -> confirmDiscardBlankHeadingRead = true
+                            pendingEdit != null -> confirmLeavePending = true
+                            else -> navController.popBackStack()
+                        }
                     }
                     androidx.activity.compose.BackHandler(
-                        enabled = mode == "read" && pendingEdit != null,
-                    ) { confirmLeavePending = true }
+                        // A brand-new, still-blank note has nothing dirty (nothing was
+                        // ever typed), so pendingEdit alone would miss it and let the
+                        // system back gesture skip leaveRead()'s blank-heading check.
+                        enabled = mode == "read" &&
+                            (pendingEdit != null || (isNew && editorViewModel.isCurrentHeadingBlank())),
+                    ) { leaveRead() }
                     if (confirmLeavePending) {
                         UnsavedNoteDialog(
                             onSave = {
                                 confirmLeavePending = false
-                                editorViewModel.save { navController.popBackStack() }
+                                if (editorViewModel.isCurrentHeadingBlank()) {
+                                    showEmptyHeadingAlertRead = true
+                                } else {
+                                    editorViewModel.save { navController.popBackStack() }
+                                }
                             },
                             onDiscard = {
                                 confirmLeavePending = false
@@ -467,6 +485,20 @@ private fun GroveNavigation(
                             },
                             onDismiss = { confirmLeavePending = false },
                         )
+                    }
+                    if (confirmDiscardBlankHeadingRead) {
+                        DiscardBlankHeadingDialog(
+                            onDiscard = {
+                                confirmDiscardBlankHeadingRead = false
+                                editorViewModel.deleteSubtree(onDeleted = { navController.popBackStack() })
+                            },
+                            // Send the user into edit mode to actually fix the heading,
+                            // rather than strand them on a read view with nothing to show.
+                            onKeepEditing = { confirmDiscardBlankHeadingRead = false; mode = "edit" },
+                        )
+                    }
+                    if (showEmptyHeadingAlertRead) {
+                        EmptyHeadingAlertDialog(onDismiss = { showEmptyHeadingAlertRead = false })
                     }
                     if (mode == "edit" && ref.isIntro) {
                         // The intro has no heading to edit as a subtree: its editor is
@@ -498,7 +530,13 @@ private fun GroveNavigation(
                             pendingEdit = pendingEdit,
                             onPendingBufferChanged = editorViewModel::onBufferChangedExternally,
                             onPendingPersisted = editorViewModel::onBufferPersistedElsewhere,
-                            onSavePending = { editorViewModel.save() },
+                            onSavePending = {
+                                if (editorViewModel.isCurrentHeadingBlank()) {
+                                    showEmptyHeadingAlertRead = true
+                                } else {
+                                    editorViewModel.save()
+                                }
+                            },
                             onOpenNote = { target -> navController.navigate(Routes.note(target.encode())) },
                             onOpenOutline = { fileName -> navController.navigate(Routes.outline(fileName)) },
                             onEdit = { targetLine -> editTargetLine = targetLine; mode = "edit" },

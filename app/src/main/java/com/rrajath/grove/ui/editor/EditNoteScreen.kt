@@ -417,22 +417,11 @@ fun EditNoteScreen(
                     SegmentedControl(
                         options = listOf("Read", "Edit"),
                         selectedIndex = 1,
-                        // Switching to read mode never writes: read mode renders this
-                        // buffer as-is (see PendingEdit), so the file changes only when
-                        // the user saves or the idle timer fires. A blank heading still
-                        // blocks the switch outright, same as trySave() used to: read
-                        // mode has nothing to render for it, and for a just-created note
-                        // it's the only guard against leaving an empty "* " heading
-                        // behind (Read's own leave path has no blank-heading cleanup).
-                        onSelect = {
-                            if (it == 0) {
-                                if (viewModel.isCurrentHeadingBlank()) {
-                                    showEmptyHeadingAlert = true
-                                } else {
-                                    onSwitchToRead()
-                                }
-                            }
-                        },
+                        // Switching to read mode never writes and never validates:
+                        // read mode renders this buffer as-is (see PendingEdit). The
+                        // note route's own leave path (back from read) is what checks
+                        // for a blank heading before the file can actually change.
+                        onSelect = { if (it == 0) onSwitchToRead() },
                         modifier = Modifier.width(140.dp),
                     )
                 },
@@ -674,59 +663,17 @@ fun EditNoteScreen(
     }
 
     if (confirmDiscardBlankHeading) {
-        androidx.compose.material3.AlertDialog(
-            onDismissRequest = { confirmDiscardBlankHeading = false },
-            containerColor = c.surface,
-            title = {
-                Text(
-                    "Discard note?",
-                    fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
-                    fontSize = 16.sp, color = c.ink,
-                )
+        DiscardBlankHeadingDialog(
+            onDiscard = {
+                confirmDiscardBlankHeading = false
+                viewModel.deleteSubtree(onDeleted = onBack)
             },
-            text = {
-                Text(
-                    "This note needs a heading before it can be saved. Leaving now will discard it, including any text you've added.",
-                    fontFamily = PlexSans, fontSize = 14.sp, color = c.ink2,
-                )
-            },
-            confirmButton = {
-                androidx.compose.material3.TextButton(onClick = {
-                    confirmDiscardBlankHeading = false
-                    viewModel.deleteSubtree(onDeleted = onBack)
-                }) { Text("Discard", color = c.red) }
-            },
-            dismissButton = {
-                androidx.compose.material3.TextButton(onClick = { confirmDiscardBlankHeading = false }) {
-                    Text("Keep Editing", color = c.accent, fontWeight = FontWeight.SemiBold)
-                }
-            },
+            onKeepEditing = { confirmDiscardBlankHeading = false },
         )
     }
 
     if (showEmptyHeadingAlert) {
-        androidx.compose.material3.AlertDialog(
-            onDismissRequest = { showEmptyHeadingAlert = false },
-            containerColor = c.surface,
-            title = {
-                Text(
-                    "Add a heading",
-                    fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
-                    fontSize = 16.sp, color = c.ink,
-                )
-            },
-            text = {
-                Text(
-                    "Please give this note a heading before saving.",
-                    fontFamily = PlexSans, fontSize = 14.sp, color = c.ink2,
-                )
-            },
-            confirmButton = {
-                androidx.compose.material3.TextButton(onClick = { showEmptyHeadingAlert = false }) {
-                    Text("OK", color = c.accent, fontWeight = FontWeight.SemiBold)
-                }
-            },
-        )
+        EmptyHeadingAlertDialog(onDismiss = { showEmptyHeadingAlert = false })
     }
 }
 
@@ -791,6 +738,77 @@ private fun StaleFileBanner(onOverwrite: () -> Unit, onReload: () -> Unit) {
                 .padding(6.dp),
         )
     }
+}
+
+/**
+ * "This note needs a heading before it can be saved." Shown by the editor on back
+ * for a just-created, never-titled note, and by the note route's own leave path
+ * when read mode is left in the same state.
+ */
+@Composable
+fun DiscardBlankHeadingDialog(
+    onDiscard: () -> Unit,
+    onKeepEditing: () -> Unit,
+) {
+    val c = MaterialTheme.grove
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onKeepEditing,
+        containerColor = c.surface,
+        title = {
+            Text(
+                "Discard note?",
+                fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
+                fontSize = 16.sp, color = c.ink,
+            )
+        },
+        text = {
+            Text(
+                "This note needs a heading before it can be saved. Leaving now will discard it, including any text you've added.",
+                fontFamily = PlexSans, fontSize = 14.sp, color = c.ink2,
+            )
+        },
+        confirmButton = {
+            androidx.compose.material3.TextButton(onClick = onDiscard) {
+                Text("Discard", color = c.red)
+            }
+        },
+        dismissButton = {
+            androidx.compose.material3.TextButton(onClick = onKeepEditing) {
+                Text("Keep Editing", color = c.accent, fontWeight = FontWeight.SemiBold)
+            }
+        },
+    )
+}
+
+/**
+ * "Add a heading." Shown wherever an explicit save (the save icon, or Save from
+ * [UnsavedNoteDialog]) is blocked because the heading is still blank.
+ */
+@Composable
+fun EmptyHeadingAlertDialog(onDismiss: () -> Unit) {
+    val c = MaterialTheme.grove
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = c.surface,
+        title = {
+            Text(
+                "Add a heading",
+                fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
+                fontSize = 16.sp, color = c.ink,
+            )
+        },
+        text = {
+            Text(
+                "Please give this note a heading before saving.",
+                fontFamily = PlexSans, fontSize = 14.sp, color = c.ink2,
+            )
+        },
+        confirmButton = {
+            androidx.compose.material3.TextButton(onClick = onDismiss) {
+                Text("OK", color = c.accent, fontWeight = FontWeight.SemiBold)
+            }
+        },
+    )
 }
 
 /**
