@@ -59,6 +59,8 @@ re-uploads the APKs to the existing release instead of failing.
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-09-04
+
 ### Added
 - Settings § Look and Feel has a **Text size** lever (Small / Medium / Large)
   that scales all text in the app. The read and edit mode font-size levers stack
