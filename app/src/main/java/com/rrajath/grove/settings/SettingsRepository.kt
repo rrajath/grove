@@ -10,8 +10,11 @@ import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.shareIn
 import java.time.LocalTime
 
 private val Context.settingsDataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
@@ -189,7 +192,7 @@ data class GroveSettings(
     }
 }
 
-class SettingsRepository(private val context: Context) {
+class SettingsRepository(private val context: Context, private val scope: CoroutineScope) {
 
     private object Keys {
         val theme = stringPreferencesKey("theme")
@@ -269,6 +272,12 @@ class SettingsRepository(private val context: Context) {
         val notebooksTreeDefaultsApplied = booleanPreferencesKey("notebooks_tree_defaults_applied")
     }
 
+    /**
+     * Shared, hot: one `GroveSettings` build per DataStore write, fanned out to all
+     * ~40 collectors, instead of each collector re-running the (non-trivial) mapper.
+     * `replay = 1` with no seed value preserves the "nothing until the first read"
+     * semantics that [com.rrajath.grove.ui.AppViewModel] gates first load on.
+     */
     val settings: Flow<GroveSettings> = context.settingsDataStore.data.map { prefs ->
         GroveSettings(
             theme = ThemePreference.fromStorage(prefs[Keys.theme]),
@@ -334,7 +343,7 @@ class SettingsRepository(private val context: Context) {
             expandedFolders = decodeFolderSet(prefs[Keys.expandedFolders]),
             notebooksTreeDefaultsApplied = prefs[Keys.notebooksTreeDefaultsApplied] ?: false,
         )
-    }
+    }.shareIn(scope, SharingStarted.Eagerly, replay = 1)
 
     /** `;`-joined directory paths; `;` can't appear in a path, `/` is the separator. */
     private fun decodeFolderSet(raw: String?): Set<String> =

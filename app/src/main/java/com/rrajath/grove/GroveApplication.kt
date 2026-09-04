@@ -45,7 +45,7 @@ class GroveApplication : Application() {
 
     val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
-    val settingsRepository: SettingsRepository by lazy { SettingsRepository(this) }
+    val settingsRepository: SettingsRepository by lazy { SettingsRepository(this, appScope) }
 
     val templatesRepository: TemplatesRepository by lazy { TemplatesRepository(this) }
 

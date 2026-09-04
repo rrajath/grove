@@ -99,6 +99,11 @@ re-uploads the APKs to the existing release instead of failing.
   built off the main thread and only when the vault or your settings actually
   change. Folder rows also skip redrawing when nothing about them changed. The
   bigger the vault, the more noticeable this is.
+- Settings are now read once and shared across the app. Each preference write
+  used to rebuild the whole settings object separately for every screen and
+  background job that observes it (about 40 of them); now it is built once and
+  handed out. Most noticeable while expanding and collapsing folders in the
+  Notebooks tree, which writes a preference on every tap.
 
 ### Fixed
 - The search results list now snaps back to the top on every keystroke. It used
