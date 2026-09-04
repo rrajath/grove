@@ -94,6 +94,11 @@ re-uploads the APKs to the existing release instead of failing.
   selected, so the paste toast stays out of the way otherwise.
 - The metadata sheet's tag list shows a small "tap an existing tag to remove it"
   hint whenever at least one tag is set.
+- The Notebooks list stays responsive during a sync. Its folder tree used to be
+  regrouped and re-sorted on the main thread once per file pulled; it is now
+  built off the main thread and only when the vault or your settings actually
+  change. Folder rows also skip redrawing when nothing about them changed. The
+  bigger the vault, the more noticeable this is.
 
 ### Fixed
 - The search results list now snaps back to the top on every keystroke. It used
