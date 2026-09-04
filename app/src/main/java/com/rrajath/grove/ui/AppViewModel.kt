@@ -10,7 +10,6 @@ import com.rrajath.grove.capture.ShareIntake
 import com.rrajath.grove.data.FavoriteNote
 import com.rrajath.grove.search.SavedSearch
 import com.rrajath.grove.settings.AgendaSwipeAction
-import com.rrajath.grove.settings.ChecklistStates
 import com.rrajath.grove.settings.FontSizePreference
 import com.rrajath.grove.settings.GroveSettings
 import com.rrajath.grove.settings.NoteOpenMode
@@ -238,9 +237,6 @@ class AppViewModel(private val app: GroveApplication) : ViewModel() {
 
     fun setNotebookDisplayNameMode(mode: NotebookDisplayNameMode) =
         viewModelScope.launch { settingsRepository.setNotebookDisplayNameMode(mode) }
-
-    fun setChecklistStates(states: ChecklistStates) =
-        viewModelScope.launch { settingsRepository.setChecklistStates(states) }
 
     fun setAutoArchiveDoneItems(enabled: Boolean) =
         viewModelScope.launch { settingsRepository.setAutoArchiveDoneItems(enabled) }

@@ -138,26 +138,37 @@ object OrgMutations {
     private val CHECKBOX_LINE = Regex("""^(\s*(?:[-+]|\d+[.)])\s+)\[([ Xx-])\](.*)$""")
 
     /**
-     * Read mode: tap-cycle a checklist item's box forward through [states] (in
-     * order, wrapping around). [lineIndex] is absolute into [doc.lines]: the
-     * caller resolves a [BlockParser.ListItem]'s body-relative `line` against
-     * the owning headline's `bodyStart` first. A box whose current mark isn't
-     * one of [states] (e.g. `[-]` on a file using the two-state config) jumps
-     * to the first state rather than the one after it. Returns null when the
-     * line isn't a checkbox list item. Also refreshes the immediate parent's
-     * statistics cookie and, if the parent is itself a checkbox item,
-     * checks/unchecks it to match whether all of its direct children are now
-     * done; see [updateParentCookie].
+     * Read mode: tap a checklist item's box to toggle it done. `[X]` → `[ ]`;
+     * anything else (`[ ]`, `[-]`) → `[X]`. [lineIndex] is absolute into
+     * [doc.lines]: the caller resolves a [BlockParser.ListItem]'s body-relative
+     * `line` against the owning headline's `bodyStart` first. Returns null when
+     * the line isn't a checkbox list item.
      */
-    fun toggleCheckbox(doc: OrgDocument, lineIndex: Int, states: List<Char>): String? {
+    fun toggleCheckboxDone(doc: OrgDocument, lineIndex: Int): String? =
+        setCheckboxMark(doc, lineIndex) { current -> if (current == 'X') ' ' else 'X' }
+
+    /**
+     * Read mode: long-press a checklist item's box to toggle it in-progress.
+     * `[-]` → `[ ]`; anything else (`[ ]`, `[X]`) → `[-]`. Same line-index and
+     * parent-cookie semantics as [toggleCheckboxDone].
+     */
+    fun toggleCheckboxProgress(doc: OrgDocument, lineIndex: Int): String? =
+        setCheckboxMark(doc, lineIndex) { current -> if (current == '-') ' ' else '-' }
+
+    /**
+     * Rewrites the checkbox mark on [lineIndex] to `next(currentMark)` (a lowercase
+     * `x` is normalized to `X` before [next] sees it). Also refreshes the immediate
+     * parent's statistics cookie and, if the parent is itself a checkbox item,
+     * checks/unchecks it to match whether all of its direct children are now done;
+     * see [updateParentCookie]. Returns null when the line isn't a checkbox list item.
+     */
+    private fun setCheckboxMark(doc: OrgDocument, lineIndex: Int, next: (Char) -> Char): String? {
         if (lineIndex !in doc.lines.indices) return null
         val m = CHECKBOX_LINE.matchEntire(doc.lines[lineIndex]) ?: return null
         val (prefix, mark, rest) = m.destructured
-        val current = if (mark == "x") "X" else mark
-        val idx = states.indexOf(current.first())
-        val next = if (idx == -1) states.first() else states[(idx + 1) % states.size]
+        val current = if (mark == "x") 'X' else mark.first()
         val lines = doc.lines.toMutableList()
-        lines[lineIndex] = "$prefix[$next]$rest"
+        lines[lineIndex] = "$prefix[${next(current)}]$rest"
         updateParentCookie(lines, lineIndex)
         return lines.joinToString("\n")
     }

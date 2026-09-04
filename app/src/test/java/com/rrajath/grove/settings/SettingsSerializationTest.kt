@@ -44,7 +44,6 @@ class SettingsSerializationTest {
         flattenNotebookFolders = true,
         notebookSortKey = NotebookSortKey.LAST_MODIFIED,
         notebookSortAscending = false,
-        checklistStates = ChecklistStates.THREE,
         remindersEnabled = false,
         morningBriefEnabled = false,
         defaultReminderTime = java.time.LocalTime.of(7, 45),
@@ -102,7 +101,6 @@ class SettingsSerializationTest {
         assertEquals(sample.flattenNotebookFolders, restored.flattenNotebookFolders)
         assertEquals(sample.notebookSortKey, restored.notebookSortKey)
         assertEquals(sample.notebookSortAscending, restored.notebookSortAscending)
-        assertEquals(sample.checklistStates, restored.checklistStates)
         assertEquals(sample.remindersEnabled, restored.remindersEnabled)
         assertEquals(sample.morningBriefEnabled, restored.morningBriefEnabled)
         assertEquals(sample.defaultReminderTime, restored.defaultReminderTime)
@@ -188,7 +186,7 @@ class SettingsSerializationTest {
         assertEquals(FontSizePreference.MEDIUM, restored.readModeFontSize)
         assertEquals(FontSizePreference.MEDIUM, restored.editModeFontSize)
         assertEquals(SyncMode.ON_OPEN_CLOSE, restored.syncMode)
-        assertEquals(ChecklistStates.TWO, restored.checklistStates)
+        // "checklistStates" is a now-removed key; it must be ignored, not throw.
         assertEquals(AgendaSwipeAction.MARK_DONE, restored.agendaSwipeLeftAction)
         assertEquals(AgendaSwipeAction.SET_SCHEDULED, restored.agendaSwipeRightAction)
         assertEquals(ReminderLeadTime.AT_TIME, restored.reminderLeadTime)

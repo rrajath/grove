@@ -455,7 +455,6 @@ private fun GroveNavigation(
                                 navController.navigate(Routes.block(fileName, line))
                             },
                             showPropertyDrawers = settings.showPropertyDrawers,
-                            checklistStates = settings.checklistStates,
                             readModeFontSize = settings.readModeFontSize,
                             favorites = favoritesFor(favorites, ref.fileName),
                             // The intro just got a blank heading (a metadata action
@@ -635,7 +634,6 @@ private fun GroveNavigation(
                     onSetEditModeFontSize = viewModel::setEditModeFontSize,
                     onSetShowPreface = viewModel::setShowPreface,
                     onSetShowPropertyDrawers = viewModel::setShowPropertyDrawers,
-                    onSetChecklistStates = viewModel::setChecklistStates,
                     onSetAddId = viewModel::setAddIdToNewNotes,
                     onSetAddCreated = viewModel::setAddCreatedToNewNotes,
                     onSetNewNoteCursor = viewModel::setNewNoteCursor,

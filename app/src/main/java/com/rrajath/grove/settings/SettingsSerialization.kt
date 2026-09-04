@@ -78,7 +78,6 @@ data class SettingsExport(
     val flattenNotebookFolders: Boolean = false,
     val notebookSortKey: String = NotebookSortKey.ALPHABETICAL.storageKey,
     val notebookSortAscending: Boolean = true,
-    val checklistStates: String = ChecklistStates.TWO.storageKey,
     val remindersEnabled: Boolean = true,
     val morningBriefEnabled: Boolean = true,
     /** "HH:mm", e.g. "09:00". */
@@ -135,7 +134,6 @@ data class SettingsExport(
         flattenNotebookFolders = flattenNotebookFolders,
         notebookSortKey = NotebookSortKey.fromStorage(notebookSortKey),
         notebookSortAscending = notebookSortAscending,
-        checklistStates = ChecklistStates.fromStorage(checklistStates),
         remindersEnabled = remindersEnabled,
         morningBriefEnabled = morningBriefEnabled,
         defaultReminderTime = runCatching { java.time.LocalTime.parse(defaultReminderTime) }
@@ -194,7 +192,6 @@ data class SettingsExport(
             flattenNotebookFolders = s.flattenNotebookFolders,
             notebookSortKey = s.notebookSortKey.storageKey,
             notebookSortAscending = s.notebookSortAscending,
-            checklistStates = s.checklistStates.storageKey,
             remindersEnabled = s.remindersEnabled,
             morningBriefEnabled = s.morningBriefEnabled,
             defaultReminderTime = s.defaultReminderTime.toString(),

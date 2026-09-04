@@ -804,7 +804,7 @@ class OrgMutationsTest {
         assertEquals("* TODO", OrgMutations.headlineLine(1, "TODO", null, "", emptyList()))
     }
 
-    // --- toggleCheckbox ---
+    // --- toggleCheckboxDone / toggleCheckboxProgress ---
 
     private val checklistDoc = OrgParser.parse(
         """
@@ -818,63 +818,62 @@ class OrgMutationsTest {
         """.trimIndent() + "\n"
     )
 
-    private val TWO_STATE = listOf(' ', 'X')
-    private val THREE_STATE = listOf(' ', '-', 'X')
-
     @Test
-    fun `two-state toggle cycles open to done and back`() {
+    fun `tap toggles a box between open and done`() {
         val line = checklistDoc.lines.indexOf("- [ ] milk")
-        val once = OrgMutations.toggleCheckbox(checklistDoc, line, TWO_STATE)!!
-        assertTrue(once.lines()[line] == "- [X] milk")
-        val redoc = OrgParser.parse(once)
-        val twice = OrgMutations.toggleCheckbox(redoc, line, TWO_STATE)!!
+        val once = OrgMutations.toggleCheckboxDone(checklistDoc, line)!!
+        assertEquals("- [X] milk", once.lines()[line])
+        val twice = OrgMutations.toggleCheckboxDone(OrgParser.parse(once), line)!!
         assertEquals("- [ ] milk", twice.lines()[line])
     }
 
     @Test
-    fun `three-state toggle cycles open to in-progress to done and back`() {
-        val line = checklistDoc.lines.indexOf("- [ ] milk")
-        val step1 = OrgMutations.toggleCheckbox(checklistDoc, line, THREE_STATE)!!
-        assertEquals("- [-] milk", step1.lines()[line])
-        val step2 = OrgMutations.toggleCheckbox(OrgParser.parse(step1), line, THREE_STATE)!!
-        assertEquals("- [X] milk", step2.lines()[line])
-        val step3 = OrgMutations.toggleCheckbox(OrgParser.parse(step2), line, THREE_STATE)!!
-        assertEquals("- [ ] milk", step3.lines()[line])
+    fun `tap on an in-progress box marks it done`() {
+        val line = checklistDoc.lines.indexOf("- [-] bread")
+        val result = OrgMutations.toggleCheckboxDone(checklistDoc, line)!!
+        assertEquals("- [X] bread", result.lines()[line])
     }
 
     @Test
-    fun `toggling a done item under the two-state config unchecks it`() {
+    fun `tap on a done box opens it`() {
         val line = checklistDoc.lines.indexOf("- [X] eggs")
-        val result = OrgMutations.toggleCheckbox(checklistDoc, line, TWO_STATE)!!
+        val result = OrgMutations.toggleCheckboxDone(checklistDoc, line)!!
         assertEquals("- [ ] eggs", result.lines()[line])
     }
 
     @Test
-    fun `a mark outside the configured states jumps to the first state`() {
-        // Document has an in-progress box, but settings are two-state only.
-        val line = checklistDoc.lines.indexOf("- [-] bread")
-        val result = OrgMutations.toggleCheckbox(checklistDoc, line, TWO_STATE)!!
-        assertEquals("- [ ] bread", result.lines()[line])
+    fun `long-press toggles a box between open and in-progress`() {
+        val line = checklistDoc.lines.indexOf("- [ ] milk")
+        val once = OrgMutations.toggleCheckboxProgress(checklistDoc, line)!!
+        assertEquals("- [-] milk", once.lines()[line])
+        val twice = OrgMutations.toggleCheckboxProgress(OrgParser.parse(once), line)!!
+        assertEquals("- [ ] milk", twice.lines()[line])
+    }
+
+    @Test
+    fun `long-press on a done box marks it in-progress`() {
+        val line = checklistDoc.lines.indexOf("- [X] eggs")
+        val result = OrgMutations.toggleCheckboxProgress(checklistDoc, line)!!
+        assertEquals("- [-] eggs", result.lines()[line])
     }
 
     @Test
     fun `lowercase x is treated as done`() {
         val doc = OrgParser.parse("- [x] task\n")
-        val result = OrgMutations.toggleCheckbox(doc, 0, TWO_STATE)!!
-        assertEquals("- [ ] task", result.lines()[0])
+        assertEquals("- [ ] task", OrgMutations.toggleCheckboxDone(doc, 0)!!.lines()[0])
     }
 
     @Test
     fun `toggle preserves indent and trailing text`() {
         val line = checklistDoc.lines.indexOf("  - [ ] nested")
-        val result = OrgMutations.toggleCheckbox(checklistDoc, line, TWO_STATE)!!
+        val result = OrgMutations.toggleCheckboxDone(checklistDoc, line)!!
         assertEquals("  - [X] nested", result.lines()[line])
     }
 
     @Test
     fun `toggle only rewrites the target line, everything else is byte-identical`() {
         val line = checklistDoc.lines.indexOf("- [ ] milk")
-        val result = OrgMutations.toggleCheckbox(checklistDoc, line, TWO_STATE)!!
+        val result = OrgMutations.toggleCheckboxDone(checklistDoc, line)!!
         assertEquals(
             checklistDoc.lines.filterIndexed { i, _ -> i != line },
             result.lines().filterIndexed { i, _ -> i != line },
@@ -884,22 +883,23 @@ class OrgMutationsTest {
     @Test
     fun `non-checkbox list item returns null`() {
         val line = checklistDoc.lines.indexOf("- plain item")
-        assertNull(OrgMutations.toggleCheckbox(checklistDoc, line, TWO_STATE))
+        assertNull(OrgMutations.toggleCheckboxDone(checklistDoc, line))
+        assertNull(OrgMutations.toggleCheckboxProgress(checklistDoc, line))
     }
 
     @Test
     fun `non-list line returns null`() {
         val line = checklistDoc.lines.indexOf("not a list line")
-        assertNull(OrgMutations.toggleCheckbox(checklistDoc, line, TWO_STATE))
+        assertNull(OrgMutations.toggleCheckboxDone(checklistDoc, line))
     }
 
     @Test
     fun `out of range line index returns null`() {
-        assertNull(OrgMutations.toggleCheckbox(checklistDoc, -1, TWO_STATE))
-        assertNull(OrgMutations.toggleCheckbox(checklistDoc, checklistDoc.lines.size, TWO_STATE))
+        assertNull(OrgMutations.toggleCheckboxDone(checklistDoc, -1))
+        assertNull(OrgMutations.toggleCheckboxDone(checklistDoc, checklistDoc.lines.size))
     }
 
-    // --- toggleCheckbox parent statistics cookie ---
+    // --- toggleCheckboxDone parent statistics cookie ---
 
     private val cookieDoc = OrgParser.parse(
         """
@@ -930,35 +930,35 @@ class OrgMutationsTest {
     fun `checking a box refreshes the parent's fraction cookie from direct children`() {
         // milk starts unchecked; checking it brings done from 3 to 4 of 5.
         val line = cookieDoc.lines.indexOf("  - [ ] milk")
-        val result = OrgMutations.toggleCheckbox(cookieDoc, line, TWO_STATE)!!
+        val result = OrgMutations.toggleCheckboxDone(cookieDoc, line)!!
         assertEquals("- Groceries [4/5]", result.lines()[cookieDoc.lines.indexOf("- Groceries [/]")])
     }
 
     @Test
     fun `parent cookie is recalculated from scratch, not incremented off stale values`() {
         val line = cookieDoc.lines.indexOf("  - [ ] bank")
-        val result = OrgMutations.toggleCheckbox(cookieDoc, line, TWO_STATE)!!
+        val result = OrgMutations.toggleCheckboxDone(cookieDoc, line)!!
         assertEquals("- Errands [1/3]", result.lines()[cookieDoc.lines.indexOf("- Errands [0/3]")])
     }
 
     @Test
     fun `parent percent cookie recalculates as a rounded percentage`() {
         val line = cookieDoc.lines.indexOf("  - [ ] dishes")
-        val result = OrgMutations.toggleCheckbox(cookieDoc, line, TWO_STATE)!!
+        val result = OrgMutations.toggleCheckboxDone(cookieDoc, line)!!
         assertEquals("- Chores [50%]", result.lines()[cookieDoc.lines.indexOf("- Chores [%]")])
     }
 
     @Test
     fun `parent with no cookie in its text is left untouched`() {
         val line = cookieDoc.lines.indexOf("  - [ ] chapter one")
-        val result = OrgMutations.toggleCheckbox(cookieDoc, line, TWO_STATE)!!
+        val result = OrgMutations.toggleCheckboxDone(cookieDoc, line)!!
         assertEquals("- Reading", result.lines()[cookieDoc.lines.indexOf("- Reading")])
     }
 
     @Test
     fun `only the shallowest direct children count, a nested sub-list is not folded in`() {
         val line = cookieDoc.lines.indexOf("  - [ ] item a")
-        val result = OrgMutations.toggleCheckbox(cookieDoc, line, TWO_STATE)!!
+        val result = OrgMutations.toggleCheckboxDone(cookieDoc, line)!!
         // "item b sub" is a grandchild (nested under "item b"), so it's excluded
         // from Outer's count even though it's also a checkbox.
         assertEquals("- Outer [1/2]", result.lines()[cookieDoc.lines.indexOf("- Outer [/]")])
@@ -967,13 +967,13 @@ class OrgMutationsTest {
     @Test
     fun `cookie updates only the immediate parent, not an ancestor two levels up`() {
         val line = cookieDoc.lines.indexOf("    - [X] item b sub")
-        val result = OrgMutations.toggleCheckbox(cookieDoc, line, TWO_STATE)!!
+        val result = OrgMutations.toggleCheckboxDone(cookieDoc, line)!!
         // "item b sub"'s immediate parent is "item b", which has no cookie of
         // its own, so "Outer [/]" two levels up is left untouched.
         assertEquals("- Outer [/]", result.lines()[cookieDoc.lines.indexOf("- Outer [/]")])
     }
 
-    // --- toggleCheckbox parent completion (a checkbox parent's own mark) ---
+    // --- toggleCheckboxDone parent completion (a checkbox parent's own mark) ---
 
     private val hierarchicalDoc = OrgParser.parse(
         """
@@ -989,12 +989,12 @@ class OrgMutationsTest {
     @Test
     fun `completing all direct children checks the parent's own box`() {
         val a1 = hierarchicalDoc.lines.indexOf("  - [ ] a1")
-        val once = OrgMutations.toggleCheckbox(hierarchicalDoc, a1, TWO_STATE)!!
+        val once = OrgMutations.toggleCheckboxDone(hierarchicalDoc, a1)!!
         // a2 still open, so Group A stays unchecked.
         assertEquals("- [ ] Group A", once.lines()[hierarchicalDoc.lines.indexOf("- [ ] Group A")])
 
         val a2 = hierarchicalDoc.lines.indexOf("  - [ ] a2")
-        val twice = OrgMutations.toggleCheckbox(OrgParser.parse(once), a2, TWO_STATE)!!
+        val twice = OrgMutations.toggleCheckboxDone(OrgParser.parse(once), a2)!!
         // both children now done: Group A checks itself off too.
         assertEquals("- [X] Group A", twice.lines()[hierarchicalDoc.lines.indexOf("- [ ] Group A")])
     }
@@ -1002,7 +1002,7 @@ class OrgMutationsTest {
     @Test
     fun `unchecking a child after full completion unchecks the parent's own box`() {
         val b1 = hierarchicalDoc.lines.indexOf("  - [X] b1")
-        val result = OrgMutations.toggleCheckbox(hierarchicalDoc, b1, TWO_STATE)!!
+        val result = OrgMutations.toggleCheckboxDone(hierarchicalDoc, b1)!!
         // Group B's only child just became unchecked, so Group B unchecks too.
         assertEquals("- [ ] Group B", result.lines()[hierarchicalDoc.lines.indexOf("- [ ] Group B")])
     }
@@ -1010,7 +1010,7 @@ class OrgMutationsTest {
     @Test
     fun `parent checkbox completion does not cascade past the immediate parent`() {
         val line = cookieDoc.lines.indexOf("    - [X] item b sub")
-        val result = OrgMutations.toggleCheckbox(cookieDoc, line, TWO_STATE)!!
+        val result = OrgMutations.toggleCheckboxDone(cookieDoc, line)!!
         // "item b" (immediate parent) has its own box unchecked to match its
         // now-unchecked sole child, but "Outer" two levels up is untouched.
         assertEquals("  - [ ] item b", result.lines()[cookieDoc.lines.indexOf("  - [ ] item b")])

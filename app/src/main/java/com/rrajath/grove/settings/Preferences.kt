@@ -105,20 +105,6 @@ enum class NotebookSortKey(val storageKey: String, val label: String) {
 }
 
 /**
- * Read mode: how many states a tap cycles a checklist item's box through.
- * [marks] is the tap order, e.g. two-state `[ ]` → `[X]` → `[ ]`…
- */
-enum class ChecklistStates(val storageKey: String, val marks: List<Char>) {
-    TWO("two", listOf(' ', 'X')),
-    THREE("three", listOf(' ', '-', 'X'));
-
-    companion object {
-        fun fromStorage(value: String?): ChecklistStates =
-            entries.firstOrNull { it.storageKey == value } ?: TWO
-    }
-}
-
-/**
  * Settings § Reminders: how far ahead of a SCHEDULED/DEADLINE's own time-of-day
  * the "due" notification actually fires. Only applies to timestamps that carry
  * an explicit time-of-day; date-only stamps still bundle into the daily digest

@@ -138,8 +138,6 @@ data class GroveSettings(
     val autoArchiveFile: String? = null,
     /** '/'-separated heading path within [autoArchiveFile]; empty = top level. */
     val autoArchiveHeadingPath: String = "",
-    /** Read mode: how many states tapping a checklist item cycles through. */
-    val checklistStates: ChecklistStates = ChecklistStates.TWO,
     /** SCHEDULED/DEADLINE reminder notifications (see `reminders` package). */
     val remindersEnabled: Boolean = true,
     /** Daily digest ("You have X tasks due today") opt-in; requires [remindersEnabled] too. */
@@ -253,7 +251,6 @@ class SettingsRepository(private val context: Context) {
         val autoArchiveDoneItems = booleanPreferencesKey("auto_archive_done_items")
         val autoArchiveFile = stringPreferencesKey("auto_archive_file")
         val autoArchiveHeadingPath = stringPreferencesKey("auto_archive_heading_path")
-        val checklistStates = stringPreferencesKey("checklist_states")
         val remindersEnabled = booleanPreferencesKey("reminders_enabled")
         val morningBriefEnabled = booleanPreferencesKey("morning_brief_enabled")
         val defaultReminderTime = stringPreferencesKey("default_reminder_time")
@@ -316,7 +313,6 @@ class SettingsRepository(private val context: Context) {
             autoArchiveDoneItems = prefs[Keys.autoArchiveDoneItems] ?: false,
             autoArchiveFile = prefs[Keys.autoArchiveFile],
             autoArchiveHeadingPath = prefs[Keys.autoArchiveHeadingPath] ?: "",
-            checklistStates = ChecklistStates.fromStorage(prefs[Keys.checklistStates]),
             remindersEnabled = prefs[Keys.remindersEnabled] ?: true,
             morningBriefEnabled = prefs[Keys.morningBriefEnabled] ?: true,
             defaultReminderTime = decodeTime(prefs[Keys.defaultReminderTime]),
@@ -432,7 +428,6 @@ class SettingsRepository(private val context: Context) {
             p[Keys.notebookDisplayNameMode] = s.notebookDisplayNameMode.storageKey
             p[Keys.showNotebookFileIcons] = s.showNotebookFileIcons
             p[Keys.flattenNotebookFolders] = s.flattenNotebookFolders
-            p[Keys.checklistStates] = s.checklistStates.storageKey
             p[Keys.remindersEnabled] = s.remindersEnabled
             p[Keys.morningBriefEnabled] = s.morningBriefEnabled
             p[Keys.defaultReminderTime] = encodeTime(s.defaultReminderTime)
@@ -611,10 +606,6 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setNotebookSortAscending(ascending: Boolean) {
         context.settingsDataStore.edit { it[Keys.notebookSortAscending] = ascending }
-    }
-
-    suspend fun setChecklistStates(states: ChecklistStates) {
-        context.settingsDataStore.edit { it[Keys.checklistStates] = states.storageKey }
     }
 
     suspend fun setRemindersEnabled(enabled: Boolean) {

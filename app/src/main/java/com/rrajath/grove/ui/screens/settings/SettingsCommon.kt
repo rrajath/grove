@@ -35,7 +35,6 @@ import androidx.compose.ui.unit.sp
 import com.rrajath.grove.capture.CaptureTemplate
 import com.rrajath.grove.capture.TemplateValidator
 import com.rrajath.grove.settings.AgendaSwipeAction
-import com.rrajath.grove.settings.ChecklistStates
 import com.rrajath.grove.ui.components.GroveTopBar
 import com.rrajath.grove.ui.components.MonogramTile
 import com.rrajath.grove.ui.components.Pill
@@ -305,27 +304,6 @@ internal fun TemplateSettingsRow(
             },
         )
     }
-}
-
-/**
- * "Checklist states" row description: just the "[ ] → [x]" / "[ ] → [-] → [x]"
- * bracket notation, set entirely in `PlexMono` (design system mono-body token).
- * Uses the single-character arrow U+2192 rather than "->": PlexMono (IBM Plex
- * Mono) has no calt/liga ligature for "->", so two literal characters is all
- * that font would ever render.
- */
-@Composable
-internal fun ChecklistStatesDescription(states: ChecklistStates) {
-    val c = MaterialTheme.grove
-    val bracketNotation = if (states == ChecklistStates.TWO) {
-        "[ ] → [x]"
-    } else {
-        "[ ] → [-] → [x]"
-    }
-    Text(
-        bracketNotation,
-        fontFamily = PlexMono, fontSize = 12.sp, color = c.ink2,
-    )
 }
 
 internal fun swipeActionDescription(action: AgendaSwipeAction): String = when (action) {

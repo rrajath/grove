@@ -80,4 +80,19 @@ val NEW_FEATURES: List<NewFeature> = listOf(
         ),
         destination = NewAnchors.SETTINGS_NOTES_NEW_NOTE_CURSOR,
     ),
+    NewFeature(
+        // Read-mode checkboxes now toggle done on tap and in-progress on
+        // long-press (the "Checklist states" setting is gone). Point updating
+        // users at the Tips & Tricks entry that spells the gestures out.
+        // `since` is the versionCode of the release that ships it.
+        id = "checklist-gestures",
+        since = 10400,
+        anchors = setOf(
+            NewAnchors.TOPBAR_MENU,
+            NewAnchors.DRAWER_SETTINGS,
+            NewAnchors.SETTINGS_TIPS,
+            NewAnchors.tipsGroup("checklists"),
+        ),
+        destination = NewAnchors.tipsGroup("checklists"),
+    ),
 )

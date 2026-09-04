@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
@@ -58,8 +59,10 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.ClipEntry
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalClipboard
 import kotlinx.coroutines.launch
 import androidx.compose.ui.platform.LocalContext
@@ -85,7 +88,6 @@ import com.rrajath.grove.org.OrgDocument
 import com.rrajath.grove.org.OrgHeadline
 import com.rrajath.grove.org.OrgMutations
 import com.rrajath.grove.org.OrgTimestamp
-import com.rrajath.grove.settings.ChecklistStates
 import com.rrajath.grove.settings.FontSizePreference
 import com.rrajath.grove.ui.components.CollapsibleBlockSection
 import com.rrajath.grove.ui.components.CollapsibleKvSection
@@ -158,8 +160,6 @@ fun ReadNoteScreen(
     onOpenBlock: (fileName: String, line: Int) -> Unit = { _, _ -> },
     /** Settings toggle: show collapsible sections for `:PROPERTIES:`/`:LOGBOOK:` drawers. */
     showPropertyDrawers: Boolean = true,
-    /** Settings: how many states tapping a checklist item cycles through. */
-    checklistStates: ChecklistStates = ChecklistStates.TWO,
     /** Settings § Notes: font-size lever for the rendered note. App chrome is unaffected. */
     readModeFontSize: FontSizePreference = FontSizePreference.MEDIUM,
     /** Favorited headlines in this file, matched per-heading by customId, marked with a ★. */
@@ -287,7 +287,10 @@ fun ReadNoteScreen(
                             onOpenLink = onOpenLink,
                             onEdit = { onEdit(null) },
                             onOpenBlock = { line -> onOpenBlock(noteRef.fileName, line) },
-                            onToggleCheckbox = { line -> viewModel.toggleChecklistItem(line, checklistStates.marks) },
+                            onToggleCheckbox = { line, longPress ->
+                                if (longPress) viewModel.toggleChecklistProgress(line)
+                                else viewModel.toggleChecklistDone(line)
+                            },
                             modifier = Modifier.fillMaxSize(),
                         )
                         ScrollJumpButtons(
@@ -327,7 +330,10 @@ fun ReadNoteScreen(
                             onEditAt = onEdit,
                             onOpenDrawer = onOpenDrawer,
                             onOpenBlock = { line -> onOpenBlock(noteRef.fileName, line) },
-                            onToggleCheckbox = { line -> viewModel.toggleChecklistItem(line, checklistStates.marks) },
+                            onToggleCheckbox = { line, longPress ->
+                                if (longPress) viewModel.toggleChecklistProgress(line)
+                                else viewModel.toggleChecklistDone(line)
+                            },
                             showPropertyDrawers = showPropertyDrawers,
                             favorites = favorites,
                         )
@@ -504,7 +510,8 @@ private fun IntroContent(
     onOpenLink: (String) -> Unit,
     onEdit: () -> Unit,
     onOpenBlock: (Int) -> Unit,
-    onToggleCheckbox: (Int) -> Unit,
+    /** Toggle a checklist box: `longPress` false = tap (done), true = long-press (in-progress). */
+    onToggleCheckbox: (line: Int, longPress: Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val c = MaterialTheme.grove
@@ -564,7 +571,8 @@ private fun NoteContent(
     onEditAt: (Int?) -> Unit,
     onOpenDrawer: (kind: String, ref: NoteRef) -> Unit,
     onOpenBlock: (Int) -> Unit,
-    onToggleCheckbox: (Int) -> Unit,
+    /** Toggle a checklist box: `longPress` false = tap (done), true = long-press (in-progress). */
+    onToggleCheckbox: (line: Int, longPress: Boolean) -> Unit,
     listState: LazyListState,
     modifier: Modifier = Modifier,
     showPropertyDrawers: Boolean = true,
@@ -1021,7 +1029,8 @@ private fun BodyBlocks(
     bodyLines: List<String>,
     /** Absolute doc line of `bodyLines[0]`, to resolve a [OrgBlock.ListItem]'s body-relative `line`. */
     lineOffset: Int,
-    onToggleCheckbox: (Int) -> Unit,
+    /** Toggle a checklist box: `longPress` false = tap (done), true = long-press (in-progress). */
+    onToggleCheckbox: (line: Int, longPress: Boolean) -> Unit,
     openTarget: (String) -> Unit,
     onLinkLongPress: (String, Offset, LayoutCoordinates) -> Unit,
     onEditAt: () -> Unit,
@@ -1029,6 +1038,7 @@ private fun BodyBlocks(
     onOpenBlock: (Int) -> Unit = {},
 ) {
     val c = MaterialTheme.grove
+    val haptics = LocalHapticFeedback.current
     val blocks = remember(bodyLines) { BlockParser.parse(bodyLines) }
     // Per-block expand state, keyed by the block's body-relative start line.
     // `#+BEGIN` blocks open expanded (unlike the collapsed-by-default metadata
@@ -1078,7 +1088,18 @@ private fun BodyBlocks(
                                             Modifier
                                                 .size(18.dp)
                                                 .clip(RoundedCornerShape(4.dp))
-                                                .clickable { onToggleCheckbox(lineOffset + item.line) }
+                                                // Tap toggles done; long-press toggles in-progress.
+                                                // Own haptic on long-press (hence hapticFeedbackEnabled
+                                                // = false), so the buzz lands whatever combinedClickable's
+                                                // default does in a future version.
+                                                .combinedClickable(
+                                                    hapticFeedbackEnabled = false,
+                                                    onClick = { onToggleCheckbox(lineOffset + item.line, false) },
+                                                    onLongClick = {
+                                                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                        onToggleCheckbox(lineOffset + item.line, true)
+                                                    },
+                                                )
                                                 .padding(1.dp),
                                         ) {
                                             val stroke = 1.5.dp.toPx()

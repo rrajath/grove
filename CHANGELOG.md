@@ -81,6 +81,11 @@ re-uploads the APKs to the existing release instead of failing.
   note opens ready for you to type its title.
 
 ### Changed
+- Checklist boxes in Read mode now respond to two gestures instead of a tap
+  cycle. Tap toggles a box done (`[ ]` or `[-]` becomes `[X]`, `[X]` goes back to
+  `[ ]`); tap and hold, with a short buzz, marks it in-progress `[-]` and holding
+  again clears it. The **Checklist states** setting is gone; both marks are
+  always available.
 - The formatting toolbar's link button now uses a URL you already copied. Select
   some text, tap **[[]]**, and if the clipboard holds a link it becomes the
   target with your text as the label, nothing to type or trim. With nothing

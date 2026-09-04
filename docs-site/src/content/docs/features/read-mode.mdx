@@ -23,10 +23,19 @@ Grove parses the note's org markup and renders it through a custom `AnnotatedStr
 
 - **Bold**, *italic*, underline, `code`
 - Links (`[[target][description]]`)
-- Checklists (`- [ ]` / `- [X]`)
+- Checklists (`- [ ]` / `- [-]` / `- [X]`)
 - Planning-date chips: SCHEDULED shown with a calendar icon, DEADLINE with a flag icon
 - Tag pills, TODO/keyword chip, and priority tag at the top
 - Collapsible drawers (`:LOGBOOK:`, `:PROPERTIES:`): tap to expand
+
+## Checklists
+
+Checklist boxes are interactive in Read mode:
+
+- **Tap** a box to toggle it done. An empty or in-progress box becomes `[X]`; a done box goes back to `[ ]`.
+- **Tap and hold** a box (with a short haptic buzz) to mark it in-progress `[-]`. Hold again to clear it back to `[ ]`.
+
+Toggling a box also refreshes its parent's statistics cookie (`[1/3]`, `[50%]`) and, when the parent is itself a checkbox, checks or unchecks it to match whether all its children are done. The file on disk is updated and synced on each change.
 
 ## Following links
 

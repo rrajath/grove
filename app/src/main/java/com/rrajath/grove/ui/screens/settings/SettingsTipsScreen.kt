@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Autorenew
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckBox
 import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.EditCalendar
 import androidx.compose.material.icons.filled.EditNote
@@ -92,9 +93,10 @@ import com.rrajath.grove.ui.util.StringSetSaver
  * Tip bodies and steps may embed `{{check}}`, `{{save}}`, `{{clock}}`, `{{star}}`
  * or `{{link}}` markers; [TipText] renders each as a small themed keycap of the
  * exact glyph the app shows for that control (see [tipGlyphContent]). `{{readlink}}`
- * renders a non-interactive sample of a read-mode link, and bare org link syntax
- * in the copy (`[[link]]`, `[[link][description]]`, `https://`) is set in
- * `PlexMono` `synLink`, matching the editor.
+ * renders a non-interactive sample of a read-mode link; a bare checkbox literal
+ * (`[ ]` / `[-]` / `[X]`) is set in `PlexMono`; and bare org link syntax in the
+ * copy (`[[link]]`, `[[link][description]]`, `https://`) is set in `PlexMono`
+ * `synLink`, matching the editor.
  */
 @Composable
 fun SettingsTipsScreen(onBack: () -> Unit) {
@@ -241,12 +243,14 @@ private fun TipRow(tip: Tip, open: Boolean, onToggle: () -> Unit) {
 // class-init) even though the JVM accepts them, so every brace and bracket is
 // escaped. Alternatives, in order: the `{{…}}` keycap markers; `{{readlink}}`,
 // which renders the word "link" the way read mode paints a link; the two drawer
-// names; and bare org link syntax — a `https://` scheme or a `[[target]]` /
-// `[[target][description]]` bracket pair.
+// names; a bare checkbox literal (`[ ]` / `[-]` / `[X]`); and bare org link
+// syntax — a `https://` scheme or a `[[target]]` / `[[target][description]]`
+// bracket pair.
 private val TIP_MARKUP_RE = Regex(
     "\\{\\{(check|save|clock|star|link)\\}\\}" +
         "|\\{\\{readlink\\}\\}" +
         "|:PROPERTIES:|:LOGBOOK:" +
+        "|\\[ \\]|\\[-\\]|\\[X\\]" +
         "|https://" +
         "|\\[\\[[^\\[\\]]*\\](?:\\[[^\\[\\]]*\\])?\\]",
 )
@@ -257,9 +261,11 @@ private val TIP_MARKUP_RE = Regex(
  * [tipGlyphContent]); `{{readlink}}` becomes the word "link" in `synLink` +
  * underline — a non-interactive sample of read mode's own link styling; a
  * literal `:PROPERTIES:` / `:LOGBOOK:` is set in `PlexMono` `synProp` (the
- * drawer-name treatment the editor and drawers use); and bare link syntax
- * (`https://`, `[[link]]`, `[[link][description]]`) is set in `PlexMono`
- * `synLink`, matching how the editor colors it.
+ * drawer-name treatment the editor and drawers use); a bare checkbox literal
+ * (`[ ]` / `[-]` / `[X]`) is set in `PlexMono` at the paragraph color so the
+ * brackets align and read cleanly; and bare link syntax (`https://`, `[[link]]`,
+ * `[[link][description]]`) is set in `PlexMono` `synLink`, matching how the
+ * editor colors it.
  */
 @Composable
 private fun TipText(text: String, color: Color, lineHeight: TextUnit) {
@@ -281,6 +287,8 @@ private fun TipText(text: String, color: Color, lineHeight: TextUnit) {
                         }
                     m.value.startsWith(":") ->
                         withStyle(SpanStyle(fontFamily = PlexMono, color = c.synProp)) { append(m.value) }
+                    m.value == "[ ]" || m.value == "[-]" || m.value == "[X]" ->
+                        withStyle(SpanStyle(fontFamily = PlexMono)) { append(m.value) }
                     else ->
                         withStyle(SpanStyle(fontFamily = PlexMono, color = c.synLink)) { append(m.value) }
                 }
@@ -416,6 +424,20 @@ private fun tipGroups(): List<TipGroup> = listOf(
                 "drawers", Icons.Default.EditNote, "Edit blocks and drawers in place",
                 "The preface keyword block and any :PROPERTIES: or :LOGBOOK: drawer each open in their own small " +
                     "editor. Double-tap a key/value row to edit just that block.",
+            ),
+        ),
+    ),
+    TipGroup(
+        "checklists",
+        "Checklists",
+        listOf(
+            Tip(
+                "checkbox-tap", Icons.Default.CheckBox, "Tap and hold a checkbox in Read mode",
+                "In Read mode, a checklist box responds to two gestures:",
+                listOf(
+                    "Tap to toggle it done. An empty or in-progress box becomes [X]; a done box goes back to [ ]",
+                    "Tap and hold (with a short buzz) to mark it in-progress [-]. Hold again to clear it back to [ ]",
+                ),
             ),
         ),
     ),

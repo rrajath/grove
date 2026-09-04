@@ -22,7 +22,6 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.rrajath.grove.settings.ChecklistStates
 import com.rrajath.grove.settings.FontSizePreference
 import com.rrajath.grove.settings.GroveSettings
 import com.rrajath.grove.settings.NewNoteCursor
@@ -47,7 +46,6 @@ fun SettingsNotesScreen(
     onSetEditModeFontSize: (FontSizePreference) -> Unit,
     onSetShowPreface: (Boolean) -> Unit,
     onSetShowPropertyDrawers: (Boolean) -> Unit,
-    onSetChecklistStates: (ChecklistStates) -> Unit,
     onSetAddId: (Boolean) -> Unit,
     onSetAddCreated: (Boolean) -> Unit,
     onSetNewNoteCursor: (NewNoteCursor) -> Unit,
@@ -149,18 +147,6 @@ fun SettingsNotesScreen(
                 )
                 ModeFontSizePicker("Read mode", settings.readModeFontSize, onSetReadModeFontSize)
                 ModeFontSizePicker("Edit mode", settings.editModeFontSize, onSetEditModeFontSize)
-            }
-            RowDivider()
-            SettingsRow(
-                label = "Checklist states",
-                descriptionContent = { ChecklistStatesDescription(settings.checklistStates) },
-            ) {
-                SegmentedControl(
-                    options = listOf("2-state", "3-state"),
-                    selectedIndex = settings.checklistStates.ordinal,
-                    onSelect = { onSetChecklistStates(ChecklistStates.entries[it]) },
-                    modifier = Modifier.width(160.dp),
-                )
             }
             RowDivider()
             ToggleRow(

@@ -1065,16 +1065,23 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
     }
 
     /**
-     * Read mode: tap a checklist item to cycle its box through [states].
-     * [lineIndex] is absolute into the document (a [BlockParser.ListItem]'s
-     * body-relative line plus the owning headline's `bodyStart`).
+     * Read mode: tap a checklist item's box to toggle it done ([lineIndex] is
+     * absolute into the document — a [BlockParser.ListItem]'s body-relative line
+     * plus the owning headline's `bodyStart`).
      */
-    fun toggleChecklistItem(lineIndex: Int, states: List<Char>) {
+    fun toggleChecklistDone(lineIndex: Int) =
+        mutateChecklistItem(lineIndex, OrgMutations::toggleCheckboxDone)
+
+    /** Read mode: long-press a checklist item's box to toggle it in-progress. */
+    fun toggleChecklistProgress(lineIndex: Int) =
+        mutateChecklistItem(lineIndex, OrgMutations::toggleCheckboxProgress)
+
+    private fun mutateChecklistItem(lineIndex: Int, mutate: (OrgDocument, Int) -> String?) {
         val loaded = _state.value as? DocumentUiState.Loaded ?: return
         val vault = app.vault.value ?: return
         viewModelScope.launch {
             val newText = withContext(Dispatchers.Default) {
-                OrgMutations.toggleCheckbox(loaded.document, lineIndex, states)
+                mutate(loaded.document, lineIndex)
             } ?: return@launch
             val newDoc = withContext(Dispatchers.Default) {
                 OrgParser.parse(newText, loaded.document.keywords)
