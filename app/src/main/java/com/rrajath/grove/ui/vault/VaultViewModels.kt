@@ -35,8 +35,14 @@ import com.rrajath.grove.vault.Vault
 import com.rrajath.grove.vault.matchOpenedFileToNotebook
 import com.rrajath.grove.vault.vaultPath
 import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.ImmutableMap
+import kotlinx.collections.immutable.ImmutableSet
 import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.persistentMapOf
+import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.collections.immutable.toImmutableMap
+import kotlinx.collections.immutable.toImmutableSet
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -101,30 +107,32 @@ sealed interface PinnedRow {
 
 sealed class NotebooksUiState {
     data object NoVault : NotebooksUiState()
+
+    @Immutable
     data class Loaded(
         /** Every notebook, flat and sorted — for the top-bar sync icon and the row dialogs. */
-        val notebooks: List<NotebookItem>,
+        val notebooks: ImmutableList<NotebookItem>,
         /** Pinned notebooks, pin order; kept for the row dialogs / callers that only want files. */
-        val pinned: List<NotebookItem> = emptyList(),
+        val pinned: ImmutableList<NotebookItem> = persistentListOf(),
         /**
          * The Pinned strip: pinned files and folders interleaved in the single
          * chronological pin order. Rendered as one block above the tree.
          */
-        val pinnedStrip: List<PinnedRow> = emptyList(),
+        val pinnedStrip: ImmutableList<PinnedRow> = persistentListOf(),
         /** The inline tree (variant 1a), flattened to display rows for the current expansion. */
-        val rows: List<NotebookTreeRow> = emptyList(),
+        val rows: ImmutableList<NotebookTreeRow> = persistentListOf(),
         /** Pinned folders, pin order; a pinned folder is shown ONLY in the strip, not in [rows]. */
-        val pinnedFolders: List<FolderNode> = emptyList(),
+        val pinnedFolders: ImmutableList<FolderNode> = persistentListOf(),
         /**
          * For each currently-expanded pinned folder, the display rows of its
          * subtree (depths shifted to indent under its flush strip row). Lets a
          * pinned folder expand in place in the strip; empty for collapsed ones.
          */
-        val pinnedFolderExpansions: Map<String, List<NotebookTreeRow>> = emptyMap(),
+        val pinnedFolderExpansions: ImmutableMap<String, ImmutableList<NotebookTreeRow>> = persistentMapOf(),
         /** Directory paths currently expanded — lets the pinned strip's folder rows share the tree's caret state. */
-        val expandedFolders: Set<String> = emptySet(),
+        val expandedFolders: ImmutableSet<String> = persistentSetOf(),
         /** Per-folder icon-colour overrides, so the drill-down view tints its folder tiles like the tree. */
-        val folderColors: Map<String, String> = emptyMap(),
+        val folderColors: ImmutableMap<String, String> = persistentMapOf(),
         /** True when the tree contains at least one folder (gates the expand/collapse-all button). */
         val hasFolders: Boolean = false,
         /** True when no folder is expanded (picks the expand-all vs collapse-all icon). */
@@ -140,9 +148,9 @@ sealed class NotebooksUiState {
         /** Settings § Notebooks toggle: render [flatRows]/[flatPinned] instead of the tree. */
         val flat: Boolean = false,
         /** Flat mode only: every file as a path-grouped row (pinned content excluded). */
-        val flatRows: List<NotebookItem> = emptyList(),
+        val flatRows: ImmutableList<NotebookItem> = persistentListOf(),
         /** Flat mode only: the Pinned strip as file rows (pinned files + pinned folders' files inline). */
-        val flatPinned: List<NotebookItem> = emptyList(),
+        val flatPinned: ImmutableList<NotebookItem> = persistentListOf(),
         /** Settings § Notebooks sort order — for the drill-down view, which re-sorts one folder's rows. */
         val sort: NotebookSort = NotebookSort.DEFAULT,
     ) : NotebooksUiState()
@@ -255,12 +263,12 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
                 notebooks = inputs.items.sortedWith(
                     compareBy<NotebookItem> { if (it.isPinned) it.pinnedIndex else Int.MAX_VALUE }
                         .then(inputs.sort.fileComparator)
-                ),
-                pinned = inputs.items.filter { it.isPinned }.sortedBy { it.pinnedIndex },
+                ).toImmutableList(),
+                pinned = inputs.items.filter { it.isPinned }.sortedBy { it.pinnedIndex }.toImmutableList(),
                 flat = true,
                 flatRows = flatNotebookRows(inputs.items, inputs.pinnedItems, inputs.sort),
                 flatPinned = flatPinnedRows(inputs.items, inputs.pinnedItems, inputs.sort),
-                folderColors = inputs.folderColors,
+                folderColors = inputs.folderColors.toImmutableMap(),
                 hasFolders = false,
                 vaultDisplayName = inputs.vaultDisplayName,
                 showFileIcons = inputs.showFileIcons,
@@ -270,8 +278,8 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
             val flat = inputs.items.sortedWith(
                 compareBy<NotebookItem> { if (it.isPinned) it.pinnedIndex else Int.MAX_VALUE }
                     .then(inputs.sort.fileComparator)
-            )
-            val pinned = inputs.items.filter { it.isPinned }.sortedBy { it.pinnedIndex }
+            ).toImmutableList()
+            val pinned = inputs.items.filter { it.isPinned }.sortedBy { it.pinnedIndex }.toImmutableList()
             // Folder nodes for the strip come from the full item list (a folder can
             // hold nothing but pinned files and still deserves a strip row).
             val stripNodes = buildFolderNodes(inputs.items, inputs.folderColors, inputs.pinnedFolders)
@@ -286,7 +294,7 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
                     PinKind.FILE -> pinnedFileByPath[pi.path]?.let { PinnedRow.File(it) }
                     PinKind.FOLDER -> pinnedFolderByDir[pi.path]?.let { PinnedRow.Folder(it) }
                 }
-            }
+            }.toImmutableList()
             val pinnedPaths = pinned.mapTo(mutableSetOf()) { it.fileName }
             val treeItems = inputs.items.filterNot { it.fileName in pinnedPaths }
             // Second (and last) node map: the tree and the strip's expand-in-place
@@ -310,7 +318,7 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
                         inputs.folderColors, inputs.pinnedFolders, inputs.sort,
                         prebuiltNodes = treeNodes,
                     )
-                }
+                }.toImmutableMap()
             NotebooksUiState.Loaded(
                 notebooks = flat,
                 pinned = pinned,
@@ -321,8 +329,8 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
                 ),
                 pinnedFolders = pinnedFolderNodeList,
                 pinnedFolderExpansions = pinnedFolderExpansions,
-                expandedFolders = inputs.expandedFolders,
-                folderColors = inputs.folderColors,
+                expandedFolders = inputs.expandedFolders.toImmutableSet(),
+                folderColors = inputs.folderColors.toImmutableMap(),
                 hasFolders = folderDirs.isNotEmpty(),
                 allFoldersCollapsed = folderDirs.none { it in inputs.expandedFolders },
                 vaultDisplayName = inputs.vaultDisplayName,

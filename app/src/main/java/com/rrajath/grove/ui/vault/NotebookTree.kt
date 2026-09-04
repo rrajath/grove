@@ -4,6 +4,9 @@ import com.rrajath.grove.settings.NotebookSortKey
 import com.rrajath.grove.settings.PinKind
 import com.rrajath.grove.settings.PinnedItem
 import com.rrajath.grove.ui.components.nameHashPaletteKey
+import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.toImmutableList
 
 /**
  * Pure tree model for the Notebooks screen (nested-folders plan §4, variant 1a).
@@ -195,9 +198,9 @@ fun pinnedFolderNodes(
     folderColors: Map<String, String> = emptyMap(),
     pinnedFolders: List<String> = emptyList(),
     prebuiltNodes: Map<String, FolderNode>? = null,
-): List<FolderNode> {
+): ImmutableList<FolderNode> {
     val nodes = prebuiltNodes ?: buildFolderNodes(items, folderColors, pinnedFolders)
-    return pinnedFolders.mapNotNull { nodes[it] }
+    return pinnedFolders.mapNotNull { nodes[it] }.toImmutableList()
 }
 
 /**
@@ -218,7 +221,7 @@ fun buildNotebookTree(
     pinnedFolders: List<String> = emptyList(),
     sort: NotebookSort = NotebookSort.DEFAULT,
     prebuiltNodes: Map<String, FolderNode>? = null,
-): List<NotebookTreeRow> {
+): ImmutableList<NotebookTreeRow> {
     val nodes = prebuiltNodes ?: buildFolderNodes(items, folderColors, pinnedFolders)
     val pinnedDirs = pinnedFolders.toSet()
     val byParent = nodes.values.groupBy { parentOf(it.dir) }
@@ -241,7 +244,7 @@ fun buildNotebookTree(
     }
 
     emitLevel("")
-    return rows
+    return rows.toImmutableList()
 }
 
 /**
@@ -260,8 +263,8 @@ fun pinnedFolderSubtreeRows(
     pinnedFolders: List<String> = emptyList(),
     sort: NotebookSort = NotebookSort.DEFAULT,
     prebuiltNodes: Map<String, FolderNode>? = null,
-): List<NotebookTreeRow> {
-    if (rootDir.isEmpty()) return emptyList()
+): ImmutableList<NotebookTreeRow> {
+    if (rootDir.isEmpty()) return persistentListOf()
     val nodes = prebuiltNodes ?: buildFolderNodes(items, folderColors, pinnedFolders)
     val pinnedDirs = pinnedFolders.toSet()
     val byParent = nodes.values.groupBy { parentOf(it.dir) }
@@ -288,7 +291,7 @@ fun pinnedFolderSubtreeRows(
     }
 
     emitLevel(rootDir)
-    return rows
+    return rows.toImmutableList()
 }
 
 /**
@@ -306,7 +309,7 @@ sealed interface NotebookTreeRun {
     /** A top-level folder header plus the descendant rows currently visible under it. */
     data class Subtree(
         val header: NotebookTreeRow.Folder,
-        val descendants: List<NotebookTreeRow>,
+        val descendants: ImmutableList<NotebookTreeRow>,
     ) : NotebookTreeRun
 
     /** A single row that stands on its own (a root-level file). */
@@ -319,7 +322,7 @@ sealed interface NotebookTreeRun {
  * rows beneath it up to the next top-level folder or root-level file, and a
  * [NotebookTreeRun.Loose] for every root-level file. Order is preserved.
  */
-fun groupNotebookTreeRuns(rows: List<NotebookTreeRow>): List<NotebookTreeRun> {
+fun groupNotebookTreeRuns(rows: List<NotebookTreeRow>): ImmutableList<NotebookTreeRun> {
     val runs = mutableListOf<NotebookTreeRun>()
     var i = 0
     while (i < rows.size) {
@@ -332,14 +335,14 @@ fun groupNotebookTreeRuns(rows: List<NotebookTreeRow>): List<NotebookTreeRun> {
                 if (r is NotebookTreeRow.File && r.depth <= 0) break
                 j++
             }
-            runs += NotebookTreeRun.Subtree(row, rows.subList(i + 1, j).toList())
+            runs += NotebookTreeRun.Subtree(row, rows.subList(i + 1, j).toImmutableList())
             i = j
         } else {
             runs += NotebookTreeRun.Loose(row)
             i++
         }
     }
-    return runs
+    return runs.toImmutableList()
 }
 
 /**
@@ -350,8 +353,8 @@ fun groupNotebookTreeRuns(rows: List<NotebookTreeRow>): List<NotebookTreeRun> {
  */
 data class DrillLevel(
     val dir: String,
-    val childFolders: List<FolderNode>,
-    val files: List<NotebookItem>,
+    val childFolders: ImmutableList<FolderNode>,
+    val files: ImmutableList<NotebookItem>,
 )
 
 /** Build the [DrillLevel] for [dir] (`""` = the vault root) from the flat [items]. */
@@ -368,10 +371,12 @@ fun drillLevel(
         dir = dir,
         childFolders = nodes.values
             .filter { parentOf(it.dir) == dir }
-            .sortedWith(sort.folderComparator),
+            .sortedWith(sort.folderComparator)
+            .toImmutableList(),
         files = items
             .filter { it.dir == dir }
-            .sortedWith(sort.fileComparator),
+            .sortedWith(sort.fileComparator)
+            .toImmutableList(),
     )
 }
 
@@ -400,7 +405,7 @@ fun flatNotebookRows(
     items: List<NotebookItem>,
     pinnedItems: List<PinnedItem> = emptyList(),
     sort: NotebookSort = NotebookSort.DEFAULT,
-): List<NotebookItem> {
+): ImmutableList<NotebookItem> {
     val pinnedFiles = pinnedItems.filter { it.kind == PinKind.FILE }.mapTo(mutableSetOf()) { it.path }
     val pinnedFolders = pinnedItems.filter { it.kind == PinKind.FOLDER }.map { it.path }
     fun underPinnedFolder(dir: String) =
@@ -408,6 +413,7 @@ fun flatNotebookRows(
     return items
         .filterNot { it.fileName in pinnedFiles || underPinnedFolder(it.dir) }
         .sortedWith(sort.fileComparator)
+        .toImmutableList()
 }
 
 /**
@@ -421,7 +427,7 @@ fun flatPinnedRows(
     items: List<NotebookItem>,
     pinnedItems: List<PinnedItem>,
     sort: NotebookSort = NotebookSort.DEFAULT,
-): List<NotebookItem> {
+): ImmutableList<NotebookItem> {
     val pinnedFiles = pinnedItems.filter { it.kind == PinKind.FILE }.mapTo(mutableSetOf()) { it.path }
     val pinnedFolders = pinnedItems.filter { it.kind == PinKind.FOLDER }.map { it.path }
     return pinnedItems.flatMap { pi ->
@@ -441,5 +447,5 @@ fun flatPinnedRows(
                     .sortedWith(sort.fileComparator)
             }
         }
-    }
+    }.toImmutableList()
 }
