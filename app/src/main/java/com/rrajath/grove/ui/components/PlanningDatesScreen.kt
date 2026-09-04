@@ -89,6 +89,9 @@ import com.rrajath.grove.org.ShorthandParse
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.YearMonth
@@ -128,15 +131,15 @@ fun PlanningDatesScreen(
     // calendar) distinctly from this note's own dates, which get the full blue/
     // red fill instead.
     val app = LocalContext.current.applicationContext as GroveApplication
-    val plannedNotes by app.database.indexDao().plannedNotes().collectAsState(initial = emptyList())
-    val plannedDates = remember(plannedNotes) {
-        plannedNotes.flatMapTo(mutableSetOf()) { note ->
-            listOfNotNull(
-                note.scheduled?.let { OrgTimestamp.parse(it)?.date },
-                note.deadline?.let { OrgTimestamp.parse(it)?.date },
-            )
-        }
+    // Distinct SCHEDULED/DEADLINE strings only, parsed to dates off the main
+    // thread: the calendar just needs the set of days that already have
+    // something on them, not any note's identity or body.
+    val plannedDatesFlow = remember(app) {
+        app.database.indexDao().plannedTimestamps()
+            .map { stamps -> stamps.mapNotNullTo(mutableSetOf()) { OrgTimestamp.parse(it)?.date } }
+            .flowOn(Dispatchers.Default)
     }
+    val plannedDates by plannedDatesFlow.collectAsState(initial = emptySet())
 
     var sched by remember { mutableStateOf(scheduled) }
     var dead by remember { mutableStateOf(deadline) }

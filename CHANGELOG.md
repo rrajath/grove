@@ -111,6 +111,10 @@ re-uploads the APKs to the existing release instead of failing.
 - Large org tables in Read mode open without a stall. Only the visible rows are
   now built (the body is a lazy list), and column widths are measured from one
   cell per column instead of every cell in the table.
+- The Agenda, the ledger widget, and the planning-dates calendar no longer load
+  the full text of every scheduled note just to place it on a date. They read a
+  trimmed set of columns instead, which matters most inside the widget, where
+  memory is tightest.
 
 ### Fixed
 - The search results list now snaps back to the top on every keystroke. It used

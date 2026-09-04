@@ -186,6 +186,29 @@ data class NoteFacetRow(
 )
 
 /**
+ * Every column the agenda / ledger widget read off a planned note, minus `body`.
+ * [IndexDao.plannedNotes] backs a `Flow` that is held for the whole vault's
+ * planned set (and inside the Glance widget process, where memory is tightest),
+ * so carrying the full note text — which no agenda consumer matches on — is pure
+ * overhead. Maps to `NoteMeta` via `toNoteMeta`, same as [NoteEntity].
+ */
+data class PlannedNoteRow(
+    val fileName: String,
+    val lineIndex: Int,
+    val title: String,
+    val keyword: String?,
+    val priority: String?,
+    val tags: String,
+    val inheritedTags: String,
+    val scheduled: String?,
+    val deadline: String?,
+    val closed: String?,
+    val createdAt: String?,
+    val isDone: Boolean,
+    val lastModified: Long,
+)
+
+/**
  * An abstract class rather than an interface so it can carry [ftsAvailable]:
  * the FTS statements below live inside the same `@Transaction` methods as the
  * `notes` writes (that is what keeps the two tables from ever drifting), so the
@@ -243,8 +266,23 @@ abstract class IndexDao {
      * appear: excluding those in SQL is an exact narrowing, not an
      * approximation.
      */
-    @Query("SELECT * FROM notes WHERE scheduled IS NOT NULL OR deadline IS NOT NULL")
-    abstract fun plannedNotes(): Flow<List<NoteEntity>>
+    @Query(
+        "SELECT fileName, lineIndex, title, keyword, priority, tags, inheritedTags, " +
+            "scheduled, deadline, closed, createdAt, isDone, lastModified " +
+            "FROM notes WHERE scheduled IS NOT NULL OR deadline IS NOT NULL"
+    )
+    abstract fun plannedNotes(): Flow<List<PlannedNoteRow>>
+
+    /**
+     * Distinct SCHEDULED/DEADLINE timestamp strings across the vault — all the
+     * "other days that already have something on them" dots on the planning
+     * calendar need. No note identity, no body.
+     */
+    @Query(
+        "SELECT scheduled AS ts FROM notes WHERE scheduled IS NOT NULL " +
+            "UNION SELECT deadline AS ts FROM notes WHERE deadline IS NOT NULL"
+    )
+    abstract fun plannedTimestamps(): Flow<List<String>>
 
     /**
      * Candidate rows for one search, built by `NoteCandidateQuery`. Raw because
