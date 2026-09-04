@@ -12,9 +12,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -23,8 +24,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
@@ -71,14 +72,18 @@ fun OrgTableView(
     val density = LocalDensity.current
     // Keyed on `density` too: ContentFontScale (the Settings § Notes font lever)
     // swaps LocalDensity's fontScale, which changes measured text widths.
+    //
+    // The cells are monospace (PlexMono), so the longest string by character
+    // count is the widest — measure only that one per column instead of every
+    // cell of every row (`cols` layouts, not `rows × cols`).
     val colWidths = remember(model, density) {
         (0 until model.columnCount).map { col ->
-            val headerPx = model.headerRows.maxOfOrNull {
-                measurer.measure(it[col], headerStyle).size.width
-            } ?: 0
-            val bodyPx = model.bodyRows.maxOfOrNull {
-                measurer.measure(it[col], bodyStyle).size.width
-            } ?: 0
+            val widestHeader = model.headerRows.maxOfOrNull { it[col].length } ?: 0
+            val widestBody = model.bodyRows.maxOfOrNull { it[col].length } ?: 0
+            val headerPx = model.headerRows.firstOrNull { it[col].length == widestHeader }
+                ?.let { measurer.measure(it[col], headerStyle).size.width } ?: 0
+            val bodyPx = model.bodyRows.firstOrNull { it[col].length == widestBody }
+                ?.let { measurer.measure(it[col], bodyStyle).size.width } ?: 0
             with(density) { maxOf(headerPx, bodyPx).toDp() }
                 .coerceIn(MIN_COL_WIDTH, MAX_COL_WIDTH) + CELL_PAD_H * 2
         }
@@ -86,9 +91,9 @@ fun OrgTableView(
     // Grid content width: every column plus a 1dp separator between columns.
     val gridWidth = colWidths.fold(0.dp) { acc, w -> acc + w } + (model.columnCount - 1).dp
 
-    val maxBodyHeight = (LocalConfiguration.current.screenHeightDp * MAX_BODY_HEIGHT_FRACTION).dp
+    val containerHeightPx = LocalWindowInfo.current.containerSize.height
+    val maxBodyHeight = with(density) { (containerHeightPx * MAX_BODY_HEIGHT_FRACTION).toDp() }
     val hScroll = rememberScrollState()
-    val vScroll = rememberScrollState()
 
     Column(
         modifier
@@ -108,14 +113,18 @@ fun OrgTableView(
             }
             if (model.bodyRows.isNotEmpty()) {
                 HorizontalDivider(color = c.line2)
-                // Body: scrolls vertically within the height cap.
-                Column(
+                // Body: only the visible rows are composed; scrolls vertically
+                // within the height cap. Shares `hScroll` via the parent Column.
+                LazyColumn(
                     Modifier
                         .heightIn(max = maxBodyHeight)
-                        .verticalScroll(vScroll),
+                        .width(gridWidth),
                 ) {
-                    model.bodyRows.forEachIndexed { i, row ->
-                        TableRow(row, colWidths, bodyStyle, Color.Transparent, c.line, divider = i < model.bodyRows.lastIndex)
+                    itemsIndexed(model.bodyRows) { i, row ->
+                        TableRow(
+                            row, colWidths, bodyStyle, Color.Transparent, c.line,
+                            divider = i < model.bodyRows.lastIndex,
+                        )
                     }
                 }
             }

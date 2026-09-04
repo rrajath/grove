@@ -108,6 +108,9 @@ re-uploads the APKs to the existing release instead of failing.
   changes. Expanding a folder, pinning a notebook, or changing a notebook colour
   used to make the Agenda tab rebuild in the background; it now only reacts to
   the eight settings it actually shows.
+- Large org tables in Read mode open without a stall. Only the visible rows are
+  now built (the body is a lazy list), and column widths are measured from one
+  cell per column instead of every cell in the table.
 
 ### Fixed
 - The search results list now snaps back to the top on every keystroke. It used
