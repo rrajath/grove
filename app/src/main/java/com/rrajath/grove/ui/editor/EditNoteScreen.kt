@@ -419,8 +419,20 @@ fun EditNoteScreen(
                         selectedIndex = 1,
                         // Switching to read mode never writes: read mode renders this
                         // buffer as-is (see PendingEdit), so the file changes only when
-                        // the user saves or the idle timer fires.
-                        onSelect = { if (it == 0) onSwitchToRead() },
+                        // the user saves or the idle timer fires. A blank heading still
+                        // blocks the switch outright, same as trySave() used to: read
+                        // mode has nothing to render for it, and for a just-created note
+                        // it's the only guard against leaving an empty "* " heading
+                        // behind (Read's own leave path has no blank-heading cleanup).
+                        onSelect = {
+                            if (it == 0) {
+                                if (viewModel.isCurrentHeadingBlank()) {
+                                    showEmptyHeadingAlert = true
+                                } else {
+                                    onSwitchToRead()
+                                }
+                            }
+                        },
                         modifier = Modifier.width(140.dp),
                     )
                 },
