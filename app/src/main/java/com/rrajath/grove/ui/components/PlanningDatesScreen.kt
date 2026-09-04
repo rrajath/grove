@@ -173,6 +173,13 @@ fun PlanningDatesScreen(
     val parse = remember(shorthand, today) { DateShorthandParser.parse(shorthand, today) }
     val parsedOk = parse as? ShorthandParse.Ok
 
+    // The shorthand field wears the colours of the field the line will land in,
+    // which an explicit "s:" / "d:" prefix can point away from the open section.
+    // Read straight off the raw text so a half-typed "d: fr" is already red.
+    val shorthandTarget = DateShorthandParser.targetPrefix(shorthand) ?: tab
+    val shorthandAccent =
+        if (shorthandTarget == PlanningKind.SCHEDULED) c.blue else c.red
+
     fun applyShorthand() {
         val sh = parsedOk?.value ?: return
         val kind = sh.target ?: tab
@@ -264,7 +271,7 @@ fun PlanningDatesScreen(
                     ShorthandBox(
                         value = shorthand,
                         onValueChange = { shorthand = it },
-                        accent = accent,
+                        accent = shorthandAccent,
                         canApply = parsedOk != null,
                         onApply = ::applyShorthand,
                     )
@@ -751,9 +758,12 @@ private fun PlanningSection(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
+            // "◷" is drawn much smaller inside its em box than "⚑" is, so the
+            // two glyphs only look the same size at different point sizes.
             Text(
                 if (isSched) "◷" else "⚑",
-                fontFamily = PlexSans, fontSize = 15.sp, color = accent,
+                fontFamily = PlexSans, fontSize = if (isSched) 21.sp else 15.sp,
+                color = accent,
             )
             Column(Modifier.weight(1f)) {
                 Text(

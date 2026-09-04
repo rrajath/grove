@@ -71,6 +71,20 @@ object DateShorthandParser {
         "sat" to DayOfWeek.SATURDAY,
     )
 
+    /**
+     * The `s:` / `d:` prefix on [raw], or null when there is none. Split out of
+     * [parse] so the UI can tint the shorthand field for its target even while
+     * the rest of the line is still half-typed and unparseable.
+     */
+    fun targetPrefix(raw: String): PlanningKind? {
+        val s = raw.trimStart().lowercase()
+        return when {
+            DEADLINE_PREFIX.containsMatchIn(s) -> PlanningKind.DEADLINE
+            SCHEDULED_PREFIX.containsMatchIn(s) -> PlanningKind.SCHEDULED
+            else -> null
+        }
+    }
+
     /** Returns null for blank input: the echo line stays hidden until you type. */
     fun parse(raw: String, today: LocalDate): ShorthandParse? {
         var s = raw.trim().lowercase()
