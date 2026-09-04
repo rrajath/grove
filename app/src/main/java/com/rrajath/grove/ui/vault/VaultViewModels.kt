@@ -39,6 +39,7 @@ import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -47,6 +48,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -128,8 +131,8 @@ sealed class NotebooksUiState {
         val allFoldersCollapsed: Boolean = true,
         /** The vault folder's own display name — the breadcrumb root in the drill-down view (1b). */
         val vaultDisplayName: String = "Notebooks",
-        val syncState: SyncState,
-        val lastSyncAt: Long?,
+        val syncState: SyncState = SyncState.Idle,
+        val lastSyncAt: Long? = null,
         /** Reminders waiting on POST_NOTIFICATIONS/exact-alarm access (permission banner). */
         val remindersPendingPermission: Int = 0,
         /** Settings § Notebooks toggle: draw the per-file icon tile on each row. */
@@ -214,15 +217,37 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
         )
     }.distinctUntilChanged()
 
+    // The built tree, rebuilt only when the tree inputs actually change — and on
+    // Dispatchers.Default, never the main thread. Keeping this out of the combine
+    // below matters: syncManager.state ticks once per pulled file, so folding the
+    // build into that combine re-grouped and re-sorted the whole vault once per
+    // file of every sync (and did it on viewModelScope's Main.immediate).
+    private val builtTree: Flow<NotebooksUiState.Loaded?> = treeInputs
+        .map { inputs -> inputs?.let { buildLoaded(it) } }
+        .flowOn(Dispatchers.Default)
+
     val state: StateFlow<NotebooksUiState> = combine(
-        treeInputs,
+        builtTree,
         app.syncManager.state,
         app.syncManager.lastResult,
         app.database.reminderDao().pendingCountFlow(System.currentTimeMillis()),
-    ) { inputs, syncState, lastResult, remindersPending ->
-        if (inputs == null) {
-            NotebooksUiState.NoVault
-        } else if (inputs.flattenFolders) {
+    ) { loaded, syncState, lastResult, remindersPending ->
+        // Per-tick work is one shallow copy: the lists inside are shared, not rebuilt.
+        loaded?.copy(
+            syncState = syncState,
+            lastSyncAt = lastResult?.completedAt,
+            remindersPendingPermission = remindersPending,
+        ) ?: NotebooksUiState.NoVault
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, NotebooksUiState.NoVault)
+
+    /**
+     * Group, sort and flatten one [TreeInputs] snapshot into the screen's state.
+     * The sync-derived fields ([NotebooksUiState.Loaded.syncState],
+     * `lastSyncAt`, `remindersPendingPermission`) are left at their defaults and
+     * filled in by the combine above.
+     */
+    private fun buildLoaded(inputs: TreeInputs): NotebooksUiState.Loaded {
+        return if (inputs.flattenFolders) {
             // Flat mode: no tree, no drill-down, no strip folders — every file is a
             // path-subtitled row. A pinned folder contributes its files to the strip
             // inline (flatPinnedRows), so its subtree is pulled from flatRows.
@@ -238,9 +263,6 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
                 folderColors = inputs.folderColors,
                 hasFolders = false,
                 vaultDisplayName = inputs.vaultDisplayName,
-                syncState = syncState,
-                lastSyncAt = lastResult?.completedAt,
-                remindersPendingPermission = remindersPending,
                 showFileIcons = inputs.showFileIcons,
                 sort = inputs.sort,
             )
@@ -252,8 +274,9 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
             val pinned = inputs.items.filter { it.isPinned }.sortedBy { it.pinnedIndex }
             // Folder nodes for the strip come from the full item list (a folder can
             // hold nothing but pinned files and still deserves a strip row).
+            val stripNodes = buildFolderNodes(inputs.items, inputs.folderColors, inputs.pinnedFolders)
             val pinnedFolderNodeList = pinnedFolderNodes(
-                inputs.items, inputs.folderColors, inputs.pinnedFolders,
+                inputs.items, inputs.folderColors, inputs.pinnedFolders, prebuiltNodes = stripNodes,
             )
             val pinnedFileByPath = pinned.associateBy { it.fileName }
             val pinnedFolderByDir = pinnedFolderNodeList.associateBy { it.dir }
@@ -266,12 +289,17 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
             }
             val pinnedPaths = pinned.mapTo(mutableSetOf()) { it.fileName }
             val treeItems = inputs.items.filterNot { it.fileName in pinnedPaths }
+            // Second (and last) node map: the tree and the strip's expand-in-place
+            // subtrees are built over treeItems, whose recursive counts must not
+            // include the pinned files pulled out above.
+            val treeNodes = buildFolderNodes(treeItems, inputs.folderColors, inputs.pinnedFolders)
             val pinnedFolderDirs = inputs.pinnedFolders.toSet()
             fun underPinnedFolder(dir: String) =
                 pinnedFolderDirs.any { p -> dir == p || dir.startsWith("$p/") }
             // A pinned folder's subtree is excluded from the tree (it lives only in
             // the strip), so gate the expand/collapse-all affordance on what's left.
-            val folderDirs = allFolderDirs(treeItems).filterNot { underPinnedFolder(it) }
+            // treeNodes' keys are exactly allFolderDirs(treeItems), by construction.
+            val folderDirs = treeNodes.keys.filterNot { underPinnedFolder(it) }
             // Expand-in-place for the strip: only an expanded pinned folder carries
             // its subtree rows (a large one drills to 1b instead and never expands).
             val pinnedFolderExpansions = pinnedFolderNodeList
@@ -280,6 +308,7 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
                     node.dir to pinnedFolderSubtreeRows(
                         treeItems, node.dir, inputs.expandedFolders,
                         inputs.folderColors, inputs.pinnedFolders, inputs.sort,
+                        prebuiltNodes = treeNodes,
                     )
                 }
             NotebooksUiState.Loaded(
@@ -288,6 +317,7 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
                 pinnedStrip = pinnedStrip,
                 rows = buildNotebookTree(
                     treeItems, inputs.expandedFolders, inputs.folderColors, inputs.pinnedFolders, inputs.sort,
+                    prebuiltNodes = treeNodes,
                 ),
                 pinnedFolders = pinnedFolderNodeList,
                 pinnedFolderExpansions = pinnedFolderExpansions,
@@ -296,14 +326,11 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
                 hasFolders = folderDirs.isNotEmpty(),
                 allFoldersCollapsed = folderDirs.none { it in inputs.expandedFolders },
                 vaultDisplayName = inputs.vaultDisplayName,
-                syncState = syncState,
-                lastSyncAt = lastResult?.completedAt,
-                remindersPendingPermission = remindersPending,
                 showFileIcons = inputs.showFileIcons,
                 sort = inputs.sort,
             )
         }
-    }.stateIn(viewModelScope, SharingStarted.Eagerly, NotebooksUiState.NoVault)
+    }
 
     init {
         // First open of a vault: expand every folder that recursively contains a
