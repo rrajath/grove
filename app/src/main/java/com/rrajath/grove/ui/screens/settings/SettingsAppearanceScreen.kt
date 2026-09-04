@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -21,9 +22,14 @@ import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.rrajath.grove.settings.FontSizePreference
 import com.rrajath.grove.settings.GroveSettings
 import com.rrajath.grove.settings.ThemePreference
+import com.rrajath.grove.ui.components.SegmentedControl
 import com.rrajath.grove.ui.components.ThemeDropdownPicker
+import com.rrajath.grove.ui.newbadge.MarkNewFeatureSeen
+import com.rrajath.grove.ui.newbadge.NewAnchors
+import com.rrajath.grove.ui.newbadge.NewDot
 import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
 
@@ -34,9 +40,13 @@ fun SettingsAppearanceScreen(
     onBack: () -> Unit,
     onSetTheme: (ThemePreference) -> Unit,
     onSetSyncAppIconWithTheme: (Boolean) -> Unit,
+    onSetAppFontSize: (FontSizePreference) -> Unit,
 ) {
     val c = MaterialTheme.grove
     SettingsPageScaffold(title = "Look and Feel", onBack = onBack) {
+        // Leaving this screen retires the "Text size" NEW dot from its whole
+        // trail (menu glyph, drawer, Settings hub row, the block itself).
+        MarkNewFeatureSeen(NewAnchors.SETTINGS_APPEARANCE_TEXT_SIZE)
         SettingsGroup {
             Column(Modifier.padding(horizontal = 15.dp, vertical = 10.dp)) {
                 Text(
@@ -57,6 +67,33 @@ fun SettingsAppearanceScreen(
                 theme = settings.theme,
                 onToggle = onSetSyncAppIconWithTheme,
             )
+            RowDivider()
+            Column(Modifier.padding(horizontal = 15.dp, vertical = 12.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Text(
+                        "Text size",
+                        fontFamily = PlexSans, fontWeight = FontWeight.Medium,
+                        fontSize = 14.5.sp, color = c.ink,
+                    )
+                    NewDot(NewAnchors.SETTINGS_APPEARANCE_TEXT_SIZE)
+                }
+                Text(
+                    "Applies across the whole app. Read and edit mode scale on top of this.",
+                    fontFamily = PlexSans, fontSize = 12.sp, color = c.ink3,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
+                SegmentedControl(
+                    options = listOf("Small", "Medium", "Large"),
+                    selectedIndex = settings.appFontSize.ordinal,
+                    onSelect = { onSetAppFontSize(FontSizePreference.entries[it]) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 10.dp),
+                )
+            }
         }
     }
 }

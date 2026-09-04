@@ -60,6 +60,9 @@ re-uploads the APKs to the existing release instead of failing.
 ## [Unreleased]
 
 ### Added
+- Settings § Look and Feel has a **Text size** lever (Small / Medium / Large) that
+  scales every piece of text in the app from one place. The read and edit mode
+  font-size levers still work and stack on top of it for note content.
 - Search now matches notebook **file names**, not just note text. A file whose
   name matches your query is listed first, above the content results, as a
   tappable row that opens its outline, even when nothing inside that file

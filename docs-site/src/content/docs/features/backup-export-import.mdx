@@ -19,7 +19,9 @@ Settings → Backup covers Grove's own configuration, not your notes. Your `.org
 
 ## Export
 
-Writes every configured preference to a single JSON file: theme selection, read/edit-mode font sizes, custom TODO keyword sets, default priority, capture templates, sync folder and mode, Agenda swipe-action bindings, reminder settings, sharing defaults, and any other Settings-page value.
+Writes every configured preference to a single JSON file: theme selection, app-wide text size, read/edit-mode font sizes, custom TODO keyword sets, default priority, capture templates, sync folder and mode, Agenda swipe-action bindings, reminder settings, sharing defaults, and any other Settings-page value.
+
+The export carries a schema version (currently 3; `appFontSize` was added in v3). Older exports still import cleanly, with any keys they predate filling in from their defaults.
 
 ## Import
 

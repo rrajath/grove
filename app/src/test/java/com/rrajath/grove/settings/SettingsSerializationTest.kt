@@ -11,6 +11,7 @@ class SettingsSerializationTest {
     private val sample = GroveSettings(
         theme = ThemePreference.DARK,
         syncAppIconWithTheme = true,
+        appFontSize = FontSizePreference.LARGE,
         readModeFontSize = FontSizePreference.LARGE,
         editModeFontSize = FontSizePreference.SMALL,
         defaultNoteOpenMode = NoteOpenMode.EDIT,
@@ -74,6 +75,7 @@ class SettingsSerializationTest {
 
         assertEquals(sample.theme, restored.theme)
         assertEquals(sample.syncAppIconWithTheme, restored.syncAppIconWithTheme)
+        assertEquals(sample.appFontSize, restored.appFontSize)
         assertEquals(sample.readModeFontSize, restored.readModeFontSize)
         assertEquals(sample.editModeFontSize, restored.editModeFontSize)
         assertEquals(sample.defaultNoteOpenMode, restored.defaultNoteOpenMode)
@@ -190,6 +192,13 @@ class SettingsSerializationTest {
         assertEquals(AgendaSwipeAction.MARK_DONE, restored.agendaSwipeLeftAction)
         assertEquals(AgendaSwipeAction.SET_SCHEDULED, restored.agendaSwipeRightAction)
         assertEquals(ReminderLeadTime.AT_TIME, restored.reminderLeadTime)
+    }
+
+    @Test
+    fun `a pre-v3 export without appFontSize imports as MEDIUM`() {
+        val json = """{ "readModeFontSize": "large" }"""
+        val restored = SettingsSerialization.import(json, GroveSettings())
+        assertEquals(FontSizePreference.MEDIUM, restored.appFontSize)
     }
 
     @Test

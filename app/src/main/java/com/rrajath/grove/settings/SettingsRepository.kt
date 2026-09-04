@@ -55,6 +55,13 @@ data class GroveSettings(
     val theme: ThemePreference = ThemePreference.LIGHT,
     /** When true, the launcher icon and drawer logo follow [theme]; otherwise they stay the default light mark. */
     val syncAppIconWithTheme: Boolean = false,
+    /**
+     * App-wide text-size baseline (Settings § Look and Feel). Scales every `sp`-sized
+     * text in the app from a single lever. [readModeFontSize] / [editModeFontSize]
+     * compound on top of this for note content only, so App=Large + Read=Large ≈
+     * 1.12 × 1.12.
+     */
+    val appFontSize: FontSizePreference = FontSizePreference.MEDIUM,
     /** Read mode: scales the rendered note (Settings § Notes). App chrome is unaffected. */
     val readModeFontSize: FontSizePreference = FontSizePreference.MEDIUM,
     /** Edit mode: scales the editor text field (Settings § Notes). App chrome is unaffected. */
@@ -204,6 +211,7 @@ class SettingsRepository(private val context: Context, private val scope: Corout
          * first time; every write purges it.
          */
         val legacyFontSize = stringPreferencesKey("font_size")
+        val appFontSize = stringPreferencesKey("app_font_size")
         val readModeFontSize = stringPreferencesKey("read_mode_font_size")
         val editModeFontSize = stringPreferencesKey("edit_mode_font_size")
         val noteOpenMode = stringPreferencesKey("note_open_mode")
@@ -282,6 +290,7 @@ class SettingsRepository(private val context: Context, private val scope: Corout
         GroveSettings(
             theme = ThemePreference.fromStorage(prefs[Keys.theme]),
             syncAppIconWithTheme = prefs[Keys.syncAppIconWithTheme] ?: false,
+            appFontSize = FontSizePreference.fromStorage(prefs[Keys.appFontSize]),
             readModeFontSize = FontSizePreference.fromStorage(
                 prefs[Keys.readModeFontSize] ?: prefs[Keys.legacyFontSize]
             ),
@@ -410,6 +419,7 @@ class SettingsRepository(private val context: Context, private val scope: Corout
         context.settingsDataStore.edit { p ->
             p[Keys.theme] = s.theme.storageKey
             p[Keys.syncAppIconWithTheme] = s.syncAppIconWithTheme
+            p[Keys.appFontSize] = s.appFontSize.storageKey
             p[Keys.readModeFontSize] = s.readModeFontSize.storageKey
             p[Keys.editModeFontSize] = s.editModeFontSize.storageKey
             p.remove(Keys.legacyFontSize)
@@ -467,6 +477,10 @@ class SettingsRepository(private val context: Context, private val scope: Corout
 
     suspend fun setSyncAppIconWithTheme(enabled: Boolean) {
         context.settingsDataStore.edit { it[Keys.syncAppIconWithTheme] = enabled }
+    }
+
+    suspend fun setAppFontSize(fontSize: FontSizePreference) {
+        context.settingsDataStore.edit { it[Keys.appFontSize] = fontSize.storageKey }
     }
 
     suspend fun setReadModeFontSize(fontSize: FontSizePreference) {

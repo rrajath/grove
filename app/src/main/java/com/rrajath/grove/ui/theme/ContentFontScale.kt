@@ -8,9 +8,18 @@ import com.rrajath.grove.settings.FontSizePreference
 
 /**
  * Scales every `sp`-sized text inside [content] by [fontSize]'s scale, leaving the
- * app-wide typography untouched. This is what gives read mode and edit mode their
- * own independent font-size levers (Settings § Notes) while the rest of the app
- * chrome stays at a fixed size.
+ * app-wide typography untouched.
+ *
+ * Used in two nesting places:
+ * - at the composition root ([com.rrajath.grove.ui.GroveApp] / `RescheduleActivity`),
+ *   driven by [com.rrajath.grove.settings.GroveSettings.appFontSize] — the app-wide
+ *   "Text size" baseline (Settings § Look and Feel).
+ * - around read mode and edit mode note content, driven by the per-mode levers
+ *   (Settings § Notes).
+ *
+ * The two compound: a `LocalDensity` `fontScale` override multiplies, so App=Large
+ * nested under Read=Large gives ≈ 1.12 × 1.12. App chrome outside the note surfaces
+ * only sees the baseline.
  *
  * It works by overriding [LocalDensity] with a proportionally larger/smaller
  * `fontScale`: `TextUnit.sp` → px conversion multiplies by `fontScale`, so all

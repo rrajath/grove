@@ -32,6 +32,12 @@ object NewAnchors {
     const val DRAWER_SETTINGS = "drawer.settings"
     const val SETTINGS_TIPS = "settings.tips"
 
+    /** The Settings hub row leading to the Look and Feel page. */
+    const val SETTINGS_APPEARANCE = "settings.appearance"
+
+    /** The app-wide "Text size" block inside Settings § Look and Feel. */
+    const val SETTINGS_APPEARANCE_TEXT_SIZE = "settings.appearance.textSize"
+
     /** The Settings hub row leading to the Notes page. */
     const val SETTINGS_NOTES = "settings.notes"
 
@@ -79,6 +85,21 @@ val NEW_FEATURES: List<NewFeature> = listOf(
             NewAnchors.SETTINGS_NOTES_NEW_NOTE_CURSOR,
         ),
         destination = NewAnchors.SETTINGS_NOTES_NEW_NOTE_CURSOR,
+    ),
+    NewFeature(
+        // Settings § Look and Feel gained an app-wide "Text size" lever
+        // (Small/Medium/Large) that scales every text in the app.
+        // `since` is the versionCode of the release that ships it — bump it to
+        // match `gradle.properties` versionName when cutting the release.
+        id = "app-text-size",
+        since = 10400,
+        anchors = setOf(
+            NewAnchors.TOPBAR_MENU,
+            NewAnchors.DRAWER_SETTINGS,
+            NewAnchors.SETTINGS_APPEARANCE,
+            NewAnchors.SETTINGS_APPEARANCE_TEXT_SIZE,
+        ),
+        destination = NewAnchors.SETTINGS_APPEARANCE_TEXT_SIZE,
     ),
     NewFeature(
         // Read-mode checkboxes now toggle done on tap and in-progress on

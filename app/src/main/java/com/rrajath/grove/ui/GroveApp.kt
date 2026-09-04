@@ -73,6 +73,7 @@ import com.rrajath.grove.ui.screens.settings.SettingsSyncScreen
 import com.rrajath.grove.ui.screens.settings.SettingsTipsScreen
 import com.rrajath.grove.ui.screens.SyncLogScreen
 import com.rrajath.grove.ui.vault.NoteRef
+import com.rrajath.grove.ui.theme.ContentFontScale
 import com.rrajath.grove.ui.theme.GroveTheme
 import com.rrajath.grove.ui.theme.grove
 import com.rrajath.grove.vault.matchOpenedFileToNotebook
@@ -122,7 +123,11 @@ fun GroveApp(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
     GroveTheme(theme = loaded.theme) {
-        GroveNavigation(loaded, viewModel, deepLinkIntent, onDeepLinkConsumed)
+        // App-wide text-size baseline: scales every sp-sized text under one lever.
+        // The per-mode read/edit levers nest inside this and compound on top.
+        ContentFontScale(loaded.appFontSize) {
+            GroveNavigation(loaded, viewModel, deepLinkIntent, onDeepLinkConsumed)
+        }
     }
 }
 
@@ -590,6 +595,7 @@ private fun GroveNavigation(
                     onBack = { navController.popBackStack() },
                     onSetTheme = viewModel::setTheme,
                     onSetSyncAppIconWithTheme = viewModel::setSyncAppIconWithTheme,
+                    onSetAppFontSize = viewModel::setAppFontSize,
                 )
             }
             composable(Routes.SETTINGS_NOTEBOOKS) {

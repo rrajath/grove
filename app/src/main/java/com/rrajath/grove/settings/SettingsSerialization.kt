@@ -44,6 +44,7 @@ data class SettingsExport(
      */
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     val fontSize: String? = null,
+    val appFontSize: String = FontSizePreference.MEDIUM.storageKey,
     val readModeFontSize: String? = null,
     val editModeFontSize: String? = null,
     val defaultNoteOpenMode: String = NoteOpenMode.READ.storageKey,
@@ -103,6 +104,7 @@ data class SettingsExport(
     fun applyTo(base: GroveSettings): GroveSettings = base.copy(
         theme = ThemePreference.fromStorage(theme),
         syncAppIconWithTheme = syncAppIconWithTheme,
+        appFontSize = FontSizePreference.fromStorage(appFontSize),
         // A pre-split export carries only `fontSize`; seed both new fields from it.
         readModeFontSize = FontSizePreference.fromStorage(readModeFontSize ?: fontSize),
         editModeFontSize = FontSizePreference.fromStorage(editModeFontSize ?: fontSize),
@@ -159,11 +161,14 @@ data class SettingsExport(
     companion object {
         // v2: the single `fontSize` lever was split into `readModeFontSize` +
         // `editModeFontSize`. v1 exports still import (fontSize seeds both).
-        const val CURRENT_VERSION = 2
+        // v3: added the app-wide `appFontSize` baseline. Additive — older exports
+        // omit it and import as MEDIUM.
+        const val CURRENT_VERSION = 3
 
         fun fromSettings(s: GroveSettings): SettingsExport = SettingsExport(
             theme = s.theme.storageKey,
             syncAppIconWithTheme = s.syncAppIconWithTheme,
+            appFontSize = s.appFontSize.storageKey,
             readModeFontSize = s.readModeFontSize.storageKey,
             editModeFontSize = s.editModeFontSize.storageKey,
             defaultNoteOpenMode = s.defaultNoteOpenMode.storageKey,

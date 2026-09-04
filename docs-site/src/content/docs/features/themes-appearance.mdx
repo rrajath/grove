@@ -30,9 +30,11 @@ There's no "follow system" auto option; theme selection is always explicit. Each
 
 The **Sync App Icon with Theme** toggle swaps the app's launcher icon (and the brand mark in the nav drawer) to match the active theme, using Android's `activity-alias` mechanism. Because of how icon aliasing works on Android, this requires the app to background and restart to take effect; it won't update the icon instantly while Grove is in the foreground. Note: the notification-shade icon can't follow the theme on Android 16+, a platform limitation rather than something Grove controls.
 
-## Font size
+## Text size
 
-Font size is a note-content setting, not an appearance one, so it lives on the **Notes** page: read mode and edit mode scale independently, and the rest of the app stays fixed. See [Notes Behavior → Font size](/features/notes-behavior#font-size).
+**Text size** (Small / Medium / Large, Medium is the default) is the app-wide baseline: it scales every piece of text in Grove from one lever, including menus, the drawer, the notebooks list, the outline, bottom sheets, dialogs, and onboarding.
+
+The read mode and edit mode [font-size levers](/features/notes-behavior#font-size) on the Notes page compound on top of this for note content only. For example, Text size **Large** plus read mode **Large** stacks both scale factors, so the rendered note grows more than either lever alone. Home-screen widgets are not affected.
 
 ## Related
 
