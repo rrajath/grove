@@ -60,90 +60,74 @@ re-uploads the APKs to the existing release instead of failing.
 ## [Unreleased]
 
 ### Added
-- Settings § Look and Feel has a **Text size** lever (Small / Medium / Large) that
-  scales every piece of text in the app from one place. The read and edit mode
-  font-size levers still work and stack on top of it for note content.
-- Search now matches notebook **file names**, not just note text. A file whose
-  name matches your query is listed first, above the content results, as a
-  tappable row that opens its outline, even when nothing inside that file
-  matched.
-- The read-mode metadata sheet now has a **★ Favorite** action next to Add note
-  and Refile; it pins the note to the drawer's Favorites and toggles back off on
-  a second tap. Works on heading-less notes too, without adding a heading.
-- Standalone `#+` keyword lines in a note body (`#+CAPTION:`, `#+NAME:`,
-  `#+ATTR_HTML:`, and the like) now render as their own collapsible block in
-  Read mode instead of running into the surrounding text. Several consecutive
-  keyword lines fold into one block labelled "KEYWORDS"; a lone line gets a
-  block named after the keyword. A blank line separates one run from the next.
-  Double-tapping a run opens the scoped editor, the same as for other blocks.
-- Org tables now render as a real grid in Read mode, with the header row bolded
-  and pinned while the body scrolls. Wide tables scroll sideways with the header
-  tracking the columns. The editor still shows the raw `| a | b |` text.
-- Settings § Notes has a **New note cursor** lever: keep the cursor on the body
-  line (the default) or place it in the heading, right after the `* `, so a new
-  note opens ready for you to type its title.
+- Settings § Look and Feel has a **Text size** lever (Small / Medium / Large)
+  that scales all text in the app. The read and edit mode font-size levers stack
+  on top of it for note content.
+- Search now matches notebook **file names**, not just note text. A name match is
+  listed first, above the content results, as a tappable row that opens its
+  outline.
+- The read-mode metadata sheet has a **★ Favorite** action that pins the note to
+  the drawer's Favorites; tap again to unpin. Works on heading-less notes too.
+- Standalone `#+` keyword lines in a body (`#+CAPTION:`, `#+NAME:`, and the like)
+  now render as their own collapsible block in Read mode. Consecutive lines fold
+  into one "KEYWORDS" block; a lone line is named after its keyword.
+  Double-tapping opens the scoped editor.
+- Org tables render as a real grid in Read mode: header row bolded and pinned
+  while the body scrolls, wide tables scrolling sideways. The editor still shows
+  the raw `| a | b |` text.
+- Settings § Notes has a **New note cursor** lever: place the cursor on the body
+  line (default) or in the heading after the `* `, so a new note opens ready for
+  its title.
 
 ### Changed
-- Checklist boxes in Read mode now respond to two gestures instead of a tap
-  cycle. Tap toggles a box done (`[ ]` or `[-]` becomes `[X]`, `[X]` goes back to
-  `[ ]`); tap and hold, with a short buzz, marks it in-progress `[-]` and holding
-  again clears it. The **Checklist states** setting is gone; both marks are
-  always available.
+- Checklist boxes in Read mode now use two gestures instead of a tap cycle. Tap
+  toggles done (`[ ]`/`[-]` ↔ `[X]`); tap and hold marks in-progress `[-]` and
+  holding again clears it. The **Checklist states** setting is gone; both marks
+  are always available.
 - The formatting toolbar's link button now uses a URL you already copied. Select
-  some text, tap **[[]]**, and if the clipboard holds a link it becomes the
-  target with your text as the label, nothing to type or trim. With nothing
-  URL-shaped on the clipboard it still drops the `https://` scaffold, and you can
-  paste your full URL straight over it. The clipboard is only read when text is
-  selected, so the paste toast stays out of the way otherwise.
-- The metadata sheet's tag list shows a small "tap an existing tag to remove it"
-  hint whenever at least one tag is set.
-- The Notebooks list stays responsive during a sync. Its folder tree used to be
-  regrouped and re-sorted on the main thread once per file pulled; it is now
-  built off the main thread and only when the vault or your settings actually
-  change. Folder rows also skip redrawing when nothing about them changed. The
-  bigger the vault, the more noticeable this is.
-- Settings are now read once and shared across the app. Each preference write
-  used to rebuild the whole settings object separately for every screen and
-  background job that observes it (about 40 of them); now it is built once and
-  handed out. Most noticeable while expanding and collapsing folders in the
-  Notebooks tree, which writes a preference on every tap.
+  text, tap **[[]]**, and a link on the clipboard becomes the target with your
+  text as the label. Otherwise it drops the `https://` scaffold as before. The
+  clipboard is only read when text is selected.
+- The metadata sheet's tag list shows a "tap an existing tag to remove it" hint
+  whenever at least one tag is set.
+- The Notebooks list stays responsive during a sync. The folder tree is now
+  regrouped and re-sorted off the main thread, and only when the vault or your
+  settings change. Folder rows also skip redrawing when unchanged. More
+  noticeable in larger vaults.
+- Settings are now parsed once and shared across the app instead of being rebuilt
+  separately for every screen and background job that observes them (~40). Most
+  noticeable when expanding and collapsing folders in the Notebooks tree.
 - The Agenda no longer re-buckets its whole list when an unrelated preference
-  changes. Expanding a folder, pinning a notebook, or changing a notebook colour
-  used to make the Agenda tab rebuild in the background; it now only reacts to
-  the eight settings it actually shows.
-- Large org tables in Read mode open without a stall. Only the visible rows are
-  now built (the body is a lazy list), and column widths are measured from one
-  cell per column instead of every cell in the table.
-- The Agenda, the ledger widget, and the planning-dates calendar no longer load
-  the full text of every scheduled note just to place it on a date. They read a
-  trimmed set of columns instead, which matters most inside the widget, where
-  memory is tightest.
+  changes. It now reacts only to the eight settings it actually shows, not to
+  things like folder expansion or notebook colour.
+- Large org tables in Read mode open without a stall. The body is now a lazy list
+  (only visible rows are built), and column widths are measured from one cell per
+  column instead of every cell.
+- The Agenda, the ledger widget, and the planning-dates calendar now read a
+  trimmed set of columns instead of the full text of every scheduled note.
+  Matters most inside the widget, where memory is tightest.
 
 ### Fixed
-- The search results list now snaps back to the top on every keystroke. It used
-  to keep the previous scroll offset, so refining a query while scrolled down
-  left you looking at the middle or bottom of the new, shorter result set.
-- Read mode now keeps every line break inside a paragraph. A single newline you
-  typed in edit mode used to be collapsed into a space, joining the lines into
-  one block of text; now each line stays on its own line. A blank line still
-  starts a new paragraph.
-- The metadata sheet's tag search/create suggestion list now opens above the
-  text field instead of below it, so it no longer sits under the on-screen
-  keyboard while you type. It flips back to opening downward only when the
-  field is too close to the top of the screen.
+- The search results list now snaps back to the top on every keystroke, instead
+  of keeping the previous scroll offset over a new, shorter result set.
+- Read mode now keeps every line break inside a paragraph. A single newline used
+  to collapse into a space; now each line stays on its own line. A blank line
+  still starts a new paragraph.
+- The metadata sheet's tag suggestion list now opens above the text field, so it
+  no longer sits under the keyboard. It flips back downward only when the field
+  is too close to the top of the screen.
 - Capture-template monogram tiles now carry a dashed outline and a small "+"
-  badge on the bottom-right corner, matching the design prototype. The letter
-  and colour are unchanged. Applies in the quick-capture sheet, the Capture
-  Templates settings list, the template editor, and the icon-colour dialog.
+  badge, matching the design prototype. Applies in the quick-capture sheet, the
+  Capture Templates settings list, the template editor, and the icon-colour
+  dialog.
 - The home-screen Capture widget now draws the Grove asterisk from a vector
-  instead of a "✱" text character, so the mark shows on devices whose system
-  font lacks that glyph (it was rendering blank or as a missing-glyph box).
+  instead of a "✱" text character, so the mark shows on devices whose system font
+  lacks that glyph.
 - Fixed a blank white screen when opening the Capture widget and pressing back
-  twice in quick succession. The second press no longer pops past the start of
-  the back stack.
-- Updated Jetpack Glance to 1.2.0, which fixes a bug where the Capture widget
-  could redraw itself as the Agenda widget (or vice versa) after the widget or
-  the in-app Agenda had been used.
+  twice quickly. The second press no longer pops past the start of the back
+  stack.
+- Updated Jetpack Glance to 1.2.0, which fixes the Capture widget redrawing
+  itself as the Agenda widget (or vice versa) after either had been used.
 
 ## [1.3.0] - 2026-09-03
 
