@@ -170,6 +170,36 @@ class BlockParserTest {
     }
 
     @Test
+    fun `wrapped continuation lines join into the item's text`() {
+        val blocks = BlockParser.parse(
+            listOf(
+                "  - A short line",
+                "  - Multi-line bullets and list elements appear",
+                "    as a new paragraph on a new line",
+                "    instead of staying part of the bullet.",
+                "  - Another short line",
+            )
+        )
+        val list = blocks[0] as OrgBlock.ListBlock
+        assertEquals(3, list.items.size)
+        assertEquals(
+            "Multi-line bullets and list elements appear as a new paragraph on a new line instead of staying part of the bullet.",
+            list.items[1].text,
+        )
+        assertEquals("Another short line", list.items[2].text)
+    }
+
+    @Test
+    fun `a blank line still ends the list before a continuation-looking line`() {
+        val blocks = BlockParser.parse(
+            listOf("  - item", "", "    stray indented text"),
+        )
+        assertEquals(2, blocks.size)
+        assertEquals("item", (blocks[0] as OrgBlock.ListBlock).items[0].text)
+        assertEquals(OrgBlock.Paragraph::class, blocks[1]::class)
+    }
+
+    @Test
     fun `tables group into one block`() {
         val blocks = BlockParser.parse(listOf("| a | b |", "|---|---|", "| 1 | 2 |"))
         assertEquals(1, blocks.size)

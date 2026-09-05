@@ -76,6 +76,24 @@ object BlockParser {
     private fun keywordName(line: String): String =
         Regex("""^\s*#\+([A-Za-z][\w-]*):""").find(line)?.groupValues?.get(1)?.uppercase() ?: "KEYWORD"
 
+    /**
+     * True if [line] is a wrapped continuation of a list item's text — e.g. a
+     * long bullet that Emacs `fill-paragraph`/`M-q` folded onto further physical
+     * lines. Org just requires the continuation to be indented past the item's
+     * marker; it carries no marker of its own. A blank line, or a line that
+     * starts some other block (table row, keyword, `#+BEGIN`), ends the item
+     * instead of continuing it.
+     */
+    private fun isListContinuation(line: String, itemIndent: Int): Boolean {
+        if (line.isBlank()) return false
+        val indent = line.length - line.trimStart().length
+        if (indent <= itemIndent) return false
+        val trimmed = line.trimStart()
+        if (trimmed.startsWith("|")) return false
+        if (KEYWORD.matches(line) || BEGIN.containsMatchIn(line) || END.matches(line)) return false
+        return true
+    }
+
     fun parse(bodyLines: List<String>): List<OrgBlock> {
         val blocks = mutableListOf<OrgBlock>()
         var i = 0
@@ -173,18 +191,27 @@ object BlockParser {
                     while (i < bodyLines.size) {
                         val m = UNORDERED.matchEntire(bodyLines[i])
                             ?: ORDERED.matchEntire(bodyLines[i])
-                            ?: break
-                        val ordered = ORDERED.matches(bodyLines[i])
-                        items.add(
-                            OrgBlock.ListItem(
-                                indent = m.groupValues[1].length,
-                                ordered = ordered,
-                                text = m.groupValues[3],
-                                checkbox = m.groupValues[2].firstOrNull(),
-                                line = i,
+                        if (m != null) {
+                            val ordered = ORDERED.matches(bodyLines[i])
+                            items.add(
+                                OrgBlock.ListItem(
+                                    indent = m.groupValues[1].length,
+                                    ordered = ordered,
+                                    text = m.groupValues[3],
+                                    checkbox = m.groupValues[2].firstOrNull(),
+                                    line = i,
+                                )
                             )
-                        )
-                        i++
+                            i++
+                            continue
+                        }
+                        val last = items.lastOrNull()
+                        if (last != null && isListContinuation(bodyLines[i], last.indent)) {
+                            items[items.size - 1] = last.copy(text = "${last.text} ${bodyLines[i].trim()}")
+                            i++
+                            continue
+                        }
+                        break
                     }
                     blocks.add(OrgBlock.ListBlock(items))
                 }

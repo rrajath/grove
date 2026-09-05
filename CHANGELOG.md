@@ -82,6 +82,9 @@ re-uploads the APKs to the existing release instead of failing.
   template id) now closes the app instead of revealing the Notebooks screen
   behind it, matching the fix already in place for `grove://capture/<id>`
   links.
+- Read mode no longer splits a wrapped list item (e.g. after Emacs
+  `fill-paragraph`/`M-q`) into a bullet plus a stray paragraph; its
+  continuation lines now render as part of the same bullet.
 
 ## [1.4.0] - 2026-09-04
 
