@@ -140,4 +140,53 @@ class LedgerBucketsTest {
         assertEquals(20, visible.size)
         assertEquals(0, hidden)
     }
+
+    @Test
+    fun `overdue days cap of zero is unbounded, same as today's default`() {
+        val notes = listOf(note("Very old", scheduled = "<2025-01-01 Wed>"))
+        val sections = LedgerBuckets.build(notes, today, windowDays = 14, settings = settings.copy(agendaWidgetOverdueDaysCap = 0))
+        assertEquals(listOf("Very old"), sections.first().rows.map { it.title })
+    }
+
+    @Test
+    fun `overdue days cap hides an item older than the cap`() {
+        // "Ancient" is ~161 days late as of `today`; a 30-day cap must drop it,
+        // while a same-day item stays.
+        val notes = listOf(
+            note("Ancient", scheduled = "<2025-01-01 Wed>"),
+            note("Recent", scheduled = today.minusDays(5).let { "<$it Wed>" }),
+        )
+        val sections = LedgerBuckets.build(notes, today, windowDays = 14, settings = settings.copy(agendaWidgetOverdueDaysCap = 30))
+        assertEquals(listOf("Recent"), sections.first().rows.map { it.title })
+    }
+
+    @Test
+    fun `overdue days cap keeps an item exactly at the cutoff`() {
+        val notes = listOf(note("At cutoff", scheduled = today.minusDays(10).let { "<$it Wed>" }))
+        val sections = LedgerBuckets.build(notes, today, windowDays = 14, settings = settings.copy(agendaWidgetOverdueDaysCap = 10))
+        assertEquals(listOf("At cutoff"), sections.first().rows.map { it.title })
+    }
+
+    @Test
+    fun `widget-only tags, filename, and priority toggles are independent of the in-app Agenda screen's`() {
+        val note = note("Task", scheduled = "<2025-06-11 Wed>", priority = "A", fileName = "Work/Projects/notes.org")
+        val allOn = settings.copy(
+            agendaWidgetShowTags = true, agendaWidgetShowFileName = true, agendaWidgetShowPriority = true,
+            agendaShowTags = false, agendaShowFile = false,
+        )
+        val row = LedgerBuckets.build(listOf(note), today, windowDays = 14, settings = allOn).first().rows.first()
+        assertEquals("A", row.priority)
+        assertTrue(row.meta.any { it.text == "W/P/notes.org" })
+
+        val allOff = settings.copy(agendaWidgetShowTags = false, agendaWidgetShowFileName = false, agendaWidgetShowPriority = false)
+        val rowOff = LedgerBuckets.build(listOf(note), today, windowDays = 14, settings = allOff).first().rows.first()
+        assertEquals(null, rowOff.priority)
+        assertTrue(rowOff.meta.none { it.text.contains("notes.org") })
+    }
+
+    @Test
+    fun `contractFileName collapses nested folders to their first letter, case preserved`() {
+        assertEquals("W/P/meeting-notes.org", LedgerBuckets.contractFileName("Work/Projects/meeting-notes.org"))
+        assertEquals("notes.org", LedgerBuckets.contractFileName("notes.org"))
+    }
 }

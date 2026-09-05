@@ -95,6 +95,11 @@ data class SettingsExport(
     val agendaShowFile: Boolean = false,
     val agendaWidgetTransparency: Float = 0f,
     val agendaWidgetDaysAhead: Int = GroveSettings.DEFAULT_AGENDA_WIDGET_DAYS_AHEAD,
+    val agendaWidgetShowFileName: Boolean = false,
+    val agendaWidgetShowTags: Boolean = true,
+    val agendaWidgetShowPriority: Boolean = true,
+    val agendaWidgetOverdueDaysCap: Int = 0,
+    val agendaWidgetFontSize: String = FontSizePreference.MEDIUM.storageKey,
     val autoArchiveDoneItems: Boolean = false,
     val autoArchiveFile: String? = null,
     val autoArchiveHeadingPath: String = "",
@@ -153,6 +158,11 @@ data class SettingsExport(
         agendaShowFile = agendaShowFile,
         agendaWidgetTransparency = agendaWidgetTransparency.coerceIn(0f, 1f),
         agendaWidgetDaysAhead = agendaWidgetDaysAhead.coerceAtLeast(2),
+        agendaWidgetShowFileName = agendaWidgetShowFileName,
+        agendaWidgetShowTags = agendaWidgetShowTags,
+        agendaWidgetShowPriority = agendaWidgetShowPriority,
+        agendaWidgetOverdueDaysCap = agendaWidgetOverdueDaysCap.coerceAtLeast(0),
+        agendaWidgetFontSize = FontSizePreference.fromStorage(agendaWidgetFontSize),
         autoArchiveDoneItems = autoArchiveDoneItems,
         autoArchiveFile = autoArchiveFile,
         autoArchiveHeadingPath = autoArchiveHeadingPath,
@@ -165,7 +175,10 @@ data class SettingsExport(
         // `editModeFontSize`. v1 exports still import (fontSize seeds both).
         // v3: added the app-wide `appFontSize` baseline. Additive — older exports
         // omit it and import as MEDIUM.
-        const val CURRENT_VERSION = 3
+        // v4: added the widget-only agendaWidgetShow*/agendaWidgetOverdueDaysCap/
+        // agendaWidgetFontSize levers. Additive — older exports omit them and
+        // import at their defaults (mirroring today's widget behavior).
+        const val CURRENT_VERSION = 4
 
         fun fromSettings(s: GroveSettings): SettingsExport = SettingsExport(
             theme = s.theme.storageKey,
@@ -214,6 +227,11 @@ data class SettingsExport(
             agendaShowFile = s.agendaShowFile,
             agendaWidgetTransparency = s.agendaWidgetTransparency,
             agendaWidgetDaysAhead = s.agendaWidgetDaysAhead,
+            agendaWidgetShowFileName = s.agendaWidgetShowFileName,
+            agendaWidgetShowTags = s.agendaWidgetShowTags,
+            agendaWidgetShowPriority = s.agendaWidgetShowPriority,
+            agendaWidgetOverdueDaysCap = s.agendaWidgetOverdueDaysCap,
+            agendaWidgetFontSize = s.agendaWidgetFontSize.storageKey,
             autoArchiveDoneItems = s.autoArchiveDoneItems,
             autoArchiveFile = s.autoArchiveFile,
             autoArchiveHeadingPath = s.autoArchiveHeadingPath,

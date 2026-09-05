@@ -323,6 +323,21 @@ class AppViewModel(private val app: GroveApplication) : ViewModel() {
     fun setAgendaWidgetDaysAhead(days: Int) =
         viewModelScope.launch { settingsRepository.setAgendaWidgetDaysAhead(days) }
 
+    fun setAgendaWidgetShowFileName(show: Boolean) =
+        viewModelScope.launch { settingsRepository.setAgendaWidgetShowFileName(show) }
+
+    fun setAgendaWidgetShowTags(show: Boolean) =
+        viewModelScope.launch { settingsRepository.setAgendaWidgetShowTags(show) }
+
+    fun setAgendaWidgetShowPriority(show: Boolean) =
+        viewModelScope.launch { settingsRepository.setAgendaWidgetShowPriority(show) }
+
+    fun setAgendaWidgetOverdueDaysCap(days: Int) =
+        viewModelScope.launch { settingsRepository.setAgendaWidgetOverdueDaysCap(days) }
+
+    fun setAgendaWidgetFontSize(fontSize: FontSizePreference) =
+        viewModelScope.launch { settingsRepository.setAgendaWidgetFontSize(fontSize) }
+
     /** Count of reminders waiting on POST_NOTIFICATIONS/exact-alarm access (Settings › Reminders banner). */
     val reminderPendingCount: StateFlow<Int> = app.database.reminderDao().pendingCountFlow(System.currentTimeMillis())
         .stateIn(viewModelScope, SharingStarted.Eagerly, 0)

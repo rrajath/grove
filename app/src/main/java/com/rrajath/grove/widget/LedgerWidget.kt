@@ -140,8 +140,9 @@ class LedgerWidget : GlanceAppWidget() {
             val totalCount = sections.sumOf { it.count }
             val iconRes = AppIconManager.mipmapRes(settings.syncAppIconWithTheme, settings.theme)
             val backgroundColor = colors.surface.copy(alpha = 1f - settings.agendaWidgetTransparency)
+            val fontScale = settings.agendaWidgetFontSize.scale
 
-            LedgerContent(context, colors, backgroundColor, sections, todayCount, totalCount, windowDays, iconRes)
+            LedgerContent(context, colors, backgroundColor, sections, todayCount, totalCount, windowDays, iconRes, fontScale)
         }
     }
 }
@@ -160,6 +161,7 @@ private fun LedgerContent(
     totalCount: Int,
     windowDays: Int,
     iconRes: Int,
+    fontScale: Float,
 ) {
     Column(
         modifier = GlanceModifier
@@ -167,7 +169,7 @@ private fun LedgerContent(
             .cornerRadius(22.dp)
             .background(ColorProvider(backgroundColor)),
     ) {
-        HeaderRow(context, colors, todayCount, totalCount, windowDays, iconRes)
+        HeaderRow(context, colors, todayCount, totalCount, windowDays, iconRes, fontScale)
         if (sections.isEmpty()) {
             Box(
                 modifier = GlanceModifier.fillMaxSize().padding(24.dp),
@@ -175,22 +177,22 @@ private fun LedgerContent(
             ) {
                 Text(
                     "Nothing scheduled",
-                    style = TextStyle(color = ColorProvider(colors.ink3), fontSize = 12.sp),
+                    style = TextStyle(color = ColorProvider(colors.ink3), fontSize = sp(12f, fontScale)),
                 )
             }
         } else {
             LazyColumn(modifier = GlanceModifier.fillMaxSize().padding(bottom = 10.dp)) {
                 sections.forEach { section ->
                     item(itemId = section.key.hashCode().toLong()) {
-                        SectionHeader(colors, section)
+                        SectionHeader(colors, section, fontScale)
                     }
                     val (visibleRows, hidden) = LedgerBuckets.truncate(section.rows, MAX_ROWS_PER_SECTION)
                     items(visibleRows, itemId = { it.fileName.hashCode() * 31L + it.lineIndex }) { row ->
-                        LedgerRow(context, colors, row)
+                        LedgerRow(context, colors, row, fontScale)
                     }
                     if (hidden > 0) {
                         item(itemId = ("more-" + section.key).hashCode().toLong()) {
-                            MoreRow(context, colors, hidden)
+                            MoreRow(context, colors, hidden, fontScale)
                         }
                     }
                 }
@@ -199,8 +201,19 @@ private fun LedgerContent(
     }
 }
 
+/** Scales a base widget text size (sp) by the user's Font size lever (Settings § Agenda › Widget). */
+private fun sp(base: Float, scale: Float) = (base * scale).sp
+
 @Composable
-private fun HeaderRow(context: Context, colors: GroveColors, todayCount: Int, totalCount: Int, windowDays: Int, iconRes: Int) {
+private fun HeaderRow(
+    context: Context,
+    colors: GroveColors,
+    todayCount: Int,
+    totalCount: Int,
+    windowDays: Int,
+    iconRes: Int,
+    fontScale: Float,
+) {
     Row(
         modifier = GlanceModifier.fillMaxWidth().padding(horizontal = 13.dp, vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -220,13 +233,13 @@ private fun HeaderRow(context: Context, colors: GroveColors, todayCount: Int, to
             Column(modifier = GlanceModifier.defaultWeight()) {
                 Text(
                     "Agenda",
-                    style = TextStyle(color = ColorProvider(colors.ink), fontSize = 13.5.sp, fontWeight = FontWeight.Medium),
+                    style = TextStyle(color = ColorProvider(colors.ink), fontSize = sp(13.5f, fontScale), fontWeight = FontWeight.Medium),
                 )
                 Text(
                     "$todayCount today · $totalCount in $windowDays days",
                     style = TextStyle(
                         color = ColorProvider(colors.ink2),
-                        fontSize = 10.5.sp,
+                        fontSize = sp(10.5f, fontScale),
                         fontFamily = FontFamily.Monospace,
                     ),
                 )
@@ -246,7 +259,7 @@ private fun HeaderRow(context: Context, colors: GroveColors, todayCount: Int, to
 }
 
 @Composable
-private fun SectionHeader(colors: GroveColors, section: LedgerBuckets.Section) {
+private fun SectionHeader(colors: GroveColors, section: LedgerBuckets.Section, fontScale: Float) {
     val isOverdue = section.key == "Overdue"
     val labelColor = if (isOverdue) colors.red else colors.ink2
     Row(
@@ -255,12 +268,12 @@ private fun SectionHeader(colors: GroveColors, section: LedgerBuckets.Section) {
     ) {
         Text(
             section.key.uppercase(),
-            style = TextStyle(color = ColorProvider(labelColor), fontSize = 10.sp, fontWeight = FontWeight.Bold),
+            style = TextStyle(color = ColorProvider(labelColor), fontSize = sp(10f, fontScale), fontWeight = FontWeight.Bold),
         )
         Spacer(modifier = GlanceModifier.width(7.dp))
         Text(
             section.count.toString(),
-            style = TextStyle(color = ColorProvider(colors.ink3), fontSize = 10.sp, fontFamily = FontFamily.Monospace),
+            style = TextStyle(color = ColorProvider(colors.ink3), fontSize = sp(10f, fontScale), fontFamily = FontFamily.Monospace),
         )
         Spacer(modifier = GlanceModifier.width(7.dp))
         Box(
@@ -280,7 +293,7 @@ private fun SectionHeader(colors: GroveColors, section: LedgerBuckets.Section) {
  * renders the same rows with no cap.
  */
 @Composable
-private fun MoreRow(context: Context, colors: GroveColors, hidden: Int) {
+private fun MoreRow(context: Context, colors: GroveColors, hidden: Int, fontScale: Float) {
     val openIntent = Intent(Intent.ACTION_VIEW, AGENDA_URI).setClass(context, MainActivity::class.java)
     Box(
         modifier = GlanceModifier
@@ -291,7 +304,7 @@ private fun MoreRow(context: Context, colors: GroveColors, hidden: Int) {
     ) {
         Text(
             "+$hidden more · view all",
-            style = TextStyle(color = ColorProvider(colors.accent), fontSize = 12.sp, fontWeight = FontWeight.Medium),
+            style = TextStyle(color = ColorProvider(colors.accent), fontSize = sp(12f, fontScale), fontWeight = FontWeight.Medium),
         )
     }
 }
@@ -306,7 +319,7 @@ private fun MoreRow(context: Context, colors: GroveColors, hidden: Int) {
 private val LEDGER_LINE_HEIGHT = 18.dp
 
 @Composable
-private fun LedgerRow(context: Context, colors: GroveColors, row: AgendaRow) {
+private fun LedgerRow(context: Context, colors: GroveColors, row: AgendaRow, fontScale: Float) {
     val openIntent = Intent(Intent.ACTION_VIEW, noteUri(row))
         .setClass(context, MainActivity::class.java)
     Row(
@@ -365,7 +378,7 @@ private fun LedgerRow(context: Context, colors: GroveColors, row: AgendaRow) {
                                 row.keyword,
                                 style = TextStyle(
                                     color = ColorProvider(fg),
-                                    fontSize = 9.5.sp,
+                                    fontSize = sp(9.5f, fontScale),
                                     fontWeight = FontWeight.Bold,
                                     fontFamily = FontFamily.Monospace,
                                 ),
@@ -377,7 +390,7 @@ private fun LedgerRow(context: Context, colors: GroveColors, row: AgendaRow) {
                 Text(
                     row.title,
                     maxLines = 2,
-                    style = TextStyle(color = ColorProvider(colors.ink), fontSize = 13.sp, fontWeight = FontWeight.Medium),
+                    style = TextStyle(color = ColorProvider(colors.ink), fontSize = sp(13f, fontScale), fontWeight = FontWeight.Medium),
                 )
             }
             if (row.meta.isNotEmpty()) {
@@ -387,12 +400,12 @@ private fun LedgerRow(context: Context, colors: GroveColors, row: AgendaRow) {
                 // the case that actually runs out of room — drop the filename onto
                 // its own line instead; everything else stays inline.
                 val fileChip = row.meta.lastOrNull()
-                    ?.takeIf { it.tone == AgendaMetaTone.MUTED && it.text == row.fileName }
+                    ?.takeIf { it.tone == AgendaMetaTone.MUTED && it.text == LedgerBuckets.contractFileName(row.fileName) }
                 val splitFile = fileChip != null && row.meta.any { it.tone == AgendaMetaTone.TAG }
                 val inlineMeta = if (splitFile) row.meta.dropLast(1) else row.meta
-                MetaLine(colors, inlineMeta, GlanceModifier.padding(top = 3.dp))
+                MetaLine(colors, inlineMeta, GlanceModifier.padding(top = 3.dp), fontScale)
                 if (splitFile) {
-                    MetaLine(colors, listOf(fileChip!!), GlanceModifier.padding(top = 2.dp))
+                    MetaLine(colors, listOf(fileChip!!), GlanceModifier.padding(top = 2.dp), fontScale)
                 }
             }
         }
@@ -406,7 +419,7 @@ private fun LedgerRow(context: Context, colors: GroveColors, row: AgendaRow) {
                     row.priority,
                     style = TextStyle(
                         color = ColorProvider(colors.agendaPriorityColor(row.priority)),
-                        fontSize = 9.5.sp,
+                        fontSize = sp(9.5f, fontScale),
                         fontWeight = FontWeight.Bold,
                         fontFamily = FontFamily.Monospace,
                     ),
@@ -418,22 +431,22 @@ private fun LedgerRow(context: Context, colors: GroveColors, row: AgendaRow) {
 
 /** One horizontal strip of meta chips, 8dp apart. */
 @Composable
-private fun MetaLine(colors: GroveColors, meta: List<AgendaMeta>, modifier: GlanceModifier) {
+private fun MetaLine(colors: GroveColors, meta: List<AgendaMeta>, modifier: GlanceModifier, fontScale: Float) {
     Row(modifier = modifier) {
         meta.forEachIndexed { index, m ->
             if (index > 0) Spacer(modifier = GlanceModifier.width(8.dp))
-            MetaChip(colors, m)
+            MetaChip(colors, m, fontScale)
         }
     }
 }
 
 @Composable
-private fun MetaChip(colors: GroveColors, meta: AgendaMeta) {
+private fun MetaChip(colors: GroveColors, meta: AgendaMeta, fontScale: Float) {
     Text(
         meta.text,
         // Never let a chip wrap mid-word; when the strip is tight it truncates instead.
         maxLines = 1,
-        style = TextStyle(color = ColorProvider(colors.metaColor(meta.tone)), fontSize = 10.5.sp, fontFamily = FontFamily.Monospace),
+        style = TextStyle(color = ColorProvider(colors.metaColor(meta.tone)), fontSize = sp(10.5f, fontScale), fontFamily = FontFamily.Monospace),
     )
 }
 
