@@ -91,10 +91,6 @@ import kotlinx.coroutines.withTimeoutOrNull
 @Composable
 fun GroveApp(
     deepLinkIntent: android.content.Intent? = null,
-    /** True only when [deepLinkIntent] is the Intent that created this Activity
-     *  instance fresh, as opposed to arriving via onNewIntent on an already
-     *  running, already-navigated instance. See [GroveNavigation]. */
-    deepLinkIsColdStart: Boolean = false,
     /** Called with the pending [deepLinkIntent] once it has been navigated, so
      *  the host Activity can drop it and it never re-fires on a later
      *  recreation. The Activity ignores the call if a newer Intent has since
@@ -136,7 +132,7 @@ fun GroveApp(
         // App-wide text-size baseline: scales every sp-sized text under one lever.
         // The per-mode read/edit levers nest inside this and compound on top.
         ContentFontScale(loaded.appFontSize) {
-            GroveNavigation(loaded, viewModel, deepLinkIntent, deepLinkIsColdStart, onDeepLinkConsumed)
+            GroveNavigation(loaded, viewModel, deepLinkIntent, onDeepLinkConsumed)
         }
     }
 }
@@ -191,20 +187,18 @@ private fun GroveNavigation(
     settings: GroveSettings,
     viewModel: AppViewModel,
     deepLinkIntent: android.content.Intent? = null,
-    deepLinkIsColdStart: Boolean = false,
     onDeepLinkConsumed: (android.content.Intent) -> Unit = {},
 ) {
     val navController = rememberNavController()
     val activity = androidx.compose.ui.platform.LocalContext.current as? android.app.Activity
-    // Set only when a cold start's Intent (no Notebooks screen has been shown
-    // yet, per [deepLinkIsColdStart]) is a grove://capture link -- either the
-    // bare picker or a direct grove://capture/{templateId} -- i.e. this app
-    // process exists solely to show that one capture flow. CAPTURE's onDismiss
-    // and CAPTURE_TEMPLATE's onClose/onSaved read this to close by finishing
-    // the Activity (back to wherever the user was before Grove) rather than
-    // by popping the nav back stack onto Notebooks, which the user never
-    // chose to visit. CAPTURE_TEMPLATE clears it on disposal (however it's
-    // left) so it can never leak into a later, ordinary in-app capture; the
+    // Set when a grove://capture or grove://note deep link (widget, notification,
+    // shortcut) arrives with no real prior navigation on the back stack -- see
+    // the "hasNoRealBackStack" check below. CAPTURE's onDismiss, CAPTURE_TEMPLATE's
+    // onClose/onSaved, and NOTE's leaveNote read this to close by finishing the
+    // Activity (back to wherever the user was before Grove) rather than by
+    // popping the nav back stack onto Notebooks, which the user never chose to
+    // visit. CAPTURE_TEMPLATE and NOTE clear it on disposal (however they're
+    // left) so it can never leak into a later, ordinary in-app capture/note; the
     // "Manage templates" escape hatch off the picker clears it explicitly
     // since that's a deliberate trip further into the app, not a close.
     var closeActivityOnExit by remember { mutableStateOf(false) }
@@ -235,7 +229,22 @@ private fun GroveNavigation(
             val action = intent.action
             if (uri == null) return@LaunchedEffect
             if (action == android.content.Intent.ACTION_VIEW && uri.scheme == "grove") {
-                if (deepLinkIsColdStart && uri.host == "capture") {
+                // deepLinkIsColdStart (true process cold start) turned out not to
+                // track what actually matters: Grove's singleTask launchMode means
+                // a widget/notification tap almost always redelivers onto an
+                // *already-running* task via onNewIntent, so that flag was false in
+                // the overwhelmingly common case and this never fired. What
+                // determines whether "back" out of the target should exit the app
+                // (rather than reveal whatever's underneath) is whether the
+                // back stack, at the moment this deep link arrives, holds any
+                // *real* prior navigation -- i.e. more than just the graph's own
+                // mandatory start-destination entry. A size of 1 covers both a
+                // genuine cold start and a warm start where the app was merely
+                // sitting idle on Notebooks; either way there's nothing the user
+                // actually visited to return to, so leaving should exit to
+                // wherever the tap came from instead of surfacing Notebooks.
+                val hasNoRealBackStack = navController.currentBackStack.value.size <= 1
+                if (hasNoRealBackStack && (uri.host == "capture" || uri.host == "note")) {
                     closeActivityOnExit = true
                 }
                 navController.handleDeepLink(intent)
@@ -441,6 +450,25 @@ private fun GroveNavigation(
                 if (ref == null) {
                     navController.popBackStack()
                 } else {
+                    // A grove://note/{id} deep link opened straight from a widget
+                    // tap or notification, with no real prior navigation on the
+                    // back stack (see "hasNoRealBackStack" above), puts this
+                    // Activity's back stack under this entry to NOTEBOOKS --
+                    // Navigation's deep-link synthesis, not anywhere the user
+                    // actually visited -- so leaving this note by popping would
+                    // surface the Notebooks list instead of returning to the
+                    // widget/home screen the task was opened from. Mirrors
+                    // closeActivityOnExit's use for CAPTURE/CAPTURE_TEMPLATE above.
+                    // Cleared (like TEMPLATE's "Manage templates" escape hatch)
+                    // the moment the user deliberately navigates further into the
+                    // app from here, so a later back only exits the app for this
+                    // one direct landing, not for anything pushed on top of it.
+                    androidx.compose.runtime.DisposableEffect(Unit) {
+                        onDispose { closeActivityOnExit = false }
+                    }
+                    val leaveNote: () -> Unit = {
+                        if (closeActivityOnExit) activity?.finish() else navController.popBackStack()
+                    }
                     // Local, not a nav argument: switching read <-> edit for this
                     // same note must not re-navigate, or it re-triggers the full-screen
                     // enter/exit transition meant for moving between distinct screens.
@@ -480,15 +508,19 @@ private fun GroveNavigation(
                         when {
                             isNew && editorViewModel.isCurrentHeadingBlank() -> confirmDiscardBlankHeadingRead = true
                             pendingEdit != null -> confirmLeavePending = true
-                            else -> navController.popBackStack()
+                            else -> leaveNote()
                         }
                     }
                     androidx.activity.compose.BackHandler(
                         // A brand-new, still-blank note has nothing dirty (nothing was
                         // ever typed), so pendingEdit alone would miss it and let the
                         // system back gesture skip leaveRead()'s blank-heading check.
-                        enabled = mode == "read" &&
-                            (pendingEdit != null || (isNew && editorViewModel.isCurrentHeadingBlank())),
+                        // Also enabled whenever closeActivityOnExit is set: the plain
+                        // case (nothing pending) would otherwise fall through to
+                        // NavController's default system-back handling, which pops
+                        // straight to NOTEBOOKS instead of routing through leaveNote().
+                        enabled = closeActivityOnExit || (mode == "read" &&
+                            (pendingEdit != null || (isNew && editorViewModel.isCurrentHeadingBlank()))),
                     ) { leaveRead() }
                     if (confirmLeavePending) {
                         UnsavedNoteDialog(
@@ -497,12 +529,12 @@ private fun GroveNavigation(
                                 if (editorViewModel.isCurrentHeadingBlank()) {
                                     showEmptyHeadingAlertRead = true
                                 } else {
-                                    editorViewModel.save { navController.popBackStack() }
+                                    editorViewModel.save { leaveNote() }
                                 }
                             },
                             onDiscard = {
                                 confirmLeavePending = false
-                                navController.popBackStack()
+                                leaveNote()
                             },
                             onDismiss = { confirmLeavePending = false },
                         )
@@ -511,7 +543,7 @@ private fun GroveNavigation(
                         DiscardBlankHeadingDialog(
                             onDiscard = {
                                 confirmDiscardBlankHeadingRead = false
-                                editorViewModel.deleteSubtree(onDeleted = { navController.popBackStack() })
+                                editorViewModel.deleteSubtree(onDeleted = { leaveNote() })
                             },
                             // Send the user into edit mode to actually fix the heading,
                             // rather than strand them on a read view with nothing to show.
@@ -540,7 +572,7 @@ private fun GroveNavigation(
                             editModeFontSize = settings.editModeFontSize,
                             newNoteCursor = settings.newNoteCursor,
                             autoSaveNotes = settings.autoSaveNotes,
-                            onBack = { navController.popBackStack() },
+                            onBack = leaveNote,
                             onSwitchToRead = { editTargetLine = null; mode = "read" },
                             viewModel = editorViewModel,
                         )
@@ -802,6 +834,11 @@ private fun GroveNavigation(
                     onSetAgendaSwipeRightAction = viewModel::setAgendaSwipeRightAction,
                     onSetAgendaWidgetTransparency = viewModel::setAgendaWidgetTransparency,
                     onSetAgendaWidgetDaysAhead = viewModel::setAgendaWidgetDaysAhead,
+                    onSetAgendaWidgetShowFileName = viewModel::setAgendaWidgetShowFileName,
+                    onSetAgendaWidgetShowTags = viewModel::setAgendaWidgetShowTags,
+                    onSetAgendaWidgetShowPriority = viewModel::setAgendaWidgetShowPriority,
+                    onSetAgendaWidgetOverdueDaysCap = viewModel::setAgendaWidgetOverdueDaysCap,
+                    onSetAgendaWidgetFontSize = viewModel::setAgendaWidgetFontSize,
                 )
             }
             composable(Routes.SETTINGS_REMINDERS) {

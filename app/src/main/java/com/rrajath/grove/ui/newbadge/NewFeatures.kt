@@ -156,5 +156,5 @@ val NEW_FEATURES: List<NewFeature> = listOf(
             NewAnchors.SETTINGS_CAPTURE_TEMPLATES_LINK,
         ),
         destination = NewAnchors.SETTINGS_CAPTURE_TEMPLATES_LINK,
-    ),
+    )
 )
