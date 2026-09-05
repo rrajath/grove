@@ -636,7 +636,16 @@ private fun NoteContent(
     // O(document) traversals, computed once per document instead of per
     // recomposition. Body lines are resolved per-row inside the LazyColumn
     // items below, so only on-screen headings pay that cost.
-    val tags = remember(doc, headline) { doc.inheritedTags(headline) }
+    //
+    // This heading's OWN tags, not doc.inheritedTags(headline): every other
+    // field in this same header row (keyword, priority, title) is this
+    // heading's own, and the metadata sheet opened from this row edits (and
+    // shows) headline.tags only. Rendering inherited tags here made a
+    // successful, correctly-persisted tap-to-remove look like a no-op
+    // whenever the removed tag was also present via an ancestor heading or
+    // #+FILETAGS: — the sheet's own row lost the chip, but this header kept
+    // showing it via inheritance.
+    val tags = remember(doc, headline) { headline.tags }
     val ownBody = remember(doc, headline) { doc.bodyOf(headline) }
     val subtree = remember(doc, headline) { doc.subtree(headline) }
 

@@ -59,6 +59,36 @@ class OrgMutationsTest {
         assertEquals(emptyList<String>(), untagged.findByTitle("First")!!.tags)
     }
 
+    /**
+     * Regression for a metadata-sheet bug: the sheet edits and displays a
+     * heading's *own* tags only (org semantics — you can't un-inherit a
+     * parent's tag from a child), so removing a redundant own tag that's
+     * also carried by a parent heading must clear it from [OrgHeadline.tags]
+     * even though [OrgDocument.inheritedTags] still (correctly) reports it
+     * via the ancestor. A read-mode view that renders inheritedTags for a
+     * heading's own tag chips would make this successful removal look like
+     * a no-op.
+     */
+    @Test
+    fun `removing a tag also carried by a parent clears only the child's own tags`() {
+        val nested = OrgParser.parse(
+            """
+            * Projects :work:
+            ** Redesign the app :work:urgent:
+            body
+            """.trimIndent() + "\n"
+        )
+        val child = nested.findByTitle("Redesign the app")!!
+        assertEquals(listOf("work", "urgent"), child.tags)
+        assertEquals(listOf("work", "urgent"), nested.inheritedTags(child))
+
+        val result = OrgParser.parse(OrgMutations.setTags(nested, child, child.tags - "work"))
+        val newChild = result.findByTitle("Redesign the app")!!
+        assertEquals(listOf("urgent"), newChild.tags)
+        // Still inherited from "Projects" — org semantics, not a bug.
+        assertEquals(listOf("urgent", "work"), result.inheritedTags(newChild))
+    }
+
     @Test
     fun `setScheduled inserts planning line when missing`() {
         val ts = OrgTimestamp.parse("<2025-07-01 Tue>")!!

@@ -91,6 +91,10 @@ re-uploads the APKs to the existing release instead of failing.
   continuation lines now render as part of the same bullet.
 - Completing a reminder for a repeating SCHEDULED/DEADLINE heading now
   advances its date and keeps it TODO, instead of marking it DONE outright.
+- Read mode's own-heading tag row now shows the heading's own tags, matching
+  what the metadata sheet edits. It previously showed inherited tags too, so
+  removing a tag that a parent heading (or `#+FILETAGS:`) also carried looked
+  like it hadn't worked even though it had.
 
 ## [1.4.0] - 2026-09-04
 
