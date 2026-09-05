@@ -64,6 +64,7 @@ import com.rrajath.grove.capture.CaptureInserter
 import com.rrajath.grove.capture.CaptureTemplate
 import com.rrajath.grove.capture.PlaceholderExpander
 import com.rrajath.grove.capture.TargetLocation
+import com.rrajath.grove.capture.templateSlug
 import com.rrajath.grove.org.LineEditing
 import com.rrajath.grove.org.OrgDocument
 import com.rrajath.grove.org.OrgHeadline
@@ -115,7 +116,14 @@ fun CaptureEditorScreen(
     val templates by viewModel.templates.collectAsStateWithLifecycle()
     val saveState by viewModel.saveState.collectAsStateWithLifecycle()
     val clipboard = LocalClipboard.current
+    // Deep links (launcher shortcuts, widget, or a hand-typed grove://capture/x
+    // URL) pass the template's opaque id, but a manually-typed link is more
+    // likely to use the visible name (e.g. "TODO") or the dash-separated slug
+    // shown on the template editor's capture-link section, so fall back to a
+    // case-insensitive name match, then a slug match, before giving up.
     val template = templates.firstOrNull { it.id == templateId }
+        ?: templates.firstOrNull { it.name.equals(templateId, ignoreCase = true) }
+        ?: templates.firstOrNull { templateSlug(it.name) == templateId.lowercase() }
     val app = androidx.compose.ui.platform.LocalContext.current.applicationContext
             as com.rrajath.grove.GroveApplication
     val keywords by app.keywords.collectAsStateWithLifecycle()
@@ -124,6 +132,21 @@ fun CaptureEditorScreen(
         if (saveState is SaveState.Saved) {
             viewModel.resetSaveState()
             onSaved()
+        }
+    }
+
+    // Only once templates have actually loaded (they start as an empty list
+    // while the DataStore read is in flight) is a still-missing match a real
+    // "no such template" rather than a load-in-progress false negative.
+    val notFoundContext = LocalContext.current
+    LaunchedEffect(template, templates) {
+        if (template == null && templates.isNotEmpty()) {
+            Toast.makeText(
+                notFoundContext,
+                "Couldn't find a capture template named \"$templateId\".",
+                Toast.LENGTH_LONG,
+            ).show()
+            onClose()
         }
     }
 

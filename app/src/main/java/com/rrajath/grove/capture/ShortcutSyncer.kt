@@ -49,6 +49,23 @@ object ShortcutSyncer {
         ShortcutManagerCompat.setDynamicShortcuts(context, shortcuts)
     }
 
+    /**
+     * Pins a single template's capture shortcut to the homescreen, via
+     * whichever system picker/confirmation the launcher shows for
+     * requestPinShortcut. Returns false if the current launcher doesn't
+     * support pinning at all -- callers should tell the user in that case,
+     * since no dialog will appear to explain the no-op.
+     */
+    fun requestPin(context: Context, template: CaptureTemplate, theme: ThemePreference, iconThemed: Boolean): Boolean {
+        if (!ShortcutManagerCompat.isRequestPinShortcutSupported(context)) return false
+        val colors = if (iconThemed) groveColorsFor(theme) else GroveLightColors
+        val bg = colors.accent.toArgb()
+        val fg = colors.accentInk.toArgb()
+        val ownerAlias = AppIconManager.currentAliasComponent(context)
+        val shortcut = toShortcut(context, template, bg, fg, ownerAlias)
+        return ShortcutManagerCompat.requestPinShortcut(context, shortcut, null)
+    }
+
     private fun toShortcut(
         context: Context,
         template: CaptureTemplate,

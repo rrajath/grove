@@ -48,6 +48,10 @@ sealed class TargetLocation {
     }
 }
 
+/** Dash-separated form of a template name for its grove://capture/{slug} deep link. */
+fun templateSlug(name: String): String =
+    name.trim().lowercase().replace(Regex("[^a-z0-9]+"), "-").trim('-')
+
 @Serializable
 data class CaptureTemplate(
     val id: String,

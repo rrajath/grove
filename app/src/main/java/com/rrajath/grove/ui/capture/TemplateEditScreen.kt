@@ -1,5 +1,6 @@
 package com.rrajath.grove.ui.capture
 
+import android.content.ClipData
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -31,10 +32,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.ClipEntry
+import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -45,7 +50,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rrajath.grove.capture.CaptureTemplate
 import com.rrajath.grove.capture.FilenameValidation
 import com.rrajath.grove.capture.PlaceholderExpander
+import com.rrajath.grove.capture.ShortcutSyncer
 import com.rrajath.grove.capture.TargetLocation
+import com.rrajath.grove.capture.templateSlug
 import com.rrajath.grove.ui.components.ChangeIconColorDialog
 import com.rrajath.grove.ui.components.GroveTopBar
 import com.rrajath.grove.ui.components.MonogramTile
@@ -53,9 +60,14 @@ import com.rrajath.grove.ui.components.NotebookFileField
 import com.rrajath.grove.ui.components.SegmentedControl
 import com.rrajath.grove.ui.components.monogramLetter
 import com.rrajath.grove.ui.components.nameHashPaletteKey
+import com.rrajath.grove.ui.newbadge.MarkNewFeatureSeen
+import com.rrajath.grove.ui.newbadge.NewAnchors
+import com.rrajath.grove.ui.newbadge.NewDot
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 
 private val LOCATION_OPTIONS = listOf(
     "Top of file", "Bottom of file", "Under heading", "Datetree (date)", "Datetree (datetime)",
@@ -121,6 +133,16 @@ fun TemplateEditScreen(
         else -> TargetLocation.DatetreeDatetime
     }
 
+    fun currentTemplate() = CaptureTemplate(
+        id = editingId,
+        name = name.trim(),
+        color = colorKey,
+        targetFile = targetFile.trim(),
+        location = buildLocation(),
+        template = templateText,
+    )
+    val canSave = name.isNotBlank() && targetFileError == null
+
     Scaffold(
         containerColor = c.bg,
         topBar = {
@@ -140,22 +162,12 @@ fun TemplateEditScreen(
                     )
                 },
                 actions = {
-                    val canSave = name.isNotBlank() && targetFileError == null
                     Box(
                         Modifier
                             .clip(RoundedCornerShape(11.dp))
                             .background(if (canSave) c.accent else c.line)
                             .clickable(enabled = canSave) {
-                                viewModel.upsert(
-                                    CaptureTemplate(
-                                        id = editingId,
-                                        name = name.trim(),
-                                        color = colorKey,
-                                        targetFile = targetFile.trim(),
-                                        location = buildLocation(),
-                                        template = templateText,
-                                    )
-                                )
+                                viewModel.upsert(currentTemplate())
                                 leave()
                             }
                             .padding(horizontal = 16.dp, vertical = 9.dp),
@@ -278,6 +290,78 @@ fun TemplateEditScreen(
                     .clickable { showPlaceholderHelp = true }
                     .padding(vertical = 10.dp),
             )
+
+            // Leaving this screen retires this feature's NEW dot from its whole
+            // trail (menu glyph, drawer, Settings hub row, this label).
+            MarkNewFeatureSeen(NewAnchors.SETTINGS_CAPTURE_TEMPLATES_LINK)
+            FieldLabel("Capture link", badge = { NewDot(NewAnchors.SETTINGS_CAPTURE_TEMPLATES_LINK) })
+            Text(
+                "Jumps straight into this template's capture editor -- open it from a " +
+                    "browser bookmark, a launcher shortcut app, or anywhere else that can " +
+                    "open a link. Tap to copy it.",
+                fontFamily = PlexSans, fontSize = 12.sp, color = c.ink3,
+                modifier = Modifier.padding(bottom = 6.dp),
+            )
+            val slug = remember(name) { templateSlug(name) }
+            if (slug.isBlank()) {
+                Text(
+                    "Add a name above to generate this template's capture link.",
+                    fontFamily = PlexSans, fontSize = 13.sp, color = c.ink3,
+                )
+            } else {
+                val clipboard = LocalClipboard.current
+                val scope = rememberCoroutineScope()
+                val deepLink = "grove://capture/$slug"
+                Text(
+                    deepLink,
+                    fontFamily = PlexMono, fontSize = 13.sp, color = c.accent,
+                    textDecoration = TextDecoration.Underline,
+                    modifier = Modifier
+                        .clickable {
+                            scope.launch {
+                                clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("capture link", deepLink)))
+                            }
+                        }
+                        .padding(vertical = 4.dp),
+                )
+
+                Spacer(Modifier.height(10.dp))
+                val context = LocalContext.current
+                val pinScope = rememberCoroutineScope()
+                Box(
+                    Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (canSave) c.accentSoft else c.surface)
+                        .clickable(enabled = canSave) {
+                            // The shortcut's grove://capture/{id} target only resolves once the
+                            // template is actually persisted, so save whatever's on screen first --
+                            // including a brand-new, not-yet-saved template.
+                            val template = currentTemplate()
+                            viewModel.upsert(template)
+                            pinScope.launch {
+                                val app = context.applicationContext as com.rrajath.grove.GroveApplication
+                                val settings = app.settingsRepository.settings.first()
+                                val pinned = ShortcutSyncer.requestPin(
+                                    context, template, settings.theme, settings.syncAppIconWithTheme,
+                                )
+                                if (!pinned) {
+                                    android.widget.Toast.makeText(
+                                        context,
+                                        "Your launcher doesn't support adding shortcuts to the homescreen.",
+                                        android.widget.Toast.LENGTH_LONG,
+                                    ).show()
+                                }
+                            }
+                        }
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                ) {
+                    Text(
+                        "Add to Homescreen",
+                        fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
+                        fontSize = 13.sp, color = if (canSave) c.accent else c.ink3,
+                    )
+                }
+            }
             Spacer(Modifier.height(30.dp))
         }
     }
@@ -300,12 +384,25 @@ fun TemplateEditScreen(
 }
 
 @Composable
-private fun FieldLabel(text: String) {
-    Text(
-        text,
-        fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
-        fontSize = 12.sp, letterSpacing = 1.sp,
-        color = MaterialTheme.grove.accent,
+private fun FieldLabel(text: String, badge: (@Composable () -> Unit)? = null) {
+    // The badge sits in the same Row as the label with no padding of its own,
+    // so Alignment.CenterVertically centers it against the label's actual
+    // glyph height -- putting the padding on the label Text itself (as a
+    // plain Row-less label does) would bias a co-centered sibling upward,
+    // since the top/bottom padding here isn't symmetric.
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.padding(top = 18.dp, bottom = 8.dp),
-    )
+    ) {
+        Text(
+            text,
+            fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
+            fontSize = 12.sp, letterSpacing = 1.sp,
+            color = MaterialTheme.grove.accent,
+        )
+        if (badge != null) {
+            Spacer(Modifier.width(6.dp))
+            badge()
+        }
+    }
 }

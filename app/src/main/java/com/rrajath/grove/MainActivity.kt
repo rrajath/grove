@@ -31,6 +31,15 @@ class MainActivity : ComponentActivity() {
     // user already cancelled would reappear.
     private var deepLinkIntent by mutableStateOf<Intent?>(null)
 
+    // True only for the Intent that created this Activity instance fresh (no
+    // Notebooks screen has been shown to the user yet). A capture opened from
+    // that Intent should close by finishing the Activity -- landing the user
+    // back wherever they were before Grove -- rather than by popping the nav
+    // back stack, which would reveal Notebooks underneath (see GroveApp's
+    // closeActivityOnExit). A warm-started deep link (onNewIntent) arrives on
+    // top of a real, user-visited back stack, so popping is correct there.
+    private var deepLinkIsColdStart = false
+
     @OptIn(ExperimentalComposeUiApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -42,6 +51,7 @@ class MainActivity : ComponentActivity() {
         // manifest -- so in-progress editor/capture state survives them.
         if (savedInstanceState == null) {
             deepLinkIntent = intent
+            deepLinkIsColdStart = true
         }
         setContent {
             // Expose Compose testTags as Android resource-ids so Macrobenchmark /
@@ -49,6 +59,7 @@ class MainActivity : ComponentActivity() {
             Box(Modifier.fillMaxSize().semantics { testTagsAsResourceId = true }) {
                 GroveApp(
                     deepLinkIntent = deepLinkIntent,
+                    deepLinkIsColdStart = deepLinkIsColdStart,
                     onDeepLinkConsumed = { consumed ->
                         // Ignore a stale callback: if onNewIntent has already
                         // swapped in a newer deep link while this one was still

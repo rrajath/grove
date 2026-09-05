@@ -65,7 +65,12 @@ fun SettingsScreen(
             badge = { NewDot(NewAnchors.SETTINGS_APPEARANCE) },
         ),
         SettingsPage("Notebooks", "File icons, folder flattening, display names, sort order", onOpenNotebooks),
-        SettingsPage("Capture Templates", "Quick-capture targets and shortcuts", onOpenCaptureTemplates),
+        SettingsPage(
+            "Capture Templates",
+            "Quick-capture targets and shortcuts",
+            onClick = onOpenCaptureTemplates,
+            badge = { NewDot(NewAnchors.SETTINGS_CAPTURE_TEMPLATES) },
+        ),
         SettingsPage("Sync", "Folder, auto-sync, sync log", onOpenSync),
         SettingsPage(
             "Notes",

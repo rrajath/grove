@@ -47,6 +47,12 @@ object NewAnchors {
     /** The "Auto-save notes" toggle inside Settings § Notes. */
     const val SETTINGS_NOTES_AUTO_SAVE = "settings.notes.autoSave"
 
+    /** The Settings hub row leading to the Capture Templates page. */
+    const val SETTINGS_CAPTURE_TEMPLATES = "settings.captureTemplates"
+
+    /** The "Capture link" section on a template's editor (grove:// link + Add to Homescreen). */
+    const val SETTINGS_CAPTURE_TEMPLATES_LINK = "settings.captureTemplates.captureLink"
+
     /** The top-bar "☰" glyph. A feature reached through it lists this so the
      *  glyph carries a corner dot until the feature is seen. */
     const val TOPBAR_MENU = "topbar.menu"
@@ -134,5 +140,21 @@ val NEW_FEATURES: List<NewFeature> = listOf(
             NewAnchors.tipsGroup("checklists"),
         ),
         destination = NewAnchors.tipsGroup("checklists"),
+    ),
+    NewFeature(
+        // A capture template's editor gained a "Capture link" section: a live
+        // grove://capture/<slug> deep link (tap to copy) plus an "Add to
+        // Homescreen" button that pins a shortcut straight to that template.
+        // `since` is the versionCode of the release that ships it — bump it to
+        // match `gradle.properties` versionName when cutting the release.
+        id = "template-capture-link",
+        since = 10500,
+        anchors = setOf(
+            NewAnchors.TOPBAR_MENU,
+            NewAnchors.DRAWER_SETTINGS,
+            NewAnchors.SETTINGS_CAPTURE_TEMPLATES,
+            NewAnchors.SETTINGS_CAPTURE_TEMPLATES_LINK,
+        ),
+        destination = NewAnchors.SETTINGS_CAPTURE_TEMPLATES_LINK,
     ),
 )

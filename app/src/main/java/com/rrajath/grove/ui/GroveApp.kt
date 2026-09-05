@@ -91,6 +91,10 @@ import kotlinx.coroutines.withTimeoutOrNull
 @Composable
 fun GroveApp(
     deepLinkIntent: android.content.Intent? = null,
+    /** True only when [deepLinkIntent] is the Intent that created this Activity
+     *  instance fresh, as opposed to arriving via onNewIntent on an already
+     *  running, already-navigated instance. See [GroveNavigation]. */
+    deepLinkIsColdStart: Boolean = false,
     /** Called with the pending [deepLinkIntent] once it has been navigated, so
      *  the host Activity can drop it and it never re-fires on a later
      *  recreation. The Activity ignores the call if a newer Intent has since
@@ -132,7 +136,7 @@ fun GroveApp(
         // App-wide text-size baseline: scales every sp-sized text under one lever.
         // The per-mode read/edit levers nest inside this and compound on top.
         ContentFontScale(loaded.appFontSize) {
-            GroveNavigation(loaded, viewModel, deepLinkIntent, onDeepLinkConsumed)
+            GroveNavigation(loaded, viewModel, deepLinkIntent, deepLinkIsColdStart, onDeepLinkConsumed)
         }
     }
 }
@@ -187,9 +191,23 @@ private fun GroveNavigation(
     settings: GroveSettings,
     viewModel: AppViewModel,
     deepLinkIntent: android.content.Intent? = null,
+    deepLinkIsColdStart: Boolean = false,
     onDeepLinkConsumed: (android.content.Intent) -> Unit = {},
 ) {
     val navController = rememberNavController()
+    val activity = androidx.compose.ui.platform.LocalContext.current as? android.app.Activity
+    // Set only when a cold start's Intent (no Notebooks screen has been shown
+    // yet, per [deepLinkIsColdStart]) is a grove://capture link -- either the
+    // bare picker or a direct grove://capture/{templateId} -- i.e. this app
+    // process exists solely to show that one capture flow. CAPTURE's onDismiss
+    // and CAPTURE_TEMPLATE's onClose/onSaved read this to close by finishing
+    // the Activity (back to wherever the user was before Grove) rather than
+    // by popping the nav back stack onto Notebooks, which the user never
+    // chose to visit. CAPTURE_TEMPLATE clears it on disposal (however it's
+    // left) so it can never leak into a later, ordinary in-app capture; the
+    // "Manage templates" escape hatch off the picker clears it explicitly
+    // since that's a deliberate trip further into the app, not a close.
+    var closeActivityOnExit by remember { mutableStateOf(false) }
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     val backStackEntry by navController.currentBackStackEntryAsState()
@@ -217,6 +235,9 @@ private fun GroveNavigation(
             val action = intent.action
             if (uri == null) return@LaunchedEffect
             if (action == android.content.Intent.ACTION_VIEW && uri.scheme == "grove") {
+                if (deepLinkIsColdStart && uri.host == "capture") {
+                    closeActivityOnExit = true
+                }
                 navController.handleDeepLink(intent)
                 return@LaunchedEffect
             }
@@ -603,13 +624,21 @@ private fun GroveNavigation(
                     // that popped past the start destination and left the NavHost
                     // empty (a blank white screen). Ignore the second callback:
                     // the entry is no longer RESUMED once it has been popped.
-                    onDismiss = { if (entry.isResumed()) navController.popBackStack() },
+                    onDismiss = {
+                        if (entry.isResumed()) {
+                            if (closeActivityOnExit) activity?.finish() else navController.popBackStack()
+                        }
+                    },
                     onPickTemplate = { template ->
                         navController.navigate(Routes.capture(template.id)) {
                             popUpTo(Routes.CAPTURE) { inclusive = true }
                         }
                     },
                     onManage = {
+                        // Deliberately going deeper into the app rather than
+                        // closing out of the capture flow -- this must not
+                        // finish the Activity once Settings is reached.
+                        closeActivityOnExit = false
                         navController.navigate(Routes.SETTINGS_CAPTURE_TEMPLATES) {
                             popUpTo(Routes.CAPTURE) { inclusive = true }
                         }
@@ -624,10 +653,18 @@ private fun GroveNavigation(
                     androidx.navigation.navDeepLink { uriPattern = "grove://capture/{templateId}" },
                 ),
             ) { entry ->
+                // Any way of leaving this screen consumes the flag, so it never
+                // survives to affect an unrelated, later capture.
+                androidx.compose.runtime.DisposableEffect(Unit) {
+                    onDispose { closeActivityOnExit = false }
+                }
+                val closeCapture: () -> Unit = {
+                    if (closeActivityOnExit) activity?.finish() else navController.popBackStack()
+                }
                 CaptureEditorScreen(
                     templateId = entry.arguments?.getString("templateId").orEmpty(),
-                    onClose = { navController.popBackStack() },
-                    onSaved = { navController.popBackStack() },
+                    onClose = closeCapture,
+                    onSaved = closeCapture,
                     editModeFontSize = settings.editModeFontSize,
                 )
             }

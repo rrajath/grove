@@ -63,11 +63,25 @@ re-uploads the APKs to the existing release instead of failing.
 - Settings § Notes has an **Auto-save notes** toggle (on by default). Turn it off
   and an editor never writes on its own: no 5-second idle save, and the file
   changes only when you tap the save icon or pick Save on the way out.
+- A capture template's editor has a **Capture link** section: a live
+  `grove://capture/<slug>` deep link (updates as you rename the template) you
+  can tap to copy, plus an **Add to Homescreen** button that pins a shortcut
+  straight into that template's capture editor.
 
 ### Changed
 - Switching between Read and Edit no longer saves the note. Read mode renders
   your unsaved edits instead, folds its own changes (a checkbox tap, a metadata
   edit) back into them, and asks to save or discard when you leave the note.
+
+### Fixed
+- `grove://capture/<id>` deep links now also resolve by the template's display
+  name (case-insensitively) or its dash-separated slug, not just its internal
+  id, and show a toast and close instead of a blank screen when nothing
+  matches.
+- Saving or dismissing a capture opened via a bare `grove://capture` link (no
+  template id) now closes the app instead of revealing the Notebooks screen
+  behind it, matching the fix already in place for `grove://capture/<id>`
+  links.
 
 ## [1.4.0] - 2026-09-04
 
