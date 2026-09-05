@@ -85,6 +85,8 @@ re-uploads the APKs to the existing release instead of failing.
 - Read mode no longer splits a wrapped list item (e.g. after Emacs
   `fill-paragraph`/`M-q`) into a bullet plus a stray paragraph; its
   continuation lines now render as part of the same bullet.
+- Completing a reminder for a repeating SCHEDULED/DEADLINE heading now
+  advances its date and keeps it TODO, instead of marking it DONE outright.
 
 ## [1.4.0] - 2026-09-04
 

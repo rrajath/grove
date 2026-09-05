@@ -9,12 +9,16 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import java.time.LocalDateTime
 
 /**
  * Handles the notification's "Complete" action headlessly (no open ViewModel):
  * loads the file's current text from the vault, re-locates the heading by its
- * stored composite key, sets its TODO keyword to the first done-type keyword,
- * saves, and triggers a sync, then cleans up the notification/alarm/row.
+ * stored composite key, and applies [OrgMutations.changeKeyword] with the first
+ * done-type keyword -- same entry point the metadata sheet uses, so a repeating
+ * SCHEDULED/DEADLINE advances its date and stays TODO rather than being marked
+ * DONE outright -- saves, and triggers a sync, then cleans up the
+ * notification/alarm/row.
  */
 class ReminderActionReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -45,7 +49,9 @@ class ReminderActionReceiver : BroadcastReceiver() {
             val doc = vault.open(reminder.fileName)
             val headline = doc?.let { ReminderKeys.findHeadline(it, reminder.headingPath, reminder.headingLevel) }
             if (doc != null && headline != null) {
-                val newText = OrgMutations.setKeyword(doc, headline, doneKeyword)
+                val newText = OrgMutations.changeKeyword(
+                    doc, headline, doneKeyword, doc.keywords, LocalDateTime.now()
+                )
                 vault.save(reminder.fileName, newText)
                 app.syncManager.requestSync("reminder completed")
                 true
