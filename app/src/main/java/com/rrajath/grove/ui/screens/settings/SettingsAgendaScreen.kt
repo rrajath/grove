@@ -32,6 +32,9 @@ import com.rrajath.grove.settings.FontSizePreference
 import com.rrajath.grove.settings.GroveSettings
 import com.rrajath.grove.ui.components.DropdownPicker
 import com.rrajath.grove.ui.components.SegmentedControl
+import com.rrajath.grove.ui.newbadge.MarkNewFeatureSeen
+import com.rrajath.grove.ui.newbadge.NewAnchors
+import com.rrajath.grove.ui.newbadge.NewDot
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
@@ -55,11 +58,13 @@ fun SettingsAgendaScreen(
     onSetAgendaWidgetShowFileName: (Boolean) -> Unit,
     onSetAgendaWidgetShowTags: (Boolean) -> Unit,
     onSetAgendaWidgetShowPriority: (Boolean) -> Unit,
-    onSetAgendaWidgetOverdueDaysCap: (Int) -> Unit,
     onSetAgendaWidgetFontSize: (FontSizePreference) -> Unit,
 ) {
     val c = MaterialTheme.grove
     SettingsPageScaffold(title = "Agenda", onBack = onBack) {
+        // Leaving this screen retires the Widget section's NEW dot from its whole
+        // trail (menu glyph, drawer, Settings hub row, the section header itself).
+        MarkNewFeatureSeen(NewAnchors.SETTINGS_AGENDA_WIDGET)
         SettingsGroup {
             Column(Modifier.padding(horizontal = 15.dp, vertical = 10.dp)) {
                 Text(
@@ -102,9 +107,17 @@ fun SettingsAgendaScreen(
             }
         }
         Spacer(Modifier.height(20.dp))
-        SectionLabel("WIDGET")
+        SectionLabel("WIDGET", trailing = { NewDot(NewAnchors.SETTINGS_AGENDA_WIDGET) })
+        // Local, not the committed setting: Slider's onValueChange fires on every
+        // drag tick, and writing to the settings DataStore that often made both
+        // the drag and the live preview below feel jittery. Dragging now only
+        // updates this in-memory value (smooth, and the preview tracks it live);
+        // onValueChangeFinished commits it to disk once, when the drag ends.
+        var localTransparency by remember(settings.agendaWidgetTransparency) {
+            mutableStateOf(settings.agendaWidgetTransparency)
+        }
         Box(Modifier.padding(bottom = 14.dp)) {
-            AgendaWidgetPreview(settings)
+            AgendaWidgetPreview(settings, transparencyOverride = localTransparency)
         }
         SettingsGroup {
             Column(Modifier.padding(horizontal = 15.dp, vertical = 10.dp)) {
@@ -116,7 +129,7 @@ fun SettingsAgendaScreen(
                         modifier = Modifier.weight(1f),
                     )
                     Text(
-                        "${(settings.agendaWidgetTransparency * 100).roundToInt()}%",
+                        "${(localTransparency * 100).roundToInt()}%",
                         fontFamily = PlexMono, fontSize = 13.sp, color = c.accent,
                     )
                 }
@@ -125,8 +138,9 @@ fun SettingsAgendaScreen(
                     fontFamily = PlexSans, fontSize = 12.sp, color = c.ink2,
                 )
                 Slider(
-                    value = settings.agendaWidgetTransparency,
-                    onValueChange = onSetAgendaWidgetTransparency,
+                    value = localTransparency,
+                    onValueChange = { localTransparency = it },
+                    onValueChangeFinished = { onSetAgendaWidgetTransparency(localTransparency) },
                     valueRange = 0f..1f,
                     colors = SliderDefaults.colors(
                         thumbColor = c.accent,
@@ -153,25 +167,6 @@ fun SettingsAgendaScreen(
                     )
                 }
                 DaysAheadField(settings.agendaWidgetDaysAhead, onSetAgendaWidgetDaysAhead)
-            }
-            RowDivider()
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 15.dp, vertical = 14.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        "Days overdue",
-                        fontFamily = PlexSans, fontWeight = FontWeight.Medium,
-                        fontSize = 14.5.sp, color = c.ink,
-                    )
-                    Text(
-                        "How far back an overdue item can be and still show; 0 shows every overdue item",
-                        fontFamily = PlexSans, fontSize = 12.sp, color = c.ink2,
-                        modifier = Modifier.padding(top = 2.dp),
-                    )
-                }
-                OverdueDaysCapField(settings.agendaWidgetOverdueDaysCap, onSetAgendaWidgetOverdueDaysCap)
             }
             RowDivider()
             ToggleRow(
@@ -211,30 +206,6 @@ fun SettingsAgendaScreen(
             }
         }
     }
-}
-
-/**
- * Positive-integer field where 0 (or blank) means "unbounded" — no non-digit
- * keystrokes reach the field, and an empty value commits as 0 rather than
- * reverting, since blank is itself a valid, meaningful state here.
- */
-@Composable
-private fun OverdueDaysCapField(days: Int, onSet: (Int) -> Unit) {
-    val c = MaterialTheme.grove
-    var text by remember(days) { mutableStateOf(if (days == 0) "" else days.toString()) }
-    OutlinedTextField(
-        value = text,
-        onValueChange = { text = it.filter(Char::isDigit).take(4) },
-        placeholder = { Text("0", fontFamily = PlexMono, fontSize = 14.sp, color = c.ink3) },
-        singleLine = true,
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-        textStyle = TextStyle(fontFamily = PlexMono, fontSize = 14.sp, color = c.accent),
-        modifier = Modifier
-            .width(72.dp)
-            .onFocusChanged { state ->
-                if (!state.isFocused) onSet(text.toIntOrNull() ?: 0)
-            },
-    )
 }
 
 /**

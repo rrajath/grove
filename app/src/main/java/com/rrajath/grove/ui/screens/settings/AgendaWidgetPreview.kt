@@ -52,7 +52,7 @@ import java.time.LocalTime
  * not the widget's own composition.
  */
 @Composable
-internal fun AgendaWidgetPreview(settings: GroveSettings) {
+internal fun AgendaWidgetPreview(settings: GroveSettings, transparencyOverride: Float? = null) {
     val c = MaterialTheme.grove
     val today = remember { LocalDate.now() }
     val notes = remember(today) { previewNotes(today) }
@@ -60,7 +60,9 @@ internal fun AgendaWidgetPreview(settings: GroveSettings) {
         LedgerBuckets.build(notes, today, settings.agendaWidgetDaysAhead, settings)
     }
     val scale = settings.agendaWidgetFontSize.scale
-    val backgroundColor = c.surface.copy(alpha = 1f - settings.agendaWidgetTransparency)
+    // Overridable so dragging the Transparency slider (which no longer writes
+    // to disk on every tick, see SettingsAgendaScreen) still tracks live here.
+    val backgroundColor = c.surface.copy(alpha = 1f - (transparencyOverride ?: settings.agendaWidgetTransparency))
     val totalCount = sections.sumOf { it.count }
     val todayCount = sections.firstOrNull { it.key.startsWith("Today") }?.count ?: 0
 
@@ -203,9 +205,9 @@ private fun ScaledText(
 }
 
 /**
- * Four stubbed headings spanning Overdue (one recent, one far enough back to
- * demonstrate the "Days overdue" cap), Today, and Tomorrow — enough sections to
- * preview every widget-only lever at once (tags, filename, priority, font size).
+ * Four stubbed headings spanning Overdue (two, at different ages), Today, and
+ * Tomorrow — enough sections to preview every widget-only lever at once (tags,
+ * filename, priority, font size).
  */
 private fun previewNotes(today: LocalDate): List<NoteMeta> = listOf(
     previewNote(

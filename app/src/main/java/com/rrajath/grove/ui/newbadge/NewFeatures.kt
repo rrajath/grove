@@ -53,6 +53,12 @@ object NewAnchors {
     /** The "Capture link" section on a template's editor (grove:// link + Add to Homescreen). */
     const val SETTINGS_CAPTURE_TEMPLATES_LINK = "settings.captureTemplates.captureLink"
 
+    /** The Settings hub row leading to the Agenda page. */
+    const val SETTINGS_AGENDA = "settings.agenda"
+
+    /** The "WIDGET" section inside Settings § Agenda (home-screen ledger widget appearance). */
+    const val SETTINGS_AGENDA_WIDGET = "settings.agenda.widget"
+
     /** The top-bar "☰" glyph. A feature reached through it lists this so the
      *  glyph carries a corner dot until the feature is seen. */
     const val TOPBAR_MENU = "topbar.menu"
@@ -156,5 +162,21 @@ val NEW_FEATURES: List<NewFeature> = listOf(
             NewAnchors.SETTINGS_CAPTURE_TEMPLATES_LINK,
         ),
         destination = NewAnchors.SETTINGS_CAPTURE_TEMPLATES_LINK,
-    )
+    ),
+    NewFeature(
+        // Settings § Agenda gained a Widget section: Filename/Tags/Priority
+        // toggles, a Font size lever, and a live preview for the home-screen
+        // Agenda ledger widget.
+        // `since` is the versionCode of the release that ships it — bump it to
+        // match `gradle.properties` versionName when cutting the release.
+        id = "agenda-widget-settings",
+        since = 10500,
+        anchors = setOf(
+            NewAnchors.TOPBAR_MENU,
+            NewAnchors.DRAWER_SETTINGS,
+            NewAnchors.SETTINGS_AGENDA,
+            NewAnchors.SETTINGS_AGENDA_WIDGET,
+        ),
+        destination = NewAnchors.SETTINGS_AGENDA_WIDGET,
+    ),
 )

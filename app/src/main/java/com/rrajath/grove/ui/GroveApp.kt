@@ -837,7 +837,6 @@ private fun GroveNavigation(
                     onSetAgendaWidgetShowFileName = viewModel::setAgendaWidgetShowFileName,
                     onSetAgendaWidgetShowTags = viewModel::setAgendaWidgetShowTags,
                     onSetAgendaWidgetShowPriority = viewModel::setAgendaWidgetShowPriority,
-                    onSetAgendaWidgetOverdueDaysCap = viewModel::setAgendaWidgetOverdueDaysCap,
                     onSetAgendaWidgetFontSize = viewModel::setAgendaWidgetFontSize,
                 )
             }

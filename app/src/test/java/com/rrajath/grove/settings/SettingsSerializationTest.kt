@@ -60,7 +60,6 @@ class SettingsSerializationTest {
         agendaWidgetShowFileName = true,
         agendaWidgetShowTags = false,
         agendaWidgetShowPriority = false,
-        agendaWidgetOverdueDaysCap = 10,
         agendaWidgetFontSize = FontSizePreference.LARGE,
         autoArchiveDoneItems = true,
         autoArchiveFile = "archive.org",
@@ -123,7 +122,6 @@ class SettingsSerializationTest {
         assertEquals(sample.agendaWidgetShowFileName, restored.agendaWidgetShowFileName)
         assertEquals(sample.agendaWidgetShowTags, restored.agendaWidgetShowTags)
         assertEquals(sample.agendaWidgetShowPriority, restored.agendaWidgetShowPriority)
-        assertEquals(sample.agendaWidgetOverdueDaysCap, restored.agendaWidgetOverdueDaysCap)
         assertEquals(sample.agendaWidgetFontSize, restored.agendaWidgetFontSize)
         assertEquals(sample.autoArchiveDoneItems, restored.autoArchiveDoneItems)
         assertEquals(sample.autoArchiveFile, restored.autoArchiveFile)
@@ -236,20 +234,12 @@ class SettingsSerializationTest {
     }
 
     @Test
-    fun `agenda widget overdue days cap cannot go negative on import`() {
-        val json = """{ "agendaWidgetOverdueDaysCap": -5 }"""
-        val restored = SettingsSerialization.import(json, GroveSettings())
-        assertEquals(0, restored.agendaWidgetOverdueDaysCap)
-    }
-
-    @Test
     fun `a pre-v4 export without the widget-only levers imports at today's defaults`() {
         val json = """{ "theme": "dark" }"""
         val restored = SettingsSerialization.import(json, GroveSettings())
         assertEquals(false, restored.agendaWidgetShowFileName)
         assertEquals(true, restored.agendaWidgetShowTags)
         assertEquals(true, restored.agendaWidgetShowPriority)
-        assertEquals(0, restored.agendaWidgetOverdueDaysCap)
         assertEquals(FontSizePreference.MEDIUM, restored.agendaWidgetFontSize)
     }
 

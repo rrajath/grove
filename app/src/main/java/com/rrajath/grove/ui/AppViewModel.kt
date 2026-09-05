@@ -332,9 +332,6 @@ class AppViewModel(private val app: GroveApplication) : ViewModel() {
     fun setAgendaWidgetShowPriority(show: Boolean) =
         viewModelScope.launch { settingsRepository.setAgendaWidgetShowPriority(show) }
 
-    fun setAgendaWidgetOverdueDaysCap(days: Int) =
-        viewModelScope.launch { settingsRepository.setAgendaWidgetOverdueDaysCap(days) }
-
     fun setAgendaWidgetFontSize(fontSize: FontSizePreference) =
         viewModelScope.launch { settingsRepository.setAgendaWidgetFontSize(fontSize) }
 

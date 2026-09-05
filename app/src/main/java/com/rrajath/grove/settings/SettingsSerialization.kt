@@ -98,7 +98,6 @@ data class SettingsExport(
     val agendaWidgetShowFileName: Boolean = false,
     val agendaWidgetShowTags: Boolean = true,
     val agendaWidgetShowPriority: Boolean = true,
-    val agendaWidgetOverdueDaysCap: Int = 0,
     val agendaWidgetFontSize: String = FontSizePreference.MEDIUM.storageKey,
     val autoArchiveDoneItems: Boolean = false,
     val autoArchiveFile: String? = null,
@@ -161,7 +160,6 @@ data class SettingsExport(
         agendaWidgetShowFileName = agendaWidgetShowFileName,
         agendaWidgetShowTags = agendaWidgetShowTags,
         agendaWidgetShowPriority = agendaWidgetShowPriority,
-        agendaWidgetOverdueDaysCap = agendaWidgetOverdueDaysCap.coerceAtLeast(0),
         agendaWidgetFontSize = FontSizePreference.fromStorage(agendaWidgetFontSize),
         autoArchiveDoneItems = autoArchiveDoneItems,
         autoArchiveFile = autoArchiveFile,
@@ -175,9 +173,9 @@ data class SettingsExport(
         // `editModeFontSize`. v1 exports still import (fontSize seeds both).
         // v3: added the app-wide `appFontSize` baseline. Additive — older exports
         // omit it and import as MEDIUM.
-        // v4: added the widget-only agendaWidgetShow*/agendaWidgetOverdueDaysCap/
-        // agendaWidgetFontSize levers. Additive — older exports omit them and
-        // import at their defaults (mirroring today's widget behavior).
+        // v4: added the widget-only agendaWidgetShow*/agendaWidgetFontSize levers.
+        // Additive — older exports omit them and import at their defaults
+        // (mirroring today's widget behavior).
         const val CURRENT_VERSION = 4
 
         fun fromSettings(s: GroveSettings): SettingsExport = SettingsExport(
@@ -230,7 +228,6 @@ data class SettingsExport(
             agendaWidgetShowFileName = s.agendaWidgetShowFileName,
             agendaWidgetShowTags = s.agendaWidgetShowTags,
             agendaWidgetShowPriority = s.agendaWidgetShowPriority,
-            agendaWidgetOverdueDaysCap = s.agendaWidgetOverdueDaysCap,
             agendaWidgetFontSize = s.agendaWidgetFontSize.storageKey,
             autoArchiveDoneItems = s.autoArchiveDoneItems,
             autoArchiveFile = s.autoArchiveFile,

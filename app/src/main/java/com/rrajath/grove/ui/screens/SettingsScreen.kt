@@ -78,7 +78,12 @@ fun SettingsScreen(
             onClick = onOpenNotes,
             badge = { NewDot(NewAnchors.SETTINGS_NOTES) },
         ),
-        SettingsPage("Agenda", "Swipe actions on agenda rows", onOpenAgenda),
+        SettingsPage(
+            "Agenda",
+            "Swipe actions on agenda rows",
+            onClick = onOpenAgenda,
+            badge = { NewDot(NewAnchors.SETTINGS_AGENDA) },
+        ),
         SettingsPage("Reminders", "Notifications for SCHEDULED/DEADLINE", onOpenReminders),
         SettingsPage("Sharing", "Where shared content lands", onOpenSharing),
         SettingsPage("Backup", "Export/import your preferences", onOpenBackup),

@@ -187,8 +187,6 @@ data class GroveSettings(
     val agendaWidgetShowFileName: Boolean = false,
     val agendaWidgetShowTags: Boolean = true,
     val agendaWidgetShowPriority: Boolean = true,
-    /** How many days back an overdue item still shows in the widget; 0 = unbounded (today's default). */
-    val agendaWidgetOverdueDaysCap: Int = 0,
     val agendaWidgetFontSize: FontSizePreference = FontSizePreference.MEDIUM,
     /**
      * Notebooks screen: directory paths whose folder rows are expanded in the
@@ -297,7 +295,6 @@ class SettingsRepository(private val context: Context, private val scope: Corout
         val agendaWidgetShowFileName = booleanPreferencesKey("agenda_widget_show_file_name")
         val agendaWidgetShowTags = booleanPreferencesKey("agenda_widget_show_tags")
         val agendaWidgetShowPriority = booleanPreferencesKey("agenda_widget_show_priority")
-        val agendaWidgetOverdueDaysCap = intPreferencesKey("agenda_widget_overdue_days_cap")
         val agendaWidgetFontSize = stringPreferencesKey("agenda_widget_font_size")
         val expandedFolders = stringPreferencesKey("expanded_folders")
         val notebooksTreeDefaultsApplied = booleanPreferencesKey("notebooks_tree_defaults_applied")
@@ -376,7 +373,6 @@ class SettingsRepository(private val context: Context, private val scope: Corout
             agendaWidgetShowFileName = prefs[Keys.agendaWidgetShowFileName] ?: false,
             agendaWidgetShowTags = prefs[Keys.agendaWidgetShowTags] ?: true,
             agendaWidgetShowPriority = prefs[Keys.agendaWidgetShowPriority] ?: true,
-            agendaWidgetOverdueDaysCap = prefs[Keys.agendaWidgetOverdueDaysCap] ?: 0,
             agendaWidgetFontSize = FontSizePreference.fromStorage(prefs[Keys.agendaWidgetFontSize]),
             expandedFolders = decodeFolderSet(prefs[Keys.expandedFolders]),
             notebooksTreeDefaultsApplied = prefs[Keys.notebooksTreeDefaultsApplied] ?: false,
@@ -494,7 +490,6 @@ class SettingsRepository(private val context: Context, private val scope: Corout
             p[Keys.agendaWidgetShowFileName] = s.agendaWidgetShowFileName
             p[Keys.agendaWidgetShowTags] = s.agendaWidgetShowTags
             p[Keys.agendaWidgetShowPriority] = s.agendaWidgetShowPriority
-            p[Keys.agendaWidgetOverdueDaysCap] = s.agendaWidgetOverdueDaysCap
             p[Keys.agendaWidgetFontSize] = s.agendaWidgetFontSize.storageKey
             p[Keys.autoArchiveDoneItems] = s.autoArchiveDoneItems
             if (s.autoArchiveFile == null) p.remove(Keys.autoArchiveFile)
@@ -736,11 +731,6 @@ class SettingsRepository(private val context: Context, private val scope: Corout
 
     suspend fun setAgendaWidgetShowPriority(show: Boolean) {
         context.settingsDataStore.edit { it[Keys.agendaWidgetShowPriority] = show }
-    }
-
-    /** 0 = unbounded (no cap on how late an overdue item can be and still show). */
-    suspend fun setAgendaWidgetOverdueDaysCap(days: Int) {
-        context.settingsDataStore.edit { it[Keys.agendaWidgetOverdueDaysCap] = days.coerceAtLeast(0) }
     }
 
     suspend fun setAgendaWidgetFontSize(fontSize: FontSizePreference) {

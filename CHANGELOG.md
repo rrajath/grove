@@ -69,8 +69,8 @@ re-uploads the APKs to the existing release instead of failing.
   straight into that template's capture editor.
 - Settings § Agenda › Widget has new levers for the home-screen Agenda widget:
   show/hide Filename (nested folders contract to initials, e.g. `W/P/notes.org`),
-  Tags, and Priority, a "Days overdue" cap, and a Small/Medium/Large Font size —
-  plus a live preview of the widget with stubbed data.
+  Tags, and Priority, and a Small/Medium/Large Font size — plus a live preview
+  of the widget with stubbed data.
 
 ### Changed
 - Switching between Read and Edit no longer saves the note. Read mode renders

@@ -25,21 +25,13 @@ object LedgerBuckets {
     data class Section(val key: String, val count: Int, val rows: List<AgendaRow>)
 
     /**
-     * Overdue (oldest-first — same as the Agenda screen, capped by
-     * [GroveSettings.agendaWidgetOverdueDaysCap] when that is non-zero) first,
-     * then one section per day from [today] through [today] + [windowDays] - 1
-     * that actually has a task, in date order. A day with no tasks is omitted
+     * Overdue (unbounded, oldest-first — same as the Agenda screen) first, then
+     * one section per day from [today] through [today] + [windowDays] - 1 that
+     * actually has a task, in date order. A day with no tasks is omitted
      * entirely rather than rendered empty.
      */
     fun build(notes: List<NoteMeta>, today: LocalDate, windowDays: Int, settings: GroveSettings): List<Section> {
-        val overdueNotesAll = AgendaBuckets.overdue(notes, today)
-        val overdueCap = settings.agendaWidgetOverdueDaysCap
-        val overdueNotes = if (overdueCap > 0) {
-            val cutoff = today.minusDays(overdueCap.toLong())
-            overdueNotesAll.filter { AgendaBuckets.whenDate(it)?.isBefore(cutoff) != true }
-        } else {
-            overdueNotesAll
-        }
+        val overdueNotes = AgendaBuckets.overdue(notes, today)
         val overdueSection = if (overdueNotes.isEmpty()) null else Section(
             key = "Overdue",
             count = overdueNotes.size,
