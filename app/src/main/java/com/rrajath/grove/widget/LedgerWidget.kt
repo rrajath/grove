@@ -326,35 +326,33 @@ private fun LedgerRow(context: Context, colors: GroveColors, row: AgendaRow, fon
         modifier = GlanceModifier.fillMaxWidth().padding(horizontal = 13.dp, vertical = 8.dp),
         verticalAlignment = Alignment.Top,
     ) {
-        // Clickable region matches the visible 14dp ring exactly: widening it to
-        // 23dp (folding in the following spacer) used to compensate for a stale-
-        // render bug that made mark-done look unresponsive, but the real fix was
-        // the collectAsState move above, so the wider tap target just left the
-        // gutter's dead space between the ring and the title clickable too.
-        val gutterModifier = GlanceModifier.height(LEDGER_LINE_HEIGHT).width(14.dp)
+        // The clickable region is the 14dp ring itself (see below), not this
+        // outer Box. Widening the tap target to 23dp (folding in the following
+        // spacer) used to compensate for a stale-render bug that made mark-done
+        // look unresponsive, but the real fix was the collectAsState move above.
         Box(
-            modifier = if (row.keyword != null) {
-                gutterModifier.clickable(
-                    actionRunCallback<MarkDoneAction>(
-                        actionParametersOf(
-                            FILE_NAME_KEY to row.fileName,
-                            LINE_INDEX_KEY to row.lineIndex,
-                        ),
-                    ),
-                )
-            } else {
-                gutterModifier
-            },
+            modifier = GlanceModifier.height(LEDGER_LINE_HEIGHT).width(14.dp),
             contentAlignment = Alignment.Center,
         ) {
             if (row.keyword != null) {
                 // No border() modifier in Glance 1.1.1: the "hollow ring" is faked
                 // by centering a smaller surface-colored circle over a light-grey one.
+                // The clickable + cornerRadius(7dp) live on this 14dp square so the
+                // system tap ripple clips to the circle instead of spilling into the
+                // taller line-height band the outer Box occupies for alignment.
                 Box(
                     modifier = GlanceModifier
                         .size(14.dp)
                         .cornerRadius(7.dp)
-                        .background(ColorProvider(colors.line2)),
+                        .background(ColorProvider(colors.line2))
+                        .clickable(
+                            actionRunCallback<MarkDoneAction>(
+                                actionParametersOf(
+                                    FILE_NAME_KEY to row.fileName,
+                                    LINE_INDEX_KEY to row.lineIndex,
+                                ),
+                            ),
+                        ),
                     contentAlignment = Alignment.Center,
                 ) {
                     Box(modifier = GlanceModifier.size(12.dp).cornerRadius(6.dp).background(ColorProvider(colors.surface))) {}

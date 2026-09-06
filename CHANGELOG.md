@@ -111,6 +111,9 @@ re-uploads the APKs to the existing release instead of failing.
   what the metadata sheet edits. It previously showed inherited tags too, so
   removing a tag that a parent heading (or `#+FILETAGS:`) also carried looked
   like it hadn't worked even though it had.
+- Tapping a task's radio circle in the home-screen Agenda widget now shows a
+  circular tap ripple clipped to the ring, instead of a square highlight
+  around it.
 
 ## [1.4.0] - 2026-09-04
 
