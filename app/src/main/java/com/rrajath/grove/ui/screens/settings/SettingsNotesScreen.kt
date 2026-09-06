@@ -2,7 +2,9 @@ package com.rrajath.grove.ui.screens.settings
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -74,6 +76,8 @@ fun SettingsNotesScreen(
         // (menu glyph, drawer, Settings hub row, the row itself).
         MarkNewFeatureSeen(NewAnchors.SETTINGS_NOTES_NEW_NOTE_CURSOR)
         MarkNewFeatureSeen(NewAnchors.SETTINGS_NOTES_AUTO_SAVE)
+
+        SectionLabel("TASKS")
         SettingsGroup {
             Column(Modifier.padding(horizontal = 15.dp, vertical = 10.dp)) {
                 Text(
@@ -119,7 +123,11 @@ fun SettingsNotesScreen(
                     modifier = Modifier.width(200.dp),
                 )
             }
-            RowDivider()
+        }
+        Spacer(Modifier.height(20.dp))
+
+        SectionLabel("DISPLAY")
+        SettingsGroup {
             SettingsRow(
                 label = "Default note mode",
                 description = if (settings.defaultNoteOpenMode == NoteOpenMode.READ) {
@@ -164,7 +172,11 @@ fun SettingsNotesScreen(
                 checked = settings.showPropertyDrawers,
                 onToggle = onSetShowPropertyDrawers,
             )
-            RowDivider()
+        }
+        Spacer(Modifier.height(20.dp))
+
+        SectionLabel("NEW NOTES & EDITING")
+        SettingsGroup {
             ToggleRow(
                 label = "Add ID to new notes",
                 description = "Adds an ID property while creating new notes",
@@ -200,7 +212,11 @@ fun SettingsNotesScreen(
                 labelBadge = { NewDot(NewAnchors.SETTINGS_NOTES_AUTO_SAVE) },
                 onToggle = onSetAutoSaveNotes,
             )
-            RowDivider()
+        }
+        Spacer(Modifier.height(20.dp))
+
+        SectionLabel("ARCHIVING")
+        SettingsGroup {
             ToggleRow(
                 label = "Auto-archive done items?",
                 description = "Refiles a task the moment it's marked done, to its ARCHIVE property/keyword " +

@@ -79,6 +79,8 @@ re-uploads the APKs to the existing release instead of failing.
   agenda-row swipe actions.
 
 ### Changed
+- Settings § Notes is now split into labelled sections (Tasks, Display, New
+  notes & editing, Archiving) instead of one long undivided list.
 - The Notebooks home screen's floating Capture button is now a docked bottom
   bar: Search, an inline "+ Capture" pill, and New notebook, all within thumb
   reach. The top bar drops its "+" and search icons, and the bar stays put
