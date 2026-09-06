@@ -245,19 +245,11 @@ fun NotebooksScreen(
                 )
             }
         },
-        bottomBar = {
-            // Reachability dock: Search / Capture / New notebook all sit in the
-            // thumb zone. Shown on the tree view and while drilling a folder;
-            // "New notebook" targets the folder currently in view.
-            if (state is NotebooksUiState.Loaded) {
-                NotebooksDock(
-                    onSearch = onOpenSearch,
-                    onCapture = onOpenCapture,
-                    onNewNotebook = { createInDir = drillDir ?: "" },
-                )
-            }
-        },
     ) { padding ->
+        // The reachability dock floats over the list (Files-by-Google style):
+        // it is an overlay in this Box, not a bottomBar slot, so rows stay
+        // full-height and scroll behind it instead of being inset above it.
+        Box(Modifier.fillMaxSize()) {
         Column(
             Modifier
                 .fillMaxSize()
@@ -344,7 +336,8 @@ fun NotebooksScreen(
                                     LazyColumn(
                                         state = listState,
                                         modifier = Modifier.fillMaxSize().testTag("notebooks_list"),
-                                        contentPadding = PaddingValues(top = 4.dp, bottom = 16.dp),
+                                        // Last-row clearance for the floating dock the list scrolls under.
+                                        contentPadding = PaddingValues(top = 4.dp, bottom = DOCK_CLEARANCE),
                                     ) {
                                         items(s.flatPinned, key = { "pin:${it.fileName}" }) { nb ->
                                             Box(Modifier.animateItem()) {
@@ -364,7 +357,7 @@ fun NotebooksScreen(
                                         listState = listState,
                                         modifier = Modifier
                                             .align(Alignment.BottomEnd)
-                                            .padding(bottom = 16.dp, end = 16.dp),
+                                            .padding(bottom = DOCK_CLEARANCE, end = 16.dp),
                                     )
                                 }
                             }
@@ -386,7 +379,7 @@ fun NotebooksScreen(
                         } else {
                             LazyColumn(
                                 modifier = Modifier.fillMaxSize().testTag("notebooks_drill_list"),
-                                contentPadding = PaddingValues(top = 4.dp, bottom = 24.dp),
+                                contentPadding = PaddingValues(top = 4.dp, bottom = DOCK_CLEARANCE),
                             ) {
                                 items(level.childFolders, key = { "dir:${it.dir}" }) { node ->
                                     folderRow(
@@ -419,9 +412,8 @@ fun NotebooksScreen(
                                     LazyColumn(
                                         state = listState,
                                         modifier = Modifier.fillMaxSize().testTag("notebooks_list"),
-                                        // Scaffold already insets the content above the
-                                        // bottom dock; this is just last-row breathing room.
-                                        contentPadding = PaddingValues(top = 4.dp, bottom = 16.dp),
+                                        // Last-row clearance for the floating dock the list scrolls under.
+                                        contentPadding = PaddingValues(top = 4.dp, bottom = DOCK_CLEARANCE),
                                     ) {
                                         if (s.pinnedStrip.isNotEmpty()) {
                                             // One block, in the order the user pinned things.
@@ -532,7 +524,7 @@ fun NotebooksScreen(
                                         listState = listState,
                                         modifier = Modifier
                                             .align(Alignment.BottomEnd)
-                                            .padding(bottom = 16.dp, end = 16.dp),
+                                            .padding(bottom = DOCK_CLEARANCE, end = 16.dp),
                                     )
                                 }
                             }
@@ -541,6 +533,18 @@ fun NotebooksScreen(
                     }
                 }
             }
+        }
+        // Reachability dock: Search / Capture / New notebook all sit in the
+        // thumb zone. Shown on the tree view and while drilling a folder;
+        // "New notebook" targets the folder currently in view.
+        if (state is NotebooksUiState.Loaded) {
+            NotebooksDock(
+                onSearch = onOpenSearch,
+                onCapture = onOpenCapture,
+                onNewNotebook = { createInDir = drillDir ?: "" },
+                modifier = Modifier.align(Alignment.BottomCenter),
+            )
+        }
         }
     }
 
@@ -1463,10 +1467,17 @@ private fun MoveConfirmButton(
 }
 
 /**
+ * Bottom inset added to every notebook list's `contentPadding` so the last row
+ * can scroll clear of the floating [NotebooksDock] (≈ 60dp capsule + 14dp gap +
+ * breathing room). The dock's own `navigationBarsPadding()` handles the system bar.
+ */
+private val DOCK_CLEARANCE = 88.dp
+
+/**
  * Home-screen reachability dock — replaces the old Capture FAB. A floating,
  * content-width pill bar centred at the bottom of the screen: a `surface2`
- * capsule (`RoundedCornerShape(percent = 50)`, `1dp` `line` border, soft
- * shadow) holding a Search icon button, a larger inline pill-shaped
+ * capsule (`RoundedCornerShape(percent = 50)`, `1dp` `line` border, no shadow so
+ * the list stays visible around it) holding a Search icon button, a larger inline pill-shaped
  * "＋ Capture" button (the primary action — flush with the bar, not raised),
  * and a New notebook icon button, the icons packed directly beside the pill.
  * Shown on the tree view and while drilling a folder; the caller points New
@@ -1477,10 +1488,13 @@ private fun NotebooksDock(
     onSearch: () -> Unit,
     onCapture: () -> Unit,
     onNewNotebook: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val c = MaterialTheme.grove
+    // No background: the bar is transparent so the list shows through around the
+    // floating capsule. Only the Row below paints (the surface2 pill).
     Box(
-        Modifier
+        modifier
             .fillMaxWidth()
             .navigationBarsPadding()
             .padding(bottom = 14.dp),
@@ -1489,7 +1503,6 @@ private fun NotebooksDock(
         Row(
             Modifier
                 .height(60.dp)
-                .shadow(12.dp, RoundedCornerShape(percent = 50))
                 .clip(RoundedCornerShape(percent = 50))
                 .background(c.surface2)
                 .border(1.dp, c.line, RoundedCornerShape(percent = 50))
