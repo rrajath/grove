@@ -87,6 +87,9 @@ re-uploads the APKs to the existing release instead of failing.
   edit) back into them, and asks to save or discard when you leave the note.
 
 ### Fixed
+- The Read/Edit toggle in the note top bar and the metadata button at the
+  bottom-right now sit on the same 24dp right margin as the back arrow and the
+  note body, instead of pressing against the screen edge.
 - `grove://capture/<id>` deep links now also resolve by the template's display
   name (case-insensitively) or its dash-separated slug, not just its internal
   id, and show a toast and close instead of a blank screen when nothing

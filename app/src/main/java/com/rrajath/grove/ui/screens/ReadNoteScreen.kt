@@ -276,7 +276,10 @@ fun ReadNoteScreen(
                         options = listOf("Read", "Edit"),
                         selectedIndex = 0,
                         onSelect = { if (it == 1) onEdit(null) },
-                        modifier = Modifier.width(140.dp),
+                        // 16dp here + the top bar's own 8dp = the 24dp read-note
+                        // gutter, so the toggle's right edge lines up with the
+                        // back arrow's optical left edge and the note body.
+                        modifier = Modifier.padding(end = 16.dp).width(140.dp),
                     )
                 },
                 subtitle = {
@@ -332,7 +335,9 @@ fun ReadNoteScreen(
                         Column(
                             Modifier
                                 .align(Alignment.BottomEnd)
-                                .padding(16.dp),
+                                // 24dp end = the read-note gutter, matching the
+                                // Read/Edit toggle above it.
+                                .padding(end = 24.dp, bottom = 16.dp),
                             horizontalAlignment = Alignment.End,
                             verticalArrangement = Arrangement.spacedBy(10.dp),
                         ) {
@@ -383,7 +388,9 @@ fun ReadNoteScreen(
                         Column(
                             Modifier
                                 .align(Alignment.BottomEnd)
-                                .padding(16.dp),
+                                // 24dp end = the read-note gutter, matching the
+                                // Read/Edit toggle above it.
+                                .padding(end = 24.dp, bottom = 16.dp),
                             horizontalAlignment = Alignment.End,
                             verticalArrangement = Arrangement.spacedBy(10.dp),
                         ) {

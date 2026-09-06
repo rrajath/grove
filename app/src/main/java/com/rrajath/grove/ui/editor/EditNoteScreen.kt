@@ -423,7 +423,10 @@ fun EditNoteScreen(
                         // note route's own leave path (back from read) is what checks
                         // for a blank heading before the file can actually change.
                         onSelect = { if (it == 0) onSwitchToRead() },
-                        modifier = Modifier.width(140.dp),
+                        // 16dp here + the top bar's own 8dp = the 24dp note
+                        // gutter, so the toggle's right edge lines up with the
+                        // back arrow's optical left edge.
+                        modifier = Modifier.padding(end = 16.dp).width(140.dp),
                     )
                 },
             )
@@ -477,7 +480,9 @@ fun EditNoteScreen(
                 Column(
                     Modifier
                         .align(Alignment.BottomEnd)
-                        .padding(16.dp),
+                        // 24dp end = the note gutter, matching the Read/Edit
+                        // toggle in the top bar.
+                        .padding(end = 24.dp, bottom = 16.dp),
                     horizontalAlignment = Alignment.End,
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
