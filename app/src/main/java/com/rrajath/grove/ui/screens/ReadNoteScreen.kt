@@ -103,6 +103,7 @@ import com.rrajath.grove.ui.components.Pill
 import com.rrajath.grove.ui.components.SegmentedControl
 import com.rrajath.grove.ui.components.annotateOrgInline
 import com.rrajath.grove.ui.components.doubleTapToEdit
+import com.rrajath.grove.ui.components.EditorMenuFab
 import com.rrajath.grove.ui.components.linkPressHandler
 import com.rrajath.grove.ui.components.orgInlineLinks
 import com.rrajath.grove.ui.components.ScrollJumpButtons
@@ -271,9 +272,6 @@ fun ReadNoteScreen(
                     }
                 },
                 actions = {
-                    NewDotBadge(NewAnchors.TOPBAR_MENU) {
-                        IconGlyph("☰", onClick = { metadataOpen = true })
-                    }
                     SegmentedControl(
                         options = listOf("Read", "Edit"),
                         selectedIndex = 0,
@@ -331,12 +329,18 @@ fun ReadNoteScreen(
                             },
                             modifier = Modifier.fillMaxSize(),
                         )
-                        ScrollJumpButtons(
-                            listState = listState,
-                            modifier = Modifier
+                        Column(
+                            Modifier
                                 .align(Alignment.BottomEnd)
                                 .padding(16.dp),
-                        )
+                            horizontalAlignment = Alignment.End,
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            ScrollJumpButtons(listState = listState)
+                            NewDotBadge(NewAnchors.TOPBAR_MENU) {
+                                EditorMenuFab(onClick = { metadataOpen = true })
+                            }
+                        }
                     }
                 } else if (headline == null) {
                     Box(
@@ -376,12 +380,18 @@ fun ReadNoteScreen(
                             favorites = favorites,
                         )
                         }
-                        ScrollJumpButtons(
-                            listState = listState,
-                            modifier = Modifier
+                        Column(
+                            Modifier
                                 .align(Alignment.BottomEnd)
                                 .padding(16.dp),
-                        )
+                            horizontalAlignment = Alignment.End,
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            ScrollJumpButtons(listState = listState)
+                            NewDotBadge(NewAnchors.TOPBAR_MENU) {
+                                EditorMenuFab(onClick = { metadataOpen = true })
+                            }
+                        }
                     }
                 }
             }

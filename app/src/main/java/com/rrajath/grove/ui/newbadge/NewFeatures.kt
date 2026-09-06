@@ -59,8 +59,9 @@ object NewAnchors {
     /** The "WIDGET" section inside Settings § Agenda (home-screen ledger widget appearance). */
     const val SETTINGS_AGENDA_WIDGET = "settings.agenda.widget"
 
-    /** The top-bar "☰" glyph. A feature reached through it lists this so the
-     *  glyph carries a corner dot until the feature is seen. */
+    /** The note editor's metadata FAB (the "☰" button, bottom-right of the Read
+     *  and Edit note screens). A feature reached through it lists this so the
+     *  button carries a corner dot until the feature is seen. */
     const val TOPBAR_MENU = "topbar.menu"
 
     /** A Tips & Tricks section, keyed by its [TipGroup] id. */

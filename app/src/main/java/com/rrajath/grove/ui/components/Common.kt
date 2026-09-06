@@ -34,6 +34,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -476,5 +477,36 @@ fun DropdownPicker(
                 }
             }
         }
+    }
+}
+
+/** Amber-tinted FAB drop shadow (design system: `rgba(138,90,43,0.40)`). */
+private val FabShadowColor = Color(0x668A5A2B)
+
+/**
+ * Icon-only FAB used on the note editor screens to open the metadata sheet —
+ * the affordance that used to be the top-bar "☰" glyph. 54dp square with 18dp
+ * corners, accent fill, amber-tinted drop shadow. The caller positions it
+ * (typically the bottom-end of the content area).
+ */
+@Composable
+fun EditorMenuFab(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val c = MaterialTheme.grove
+    Box(
+        modifier
+            .size(54.dp)
+            .shadow(
+                elevation = 10.dp,
+                shape = RoundedCornerShape(18.dp),
+                clip = false,
+                ambientColor = FabShadowColor,
+                spotColor = FabShadowColor,
+            )
+            .clip(RoundedCornerShape(18.dp))
+            .background(c.accent)
+            .clickable(onClickLabel = "Open metadata", onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text("☰", fontFamily = PlexSans, fontSize = 20.sp, color = c.accentInk)
     }
 }

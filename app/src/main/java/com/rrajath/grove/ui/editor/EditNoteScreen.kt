@@ -4,6 +4,7 @@ import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -60,6 +61,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rrajath.grove.org.LineEditing
 import com.rrajath.grove.settings.FontSizePreference
 import com.rrajath.grove.settings.NewNoteCursor
+import com.rrajath.grove.ui.components.EditorMenuFab
 import com.rrajath.grove.ui.components.GroveTopBar
 import com.rrajath.grove.ui.components.GroveUndoSnackbar
 import com.rrajath.grove.ui.components.ScrollJumpButtons
@@ -413,7 +415,6 @@ fun EditNoteScreen(
                 },
                 title = {},
                 actions = {
-                    IconGlyph("☰", onClick = { metadataOpen = true })
                     SegmentedControl(
                         options = listOf("Read", "Edit"),
                         selectedIndex = 1,
@@ -473,13 +474,19 @@ fun EditNoteScreen(
                             .focusRequester(focusRequester),
                     )
                 }
-                ScrollJumpButtons(
-                    scrollState = scrollState,
-                    minScrollDeltaPx = scrollButtonThresholdPx,
-                    modifier = Modifier
+                Column(
+                    Modifier
                         .align(Alignment.BottomEnd)
                         .padding(16.dp),
-                )
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    ScrollJumpButtons(
+                        scrollState = scrollState,
+                        minScrollDeltaPx = scrollButtonThresholdPx,
+                    )
+                    EditorMenuFab(onClick = { metadataOpen = true })
+                }
                 GroveUndoSnackbar(
                     snack = snack,
                     onUndo = viewModel::undo,
