@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for Claude Code when working in this repository (Grove, a native Android org-mode app).
 
 ## Commands
 
@@ -8,13 +8,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # Build
 ./gradlew assembleDebug
 ./gradlew assembleRelease
+./gradlew bundleRelease                             # release AAB
+
+# Version (single source of truth: gradle.properties `versionName`)
+./gradlew -q printVersionName
+./gradlew -q printVersionCode
 
 # Unit tests
 ./gradlew test
-./gradlew testDebugUnitTest                        # debug variant only
-./gradlew testDebugUnitTest --tests "com.rrajath.grove.SomeTest"  # single test
+./gradlew testDebugUnitTest
+./gradlew testDebugUnitTest --tests "com.rrajath.grove.SomeTest"
 
-# Instrumented tests (requires connected device/emulator)
+# Instrumented tests (needs connected device/emulator; Espresso + Compose UI test, no Robolectric)
 ./gradlew connectedAndroidTest
 
 # Lint
@@ -22,77 +27,63 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ./gradlew lintDebug
 ```
 
+Docs site (`docs-site/`) is a separate Astro/Starlight project with its own `package.json` and its own CLAUDE.md — run `npm run dev` / `build` / `deploy` from inside `docs-site/`, not from the root.
+
 ## Project Overview
 
-Grove is a native Android Org-mode note-taking app — a first-class mobile companion for Emacs org-mode users. Notes are always plain `.org` files on disk (file-first philosophy). The app is in **early scaffold stage**: `MainActivity.kt` is a placeholder; all features remain to be built.
+Grove is a native Android org-mode note-taking app for Emacs org-mode users. `.org` files on disk are the sole source of truth — never a database. Todo keywords, tags, priorities, schedule/deadline + repeaters, refiling, capture templates, agenda, and full-text search are all built on a hand-written org parser (no external org-mode library is used).
 
-**Key reference documents:**
-- `prd-android-orgmode-app.md` — full product requirements
-- `design/README.md` — pixel-accurate design spec (color tokens, typography, all 11 screens)
-- `design/Grove.dc.html` — interactive high-fidelity prototype (open in browser)
+**Reference docs** (check before assuming — these are the source of truth, not this file):
+- `internal-docs/prd-android-orgmode-app.md` — full PRD (gitignored, local only)
+- `internal-docs/DESIGN_SYSTEM.md` — design tokens, typography, component specs. Read before touching any UI element; don't invent colors/spacing it doesn't cover — ask instead.
+- `docs/architecture.md` — architecture writeup (tracked, kept current)
+- `gradle/libs.versions.toml` / `app/build.gradle.kts` — exact stack versions; don't trust a hardcoded version number in this file, check there instead
 
 ## Architecture
 
-### Stack
-- Kotlin, Jetpack Compose, Material 3
-- `minSdk 34`, `compileSdk 36`, AGP 9.0.1, Kotlin 2.0.21
-- Package: `com.rrajath.grove`
+### Layers
+**Data** — `.org` files in the vault directory are the sole source of truth. Room (`data/GroveDatabase.kt`) is a rebuildable index only (notes table, FTS-backed search cache, sync log, reminders) — never treat it as authoritative.
 
-### Layered architecture (from PRD §13)
+**Sync** (`sync/`, `vault/`) — `WorkManager` for periodic/boot sync, `FileObserver` for local-directory change detection, foreground `Service` when Continuous mode is active. All I/O on `Dispatchers.IO`. State machine: Idle → Checking → Pulling → Merging → Pushing → Done/Conflict/Error. **Only the Local Directory backend (SAF, pairs with Syncthing) is implemented.** WebDAV/Dropbox are unbuilt v2 ideas mentioned only in a doc comment — don't assume they work.
 
-**Data layer**
-- `.org` files in the configured sync directory are the sole source of truth — never a database
-- SQLite via Room is a rebuild-able index only (FTS5 for full-text search, search cache)
-- Evaluate `org-java` or other open-source parsers before writing a custom one
+**UI** — Jetpack Compose only, no XML layouts. `ModalNavigationDrawer`/`ModalBottomSheet` (M3) for drawer/capture picker. ViewModels + `StateFlow`. Dark mode follows system with manual override. `NavHost` lives in `ui/GroveApp.kt`; the route table is `ui/nav/Routes.kt` — treat that file as the source of truth for routes, not any list here (it grows with almost every feature).
 
-**Sync layer**
-- `WorkManager` for periodic/boot-triggered background sync (respects Doze)
-- `FileObserver` for local-directory change detection
-- Foreground `Service` with notification when Continuous sync mode is active
-- All I/O on `Dispatchers.IO` coroutines; never block the UI thread
-- Sync state machine: Idle → Checking → Pulling → Merging → Pushing → Done/Conflict/Error
-- Supported backends: Local Directory (recommended, pairs with Syncthing), WebDAV, Dropbox
+### Where things live (`app/src/main/java/com/rrajath/grove/`)
 
-**UI layer**
-- Jetpack Compose for all UI; no XML layouts
-- `ModalNavigationDrawer` and `ModalBottomSheet` (Material 3) for drawer and capture picker
-- `NavHost` with deep links (`grove://note/{id}`) for widget/notification shortcuts
-- ViewModels + `StateFlow` for state; see `AppState` in `design/README.md`
-- Dark mode follows system (with manual override)
+| Path | What's there |
+|---|---|
+| `org/` | Hand-written org-mode parser: tokenizer, blocks, tables, timestamps, mutations (`OrgParser.kt`, `OrgTable.kt`) |
+| `sync/` | Sync engine/state machine, conflict detection (`SyncEngine.kt`, `SyncConflicts.kt`) |
+| `vault/` | Filesystem abstraction over the vault — `FileStore` interface, `SafFileStore`/`JvmFileStore` impls |
+| `capture/` | Share-sheet intake, capture templates (`ShareReceiverActivity.kt`, `TemplatesRepository.kt`) |
+| `reminders/` | Alarms, notifications, digest scheduling, boot rescheduling |
+| `search/` | Full-text/query search over the note index |
+| `data/` | Room database — all entities/DAOs (`GroveDatabase.kt`) |
+| `settings/` | Preferences persistence/serialization |
+| `widget/` | Home-screen Glance widgets (`LedgerWidget.kt`, `CaptureWidget.kt`) |
+| `icon/`, `whatsnew/` | App icon/notification appearance; changelog parsing for the What's New dialog |
+| `ui/nav/` | Route table + nav transitions — **source of truth for routes** |
+| `ui/screens/` | Top-level screens (largest UI dir) |
+| `ui/screens/settings/` | Individual settings sub-screens (~10) |
+| `ui/editor/` | Org text editor (syntax highlight, toolbar) |
+| `ui/components/` | Shared composables |
+| `ui/capture/`, `ui/search/`, `ui/vault/`, `ui/agenda/`, `ui/reminders/`, `ui/newbadge/`, `ui/theme/` | Feature-scoped screens/viewmodels |
 
-### Navigation routes
-```
-onboarding
-notebooks
-outline/{notebookId}
-note/{noteId}?mode=read
-note/{noteId}?mode=edit
-capture
-capture/{templateId}
-search
-conflict/{notebookId}
-settings
-```
-
-## Design System
-Full reference: `docs/DESIGN_SYSTEM.md`
-Whenever a task adds, modifies, or styles any UI element, read that file first and follow it. Don't invent colors, spacing, or components it doesn't cover — ask instead.
+When a feature isn't in this table, grep inside the closest matching package before searching the whole tree.
 
 ## Editor Implementation Notes
+- Edit mode: `BasicTextField` + a custom `VisualTransformation` tokenizes org lines and applies `SpanStyle` per syntax token.
+- Read mode: a custom `AnnotatedString`/composable renderer maps the org AST to `Text`/`Column` etc. — no `WebView`.
+- Org tables in Read mode: `OrgTableView` (`ui/components/OrgTableView.kt`) + `parseOrgTable` (`org/OrgTable.kt`) — pinned bold header row, shared horizontal scroll, height-capped scrolling body. Edit mode still shows raw `| a | b |` text. Cell-level inline markup and column alignment are unimplemented.
 
-- Use `BasicTextField` with a custom `VisualTransformation` to tokenize org lines and apply `SpanStyle` per syntax token in edit mode.
-- For read mode, build a custom `AnnotatedString` renderer mapping org AST nodes to Compose composables (`Text`, `Column`, etc.); no `WebView`.
-- Org tables render in Read mode via `OrgTableView` (`ui/components/OrgTableView.kt`) + `parseOrgTable` (`org/OrgTable.kt`): a grid with a pinned, bolded header row, shared horizontal scroll, and a height-capped scrolling body. The editor still shows the raw `| a | b |` text. Cell-level inline markup and column alignment are left for later.
+## Conventions
+- Settings pages and the Import/Export Settings workflow must be updated together — any add/change/delete in Settings needs a matching change to import/export.
+- After every commit, add a short (1-2 sentence) entry to `CHANGELOG.md` under `[Unreleased]`. A GitHub Actions release (on a `v*.*.*` tag) archives that section automatically.
+- No ktlint/detekt/Spotless is configured — match surrounding style by hand.
 
-## Other guidelines
-- Whenever anything gets added, modified or deleted in the Settings pages, modify the Import/Export Settings workflows accordingly.
-- After every commit, update the CHANGELOG.md file with the changelog. Keep the description short; 1-2 sentences.
-
-## Key Design Decisions (from PRD §15)
-
+## Key Design Decisions
 | Decision | Resolution |
 |---|---|
-| Org parser | Use existing library (org-java or similar); custom parser only if the library has an unfixable gap |
-| Conflict resolution v1 | Conflict picker UI (keep local / keep remote / keep both); no auto-merge in v1 |
-| Template "under heading" target | Offer both exact name and `CUSTOM_ID`; mark `CUSTOM_ID` as recommended |
-| Sync recommendation | Syncthing + local directory (peer-to-peer, no account limits) |
+| Org parser | Custom hand-written parser (`org/`) — no external org-mode library is used |
+| Sync v1 | Local Directory backend only; conflict picker UI (keep local / keep remote / keep both), no auto-merge |
+| Template "under heading" target | Offer both exact heading name and `CUSTOM_ID`; `CUSTOM_ID` is recommended |
