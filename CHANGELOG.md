@@ -60,6 +60,10 @@ re-uploads the APKs to the existing release instead of failing.
 ## [Unreleased]
 
 ### Added
+- Debug builds: Settings › Developer has a **Drill-down file count** field that
+  overrides the folder drill-down threshold (default 20) for the session, so the
+  large-folder drill-down view can be tested without creating 20+ files. Not
+  saved; resets on restart.
 - Settings § Notes has an **Auto-save notes** toggle (on by default). Turn it off
   and an editor never writes on its own: no 5-second idle save, and the file
   changes only when you tap the save icon or pick Save on the way out.

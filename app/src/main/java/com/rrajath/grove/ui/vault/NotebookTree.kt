@@ -96,6 +96,8 @@ data class NotebookSort(
  * A folder whose recursive `.org` count is over this becomes a drill target on
  * the inline tree (variant 1b): tapping its row pushes the drill-down view
  * instead of expanding it in place (nested-folders plan §5).
+ *
+ * Debug builds can override this at runtime via [folderDrillThresholdOverride].
  */
 const val FOLDER_DRILL_THRESHOLD = 20
 

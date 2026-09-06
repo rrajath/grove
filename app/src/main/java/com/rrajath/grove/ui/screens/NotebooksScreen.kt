@@ -301,7 +301,7 @@ fun NotebooksScreen(
                         FolderRow(
                             node = node,
                             expanded = expanded,
-                            chevron = !flat && node.recursiveOrgCount > FOLDER_DRILL_THRESHOLD,
+                            chevron = !flat && node.recursiveOrgCount > s.drillThreshold,
                             flat = flat,
                             pinnedStrip = pinnedStrip,
                             onClick = onClick,
@@ -315,7 +315,7 @@ fun NotebooksScreen(
 
                     // Tree/pinned-strip tap: drill into a big folder, else toggle it in place.
                     fun openFolder(node: FolderNode) {
-                        if (node.recursiveOrgCount > FOLDER_DRILL_THRESHOLD) drillDir = node.dir
+                        if (node.recursiveOrgCount > s.drillThreshold) drillDir = node.dir
                         else viewModel.toggleFolder(node.dir)
                     }
 

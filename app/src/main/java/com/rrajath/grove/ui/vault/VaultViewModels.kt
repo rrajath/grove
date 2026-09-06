@@ -153,6 +153,12 @@ sealed class NotebooksUiState {
         val flatPinned: ImmutableList<NotebookItem> = persistentListOf(),
         /** Settings § Notebooks sort order — for the drill-down view, which re-sorts one folder's rows. */
         val sort: NotebookSort = NotebookSort.DEFAULT,
+        /**
+         * Recursive `.org` count above which a folder row drills instead of
+         * expanding. Always [FOLDER_DRILL_THRESHOLD] in release; debug builds can
+         * lower it from Settings › Developer tools (see [folderDrillThresholdOverride]).
+         */
+        val drillThreshold: Int = FOLDER_DRILL_THRESHOLD,
     ) : NotebooksUiState()
 }
 
@@ -239,12 +245,14 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
         app.syncManager.state,
         app.syncManager.lastResult,
         app.database.reminderDao().pendingCountFlow(System.currentTimeMillis()),
-    ) { loaded, syncState, lastResult, remindersPending ->
+        folderDrillThresholdOverride,
+    ) { loaded, syncState, lastResult, remindersPending, drillThreshold ->
         // Per-tick work is one shallow copy: the lists inside are shared, not rebuilt.
         loaded?.copy(
             syncState = syncState,
             lastSyncAt = lastResult?.completedAt,
             remindersPendingPermission = remindersPending,
+            drillThreshold = drillThreshold,
         ) ?: NotebooksUiState.NoVault
     }.stateIn(viewModelScope, SharingStarted.Eagerly, NotebooksUiState.NoVault)
 
