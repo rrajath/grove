@@ -33,6 +33,7 @@ object Routes {
     const val SETTINGS_SYNC = "settings/sync"
     const val SETTINGS_NOTES = "settings/notes"
     const val SETTINGS_AGENDA = "settings/agenda"
+    const val SETTINGS_WIDGET = "settings/widget"
     const val SETTINGS_REMINDERS = "settings/reminders"
     const val SETTINGS_SHARING = "settings/sharing"
     const val SETTINGS_BACKUP = "settings/backup"

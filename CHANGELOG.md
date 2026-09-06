@@ -71,10 +71,12 @@ re-uploads the APKs to the existing release instead of failing.
   `grove://capture/<slug>` deep link (updates as you rename the template) you
   can tap to copy, plus an **Add to Homescreen** button that pins a shortcut
   straight into that template's capture editor.
-- Settings § Agenda › Widget has new levers for the home-screen Agenda widget:
-  show/hide Filename (nested folders contract to initials, e.g. `W/P/notes.org`),
-  Tags, and Priority, and a Small/Medium/Large Font size — plus a live preview
-  of the widget with stubbed data.
+- Settings has a new **Widget** page for the home-screen Agenda widget, holding
+  everything that shapes it: background transparency, days ahead, show/hide
+  Filename (nested folders contract to initials, e.g. `W/P/notes.org`), Tags,
+  and Priority, and a Small/Medium/Large Font size. A live preview below the
+  settings updates as you change them. Settings § Agenda now covers only the
+  agenda-row swipe actions.
 
 ### Changed
 - The Notebooks home screen's floating Capture button is now a docked bottom

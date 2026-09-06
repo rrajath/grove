@@ -61,7 +61,7 @@ internal fun AgendaWidgetPreview(settings: GroveSettings, transparencyOverride: 
     }
     val scale = settings.agendaWidgetFontSize.scale
     // Overridable so dragging the Transparency slider (which no longer writes
-    // to disk on every tick, see SettingsAgendaScreen) still tracks live here.
+    // to disk on every tick, see SettingsWidgetScreen) still tracks live here.
     val backgroundColor = c.surface.copy(alpha = 1f - (transparencyOverride ?: settings.agendaWidgetTransparency))
     val totalCount = sections.sumOf { it.count }
     val todayCount = sections.firstOrNull { it.key.startsWith("Today") }?.count ?: 0

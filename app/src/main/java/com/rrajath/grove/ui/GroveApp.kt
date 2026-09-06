@@ -76,6 +76,7 @@ import com.rrajath.grove.ui.screens.settings.SettingsRemindersScreen
 import com.rrajath.grove.ui.screens.settings.SettingsSharingScreen
 import com.rrajath.grove.ui.screens.settings.SettingsSyncScreen
 import com.rrajath.grove.ui.screens.settings.SettingsTipsScreen
+import com.rrajath.grove.ui.screens.settings.SettingsWidgetScreen
 import com.rrajath.grove.ui.screens.SyncLogScreen
 import com.rrajath.grove.ui.vault.NoteRef
 import com.rrajath.grove.ui.vault.PendingEdit
@@ -742,6 +743,7 @@ private fun GroveNavigation(
                     onOpenSync = { navController.navigate(Routes.SETTINGS_SYNC) },
                     onOpenNotes = { navController.navigate(Routes.SETTINGS_NOTES) },
                     onOpenAgenda = { navController.navigate(Routes.SETTINGS_AGENDA) },
+                    onOpenWidget = { navController.navigate(Routes.SETTINGS_WIDGET) },
                     onOpenReminders = { navController.navigate(Routes.SETTINGS_REMINDERS) },
                     onOpenSharing = { navController.navigate(Routes.SETTINGS_SHARING) },
                     onOpenBackup = { navController.navigate(Routes.SETTINGS_BACKUP) },
@@ -832,6 +834,12 @@ private fun GroveNavigation(
                     onBack = { navController.popBackStack() },
                     onSetAgendaSwipeLeftAction = viewModel::setAgendaSwipeLeftAction,
                     onSetAgendaSwipeRightAction = viewModel::setAgendaSwipeRightAction,
+                )
+            }
+            composable(Routes.SETTINGS_WIDGET) {
+                SettingsWidgetScreen(
+                    settings = settings,
+                    onBack = { navController.popBackStack() },
                     onSetAgendaWidgetTransparency = viewModel::setAgendaWidgetTransparency,
                     onSetAgendaWidgetDaysAhead = viewModel::setAgendaWidgetDaysAhead,
                     onSetAgendaWidgetShowFileName = viewModel::setAgendaWidgetShowFileName,

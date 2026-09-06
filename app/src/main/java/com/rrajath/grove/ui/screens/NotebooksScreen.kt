@@ -1131,7 +1131,7 @@ private fun FileRow(
                 onClick = { menuOpen = false; onRename() },
             )
             DropdownMenuItem(
-                text = { Text("Move to folder…", fontFamily = PlexSans, color = c.ink) },
+                text = { Text("Move to folder", fontFamily = PlexSans, color = c.ink) },
                 onClick = { menuOpen = false; onMove() },
             )
             DropdownMenuItem(

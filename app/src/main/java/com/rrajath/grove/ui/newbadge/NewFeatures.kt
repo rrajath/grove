@@ -53,11 +53,11 @@ object NewAnchors {
     /** The "Capture link" section on a template's editor (grove:// link + Add to Homescreen). */
     const val SETTINGS_CAPTURE_TEMPLATES_LINK = "settings.captureTemplates.captureLink"
 
-    /** The Settings hub row leading to the Agenda page. */
-    const val SETTINGS_AGENDA = "settings.agenda"
+    /** The Settings hub row leading to the Widget page. */
+    const val SETTINGS_WIDGET = "settings.widget"
 
-    /** The "WIDGET" section inside Settings § Agenda (home-screen ledger widget appearance). */
-    const val SETTINGS_AGENDA_WIDGET = "settings.agenda.widget"
+    /** The Widget settings page itself (home-screen Agenda ledger widget). */
+    const val SETTINGS_WIDGET_PAGE = "settings.widget.page"
 
     /** The note editor's metadata FAB (the "☰" button, bottom-right of the Read
      *  and Edit note screens). A feature reached through it lists this so the
@@ -165,9 +165,9 @@ val NEW_FEATURES: List<NewFeature> = listOf(
         destination = NewAnchors.SETTINGS_CAPTURE_TEMPLATES_LINK,
     ),
     NewFeature(
-        // Settings § Agenda gained a Widget section: Filename/Tags/Priority
-        // toggles, a Font size lever, and a live preview for the home-screen
-        // Agenda ledger widget.
+        // Settings gained a dedicated Widget page: Filename/Tags/Priority toggles,
+        // a Font size lever, and a live preview for the home-screen Agenda ledger
+        // widget.
         // `since` is the versionCode of the release that ships it — bump it to
         // match `gradle.properties` versionName when cutting the release.
         id = "agenda-widget-settings",
@@ -175,9 +175,9 @@ val NEW_FEATURES: List<NewFeature> = listOf(
         anchors = setOf(
             NewAnchors.TOPBAR_MENU,
             NewAnchors.DRAWER_SETTINGS,
-            NewAnchors.SETTINGS_AGENDA,
-            NewAnchors.SETTINGS_AGENDA_WIDGET,
+            NewAnchors.SETTINGS_WIDGET,
+            NewAnchors.SETTINGS_WIDGET_PAGE,
         ),
-        destination = NewAnchors.SETTINGS_AGENDA_WIDGET,
+        destination = NewAnchors.SETTINGS_WIDGET_PAGE,
     ),
 )
