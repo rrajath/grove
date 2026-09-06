@@ -41,6 +41,7 @@ import com.rrajath.grove.search.SavedSearch
 import com.rrajath.grove.ui.components.BrandMark
 import com.rrajath.grove.ui.components.agendaIcon
 import com.rrajath.grove.ui.components.favoriteIcon
+import com.rrajath.grove.ui.components.notebookIcon
 import com.rrajath.grove.ui.components.savedSearchIcon
 import com.rrajath.grove.ui.components.searchIcon
 import com.rrajath.grove.ui.components.settingsIcon
@@ -96,7 +97,7 @@ fun GroveDrawerContent(
         Spacer(Modifier.height(8.dp))
 
         DrawerItem(icon = searchIcon(), label = "Search", active = false) { onNavigate(Routes.search()) }
-        DrawerItem("✦", "Notebooks", active = currentRoute == Routes.NOTEBOOKS) { onNavigate(Routes.NOTEBOOKS) }
+        DrawerItem(icon = notebookIcon(), label = "Notebooks", active = currentRoute == Routes.NOTEBOOKS) { onNavigate(Routes.NOTEBOOKS) }
 
         SectionLabel("SEARCHES")
         savedSearches.forEachIndexed { index, search ->
