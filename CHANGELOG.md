@@ -73,6 +73,10 @@ re-uploads the APKs to the existing release instead of failing.
   of the widget with stubbed data.
 
 ### Changed
+- The Notebooks home screen's floating Capture button is now a docked bottom
+  bar: Search, an inline "+ Capture" pill, and New notebook, all within thumb
+  reach. The top bar drops its "+" and search icons, and the bar stays put
+  while you browse inside a folder.
 - Switching between Read and Edit no longer saves the note. Read mode renders
   your unsaved edits instead, folds its own changes (a checkbox tap, a metadata
   edit) back into them, and asks to save or discard when you leave the note.

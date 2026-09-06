@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -70,6 +71,7 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -87,6 +89,7 @@ import com.rrajath.grove.sync.SyncState
 import com.rrajath.grove.ui.components.ChangeIconColorDialog
 import com.rrajath.grove.ui.components.GroveTopBar
 import com.rrajath.grove.ui.components.MonogramTile
+import com.rrajath.grove.ui.components.notebookIcon
 import com.rrajath.grove.ui.components.Pill
 import com.rrajath.grove.ui.components.ReminderPermissionBanner
 import com.rrajath.grove.ui.components.ScrollJumpButtons
@@ -204,9 +207,6 @@ fun NotebooksScreen(
                             onNavigate = { drillDir = it },
                         )
                     },
-                    actions = {
-                        IconGlyph("＋", onClick = { createInDir = currentDrill })
-                    },
                 )
             } else {
                 GroveTopBar(
@@ -225,7 +225,6 @@ fun NotebooksScreen(
                     },
                     actions = {
                         if (loadedState != null) {
-                            IconGlyph("＋", onClick = { createInDir = "" })
                             if (loadedState.hasFolders) {
                                 IconGlyph(
                                     if (loadedState.allFoldersCollapsed) Icons.Default.UnfoldMore
@@ -242,32 +241,20 @@ fun NotebooksScreen(
                             }
                             SyncStatusIcon(loadedState, context)
                         }
-                        IconGlyph(searchIcon(), contentDescription = "Search", onClick = onOpenSearch)
                     },
                 )
             }
         },
-        floatingActionButton = {
-            // The Capture FAB belongs to the tree view; the drill-down is a
-            // navigation surface, so it hides while browsing a folder.
-            if (drillDir == null) {
-                Row(
-                    Modifier
-                        .height(54.dp)
-                        .clip(RoundedCornerShape(17.dp))
-                        .background(c.accent)
-                        .clickable(onClick = onOpenCapture)
-                        .padding(horizontal = 20.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text("+", fontFamily = PlexSans, fontSize = 21.sp, color = c.accentInk)
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        "Capture",
-                        fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
-                        fontSize = 15.sp, color = c.accentInk,
-                    )
-                }
+        bottomBar = {
+            // Reachability dock: Search / Capture / New notebook all sit in the
+            // thumb zone. Shown on the tree view and while drilling a folder;
+            // "New notebook" targets the folder currently in view.
+            if (state is NotebooksUiState.Loaded) {
+                NotebooksDock(
+                    onSearch = onOpenSearch,
+                    onCapture = onOpenCapture,
+                    onNewNotebook = { createInDir = drillDir ?: "" },
+                )
             }
         },
     ) { padding ->
@@ -350,14 +337,14 @@ fun NotebooksScreen(
                             modifier = Modifier.fillMaxSize(),
                         ) {
                             if (s.notebooks.isEmpty()) {
-                                CenterMessage("✦", "No .org files here yet", "Capture a note or create a notebook with ＋")
+                                CenterMessage("✦", "No .org files here yet", "Capture a note or make a notebook from the bar below")
                             } else {
                                 val listState = rememberLazyListState()
                                 Box(Modifier.fillMaxSize()) {
                                     LazyColumn(
                                         state = listState,
                                         modifier = Modifier.fillMaxSize().testTag("notebooks_list"),
-                                        contentPadding = PaddingValues(top = 4.dp, bottom = 86.dp),
+                                        contentPadding = PaddingValues(top = 4.dp, bottom = 16.dp),
                                     ) {
                                         items(s.flatPinned, key = { "pin:${it.fileName}" }) { nb ->
                                             Box(Modifier.animateItem()) {
@@ -377,7 +364,7 @@ fun NotebooksScreen(
                                         listState = listState,
                                         modifier = Modifier
                                             .align(Alignment.BottomEnd)
-                                            .padding(bottom = 86.dp, end = 16.dp),
+                                            .padding(bottom = 16.dp, end = 16.dp),
                                     )
                                 }
                             }
@@ -421,7 +408,7 @@ fun NotebooksScreen(
                             modifier = Modifier.fillMaxSize(),
                         ) {
                             if (s.notebooks.isEmpty()) {
-                                CenterMessage("✦", "No .org files here yet", "Capture a note or create a notebook with ＋")
+                                CenterMessage("✦", "No .org files here yet", "Capture a note or make a notebook from the bar below")
                             } else {
                                 val listState = rememberLazyListState()
                                 // Each top-level folder + its visible descendants is one list
@@ -432,9 +419,9 @@ fun NotebooksScreen(
                                     LazyColumn(
                                         state = listState,
                                         modifier = Modifier.fillMaxSize().testTag("notebooks_list"),
-                                        // Bottom inset so the last row scrolls clear of
-                                        // the FAB instead of sitting underneath it.
-                                        contentPadding = PaddingValues(top = 4.dp, bottom = 86.dp),
+                                        // Scaffold already insets the content above the
+                                        // bottom dock; this is just last-row breathing room.
+                                        contentPadding = PaddingValues(top = 4.dp, bottom = 16.dp),
                                     ) {
                                         if (s.pinnedStrip.isNotEmpty()) {
                                             // One block, in the order the user pinned things.
@@ -545,7 +532,7 @@ fun NotebooksScreen(
                                         listState = listState,
                                         modifier = Modifier
                                             .align(Alignment.BottomEnd)
-                                            .padding(bottom = 86.dp, end = 16.dp),
+                                            .padding(bottom = 16.dp, end = 16.dp),
                                     )
                                 }
                             }
@@ -1471,6 +1458,87 @@ private fun MoveConfirmButton(
             fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
             fontSize = 14.sp, color = if (enabled) c.accentInk else c.ink3,
             maxLines = 1,
+        )
+    }
+}
+
+/**
+ * Home-screen reachability dock — replaces the old Capture FAB. A floating,
+ * content-width pill bar centred at the bottom of the screen: a `surface2`
+ * capsule (`RoundedCornerShape(percent = 50)`, `1dp` `line` border, soft
+ * shadow) holding a Search icon button, a larger inline pill-shaped
+ * "＋ Capture" button (the primary action — flush with the bar, not raised),
+ * and a New notebook icon button, the icons packed directly beside the pill.
+ * Shown on the tree view and while drilling a folder; the caller points New
+ * notebook at whichever folder is in view.
+ */
+@Composable
+private fun NotebooksDock(
+    onSearch: () -> Unit,
+    onCapture: () -> Unit,
+    onNewNotebook: () -> Unit,
+) {
+    val c = MaterialTheme.grove
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .navigationBarsPadding()
+            .padding(bottom = 14.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Row(
+            Modifier
+                .height(60.dp)
+                .shadow(12.dp, RoundedCornerShape(percent = 50))
+                .clip(RoundedCornerShape(percent = 50))
+                .background(c.surface2)
+                .border(1.dp, c.line, RoundedCornerShape(percent = 50))
+                .padding(horizontal = 7.dp),
+            horizontalArrangement = Arrangement.spacedBy(5.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            DockIconButton(searchIcon(), "Search", onSearch)
+            Row(
+                Modifier
+                    .height(48.dp)
+                    .clip(RoundedCornerShape(percent = 50))
+                    .background(c.accent)
+                    .clickable(onClick = onCapture)
+                    .padding(horizontal = 24.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("+", fontFamily = PlexSans, fontSize = 20.sp, color = c.accentInk)
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    "Capture",
+                    fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
+                    fontSize = 15.sp, color = c.accentInk,
+                )
+            }
+            DockIconButton(notebookIcon(), "New notebook", onNewNotebook)
+        }
+    }
+}
+
+@Composable
+private fun DockIconButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    contentDescription: String,
+    onClick: () -> Unit,
+) {
+    val c = MaterialTheme.grove
+    Box(
+        Modifier
+            .size(44.dp)
+            .clip(RoundedCornerShape(percent = 50))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            icon,
+            contentDescription = contentDescription,
+            tint = c.ink2,
+            modifier = Modifier.size(20.dp),
         )
     }
 }
