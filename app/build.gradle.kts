@@ -6,6 +6,10 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
+    // Derives `benchmarkRelease` / `nonMinifiedRelease` build types off `release`
+    // and wires the profile produced by :macrobenchmark's BaselineProfileGenerator
+    // into the release APK. Harmless while no profile exists yet.
+    alias(libs.plugins.androidx.baselineprofile)
 }
 
 // versionName is the single source of truth for the app's version: a
@@ -52,10 +56,11 @@ abstract class CopyChangelogTask : org.gradle.api.DefaultTask() {
 }
 
 // Copies the canonical `.org` test fixtures (src/testFixtures/resources/fixtures,
-// also read by OrgFixtures on the test classpath) into the debug APK's assets so
-// the debug-only test-vault hook (DebugTestVault, src/debug) can seed a vault
-// from identical content with no SAF picker. Wired for the debug variant only —
-// release never carries these. See internal/test-suite-03-e2e-maestro.md.
+// also read by OrgFixtures on the test classpath) into an APK's assets so the
+// test-vault hook (DebugTestVault) can seed a vault from identical content with
+// no SAF picker. Wired only for the variants with BuildConfig.TEST_HOOKS on
+// (see `testHookVariants` in androidComponents) — plain `release` never carries
+// these. See internal/test-suite-03-e2e-maestro.md and -04-performance-macrobenchmark.md.
 abstract class CopyTestFixturesTask : org.gradle.api.DefaultTask() {
     @get:org.gradle.api.tasks.InputDirectory
     abstract val inputDir: org.gradle.api.file.DirectoryProperty
@@ -142,6 +147,12 @@ android {
         versionName = manualVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // Gates the test-only launch hooks (DebugTestVault: a direct-directory
+        // vault + fixture seeding from intent extras). Off by default so any
+        // unlisted variant is safe; turned on per build type below for `debug`
+        // and `benchmark`. `release` stays false — R8 then dead-strips the hook.
+        buildConfigField("boolean", "TEST_HOOKS", "false")
     }
 
     signingConfigs {
@@ -163,10 +174,12 @@ android {
             // installed side-by-side with the CI-signed release build on the same device.
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
+            buildConfigField("boolean", "TEST_HOOKS", "true")
         }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
+            buildConfigField("boolean", "TEST_HOOKS", "false")
             if (releaseSigning != null) {
                 signingConfig = signingConfigs.getByName("release")
             }
@@ -175,16 +188,12 @@ android {
                 "proguard-rules.pro"
             )
         }
-        // Build type the :macrobenchmark module measures against. Mirrors release
-        // (so numbers reflect a shippable build) but is debug-signed and marked
-        // profileable so Macrobenchmark can capture traces without root.
-        create("benchmark") {
-            initWith(getByName("release"))
-            signingConfig = signingConfigs.getByName("debug")
-            matchingFallbacks += listOf("release")
-            isDebuggable = false
-            isProfileable = true
-        }
+        // `benchmarkRelease` (minified, profileable — what :macrobenchmark
+        // measures) and `nonMinifiedRelease` (what generateBaselineProfile
+        // collects from) are created by the androidx.baselineprofile plugin off
+        // `release`. Both need the launch hooks on so the benchmark journeys can
+        // reach a seeded Notebooks screen with no SAF picker — set below in
+        // androidComponents (the plugin registers them after this block).
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
@@ -220,6 +229,11 @@ composeCompiler {
 }
 
 androidComponents {
+    // Variants that carry the test-only launch hooks (direct-directory vault +
+    // fixture seeding): `debug` for Maestro, and the two release-shaped variants
+    // the androidx.baselineprofile plugin derives for the :macrobenchmark module.
+    val testHookVariants = setOf("debug", "benchmarkRelease", "nonMinifiedRelease")
+
     onVariants { variant ->
         val variantName = variant.name.replaceFirstChar { it.uppercase() }
         val copyTask = tasks.register<CopyChangelogTask>("copy${variantName}ChangelogAsset") {
@@ -228,7 +242,12 @@ androidComponents {
         }
         variant.sources.assets?.addGeneratedSourceDirectory(copyTask) { it.outputDir }
 
-        if (variant.name == "debug") {
+        if (variant.name in testHookVariants) {
+            // release's buildConfigField gave these `false` via inheritance.
+            variant.buildConfigFields?.put(
+                "TEST_HOOKS",
+                com.android.build.api.variant.BuildConfigField("boolean", "true", "test launch hooks"),
+            )
             val fixturesTask = tasks.register<CopyTestFixturesTask>("copy${variantName}TestFixtures") {
                 inputDir.set(layout.projectDirectory.dir("src/testFixtures/resources/fixtures"))
                 outputDir.set(layout.buildDirectory.dir("generated/assets/testfixtures/${variant.name}"))
@@ -265,6 +284,11 @@ dependencies {
     // a packaged baseline profile at app startup once one is generated.
     implementation(libs.androidx.profileinstaller)
     implementation(libs.java.diff.utils)
+
+    // Producer of the baseline profile packaged above (see the androidx.baselineprofile
+    // plugin). `./gradlew :app:generateBaselineProfile` runs the generator on a
+    // connected device and writes app/src/main/baselineProfiles/.
+    baselineProfile(project(":macrobenchmark"))
 
     // testFixtures compiles against main only; fakes implement production
     // interfaces. androidx.test.core is `api` so the in-memory Room helper's

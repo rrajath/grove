@@ -114,9 +114,9 @@ class GroveApplication : Application() {
 
     /**
      * The active vault file store, swapping whenever the configured tree URI
-     * changes. [TestVaultHook.root] is a debug-only override (null in every
-     * release process) that forces a plain-directory store for Maestro /
-     * instrumentation; see `src/debug`'s `DebugTestVault`.
+     * changes. [TestVaultHook.root] is a test-only override (null in any
+     * `release` build — the path is R8-stripped) that forces a plain-directory
+     * store for Maestro / the macrobenchmark module; see `debug.DebugTestVault`.
      */
     val fileStore: StateFlow<FileStore?> by lazy {
         combine(

@@ -99,6 +99,18 @@ re-uploads the APKs to the existing release instead of failing.
   New manual `e2e-maestro` CI job. Release builds carry none of the hook or
   fixtures. The onboarding + SAF-picker journey is deferred. No app behavior
   change.
+- Test-suite milestone M6, first tranche: new `:macrobenchmark` module with
+  startup (cold / warm, three compilation modes), scroll-jank (Notebooks and
+  Outline lists), and baseline-profile-generator benchmarks. The
+  `androidx.baselineprofile` plugin on `:app` derives the `benchmarkRelease` /
+  `nonMinifiedRelease` build types the benchmarks measure. The M5 test-vault
+  hook was generalised (`BuildConfig.DEBUG` → `BuildConfig.TEST_HOOKS`, on for
+  `debug` + the two benchmark variants) and can now seed a large synthetic vault
+  via a `grove_test_vault_size` extra. `NotebooksScreen` calls `reportFullyDrawn`
+  once the notebook list is on screen so `timeToFullDisplayMs` is meaningful.
+  New manual `macrobenchmark` CI job. Release builds are unchanged and carry
+  none of the hook. Benchmarks not yet run on a device; no baseline profile
+  committed yet.
 
 ## [1.5.0] - 2026-09-07
 

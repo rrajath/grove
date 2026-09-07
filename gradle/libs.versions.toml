@@ -18,7 +18,9 @@ room = "2.8.4"
 sqlite = "2.6.2"
 work = "2.11.2"
 glance = "1.2.0"
-benchmark = "1.4.1"
+# 1.5.0 is the first line that supports AGP 9 (1.4.x rejects :app as
+# "not a supported android module"). Keep `baselineprofile` below in lockstep.
+benchmark = "1.5.0-rc02"
 uiautomator = "2.3.0"
 profileinstaller = "1.4.1"
 javaDiffUtils = "4.15"
@@ -27,6 +29,9 @@ javaDiffUtils = "4.15"
 robolectric = "4.16.1"
 turbine = "1.2.1"
 androidxTest = "1.7.0"
+# Layer-4 macrobenchmark (internal/test-suite-04-performance-macrobenchmark.md).
+# Kept in lockstep with `benchmark` above.
+baselineprofile = "1.5.0-rc02"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -80,3 +85,4 @@ android-test = { id = "com.android.test", version.ref = "agp" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
+androidx-baselineprofile = { id = "androidx.baselineprofile", version.ref = "baselineprofile" }

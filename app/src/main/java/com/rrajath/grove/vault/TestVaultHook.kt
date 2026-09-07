@@ -10,10 +10,11 @@ import java.io.File
  * instead of a Storage Access Framework tree, so instrumentation and Maestro can
  * get a populated vault with no system folder picker and no runtime permission.
  *
- * Only `src/debug`'s `DebugTestVault` ever calls [useDirectory] (from a
- * `MainActivity` launch-intent extra). In a release process nothing touches this
- * object, so [root] stays `null` for the life of the process and
- * [GroveApplication.fileStore] behaves exactly as before.
+ * Only `debug.DebugTestVault` calls [useDirectory], from a `MainActivity`
+ * launch-intent extra, and only when `BuildConfig.TEST_HOOKS` is on (`debug` +
+ * the benchmark variants). In a release build R8 dead-strips that path, so
+ * [root] stays `null` for the life of the process and
+ * [com.rrajath.grove.GroveApplication.fileStore] behaves exactly as before.
  */
 object TestVaultHook {
     private val _root = MutableStateFlow<File?>(null)

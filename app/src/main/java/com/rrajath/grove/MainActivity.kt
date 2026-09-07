@@ -36,9 +36,10 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        // Debug-only: a `--ez grove_test_direct_vault true` launch extra points
-        // the vault at an app-owned directory (optionally seeded) so Maestro can
-        // skip onboarding and the SAF picker. No-op in release.
+        // Test builds only (debug + benchmark): a `--ez grove_test_direct_vault
+        // true` launch extra points the vault at an app-owned directory
+        // (optionally seeded) so Maestro and the macrobenchmark module can skip
+        // onboarding and the SAF picker. No-op in release (BuildConfig.TEST_HOOKS).
         DebugTestVault.applyFromLaunchIntent(this, intent)
         // Only a genuine cold start carries a pending deep link. After process
         // death savedInstanceState is non-null and the launch Intent is stale;

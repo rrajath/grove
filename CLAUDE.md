@@ -22,6 +22,10 @@ Guidance for Claude Code when working in this repository (Grove, a native Androi
 # Instrumented tests (needs connected device/emulator; Espresso + Compose UI test, no Robolectric)
 ./gradlew connectedAndroidTest
 
+# Performance — Macrobenchmark + Baseline Profile (needs a device/emulator)
+./gradlew :app:generateBaselineProfile                        # writes app/src/main/baselineProfiles/
+./gradlew :macrobenchmark:connectedBenchmarkReleaseAndroidTest
+
 # Lint
 ./gradlew lint
 ./gradlew lintDebug

@@ -4,6 +4,7 @@ import android.content.Intent
 import android.text.format.DateUtils
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.ReportDrawnWhen
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -139,6 +140,13 @@ fun NotebooksScreen(
     val c = MaterialTheme.grove
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
+
+    // Macrobenchmark's timeToFullDisplayMs: signal Activity.reportFullyDrawn()
+    // once the notebook tree has actually been built and laid out, not just when
+    // the first (empty) frame renders. Notebooks is the app's start destination,
+    // so this is the "app is usable" moment. NoVault stays unreported — there is
+    // no content to wait for, and the app never reported fully-drawn before this.
+    ReportDrawnWhen { state is NotebooksUiState.Loaded }
     // Non-null while the "New notebook" dialog is open; the value is the target
     // directory ("" = vault root, or the folder being browsed in the drill view).
     var createInDir by remember { mutableStateOf<String?>(null) }
