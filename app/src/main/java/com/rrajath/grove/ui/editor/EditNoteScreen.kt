@@ -49,6 +49,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -106,6 +107,12 @@ fun EditNoteScreen(
      *  written only by the save icon or the leave dialog's Save. */
     autoSaveNotes: Boolean = true,
     viewModel: EditorViewModel = viewModel(factory = EditorViewModel.Factory),
+    /**
+     * Drives the refile / link-picker sheets (a disk-level move against a loaded
+     * on-disk document, separate from this screen's in-memory buffer). Hoisted to
+     * a parameter so a test can supply one wired to fakes.
+     */
+    refileViewModel: DocumentViewModel = viewModel(factory = DocumentViewModel.Factory),
 ) {
     val c = MaterialTheme.grove
     val context = LocalContext.current
@@ -246,7 +253,6 @@ fun EditNoteScreen(
     // buffer until Save. A dedicated DocumentViewModel drives the refile picker itself (that
     // state machine works against a loaded on-disk document, not this screen's buffer) once the
     // buffer has been flushed to disk.
-    val refileViewModel: DocumentViewModel = viewModel(factory = DocumentViewModel.Factory)
     val refileDocState by refileViewModel.state.collectAsStateWithLifecycle()
     val refileState by refileViewModel.refile.collectAsStateWithLifecycle()
     val refileSnack by refileViewModel.snack.collectAsStateWithLifecycle()
@@ -399,6 +405,7 @@ fun EditNoteScreen(
                             tint = if (state.dirty) c.green else c.ink3,
                             modifier = Modifier
                                 .clip(RoundedCornerShape(10.dp))
+                                .testTag("edit_note_save")
                                 .clickable {
                                     if (state.dirty) {
                                         trySave { lastAutoSavedAt = LocalTime.now() }
@@ -474,7 +481,8 @@ fun EditNoteScreen(
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(18.dp)
-                            .focusRequester(focusRequester),
+                            .focusRequester(focusRequester)
+                            .testTag("edit_note_field"),
                     )
                 }
                 Column(

@@ -68,6 +68,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextRange
@@ -217,7 +218,10 @@ fun SearchScreen(
                         singleLine = true,
                         textStyle = TextStyle(fontFamily = PlexSans, fontSize = 15.sp, color = c.ink),
                         cursorBrush = SolidColor(c.accent),
-                        modifier = Modifier.weight(1f).focusRequester(focusRequester),
+                        modifier = Modifier
+                            .weight(1f)
+                            .focusRequester(focusRequester)
+                            .testTag("search_field"),
                     )
                     if (state.query.isNotEmpty()) {
                         Text(
@@ -584,7 +588,10 @@ private fun FiltersBar(activeCount: Int, onClick: () -> Unit) {
 private fun NoResultsState(onOpenFilters: () -> Unit) {
     val c = MaterialTheme.grove
     Column(
-        Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 52.dp),
+        Modifier
+            .fillMaxSize()
+            .padding(horizontal = 24.dp, vertical = 52.dp)
+            .testTag("search_empty"),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text("Nothing matches", fontFamily = PlexSans, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = c.ink)
@@ -815,7 +822,13 @@ private fun GroupedResultsList(
     onOpenSchedulePicker: (SearchResult) -> Unit,
 ) {
     val c = MaterialTheme.grove
-    LazyColumn(state = listState, modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 4.dp)) {
+    LazyColumn(
+        state = listState,
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 12.dp, vertical = 4.dp)
+            .testTag("search_results_list"),
+    ) {
         groups.forEach { group ->
             val collapsed = collapsedFiles[group.fileName] == true
             stickyHeader(key = "file-${group.fileName}") {
@@ -1037,6 +1050,7 @@ private fun SearchResultRow(result: SearchResult, matchedTerms: List<String>) {
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
+            .testTag("search_result_row")
             .padding(start = 16.dp, top = 9.dp, end = 11.dp, bottom = 11.dp),
         metaContent = if (hasMeta) {
             {

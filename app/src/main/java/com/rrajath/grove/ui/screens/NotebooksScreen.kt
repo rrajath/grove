@@ -81,6 +81,8 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -1071,6 +1073,8 @@ private fun FileRow(
             Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(14.dp))
+                .testTag("notebook_row")
+                .semantics { contentDescription = notebook.displayName }
                 .combinedClickable(onClick = onClick, onLongClick = { menuOpen = true })
                 .padding(horizontal = 8.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -1166,7 +1170,10 @@ private fun FileRow(
 @Composable
 private fun NoVaultState(onChooseFolder: () -> Unit) {
     val c = MaterialTheme.grove
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+    Box(
+        Modifier.fillMaxSize().testTag("notebooks_empty_state"),
+        contentAlignment = Alignment.Center,
+    ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text("✦", fontFamily = PlexMono, fontSize = 28.sp, color = c.ink3)
             Spacer(Modifier.height(10.dp))

@@ -32,6 +32,10 @@ on:
     paths-ignore:
       - 'docs-site/**'
   workflow_dispatch:
+  # Nightly run of the Layer-2 Compose UI tests (ui-tests job below) on an
+  # emulator — too slow for the per-push net. Also reachable via "Run workflow".
+  schedule:
+    - cron: '0 6 * * *'
 
 # contents: write is needed to create the release and its tag.
 permissions:
@@ -44,6 +48,9 @@ concurrency:
 
 jobs:
   build:
+    # The scheduled trigger is only for the ui-tests job; skip the build/release
+    # work on it.
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     env:
       # Full history (fetch-depth: 0 below) is kept so the CHANGELOG.md archive
@@ -318,3 +325,54 @@ jobs:
           git add CHANGELOG.md
           git commit -m "chore: cut CHANGELOG.md entry for $CHANGELOG_VERSION [skip ci]"
           git push origin "HEAD:${{ github.event.repository.default_branch }}"
+
+  # Layer-2 Compose UI tests (internal/test-suite-02-ui-compose.md). They need
+  # an emulator, so they run nightly on a schedule or on a manual "Run workflow"
+  # dispatch — never on the per-push regression net.
+  ui-tests:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        api-level: [34, 35]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      # KVM is required for a hardware-accelerated emulator on the Ubuntu runner.
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Run Compose UI tests on API ${{ matrix.api-level }}
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api-level }}
+          arch: x86_64
+          disable-animations: true
+          script: >-
+            ./gradlew :app:connectedDebugAndroidTest
+            -Pandroid.testInstrumentationRunnerArguments.package=com.rrajath.grove.ui
+
+      - name: Upload UI test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-test-report-api${{ matrix.api-level }}
+          path: app/build/reports/androidTests/connected/**
+          if-no-files-found: warn

@@ -80,6 +80,14 @@ re-uploads the APKs to the existing release instead of failing.
   `MainDispatcherRule`, and a `TestVaultSeeder.index` helper. No app behavior
   change. Remaining VMs (App, Notebooks, Conflict/SyncLog) and the sync
   round-trip test are a follow-up.
+- Test-suite milestone M4, first tranche: `androidTest/` Compose UI tests for
+  the Search, Notebooks, Outline, and Edit-note screens — each hosted directly
+  under `GroveTheme` with a fake-wired ViewModel and asserted through the
+  semantics tree. Shared `ScreenTestEnv` wiring; a minimal `testTag` inventory
+  added to those screens; `EditNoteScreen` gained an injectable
+  `refileViewModel` parameter. New nightly / manual `ui-tests` CI job runs them
+  on an emulator (API 34 + 35); they never run on the per-push net. No app
+  behavior change.
 
 ## [1.5.0] - 2026-09-07
 

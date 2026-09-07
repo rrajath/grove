@@ -1,0 +1,103 @@
+package com.rrajath.grove.ui.screens
+
+import androidx.activity.ComponentActivity
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.rrajath.grove.ui.support.ScreenTestEnv
+import com.rrajath.grove.ui.support.setGroveContent
+import com.rrajath.grove.ui.vault.NoteRef
+import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Before
+import org.junit.Rule
+import org.junit.Test
+import org.junit.runner.RunWith
+
+/**
+ * Layer-2 UI coverage for [OutlineScreen] (see
+ * internal/test-suite-02-ui-compose.md § OutlineScreen). Fixture: `projects.org`
+ * (multi-level TODO tree, see [com.rrajath.grove.testing.OrgFixtures.PROJECTS]).
+ */
+@RunWith(AndroidJUnit4::class)
+class OutlineScreenTest {
+
+    @get:Rule
+    val composeRule = createAndroidComposeRule<ComponentActivity>()
+
+    private lateinit var env: ScreenTestEnv
+    private val vm by lazy { env.documentViewModel() }
+
+    @Before
+    fun setUp() {
+        env = ScreenTestEnv()
+    }
+
+    @After
+    fun tearDown() {
+        env.close()
+    }
+
+    private fun content(
+        onOpenNote: (NoteRef) -> Unit = {},
+        onCreateNote: (NoteRef) -> Unit = {},
+    ) {
+        composeRule.setGroveContent {
+            OutlineScreen(
+                notebookId = "projects.org",
+                onBack = {},
+                onOpenNote = onOpenNote,
+                onCreateNote = onCreateNote,
+                viewModel = vm,
+            )
+        }
+    }
+
+    @Test
+    fun rendersTopLevelHeadings() {
+        content()
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.onAllNodesWithText("Ship v2 release", substring = true)
+                .fetchSemanticsNodes().isNotEmpty()
+        }
+        composeRule.onNodeWithText("Backlog", substring = true).assertIsDisplayed()
+    }
+
+    @Test
+    fun expandingASubtreeRevealsItsChildren() {
+        content()
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.onAllNodesWithTag("outline_toggle").fetchSemanticsNodes().isNotEmpty()
+        }
+        // Freshly opened notebooks start fully collapsed.
+        assertEquals(
+            0,
+            composeRule.onAllNodesWithText("Cut the changelog", substring = true)
+                .fetchSemanticsNodes().size,
+        )
+
+        composeRule.onAllNodesWithTag("outline_toggle")[0].performClick()
+
+        composeRule.waitUntil(timeoutMillis = 3_000) {
+            composeRule.onAllNodesWithText("Cut the changelog", substring = true)
+                .fetchSemanticsNodes().isNotEmpty()
+        }
+    }
+
+    @Test
+    fun tappingTheFabCreatesANote() {
+        var created: NoteRef? = null
+        content(onCreateNote = { created = it })
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.onAllNodesWithTag("outline_fab").fetchSemanticsNodes().isNotEmpty()
+        }
+        composeRule.onAllNodesWithTag("outline_fab")[0].performClick()
+
+        composeRule.waitUntil(timeoutMillis = 3_000) { created != null }
+        assertEquals("projects.org", created?.fileName)
+    }
+}

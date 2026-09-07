@@ -367,6 +367,7 @@ fun OutlineScreen(
                         .size(54.dp)
                         .clip(RoundedCornerShape(18.dp))
                         .background(c.accent)
+                        .testTag("outline_fab")
                         .clickable(onClick = {
                             viewModel.newTopLevelNote { line -> onCreateNote(NoteRef(notebookId, line)) }
                         }),
@@ -926,6 +927,7 @@ private fun OutlineNode(
                 Modifier
                     .size(22.dp)
                     .clip(RoundedCornerShape(6.dp))
+                    .testTag("outline_toggle")
                     .clickable(enabled = hasChildren, onClick = onToggle),
                 contentAlignment = Alignment.Center,
             ) {
