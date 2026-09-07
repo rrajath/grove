@@ -45,6 +45,9 @@ class GroveApplication : Application() {
 
     val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
+    /** Real dispatchers, injected into ViewModels so tests can swap in a test one. */
+    val dispatchers = AppDispatchers()
+
     val settingsRepository: SettingsRepository by lazy { SettingsRepository(this, appScope) }
 
     val templatesRepository: TemplatesRepository by lazy { TemplatesRepository(this) }

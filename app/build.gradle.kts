@@ -172,6 +172,23 @@ android {
         compose = true
         buildConfig = true
     }
+
+    // Shared test fakes/fixtures (FakeFileStore, FakeSettingsRepository, OrgFixtures,
+    // TestVaultSeeder, in-memory Room helper) live in src/testFixtures and are
+    // consumed by both the JVM (test/) and instrumented (androidTest/) suites.
+    // See internal/test-suite-00-overview.md § Shared test infrastructure.
+    testFixtures {
+        enable = true
+    }
+
+    testOptions {
+        unitTests {
+            // Robolectric integration tests need real merged resources and
+            // non-throwing stubs for un-shadowed android.* calls.
+            isIncludeAndroidResources = true
+            isReturnDefaultValues = true
+        }
+    }
 }
 
 composeCompiler {
@@ -218,12 +235,34 @@ dependencies {
     // a packaged baseline profile at app startup once one is generated.
     implementation(libs.androidx.profileinstaller)
     implementation(libs.java.diff.utils)
+
+    // testFixtures compiles against main only; fakes implement production
+    // interfaces. androidx.test.core is `api` so the in-memory Room helper's
+    // default ApplicationProvider context is visible to consumers.
+    testFixturesApi(libs.androidx.test.core)
+    testFixturesImplementation(libs.kotlinx.coroutines.test)
+    // The Compose compiler plugin is applied to every Kotlin compilation in this
+    // module, testFixtures included, so its runtime must be on that classpath
+    // even though no fixture is a @Composable.
+    testFixturesImplementation(platform(libs.androidx.compose.bom))
+    testFixturesImplementation(libs.androidx.compose.runtime)
+
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.turbine)
+    testImplementation(libs.androidx.test.core)
+    testImplementation(libs.androidx.room.testing)
+    testImplementation(testFixtures(project(":app")))
+
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.test.rules)
+    androidTestImplementation(testFixtures(project(":app")))
+
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 }

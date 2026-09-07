@@ -214,7 +214,10 @@ data class GroveSettings(
     }
 }
 
-class SettingsRepository(private val context: Context, private val scope: CoroutineScope) {
+class SettingsRepository(
+    private val context: Context,
+    private val scope: CoroutineScope,
+) : SettingsSource {
 
     private object Keys {
         val theme = stringPreferencesKey("theme")
@@ -306,7 +309,7 @@ class SettingsRepository(private val context: Context, private val scope: Corout
      * `replay = 1` with no seed value preserves the "nothing until the first read"
      * semantics that [com.rrajath.grove.ui.AppViewModel] gates first load on.
      */
-    val settings: Flow<GroveSettings> = context.settingsDataStore.data.map { prefs ->
+    override val settings: Flow<GroveSettings> = context.settingsDataStore.data.map { prefs ->
         GroveSettings(
             theme = ThemePreference.fromStorage(prefs[Keys.theme]),
             syncAppIconWithTheme = prefs[Keys.syncAppIconWithTheme] ?: false,

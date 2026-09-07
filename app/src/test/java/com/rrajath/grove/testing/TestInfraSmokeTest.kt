@@ -1,0 +1,62 @@
+package com.rrajath.grove.testing
+
+import com.rrajath.grove.settings.GroveSettings
+import com.rrajath.grove.settings.ThemePreference
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.test.runTest
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+/**
+ * Pure-JVM checks that the shared test-fixtures source set is wired up and the
+ * fakes behave. No Robolectric — this runs in the fast per-push suite.
+ */
+class TestInfraSmokeTest {
+
+    @Test
+    fun `FakeFileStore round-trips content and tracks revision`() = runTest {
+        val store = FakeFileStore()
+        assertTrue(store.create("a/b/note.org"))
+        assertFalse(store.create("a/b/note.org"))
+        store.write("a/b/note.org", "* Task")
+
+        assertEquals("* Task", store.read("a/b/note.org"))
+        assertEquals(listOf("a/b/note.org"), store.list().map { it.name })
+
+        val before = store.revisionOf("a/b/note.org")
+        store.touch("a/b/note.org")
+        assertTrue(before != store.revisionOf("a/b/note.org"))
+    }
+
+    @Test
+    fun `FakeFileStore skips dot-directories and missing reads throw`() = runTest {
+        val store = FakeFileStore(mapOf("keep.org" to "* K", ".git/config" to "[core]"))
+        assertEquals(listOf("keep.org"), store.list().map { it.name })
+        assertNull(store.stat("missing.org"))
+        runCatching { store.read("missing.org") }.also { assertTrue(it.isFailure) }
+    }
+
+    @Test
+    fun `FakeSettingsRepository emits seed then updates`() = runTest {
+        val repo = FakeSettingsRepository(GroveSettings(theme = ThemePreference.DARK))
+        assertEquals(ThemePreference.DARK, repo.settings.first().theme)
+        repo.update { it.copy(theme = ThemePreference.LIGHT) }
+        assertEquals(ThemePreference.LIGHT, repo.settings.first().theme)
+    }
+
+    @Test
+    fun `TestVaultSeeder writes every fixture into the store`() = runTest {
+        val store = FakeFileStore()
+        TestVaultSeeder.seed(store)
+
+        val names = store.list().map { it.name }
+        assertEquals(OrgFixtures.all.keys.sorted(), names)
+        assertTrue(store.read("reading-list.org").contains("photosynthesis"))
+        assertTrue(store.read("inbox.org").contains(":CUSTOM_ID: capture-inbox"))
+        // Large-subtree fixture is big enough to trip the fold-on-open threshold (60).
+        assertTrue(store.read("large-subtree.org").lines().count { it.startsWith("** ") } > 60)
+    }
+}

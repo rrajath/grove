@@ -59,6 +59,14 @@ re-uploads the APKs to the existing release instead of failing.
 
 ## [Unreleased]
 
+### Internal
+- Test-suite milestone M1 (infra): shared `testFixtures` source set with
+  `FakeFileStore`, `FakeSettingsRepository`, `OrgFixtures`, `TestVaultSeeder`,
+  and an in-memory Room helper; `AppDispatchers` holder for dispatcher
+  injection; `SettingsSource` read interface; Robolectric + Turbine on the
+  per-push JVM suite. No app behavior change. See
+  `internal/test-suite-00-overview.md`.
+
 ## [1.5.0] - 2026-09-07
 
 ### Added
