@@ -2,13 +2,17 @@ package com.rrajath.grove.ui.editor
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.rrajath.grove.GroveApplication
+import com.rrajath.grove.AppDispatchers
+import com.rrajath.grove.data.GroveDatabase
 import com.rrajath.grove.org.OrgDocument
 import com.rrajath.grove.org.OrgHeadline
 import com.rrajath.grove.org.OrgKeywords
 import com.rrajath.grove.org.OrgMutations
 import com.rrajath.grove.org.OrgParser
 import com.rrajath.grove.org.OrgTimestamp
+import com.rrajath.grove.settings.SettingsSource
+import com.rrajath.grove.sync.SyncTrigger
+import com.rrajath.grove.vault.Vault
 import com.rrajath.grove.ui.vault.NoteRef
 import com.rrajath.grove.ui.vault.OutlineSnack
 import com.rrajath.grove.ui.vault.RefileNotebook
@@ -21,7 +25,6 @@ import com.rrajath.grove.vault.StateChangeResult
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -67,7 +70,14 @@ data class EditorUiState(
     val bufferRevision: Long = 0,
 )
 
-class EditorViewModel(private val app: GroveApplication) : ViewModel() {
+class EditorViewModel(
+    private val vaultFlow: StateFlow<Vault?>,
+    private val sync: SyncTrigger,
+    private val database: GroveDatabase,
+    private val settings: SettingsSource,
+    private val keywords: StateFlow<OrgKeywords>,
+    private val dispatchers: AppDispatchers,
+) : ViewModel() {
 
     private val _state = MutableStateFlow(EditorUiState())
     val state: StateFlow<EditorUiState> = _state
@@ -104,9 +114,9 @@ class EditorViewModel(private val app: GroveApplication) : ViewModel() {
         archiveUndo = null
         _snack.value = null
         viewModelScope.launch {
-            val vault = app.vault.value ?: return@launch
+            val vault = vaultFlow.value ?: return@launch
             snap.files.forEach { (name, text) -> vault.save(name, text) }
-            app.syncManager.requestSync("note undo")
+            sync.requestSync("note undo")
             val revision = vault.revision(snap.fileName)
             _state.update {
                 it.copy(
@@ -127,7 +137,7 @@ class EditorViewModel(private val app: GroveApplication) : ViewModel() {
         // makes the editor screen re-seed its text field from the fresh buffer.
         _state.update { it.copy(loading = true, error = null) }
         viewModelScope.launch {
-            val vault = app.vault.value ?: run {
+            val vault = vaultFlow.value ?: run {
                 _state.value = EditorUiState(loading = false, error = "No sync folder configured")
                 return@launch
             }
@@ -143,7 +153,7 @@ class EditorViewModel(private val app: GroveApplication) : ViewModel() {
                 _state.value = EditorUiState(loading = false, error = "Note not found")
                 return@launch
             }
-            val tags = app.database.indexDao().allTagStrings()
+            val tags = database.indexDao().allTagStrings()
                 .flatMap { it.split(':') }
                 .filter { it.isNotEmpty() }
                 .distinct()
@@ -155,7 +165,7 @@ class EditorViewModel(private val app: GroveApplication) : ViewModel() {
                 lineIndex = headline.lineIndex,
                 buffer = OrgMutations.subtreeText(doc, headline),
                 loadedRevision = vault.revision(ref.fileName),
-                keywords = app.keywords.value,
+                keywords = keywords.value,
                 allTags = tags,
             )
         }
@@ -173,7 +183,7 @@ class EditorViewModel(private val app: GroveApplication) : ViewModel() {
     fun loadRegion(fileName: String, noteId: String?, region: EditRegion, blockLine: Int = -1) {
         _state.update { it.copy(loading = true, error = null) }
         viewModelScope.launch {
-            val vault = app.vault.value ?: run {
+            val vault = vaultFlow.value ?: run {
                 _state.value = EditorUiState(loading = false, error = "No sync folder configured")
                 return@launch
             }
@@ -237,7 +247,7 @@ class EditorViewModel(private val app: GroveApplication) : ViewModel() {
                 regionRange = range,
                 buffer = buffer,
                 loadedRevision = vault.revision(fileName),
-                keywords = app.keywords.value,
+                keywords = keywords.value,
             )
         }
     }
@@ -269,7 +279,7 @@ class EditorViewModel(private val app: GroveApplication) : ViewModel() {
     fun onBufferPersistedElsewhere() {
         viewModelScope.launch {
             val fileName = _state.value.fileName
-            val revision = app.vault.value?.revision(fileName)
+            val revision = vaultFlow.value?.revision(fileName)
             _state.update { it.copy(dirty = false, loadedRevision = revision) }
         }
     }
@@ -326,7 +336,7 @@ class EditorViewModel(private val app: GroveApplication) : ViewModel() {
             return
         }
         viewModelScope.launch {
-            val vault = app.vault.value
+            val vault = vaultFlow.value
             if (vault == null) {
                 mutateBuffer { d, h -> OrgMutations.changeKeyword(d, h, keyword, d.keywords, LocalDateTime.now()) }
                 return@launch
@@ -339,13 +349,13 @@ class EditorViewModel(private val app: GroveApplication) : ViewModel() {
                 mutateBuffer { d, h -> OrgMutations.changeKeyword(d, h, keyword, d.keywords, LocalDateTime.now()) }
                 return@launch
             }
-            val settings = app.settingsRepository.settings.first()
+            val currentSettings = settings.settings.first()
             when (
-                val result = AutoArchive.apply(vault, settings, doc, s.fileName, headline, keyword, LocalDateTime.now())
+                val result = AutoArchive.apply(vault, currentSettings, doc, s.fileName, headline, keyword, LocalDateTime.now())
             ) {
                 is StateChangeResult.Plain -> {
                     vault.save(s.fileName, result.text)
-                    app.syncManager.requestSync("note state set")
+                    sync.requestSync("note state set")
                     val newHeadline = result.doc.headlines.firstOrNull { it.lineIndex == s.lineIndex }
                     val revision = vault.revision(s.fileName)
                     _state.update {
@@ -370,7 +380,7 @@ class EditorViewModel(private val app: GroveApplication) : ViewModel() {
                     )
                     vault.save(s.fileName, result.sourceText)
                     if (result.destFile != s.fileName) vault.save(result.destFile, result.destText)
-                    app.syncManager.requestSync("note state set")
+                    sync.requestSync("note state set")
                     val destDoc = OrgParser.parse(result.destText, doc.keywords)
                     val destHeadline = destDoc.headlines.firstOrNull { it.lineIndex == result.destLineIndex }
                     val destRevision = vault.revision(result.destFile)
@@ -441,7 +451,7 @@ class EditorViewModel(private val app: GroveApplication) : ViewModel() {
         // dialog was up) got there first; the caller's "then leave" follow-up
         // is still owed.
         if (!s.dirty) return true
-        val vault = app.vault.value ?: return false
+        val vault = vaultFlow.value ?: return false
         // The exact text this save is responsible for. Anything typed after
         // this line belongs to the next save, not this one.
         val savedBuffer = s.buffer
@@ -453,7 +463,7 @@ class EditorViewModel(private val app: GroveApplication) : ViewModel() {
         // Parsing and the subtree splice are pure CPU on a whole file; keep them
         // off the main thread so a large notebook can't stall the keyboard
         // mid-keystroke while an auto-save runs.
-        val newText = withContext(Dispatchers.Default) {
+        val newText = withContext(dispatchers.default) {
             val doc = vault.open(s.fileName) ?: return@withContext null
             // Extreme edge case for every branch below: the region/note vanished
             // from the file (heavy external edit) and no stored range survives;
@@ -492,7 +502,7 @@ class EditorViewModel(private val app: GroveApplication) : ViewModel() {
         val newRevision = vault.revision(s.fileName)
         // Only this one file changed and we hold its new text: reindex it
         // directly instead of a full-vault list+diff (PERFORMANCE_AUDIT #1).
-        app.syncManager.requestReindex(s.fileName, newText, "note saved")
+        sync.requestReindex(s.fileName, newText, "note saved")
         _state.update { current ->
             current.copy(
                 // Still dirty if the user typed while the write was in flight:
@@ -519,13 +529,13 @@ class EditorViewModel(private val app: GroveApplication) : ViewModel() {
     fun deleteSubtree(onDeleted: () -> Unit = {}) {
         val s = _state.value
         viewModelScope.launch {
-            val vault = app.vault.value ?: run { onDeleted(); return@launch }
+            val vault = vaultFlow.value ?: run { onDeleted(); return@launch }
             val doc = vault.open(s.fileName) ?: run { onDeleted(); return@launch }
             val headline = doc.headlines.firstOrNull { it.lineIndex == s.lineIndex }
             if (headline != null) {
                 val newText = OrgMutations.deleteSubtree(doc, headline)
                 vault.save(s.fileName, newText)
-                app.syncManager.requestReindex(s.fileName, newText, "empty note discarded")
+                sync.requestReindex(s.fileName, newText, "empty note discarded")
             }
             onDeleted()
         }
@@ -546,7 +556,7 @@ class EditorViewModel(private val app: GroveApplication) : ViewModel() {
         val currentFile = _state.value.fileName
         _linkPicker.value = RefileUiState(sourceLine = -1)
         viewModelScope.launch {
-            val vault = app.vault.value ?: return@launch
+            val vault = vaultFlow.value ?: return@launch
             val notebooks = vault.notebooks()
                 .map { RefileNotebook(it.fileName, it.noteCount) }
                 .toImmutableList()
@@ -563,7 +573,7 @@ class EditorViewModel(private val app: GroveApplication) : ViewModel() {
 
     fun linkPickerPickNotebook(fileName: String) {
         viewModelScope.launch {
-            val doc = app.vault.value?.open(fileName) ?: run {
+            val doc = vaultFlow.value?.open(fileName) ?: run {
                 showSnack("Couldn't open ${fileName.removeSuffix(".org")}")
                 return@launch
             }
@@ -591,6 +601,8 @@ class EditorViewModel(private val app: GroveApplication) : ViewModel() {
     }
 
     companion object {
-        val Factory = factory { EditorViewModel(it) }
+        val Factory = factory {
+            EditorViewModel(it.vault, it.syncManager, it.database, it.settingsRepository, it.keywords, it.dispatchers)
+        }
     }
 }

@@ -4,12 +4,16 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
+import com.rrajath.grove.AppDispatchers
 import com.rrajath.grove.GroveApplication
 import com.rrajath.grove.capture.CaptureContext
 import com.rrajath.grove.capture.CaptureInserter
 import com.rrajath.grove.capture.CaptureTemplate
 import com.rrajath.grove.capture.TemplatesRepository
-import kotlinx.coroutines.Dispatchers
+import com.rrajath.grove.data.GroveDatabase
+import com.rrajath.grove.settings.SettingsSource
+import com.rrajath.grove.sync.SyncTrigger
+import com.rrajath.grove.vault.Vault
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -30,9 +34,16 @@ sealed class SaveState {
     data class Failed(val message: String) : SaveState()
 }
 
-class CaptureViewModel(private val app: GroveApplication) : ViewModel() {
+class CaptureViewModel(
+    private val templatesRepository: TemplatesRepository,
+    private val database: GroveDatabase,
+    private val sync: SyncTrigger,
+    private val vaultFlow: StateFlow<Vault?>,
+    private val settings: SettingsSource,
+    private val dispatchers: AppDispatchers,
+) : ViewModel() {
 
-    val templates: StateFlow<List<CaptureTemplate>> = app.templatesRepository.templates
+    val templates: StateFlow<List<CaptureTemplate>> = templatesRepository.templates
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     private val _saveState = MutableStateFlow<SaveState>(SaveState.Idle)
@@ -47,7 +58,7 @@ class CaptureViewModel(private val app: GroveApplication) : ViewModel() {
 
     init {
         viewModelScope.launch {
-            _allTags.value = app.database.indexDao().allTagStrings()
+            _allTags.value = database.indexDao().allTagStrings()
                 .flatMap { it.split(':') }
                 .filter { it.isNotEmpty() }
                 .distinct()
@@ -80,7 +91,7 @@ class CaptureViewModel(private val app: GroveApplication) : ViewModel() {
         viewModelScope.launch {
             try {
                 writeMutex.withLock { upsertEntry(template, entryText, context) }
-                app.syncManager.requestSync("capture saved")
+                sync.requestSync("capture saved")
                 draftInsertion = null
                 _saveState.value = SaveState.Saved
             } catch (e: Exception) {
@@ -112,29 +123,29 @@ class CaptureViewModel(private val app: GroveApplication) : ViewModel() {
         draftInsertion = null
         viewModelScope.launch {
             writeMutex.withLock {
-                val vault = app.vault.value ?: return@withLock
-                val text = withContext(Dispatchers.Default) { vault.open(template.targetFile)?.text }
+                val vault = vaultFlow.value ?: return@withLock
+                val text = withContext(dispatchers.default) { vault.open(template.targetFile)?.text }
                     ?: return@withLock
                 vault.save(template.targetFile, CaptureInserter.removeInsertion(text, prev))
             }
-            app.syncManager.requestSync("capture discarded")
+            sync.requestSync("capture discarded")
         }
     }
 
     private suspend fun upsertEntry(template: CaptureTemplate, entryText: String, context: CaptureContext) {
-        val settings = app.settingsRepository.settings.first()
-        if (settings.vaultTreeUri == null) {
+        val currentSettings = settings.settings.first()
+        if (currentSettings.vaultTreeUri == null) {
             _saveState.value = SaveState.Failed("No sync folder configured")
             return
         }
         // On a cold start (e.g. launched via app shortcut) the vault may
         // still be initializing even though a folder is configured; await it.
-        val vault = app.vault.filterNotNull().first()
+        val vault = vaultFlow.filterNotNull().first()
         // Parsing the target file and splicing the entry into it are pure CPU
         // over the whole document. The idle autosave fires while the user is
         // still typing, so this stays off the main thread: a parse stall there
         // desynchronizes the IME from the text field and swallows keystrokes.
-        val result = withContext(Dispatchers.Default) {
+        val result = withContext(dispatchers.default) {
             if (vault.open(template.targetFile) == null) {
                 vault.createNotebook(template.targetFile)
             }
@@ -164,29 +175,39 @@ class CaptureViewModel(private val app: GroveApplication) : ViewModel() {
             override fun <T : ViewModel> create(modelClass: Class<T>, extras: CreationExtras): T {
                 val app = extras[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY]
                         as GroveApplication
-                return CaptureViewModel(app) as T
+                return CaptureViewModel(
+                    app.templatesRepository,
+                    app.database,
+                    app.syncManager,
+                    app.vault,
+                    app.settingsRepository,
+                    app.dispatchers,
+                ) as T
             }
         }
     }
 }
 
-class TemplatesViewModel(private val app: GroveApplication) : ViewModel() {
+class TemplatesViewModel(
+    private val templatesRepository: TemplatesRepository,
+    database: GroveDatabase,
+) : ViewModel() {
 
-    val templates: StateFlow<List<CaptureTemplate>> = app.templatesRepository.templates
+    val templates: StateFlow<List<CaptureTemplate>> = templatesRepository.templates
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     /** Existing vault notebook file names, for the target-file picker dropdown. */
-    val notebooks: StateFlow<List<String>> = app.database.indexDao().notebooksFlow()
+    val notebooks: StateFlow<List<String>> = database.indexDao().notebooksFlow()
         .map { list -> list.map { it.fileName }.sorted() }
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     fun upsert(template: CaptureTemplate) =
-        viewModelScope.launch { app.templatesRepository.upsert(template) }
+        viewModelScope.launch { templatesRepository.upsert(template) }
 
-    fun delete(id: String) = viewModelScope.launch { app.templatesRepository.delete(id) }
+    fun delete(id: String) = viewModelScope.launch { templatesRepository.delete(id) }
 
     fun move(id: String, delta: Int) =
-        viewModelScope.launch { app.templatesRepository.move(id, delta) }
+        viewModelScope.launch { templatesRepository.move(id, delta) }
 
     fun newId(): String = TemplatesRepository.newId()
 
@@ -196,7 +217,7 @@ class TemplatesViewModel(private val app: GroveApplication) : ViewModel() {
             override fun <T : ViewModel> create(modelClass: Class<T>, extras: CreationExtras): T {
                 val app = extras[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY]
                         as GroveApplication
-                return TemplatesViewModel(app) as T
+                return TemplatesViewModel(app.templatesRepository, app.database) as T
             }
         }
     }

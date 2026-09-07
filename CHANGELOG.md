@@ -59,13 +59,18 @@ re-uploads the APKs to the existing release instead of failing.
 
 ## [Unreleased]
 
-### Internal
+### Changed
 - Test-suite milestone M1 (infra): shared `testFixtures` source set with
   `FakeFileStore`, `FakeSettingsRepository`, `OrgFixtures`, `TestVaultSeeder`,
   and an in-memory Room helper; `AppDispatchers` holder for dispatcher
   injection; `SettingsSource` read interface; Robolectric + Turbine on the
   per-push JVM suite. No app behavior change. See
   `internal/test-suite-00-overview.md`.
+- Test-suite milestone M2 (ViewModel refactor): every ViewModel now takes its
+  collaborators as explicit constructor parameters instead of the whole
+  `GroveApplication`, with the production wiring moved into each `Factory`
+  companion. New `SyncTrigger` interface over the sync side-effects VMs call
+  (`SyncManager` implements it). No app behavior change.
 
 ## [1.5.0] - 2026-09-07
 

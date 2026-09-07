@@ -2,10 +2,11 @@ package com.rrajath.grove.ui.vault
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.rrajath.grove.GroveApplication
+import com.rrajath.grove.data.GroveDatabase
 import com.rrajath.grove.data.SyncLogEntity
 import com.rrajath.grove.sync.ConflictResolution
 import com.rrajath.grove.sync.SyncConflicts
+import com.rrajath.grove.sync.SyncTrigger
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -26,16 +27,19 @@ sealed class ConflictUiState {
     data object Resolved : ConflictUiState()
 }
 
-class ConflictViewModel(private val app: GroveApplication) : ViewModel() {
+class ConflictViewModel(
+    private val database: GroveDatabase,
+    private val sync: SyncTrigger,
+) : ViewModel() {
 
     private val _state = MutableStateFlow<ConflictUiState>(ConflictUiState.Loading)
     val state: StateFlow<ConflictUiState> = _state
 
     fun load(fileName: String) {
         viewModelScope.launch {
-            val copyName = app.database.indexDao().notebooks()
+            val copyName = database.indexDao().notebooks()
                 .firstOrNull { it.fileName == fileName }?.conflictFileName
-            val texts = app.syncManager.conflictTexts(fileName)
+            val texts = sync.conflictTexts(fileName)
             _state.value = if (texts == null || copyName == null) {
                 ConflictUiState.NoConflict
             } else {
@@ -51,7 +55,7 @@ class ConflictViewModel(private val app: GroveApplication) : ViewModel() {
 
     fun resolve(fileName: String, resolution: ConflictResolution) {
         viewModelScope.launch {
-            val applied = app.syncManager.resolveConflict(fileName, resolution)
+            val applied = sync.resolveConflict(fileName, resolution)
             if (applied) {
                 _state.value = ConflictUiState.Resolved
             } else {
@@ -67,19 +71,19 @@ class ConflictViewModel(private val app: GroveApplication) : ViewModel() {
     }
 
     companion object {
-        val Factory = factory { ConflictViewModel(it) }
+        val Factory = factory { ConflictViewModel(it.database, it.syncManager) }
     }
 }
 
-class SyncLogViewModel(app: GroveApplication) : ViewModel() {
+class SyncLogViewModel(database: GroveDatabase) : ViewModel() {
     private val limit = MutableStateFlow(PAGE_SIZE)
 
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     val entries: StateFlow<List<SyncLogEntity>> = limit
-        .flatMapLatest { app.database.syncLogDao().recent(it) }
+        .flatMapLatest { database.syncLogDao().recent(it) }
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
-    val total: StateFlow<Int> = app.database.syncLogDao().count()
+    val total: StateFlow<Int> = database.syncLogDao().count()
         .stateIn(viewModelScope, SharingStarted.Eagerly, 0)
 
     fun loadMore() {
@@ -88,6 +92,6 @@ class SyncLogViewModel(app: GroveApplication) : ViewModel() {
 
     companion object {
         const val PAGE_SIZE = 50
-        val Factory = factory { SyncLogViewModel(it) }
+        val Factory = factory { SyncLogViewModel(it.database) }
     }
 }

@@ -4,11 +4,16 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
+import com.rrajath.grove.AppDispatchers
 import com.rrajath.grove.GroveApplication
 import com.rrajath.grove.R
 import com.rrajath.grove.capture.ShareIntake
+import com.rrajath.grove.capture.SharedPayload
 import com.rrajath.grove.data.FavoriteNote
+import com.rrajath.grove.data.FavoritesRepository
+import com.rrajath.grove.data.GroveDatabase
 import com.rrajath.grove.search.SavedSearch
+import com.rrajath.grove.search.SearchRepository
 import com.rrajath.grove.settings.AgendaSwipeAction
 import com.rrajath.grove.settings.FontSizePreference
 import com.rrajath.grove.settings.GroveSettings
@@ -20,15 +25,16 @@ import com.rrajath.grove.settings.SettingsRepository
 import com.rrajath.grove.settings.SettingsSerialization
 import com.rrajath.grove.settings.SyncMode
 import com.rrajath.grove.settings.ThemePreference
+import com.rrajath.grove.sync.SyncTrigger
 import com.rrajath.grove.ui.newbadge.NewBadgeState
 import com.rrajath.grove.ui.vault.RefileNotebook
 import com.rrajath.grove.ui.vault.RefileUiState
 import com.rrajath.grove.ui.vault.headlineAtLine
+import com.rrajath.grove.vault.Vault
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import com.rrajath.grove.whatsnew.ChangelogParser
 import com.rrajath.grove.whatsnew.ChangelogVersion
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -38,28 +44,38 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-class AppViewModel(private val app: GroveApplication) : ViewModel() {
-
-    private val settingsRepository: SettingsRepository = app.settingsRepository
+class AppViewModel(
+    private val settingsRepository: SettingsRepository,
+    private val searchRepository: SearchRepository,
+    private val favoritesRepository: FavoritesRepository,
+    private val database: GroveDatabase,
+    private val sync: SyncTrigger,
+    private val vaultFlow: StateFlow<Vault?>,
+    private val pendingShare: MutableStateFlow<SharedPayload?>,
+    private val dispatchers: AppDispatchers,
+    // Kept for the handful of Android Context APIs with no JVM stub: Toast,
+    // asset streams, contentResolver, getString, and ShareIntake.consumeShare.
+    private val app: GroveApplication,
+) : ViewModel() {
 
     /** Null until the DataStore emits, so the UI can gate on first load. */
     val settings: StateFlow<GroveSettings?> = settingsRepository.settings
         .map { it as GroveSettings? }
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
-    val savedSearches: StateFlow<List<SavedSearch>> = app.searchRepository.savedSearches
+    val savedSearches: StateFlow<List<SavedSearch>> = searchRepository.savedSearches
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     fun deleteSavedSearch(id: String) =
-        viewModelScope.launch { app.searchRepository.deleteSearch(id) }
+        viewModelScope.launch { searchRepository.deleteSearch(id) }
 
     fun renameSavedSearch(id: String, name: String) =
-        viewModelScope.launch { app.searchRepository.renameSearch(id, name) }
+        viewModelScope.launch { searchRepository.renameSearch(id, name) }
 
     fun moveSavedSearch(id: String, delta: Int) =
-        viewModelScope.launch { app.searchRepository.moveSearch(id, delta) }
+        viewModelScope.launch { searchRepository.moveSearch(id, delta) }
 
-    val favorites: StateFlow<List<FavoriteNote>> = app.favoritesRepository.favorites
+    val favorites: StateFlow<List<FavoriteNote>> = favoritesRepository.favorites
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     /**
@@ -71,17 +87,17 @@ class AppViewModel(private val app: GroveApplication) : ViewModel() {
      */
     fun addFavorite(fileName: String, lineIndex: Int, title: String, customId: String?) =
         viewModelScope.launch {
-            app.favoritesRepository.addFavorite(FavoriteNote(fileName, lineIndex, title, customId))
+            favoritesRepository.addFavorite(FavoriteNote(fileName, lineIndex, title, customId))
         }
 
     fun removeFavorite(fileName: String, lineIndex: Int, customId: String? = null) =
-        viewModelScope.launch { app.favoritesRepository.removeFavorite(fileName, lineIndex, customId) }
+        viewModelScope.launch { favoritesRepository.removeFavorite(fileName, lineIndex, customId) }
 
     fun renameFavorite(fileName: String, lineIndex: Int, title: String, customId: String? = null) =
-        viewModelScope.launch { app.favoritesRepository.renameFavorite(fileName, lineIndex, title, customId) }
+        viewModelScope.launch { favoritesRepository.renameFavorite(fileName, lineIndex, title, customId) }
 
     fun moveFavorite(fileName: String, lineIndex: Int, delta: Int, customId: String? = null) =
-        viewModelScope.launch { app.favoritesRepository.moveFavorite(fileName, lineIndex, delta, customId) }
+        viewModelScope.launch { favoritesRepository.moveFavorite(fileName, lineIndex, delta, customId) }
 
     fun setTheme(theme: ThemePreference) =
         viewModelScope.launch { settingsRepository.setTheme(theme) }
@@ -135,7 +151,7 @@ class AppViewModel(private val app: GroveApplication) : ViewModel() {
      * Loads CHANGELOG.md's bundled asset and shows whatever's new since the version last
      * recorded as seen. Call once onboarding is confirmed done (see [completeOnboarding]).
      */
-    fun checkWhatsNew() = viewModelScope.launch(Dispatchers.IO) {
+    fun checkWhatsNew() = viewModelScope.launch(dispatchers.io) {
         val current = com.rrajath.grove.BuildConfig.VERSION_CODE
         // Read straight from the store rather than settings.value: this runs off a
         // recomposition triggered by onboardingDone flipping, and the cached
@@ -198,7 +214,7 @@ class AppViewModel(private val app: GroveApplication) : ViewModel() {
      */
     fun setTodoKeywords(config: String) = viewModelScope.launch {
         settingsRepository.setTodoKeywords(config)
-        app.syncManager.clearAndResync("todo keywords applied")
+        sync.clearAndResync("todo keywords applied")
     }
 
     fun setDefaultPriority(priority: Char?) =
@@ -223,12 +239,12 @@ class AppViewModel(private val app: GroveApplication) : ViewModel() {
      * Appended to the bottom of the target file (created if missing).
      */
     fun consumeSharedContent() {
-        val payload = app.pendingShare.value ?: return
-        app.pendingShare.value = null
+        val payload = pendingShare.value ?: return
+        pendingShare.value = null
         viewModelScope.launch { ShareIntake.consumeShare(app, payload) }
     }
 
-    private suspend fun toast(message: String) = withContext(Dispatchers.Main) {
+    private suspend fun toast(message: String) = withContext(dispatchers.main) {
         android.widget.Toast.makeText(app, message, android.widget.Toast.LENGTH_SHORT).show()
     }
 
@@ -256,7 +272,7 @@ class AppViewModel(private val app: GroveApplication) : ViewModel() {
     fun startArchiveLocationPick() {
         _archiveLocationPicker.value = RefileUiState(sourceLine = -1)
         viewModelScope.launch {
-            val notebooks = app.vault.value?.notebooks().orEmpty()
+            val notebooks = vaultFlow.value?.notebooks().orEmpty()
                 .map { RefileNotebook(it.fileName, it.noteCount) }
                 .toImmutableList()
             _archiveLocationPicker.value = _archiveLocationPicker.value?.copy(notebooks = notebooks)
@@ -265,7 +281,7 @@ class AppViewModel(private val app: GroveApplication) : ViewModel() {
 
     fun archiveLocationPickNotebook(fileName: String) {
         viewModelScope.launch {
-            val doc = app.vault.value?.open(fileName)
+            val doc = vaultFlow.value?.open(fileName)
             if (doc == null) {
                 toast("Couldn't open ${fileName.removeSuffix(".org")}")
                 return@launch
@@ -336,14 +352,14 @@ class AppViewModel(private val app: GroveApplication) : ViewModel() {
         viewModelScope.launch { settingsRepository.setAgendaWidgetFontSize(fontSize) }
 
     /** Count of reminders waiting on POST_NOTIFICATIONS/exact-alarm access (Settings › Reminders banner). */
-    val reminderPendingCount: StateFlow<Int> = app.database.reminderDao().pendingCountFlow(System.currentTimeMillis())
+    val reminderPendingCount: StateFlow<Int> = database.reminderDao().pendingCountFlow(System.currentTimeMillis())
         .stateIn(viewModelScope, SharingStarted.Eagerly, 0)
 
     /** Write the current preferences as a JSON document to the user-picked [uri]. */
     fun exportSettings(uri: android.net.Uri) = viewModelScope.launch {
         val current = settingsRepository.settings.first()
         val text = SettingsSerialization.export(current)
-        val ok = withContext(Dispatchers.IO) {
+        val ok = withContext(dispatchers.io) {
             runCatching {
                 app.contentResolver.openOutputStream(uri, "wt")?.use {
                     it.write(text.toByteArray(Charsets.UTF_8))
@@ -355,7 +371,7 @@ class AppViewModel(private val app: GroveApplication) : ViewModel() {
 
     /** Read a JSON document from [uri] and apply the portable preferences within. */
     fun importSettings(uri: android.net.Uri) = viewModelScope.launch {
-        val text = withContext(Dispatchers.IO) {
+        val text = withContext(dispatchers.io) {
             runCatching {
                 app.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
             }.getOrNull()
@@ -380,7 +396,17 @@ class AppViewModel(private val app: GroveApplication) : ViewModel() {
             override fun <T : ViewModel> create(modelClass: Class<T>, extras: CreationExtras): T {
                 val app = extras[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY]
                         as GroveApplication
-                return AppViewModel(app) as T
+                return AppViewModel(
+                    app.settingsRepository,
+                    app.searchRepository,
+                    app.favoritesRepository,
+                    app.database,
+                    app.syncManager,
+                    app.vault,
+                    app.pendingShare,
+                    app.dispatchers,
+                    app,
+                ) as T
             }
         }
     }

@@ -8,8 +8,11 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.viewmodel.CreationExtras
+import com.rrajath.grove.AppDispatchers
 import com.rrajath.grove.GroveApplication
 import com.rrajath.grove.data.FavoriteNote
+import com.rrajath.grove.data.FavoritesRepository
+import com.rrajath.grove.data.GroveDatabase
 import com.rrajath.grove.data.NoteKey
 import com.rrajath.grove.data.matches
 import com.rrajath.grove.org.ArchiveLocation
@@ -22,12 +25,15 @@ import com.rrajath.grove.org.OrgMutations
 import com.rrajath.grove.org.OrgParser
 import com.rrajath.grove.org.OrgTimestamp
 import com.rrajath.grove.org.INTRO_LINE_INDEX
+import com.rrajath.grove.org.OrgKeywords
 import com.rrajath.grove.org.newOrgId
 import com.rrajath.grove.settings.NotebookDisplayNameMode
 import com.rrajath.grove.settings.PinKind
 import com.rrajath.grove.settings.NotebookSortKey
 import com.rrajath.grove.settings.PinnedItem
+import com.rrajath.grove.settings.SettingsRepository
 import com.rrajath.grove.sync.SyncState
+import com.rrajath.grove.sync.SyncTrigger
 import com.rrajath.grove.vault.AutoArchive
 import com.rrajath.grove.vault.Notebook
 import com.rrajath.grove.vault.StateChangeResult
@@ -43,7 +49,6 @@ import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.collections.immutable.toImmutableMap
 import kotlinx.collections.immutable.toImmutableSet
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -174,7 +179,13 @@ sealed interface NotebookEditEvent {
     data class NameTaken(val message: String) : NotebookEditEvent
 }
 
-class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
+class NotebooksViewModel(
+    private val vaultFlow: StateFlow<Vault?>,
+    private val database: GroveDatabase,
+    private val settingsRepository: SettingsRepository,
+    private val sync: SyncTrigger,
+    private val dispatchers: AppDispatchers,
+) : ViewModel() {
 
     // One-shot create/rename outcomes for the name dialogs (see NotebookEditEvent).
     private val _editEvents = MutableSharedFlow<NotebookEditEvent>(extraBufferCapacity = 1)
@@ -198,9 +209,9 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
     // Built separately from the sync banner inputs: syncManager.state ticks once
     // per pulled file during a sync, and must not re-map/re-group the whole tree.
     private val treeInputs = combine(
-        app.vault,
-        app.database.indexDao().notebooksFlow(),
-        app.settingsRepository.settings,
+        vaultFlow,
+        database.indexDao().notebooksFlow(),
+        settingsRepository.settings,
     ) { vault, notebooks, settings ->
         if (vault == null) return@combine null
         val items = notebooks.map {
@@ -238,13 +249,13 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
     // file of every sync (and did it on viewModelScope's Main.immediate).
     private val builtTree: Flow<NotebooksUiState.Loaded?> = treeInputs
         .map { inputs -> inputs?.let { buildLoaded(it) } }
-        .flowOn(Dispatchers.Default)
+        .flowOn(dispatchers.default)
 
     val state: StateFlow<NotebooksUiState> = combine(
         builtTree,
-        app.syncManager.state,
-        app.syncManager.lastResult,
-        app.database.reminderDao().pendingCountFlow(System.currentTimeMillis()),
+        sync.state,
+        sync.lastResult,
+        database.reminderDao().pendingCountFlow(System.currentTimeMillis()),
         folderDrillThresholdOverride,
     ) { loaded, syncState, lastResult, remindersPending, drillThreshold ->
         // Per-tick work is one shallow copy: the lists inside are shared, not rebuilt.
@@ -354,20 +365,20 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
         // that starts fully collapsed reads as empty). Waits for the index to
         // hold something so a pre-first-sync launch doesn't stamp an empty set.
         viewModelScope.launch {
-            if (app.settingsRepository.settings.first().notebooksTreeDefaultsApplied) return@launch
-            app.database.indexDao().notebooksFlow().first { it.isNotEmpty() }
-            val planned = app.database.indexDao().plannedNotes().first()
-            app.settingsRepository.applyNotebooksTreeDefaults(
+            if (settingsRepository.settings.first().notebooksTreeDefaultsApplied) return@launch
+            database.indexDao().notebooksFlow().first { it.isNotEmpty() }
+            val planned = database.indexDao().plannedNotes().first()
+            settingsRepository.applyNotebooksTreeDefaults(
                 firstOpenExpandedDirs(planned.map { it.fileName })
             )
         }
     }
 
-    fun requestSync() = app.syncManager.requestSync("manual")
+    fun requestSync() = sync.requestSync("manual")
 
     /** Folder row tap: flip that folder's expansion state (persisted for process-death survival). */
     fun toggleFolder(dir: String) {
-        viewModelScope.launch { app.settingsRepository.toggleExpandedFolder(dir) }
+        viewModelScope.launch { settingsRepository.toggleExpandedFolder(dir) }
     }
 
     /** Top-bar expand/collapse-all: [expand] every folder in the current tree, or none. */
@@ -381,16 +392,16 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
         } else {
             emptySet()
         }
-        viewModelScope.launch { app.settingsRepository.setExpandedFolders(dirs) }
+        viewModelScope.launch { settingsRepository.setExpandedFolders(dirs) }
     }
 
     fun saveVaultUri(uri: String) {
         viewModelScope.launch {
-            app.settingsRepository.setVaultTreeUri(uri)
+            settingsRepository.setVaultTreeUri(uri)
             // Picking a folder from the empty-vault state also completes onboarding;
             // stamp the current build as seen in the same write so the What's New
             // modal doesn't fire on this first run (see setOnboardingDone).
-            app.settingsRepository.setOnboardingDone(true, com.rrajath.grove.BuildConfig.VERSION_CODE)
+            settingsRepository.setOnboardingDone(true, com.rrajath.grove.BuildConfig.VERSION_CODE)
         }
     }
 
@@ -401,11 +412,11 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
      * creating any missing folders.
      */
     fun createNotebook(name: String, dir: String = "") {
-        val vault = app.vault.value ?: return
+        val vault = vaultFlow.value ?: return
         viewModelScope.launch {
             if (vault.createNotebook(name.trim(), dir.trim('/'))) {
                 _editEvents.emit(NotebookEditEvent.Succeeded)
-                app.syncManager.requestSync("notebook created")
+                sync.requestSync("notebook created")
             } else {
                 _editEvents.emit(
                     NotebookEditEvent.NameTaken("A notebook with that name already exists")
@@ -421,19 +432,19 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
      * and drops the stale index row so the next sync re-discovers it in place.
      */
     fun moveNotebook(path: String, newDir: String) {
-        val vault = app.vault.value ?: return
+        val vault = vaultFlow.value ?: return
         viewModelScope.launch {
             val newPath = vault.moveNotebook(path, newDir.trim('/'))
             if (newPath != null) {
-                app.database.indexDao().removeNotebook(path)
-                app.settingsRepository.moveNotebookStyle(path, newPath)
-                app.syncManager.requestSync("notebook moved")
+                database.indexDao().removeNotebook(path)
+                settingsRepository.moveNotebookStyle(path, newPath)
+                sync.requestSync("notebook moved")
             }
         }
     }
 
     fun renameNotebook(oldName: String, newName: String) {
-        val vault = app.vault.value ?: return
+        val vault = vaultFlow.value ?: return
         val target = newName.trim().let { if (it.endsWith(".org")) it else "$it.org" }
         if (target == oldName) {
             // Confirmed without changing the name — nothing to do, just close.
@@ -442,54 +453,54 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
         }
         viewModelScope.launch {
             if (vault.renameNotebook(oldName, newName.trim())) {
-                app.database.indexDao().removeNotebook(oldName)
-                app.settingsRepository.moveNotebookStyle(oldName, target)
+                database.indexDao().removeNotebook(oldName)
+                settingsRepository.moveNotebookStyle(oldName, target)
                 _editEvents.emit(NotebookEditEvent.Succeeded)
             } else {
                 _editEvents.emit(
                     NotebookEditEvent.NameTaken("A notebook with that name already exists")
                 )
             }
-            app.syncManager.requestSync("notebook renamed")
+            sync.requestSync("notebook renamed")
         }
     }
 
     fun deleteNotebook(name: String) {
-        val vault = app.vault.value ?: return
+        val vault = vaultFlow.value ?: return
         viewModelScope.launch {
             if (vault.deleteNotebook(name)) {
-                app.database.indexDao().removeNotebook(name)
+                database.indexDao().removeNotebook(name)
             }
-            app.syncManager.requestSync("notebook deleted")
+            sync.requestSync("notebook deleted")
         }
     }
 
     fun setNotebookColor(fileName: String, colorKey: String) {
-        viewModelScope.launch { app.settingsRepository.setNotebookColor(fileName, colorKey) }
+        viewModelScope.launch { settingsRepository.setNotebookColor(fileName, colorKey) }
     }
 
     fun forceReload(name: String) {
-        viewModelScope.launch { app.syncManager.forceReload(name) }
+        viewModelScope.launch { sync.forceReload(name) }
     }
 
     fun pinNotebook(fileName: String) {
-        viewModelScope.launch { app.settingsRepository.pinNotebook(fileName) }
+        viewModelScope.launch { settingsRepository.pinNotebook(fileName) }
     }
 
     fun unpinNotebook(fileName: String) {
-        viewModelScope.launch { app.settingsRepository.unpinNotebook(fileName) }
+        viewModelScope.launch { settingsRepository.unpinNotebook(fileName) }
     }
 
     fun pinFolder(dir: String) {
-        viewModelScope.launch { app.settingsRepository.pinFolder(dir) }
+        viewModelScope.launch { settingsRepository.pinFolder(dir) }
     }
 
     fun unpinFolder(dir: String) {
-        viewModelScope.launch { app.settingsRepository.unpinFolder(dir) }
+        viewModelScope.launch { settingsRepository.unpinFolder(dir) }
     }
 
     fun setFolderColor(dir: String, colorKey: String) {
-        viewModelScope.launch { app.settingsRepository.setFolderColor(dir, colorKey) }
+        viewModelScope.launch { settingsRepository.setFolderColor(dir, colorKey) }
     }
 
     /**
@@ -498,7 +509,7 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
      * descendant's) icon colour + pin state, and requests a sync.
      */
     fun renameFolder(dir: String, newName: String) {
-        val vault = app.vault.value ?: return
+        val vault = vaultFlow.value ?: return
         val trimmed = dir.trim('/')
         val newDir = vaultPath(trimmed.substringBeforeLast('/', ""), newName.trim().trim('/'))
         if (newDir == trimmed) {
@@ -510,10 +521,10 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
             val affected = affectedPaths(dir)
             val renamedTo = vault.renameFolder(dir, newName)
             if (renamedTo != null) {
-                affected.forEach { app.database.indexDao().removeNotebook(it) }
-                app.settingsRepository.renameFolderStyle(dir, renamedTo)
+                affected.forEach { database.indexDao().removeNotebook(it) }
+                settingsRepository.renameFolderStyle(dir, renamedTo)
                 _editEvents.emit(NotebookEditEvent.Succeeded)
-                app.syncManager.requestSync("folder renamed")
+                sync.requestSync("folder renamed")
             } else {
                 _editEvents.emit(
                     NotebookEditEvent.NameTaken("A folder with that name already exists")
@@ -527,13 +538,13 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
      * clear the folder's icon colour + pin state, and request a sync.
      */
     fun deleteFolder(dir: String) {
-        val vault = app.vault.value ?: return
+        val vault = vaultFlow.value ?: return
         viewModelScope.launch {
             val affected = affectedPaths(dir)
             if (vault.deleteFolder(dir) > 0) {
-                affected.forEach { app.database.indexDao().removeNotebook(it) }
-                app.settingsRepository.deleteFolderStyle(dir)
-                app.syncManager.requestSync("folder deleted")
+                affected.forEach { database.indexDao().removeNotebook(it) }
+                settingsRepository.deleteFolderStyle(dir)
+                sync.requestSync("folder deleted")
             }
         }
     }
@@ -546,7 +557,9 @@ class NotebooksViewModel(private val app: GroveApplication) : ViewModel() {
             .orEmpty()
 
     companion object {
-        val Factory = factory { NotebooksViewModel(it) }
+        val Factory = factory {
+            NotebooksViewModel(it.vault, it.database, it.settingsRepository, it.syncManager, it.dispatchers)
+        }
     }
 }
 
@@ -604,7 +617,16 @@ data class RefileUiState(
  */
 data class PendingEdit(val fileName: String, val lineIndex: Int, val text: String)
 
-class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
+class DocumentViewModel(
+    private val vaultFlow: StateFlow<Vault?>,
+    private val keywordsFlow: StateFlow<OrgKeywords>,
+    private val sync: SyncTrigger,
+    private val database: GroveDatabase,
+    private val settingsRepository: SettingsRepository,
+    private val favoritesRepository: FavoritesRepository,
+    private val dispatchers: AppDispatchers,
+    private val app: GroveApplication,
+) : ViewModel() {
 
     private val _state = MutableStateFlow<DocumentUiState>(DocumentUiState.Loading)
     val state: StateFlow<DocumentUiState> = _state
@@ -685,7 +707,7 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
     /** Splice the editor's unsaved subtree into a freshly read [doc], if it applies to it. */
     private suspend fun withPending(fileName: String, doc: OrgDocument): OrgDocument {
         val p = pending?.takeIf { it.fileName == fileName } ?: return doc
-        return withContext(Dispatchers.Default) {
+        return withContext(dispatchers.default) {
             val headline = doc.headlines.firstOrNull { it.lineIndex == p.lineIndex }
                 ?: return@withContext doc
             if (OrgMutations.subtreeText(doc, headline) == p.text) return@withContext doc
@@ -703,11 +725,11 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
      * the flush, and the editor is told to let its buffer go.
      */
     private suspend fun saveDoc(fileName: String, newText: String, syncReason: String) {
-        val vault = app.vault.value ?: return
+        val vault = vaultFlow.value ?: return
         val p = pending?.takeIf { it.fileName == fileName }
         if (p != null) {
-            val subtree = withContext(Dispatchers.Default) {
-                val doc = OrgParser.parse(newText, app.keywords.value)
+            val subtree = withContext(dispatchers.default) {
+                val doc = OrgParser.parse(newText, keywordsFlow.value)
                 doc.headlines.firstOrNull { it.lineIndex == p.lineIndex }
                     ?.let { OrgMutations.subtreeText(doc, it) }
             }
@@ -720,12 +742,12 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
             onPendingPersisted()
         }
         vault.save(fileName, newText)
-        app.syncManager.requestSync(syncReason)
+        sync.requestSync(syncReason)
     }
 
     fun load(fileName: String) {
         viewModelScope.launch {
-            val vault = app.vault.value
+            val vault = vaultFlow.value
             if (vault == null) {
                 _state.value = DocumentUiState.Error("No sync folder configured")
                 return@launch
@@ -739,7 +761,7 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
             }
         }
         viewModelScope.launch {
-            _allTags.value = app.database.indexDao().allTagStrings()
+            _allTags.value = database.indexDao().allTagStrings()
                 .flatMap { it.split(':') }
                 .filter { it.isNotEmpty() }
                 .distinct()
@@ -785,8 +807,8 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
         currentFile: String,
         doc: OrgDocument?,
     ): LinkResolution {
-        val dao = app.database.indexDao()
-        val vault = app.vault.value
+        val dao = database.indexDao()
+        val vault = vaultFlow.value
 
         fun noteIn(file: String, headline: OrgHeadline) =
             LinkResolution.Note(NoteRef(file, headline.lineIndex, headline.customId ?: headline.id))
@@ -868,7 +890,7 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
     fun undo() {
         val snap = undoSnapshot ?: return
         val loaded = _state.value as? DocumentUiState.Loaded ?: return
-        val vault = app.vault.value ?: return
+        val vault = vaultFlow.value ?: return
         undoSnapshot = null
         _snack.value = null
         // The focused line indexes the pre-undo document; don't let the
@@ -884,12 +906,12 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
         viewModelScope.launch {
             snap.files.forEach { (name, text) -> vault.save(name, text) }
             snap.files.firstOrNull { it.first == loaded.fileName }?.let { (_, text) ->
-                val doc = withContext(Dispatchers.Default) {
+                val doc = withContext(dispatchers.default) {
                     OrgParser.parse(text, loaded.document.keywords)
                 }
                 _state.value = DocumentUiState.Loaded(loaded.fileName, doc)
             }
-            app.syncManager.requestSync("undo")
+            sync.requestSync("undo")
             showToast("Undone")
         }
     }
@@ -912,13 +934,13 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
             return
         }
         val loaded = _state.value as? DocumentUiState.Loaded ?: return onResolved(null)
-        val vault = app.vault.value ?: return onResolved(null)
+        val vault = vaultFlow.value ?: return onResolved(null)
         viewModelScope.launch {
             val newId = newOrgId()
-            val newText = withContext(Dispatchers.Default) {
+            val newText = withContext(dispatchers.default) {
                 OrgMutations.upsertProperty(loaded.document, headline, "CUSTOM_ID", newId)
             }
-            val newDoc = withContext(Dispatchers.Default) {
+            val newDoc = withContext(dispatchers.default) {
                 OrgParser.parse(newText, loaded.document.keywords)
             }
             _state.value = DocumentUiState.Loaded(loaded.fileName, newDoc)
@@ -936,14 +958,14 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
         val loaded = _state.value as? DocumentUiState.Loaded ?: return
         val fileName = loaded.fileName
         viewModelScope.launch {
-            val existing = app.favoritesRepository.favorites.first().firstOrNull { it.matches(headline) }
+            val existing = favoritesRepository.favorites.first().firstOrNull { it.matches(headline) }
             if (existing != null) {
-                app.favoritesRepository.removeFavorite(existing.fileName, existing.lineIndex, existing.customId)
+                favoritesRepository.removeFavorite(existing.fileName, existing.lineIndex, existing.customId)
                 showToast("Removed favorite")
             } else {
                 ensureCustomId(headline) { customId ->
                     viewModelScope.launch {
-                        app.favoritesRepository.addFavorite(
+                        favoritesRepository.addFavorite(
                             FavoriteNote(fileName, headline.lineIndex, headline.title, customId),
                         )
                     }
@@ -964,14 +986,14 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
         val fileName = loaded.fileName
         if (!doc.hasIntro) return
         viewModelScope.launch {
-            val existing = app.favoritesRepository.favorites.first()
+            val existing = favoritesRepository.favorites.first()
                 .firstOrNull { it.fileName == fileName && it.lineIndex == INTRO_LINE_INDEX }
             if (existing != null) {
-                app.favoritesRepository.removeFavorite(fileName, INTRO_LINE_INDEX, null)
+                favoritesRepository.removeFavorite(fileName, INTRO_LINE_INDEX, null)
                 showToast("Removed favorite")
             } else {
                 val title = doc.introTitle.ifBlank { fileName.removeSuffix(".org") }
-                app.favoritesRepository.addFavorite(FavoriteNote(fileName, INTRO_LINE_INDEX, title, null))
+                favoritesRepository.addFavorite(FavoriteNote(fileName, INTRO_LINE_INDEX, title, null))
                 showToast("★ Added to favorites")
             }
         }
@@ -989,10 +1011,10 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
      */
     fun withIntroHeading(describe: String, mutate: (OrgDocument, OrgHeadline) -> String) {
         val loaded = _state.value as? DocumentUiState.Loaded ?: return
-        val vault = app.vault.value ?: return
+        val vault = vaultFlow.value ?: return
         if (!loaded.document.hasIntro) return
         viewModelScope.launch {
-            val (finalText, newLine, finalDoc) = withContext(Dispatchers.Default) {
+            val (finalText, newLine, finalDoc) = withContext(dispatchers.default) {
                 val (wrapped, line) = OrgMutations.wrapIntroInHeading(loaded.document)
                 val wrappedDoc = OrgParser.parse(wrapped, loaded.document.keywords)
                 val h = wrappedDoc.headlineAtLine(line)
@@ -1022,9 +1044,9 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
         block: (OrgDocument, OrgHeadline) -> Pair<String, Int>?,
     ) {
         val loaded = _state.value as? DocumentUiState.Loaded ?: return
-        val vault = app.vault.value ?: return
+        val vault = vaultFlow.value ?: return
         viewModelScope.launch {
-            val result = withContext(Dispatchers.Default) {
+            val result = withContext(dispatchers.default) {
                 block(loaded.document, headline)
                     ?.let { (text, line) -> Triple(text, line, OrgParser.parse(text, loaded.document.keywords)) }
             }
@@ -1081,7 +1103,7 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
      */
     private fun dropFavoritesInRange(document: OrgDocument, fileName: String, range: IntRange) {
         viewModelScope.launch {
-            app.favoritesRepository.favorites.first()
+            favoritesRepository.favorites.first()
                 .filter { it.fileName == fileName }
                 .filter { fav ->
                     val currentLine = fav.customId
@@ -1090,7 +1112,7 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
                         ?: fav.lineIndex
                     currentLine in range
                 }
-                .forEach { app.favoritesRepository.removeFavorite(it.fileName, it.lineIndex, it.customId) }
+                .forEach { favoritesRepository.removeFavorite(it.fileName, it.lineIndex, it.customId) }
         }
     }
 
@@ -1119,9 +1141,9 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
         insert: (OrgDocument, OrgMutations.NewNoteOptions) -> Pair<String, Int>,
     ) {
         val loaded = _state.value as? DocumentUiState.Loaded ?: return
-        val vault = app.vault.value ?: return
+        val vault = vaultFlow.value ?: return
         viewModelScope.launch {
-            val settings = app.settingsRepository.settings.first()
+            val settings = settingsRepository.settings.first()
             val (newText, lineIndex) = insert(
                 loaded.document,
                 OrgMutations.NewNoteOptions(
@@ -1129,7 +1151,7 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
                     createdAt = if (settings.addCreatedToNewNotes) LocalDateTime.now() else null,
                 ),
             )
-            val newDoc = withContext(Dispatchers.Default) {
+            val newDoc = withContext(dispatchers.default) {
                 OrgParser.parse(newText, loaded.document.keywords)
             }
             _state.value = DocumentUiState.Loaded(loaded.fileName, newDoc)
@@ -1150,10 +1172,10 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
      */
     fun setState(headline: OrgHeadline, keyword: String?) {
         val loaded = _state.value as? DocumentUiState.Loaded ?: return
-        val vault = app.vault.value ?: return
+        val vault = vaultFlow.value ?: return
         if (headline.keyword == keyword) return
         viewModelScope.launch {
-            val settings = app.settingsRepository.settings.first()
+            val settings = settingsRepository.settings.first()
             when (
                 val result = AutoArchive.apply(
                     vault, settings, loaded.document, loaded.fileName, headline, keyword, LocalDateTime.now(),
@@ -1196,12 +1218,12 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
 
     private fun mutateChecklistItem(lineIndex: Int, mutate: (OrgDocument, Int) -> String?) {
         val loaded = _state.value as? DocumentUiState.Loaded ?: return
-        val vault = app.vault.value ?: return
+        val vault = vaultFlow.value ?: return
         viewModelScope.launch {
-            val newText = withContext(Dispatchers.Default) {
+            val newText = withContext(dispatchers.default) {
                 mutate(loaded.document, lineIndex)
             } ?: return@launch
-            val newDoc = withContext(Dispatchers.Default) {
+            val newDoc = withContext(dispatchers.default) {
                 OrgParser.parse(newText, loaded.document.keywords)
             }
             _state.value = DocumentUiState.Loaded(loaded.fileName, newDoc)
@@ -1218,9 +1240,9 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
     /** Read mode's metadata sheet: priority/tag chips write straight to disk. */
     fun setPriority(headline: OrgHeadline, priority: Char?) {
         val loaded = _state.value as? DocumentUiState.Loaded ?: return
-        val vault = app.vault.value ?: return
+        val vault = vaultFlow.value ?: return
         viewModelScope.launch {
-            val (newText, newDoc) = withContext(Dispatchers.Default) {
+            val (newText, newDoc) = withContext(dispatchers.default) {
                 val text = OrgMutations.setPriority(loaded.document, headline, priority)
                 text to OrgParser.parse(text, loaded.document.keywords)
             }
@@ -1232,9 +1254,9 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
 
     fun setTags(headline: OrgHeadline, tags: List<String>) {
         val loaded = _state.value as? DocumentUiState.Loaded ?: return
-        val vault = app.vault.value ?: return
+        val vault = vaultFlow.value ?: return
         viewModelScope.launch {
-            val (newText, newDoc) = withContext(Dispatchers.Default) {
+            val (newText, newDoc) = withContext(dispatchers.default) {
                 val text = OrgMutations.setTags(loaded.document, headline, tags)
                 text to OrgParser.parse(text, loaded.document.keywords)
             }
@@ -1249,9 +1271,9 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
      */
     fun setPlanningDates(headline: OrgHeadline, scheduled: OrgTimestamp?, deadline: OrgTimestamp?) {
         val loaded = _state.value as? DocumentUiState.Loaded ?: return
-        val vault = app.vault.value ?: return
+        val vault = vaultFlow.value ?: return
         viewModelScope.launch {
-            val (newText, newDoc) = withContext(Dispatchers.Default) {
+            val (newText, newDoc) = withContext(dispatchers.default) {
                 val text = OrgMutations.setPlanningDates(loaded.document, headline, scheduled, deadline)
                 text to OrgParser.parse(text, loaded.document.keywords)
             }
@@ -1273,9 +1295,9 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
         block: (OrgDocument, OrgHeadline) -> String,
     ) {
         val loaded = _state.value as? DocumentUiState.Loaded ?: return
-        val vault = app.vault.value ?: return
+        val vault = vaultFlow.value ?: return
         viewModelScope.launch {
-            val (newText, newDoc) = withContext(Dispatchers.Default) {
+            val (newText, newDoc) = withContext(dispatchers.default) {
                 val text = block(loaded.document, headline)
                 text to OrgParser.parse(text, loaded.document.keywords)
             }
@@ -1291,10 +1313,10 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
     /** Outline swipe "Note" action: org's C-c C-z, logged into the LOGBOOK drawer. */
     fun addNote(headline: OrgHeadline, note: String) {
         val loaded = _state.value as? DocumentUiState.Loaded ?: return
-        val vault = app.vault.value ?: return
+        val vault = vaultFlow.value ?: return
         if (note.isBlank()) return
         viewModelScope.launch {
-            val (newText, newDoc) = withContext(Dispatchers.Default) {
+            val (newText, newDoc) = withContext(dispatchers.default) {
                 val now = LocalDateTime.now()
                 val stamp = OrgTimestamp(
                     now.toLocalDate(),
@@ -1315,10 +1337,10 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
     fun startRefile(headline: OrgHeadline) {
         _refile.value = RefileUiState(sourceLine = headline.lineIndex)
         viewModelScope.launch {
-            val notebooks = app.vault.value?.notebooks().orEmpty()
+            val notebooks = vaultFlow.value?.notebooks().orEmpty()
                 .map { RefileNotebook(it.fileName, it.noteCount) }
                 .toImmutableList()
-            val settings = app.settingsRepository.settings.first()
+            val settings = settingsRepository.settings.first()
             val archiveTarget = (_state.value as? DocumentUiState.Loaded)?.let {
                 ArchiveLocation.resolve(it.document, headline, AutoArchive.settingsFallback(settings))
             }
@@ -1335,7 +1357,7 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
         val loaded = _state.value as? DocumentUiState.Loaded ?: return
         viewModelScope.launch {
             val doc = if (fileName == loaded.fileName) loaded.document
-            else app.vault.value?.open(fileName)
+            else vaultFlow.value?.open(fileName)
             if (doc == null) {
                 showToast("Couldn't open ${fileName.removeSuffix(".org")}")
                 return@launch
@@ -1375,7 +1397,7 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
         val picker = _refile.value ?: return
         val target = picker.archiveTarget ?: return
         val loaded = _state.value as? DocumentUiState.Loaded ?: return
-        val vault = app.vault.value ?: return
+        val vault = vaultFlow.value ?: return
         val source = loaded.document.headlineAtLine(picker.sourceLine) ?: return
         _refile.value = null
         val sourceEnd = loaded.document.subtreeEndLine(source)
@@ -1393,7 +1415,7 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
         val picker = _refile.value ?: return
         val target = picker.lastUsedTarget ?: return
         val loaded = _state.value as? DocumentUiState.Loaded ?: return
-        val vault = app.vault.value ?: return
+        val vault = vaultFlow.value ?: return
         val source = loaded.document.headlineAtLine(picker.sourceLine) ?: return
         _refile.value = null
         val sourceEnd = loaded.document.subtreeEndLine(source)
@@ -1439,19 +1461,19 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
 
     private fun rememberRefileTarget(fileName: String, headingPath: List<String>) {
         viewModelScope.launch {
-            app.settingsRepository.setLastRefileTarget(fileName, headingPath)
+            settingsRepository.setLastRefileTarget(fileName, headingPath)
         }
     }
 
     private fun refileTo(source: OrgHeadline, destFile: String, targetLine: Int?, headingPath: List<String>) {
         val loaded = _state.value as? DocumentUiState.Loaded ?: return
-        val vault = app.vault.value ?: return
+        val vault = vaultFlow.value ?: return
         val sourceEnd = loaded.document.subtreeEndLine(source)
         viewModelScope.launch {
             val destLabel = destFile.removeSuffix(".org")
             if (destFile == loaded.fileName) {
                 val targetTitle = targetLine?.let { loaded.document.headlineAtLine(it)?.title }
-                val result = withContext(Dispatchers.Default) {
+                val result = withContext(dispatchers.default) {
                     OrgMutations.refileWithinFile(loaded.document, source, targetLine)
                         ?.let { (text, _) -> text to OrgParser.parse(text, loaded.document.keywords) }
                 }
@@ -1472,7 +1494,7 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
                     return@launch
                 }
                 val target = targetLine?.let { destDoc.headlineAtLine(it) }
-                val (newSourceText, newDestText, newSourceDoc) = withContext(Dispatchers.Default) {
+                val (newSourceText, newDestText, newSourceDoc) = withContext(dispatchers.default) {
                     val subtree = OrgMutations.subtreeText(loaded.document, source)
                     val srcText = OrgMutations.deleteSubtree(loaded.document, source)
                     val (dstText, _) = OrgMutations.refileInsert(destDoc, target, subtree)
@@ -1493,7 +1515,12 @@ class DocumentViewModel(private val app: GroveApplication) : ViewModel() {
     }
 
     companion object {
-        val Factory = factory { DocumentViewModel(it) }
+        val Factory = factory {
+            DocumentViewModel(
+                it.vault, it.keywords, it.syncManager, it.database,
+                it.settingsRepository, it.favoritesRepository, it.dispatchers, it,
+            )
+        }
     }
 }
 

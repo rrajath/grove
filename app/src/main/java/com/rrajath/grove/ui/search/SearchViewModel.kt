@@ -5,7 +5,12 @@ import android.util.Log
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.rrajath.grove.GroveApplication
+import com.rrajath.grove.AppDispatchers
+import com.rrajath.grove.data.GroveDatabase
+import com.rrajath.grove.search.SearchRepository
+import com.rrajath.grove.settings.SettingsSource
+import com.rrajath.grove.sync.SyncTrigger
+import com.rrajath.grove.vault.Vault
 import com.rrajath.grove.data.NoteEntity
 import com.rrajath.grove.data.NoteFacetRow
 import com.rrajath.grove.data.rawQuery
@@ -33,7 +38,6 @@ import com.rrajath.grove.vault.StateChangeResult
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -189,7 +193,15 @@ data class SearchUiState(
 
 /** Full-text + faceted search, results grouped by file (design spec §9 "Search
  *  B: panel"). Agenda's day-grouped/Overdue view now lives on its own screen. */
-class SearchViewModel(private val app: GroveApplication) : ViewModel() {
+class SearchViewModel(
+    private val vaultFlow: StateFlow<Vault?>,
+    private val sync: SyncTrigger,
+    private val searchRepository: SearchRepository,
+    private val database: GroveDatabase,
+    private val keywordsFlow: StateFlow<OrgKeywords>,
+    private val settings: SettingsSource,
+    private val dispatchers: AppDispatchers,
+) : ViewModel() {
 
     private val _state = MutableStateFlow(SearchUiState())
     val state: StateFlow<SearchUiState> = _state
@@ -214,17 +226,17 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
         undoSnapshot = null
         _snack.value = null
         viewModelScope.launch {
-            val vault = app.vault.value ?: return@launch
+            val vault = vaultFlow.value ?: return@launch
             snap.forEach { (name, text) -> vault.save(name, text) }
-            app.syncManager.requestSync("search undo")
+            sync.requestSync("search undo")
         }
     }
 
-    val savedSearches: StateFlow<List<SavedSearch>> = app.searchRepository.savedSearches
+    val savedSearches: StateFlow<List<SavedSearch>> = searchRepository.savedSearches
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     /** Configured TODO keywords, for the swipe-to-cycle state sheet. */
-    val keywords: StateFlow<OrgKeywords> = app.keywords
+    val keywords: StateFlow<OrgKeywords> = keywordsFlow
 
     private val queryFlow = MutableStateFlow("")
     private val filtersFlow = MutableStateFlow(SearchFilters())
@@ -252,10 +264,10 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
             // instead of the card's subtitle staying frozen on the old preset's
             // count until some unrelated index change happens to fire next.
             combine(
-                app.database.indexDao().noteFacets()
+                database.indexDao().noteFacets()
                     .map { rows -> rows.map { it.toFacets() } }
-                    .flowOn(Dispatchers.Default),
-                app.searchRepository.savedSearches,
+                    .flowOn(dispatchers.default),
+                searchRepository.savedSearches,
             ) { rows, saved -> rows to saved }
                 .collect { (rows, saved) ->
                     facets.value = rows
@@ -315,23 +327,23 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
         val quickStartId = QuickStartOverrides.idForName(trimmedName)
         viewModelScope.launch {
             if (quickStartId != null) {
-                app.searchRepository.setQuickStartOverride(quickStartId, trimmedName, query.trim())
+                searchRepository.setQuickStartOverride(quickStartId, trimmedName, query.trim())
                 return@launch
             }
-            val existing = app.searchRepository.savedSearches.first()
+            val existing = searchRepository.savedSearches.first()
                 .firstOrNull { it.name.equals(trimmedName, ignoreCase = true) }
-            if (existing != null) app.searchRepository.updateSearchQuery(existing.id, query.trim())
-            else app.searchRepository.saveSearch(trimmedName, query.trim())
+            if (existing != null) searchRepository.updateSearchQuery(existing.id, query.trim())
+            else searchRepository.saveSearch(trimmedName, query.trim())
         }
     }
 
     fun deleteSavedSearch(id: String) {
-        viewModelScope.launch { app.searchRepository.deleteSearch(id) }
+        viewModelScope.launch { searchRepository.deleteSearch(id) }
     }
 
     fun renameSavedSearch(id: String, name: String) {
         if (name.isBlank()) return
-        viewModelScope.launch { app.searchRepository.renameSearch(id, name.trim()) }
+        viewModelScope.launch { searchRepository.renameSearch(id, name.trim()) }
     }
 
     /**
@@ -344,17 +356,17 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
      */
     fun setState(fileName: String, lineIndex: Int, keyword: String?) {
         viewModelScope.launch {
-            val vault = app.vault.value ?: return@launch
+            val vault = vaultFlow.value ?: return@launch
             val doc = vault.open(fileName) ?: return@launch
             val headline = doc.headlineAtLine(lineIndex) ?: return@launch
             if (headline.keyword == keyword) return@launch
-            val settings = app.settingsRepository.settings.first()
+            val currentSettings = settings.settings.first()
             when (
-                val result = AutoArchive.apply(vault, settings, doc, fileName, headline, keyword, LocalDateTime.now())
+                val result = AutoArchive.apply(vault, currentSettings, doc, fileName, headline, keyword, LocalDateTime.now())
             ) {
                 is StateChangeResult.Plain -> {
                     vault.save(fileName, result.text)
-                    app.syncManager.requestSync("search state set")
+                    sync.requestSync("search state set")
                 }
                 is StateChangeResult.Archived -> {
                     undoSnapshot = if (result.sourceFile == result.destFile) {
@@ -364,7 +376,7 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
                     }
                     vault.save(fileName, result.sourceText)
                     if (result.destFile != fileName) vault.save(result.destFile, result.destText)
-                    app.syncManager.requestSync("search state set")
+                    sync.requestSync("search state set")
                     showSnack("Marked done. Refiled to ${result.label}")
                 }
             }
@@ -374,14 +386,14 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
     /** Swipe-to-schedule action: both planning dates in one edit, as the Dates screen commits. */
     fun setPlanningDates(fileName: String, lineIndex: Int, scheduled: OrgTimestamp?, deadline: OrgTimestamp?) {
         viewModelScope.launch {
-            val vault = app.vault.value ?: return@launch
+            val vault = vaultFlow.value ?: return@launch
             val doc = vault.open(fileName) ?: return@launch
             val headline = doc.headlineAtLine(lineIndex) ?: return@launch
-            val newText = withContext(Dispatchers.Default) {
+            val newText = withContext(dispatchers.default) {
                 OrgMutations.setPlanningDates(doc, headline, scheduled, deadline)
             }
             vault.save(fileName, newText)
-            app.syncManager.requestSync("search planning edit")
+            sync.requestSync("search planning edit")
         }
     }
 
@@ -567,7 +579,7 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
         val notes = loadCandidates(textQuery, filters)
         val facetRows = facets.value.orEmpty()
 
-        withContext(Dispatchers.Default) {
+        withContext(dispatchers.default) {
             val today = LocalDate.now()
             val textMatched = textQuery?.let { QueryMatcher.filter(notes, it, today) } ?: notes
             val terms = textQuery?.textTerms ?: emptyList()
@@ -631,9 +643,9 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
      * the visible behaviour is identical to scanning the whole vault.
      */
     private suspend fun loadCandidates(textQuery: SearchQuery?, filters: SearchFilters): List<NoteMeta> {
-        val dao = app.database.indexDao()
+        val dao = database.indexDao()
         val match = textQuery
-            ?.takeIf { app.database.ftsAvailable }
+            ?.takeIf { database.ftsAvailable }
             ?.let { FtsQuery.matchExpression(it) }
         val candidate = NoteCandidateQuery.build(match, textQuery, filters.toNarrowing())
         val rows = try {
@@ -645,7 +657,7 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
             Log.w(TAG, "candidate query failed, falling back to a full scan: ${candidate.sql}", e)
             dao.notesMatching(rawQuery("SELECT * FROM notes ORDER BY fileName, lineIndex"))
         }
-        return withContext(Dispatchers.Default) { rows.map { it.toNoteMeta() } }
+        return withContext(dispatchers.default) { rows.map { it.toNoteMeta() } }
     }
 
     private fun SearchFilters.toNarrowing() = FacetNarrowing(
@@ -754,7 +766,7 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
      *  changed it to search for. */
     private suspend fun updateCatalogAndCounts(notes: List<NoteFacets>, savedSearches: List<SavedSearch>) {
         val today = LocalDate.now()
-        val keywords = app.keywords.value
+        val keywords = keywordsFlow.value
         val tags = notes.flatMap { it.inheritedTags }.distinct().sorted().toImmutableList()
         // All configured states (not just ones currently in use), todo-type first
         // then done-type, "no state" last.
@@ -787,7 +799,7 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
     private suspend fun overrideCount(query: String): Int {
         val textQuery = if (query.isBlank()) null else QueryParser.parse(query)
         val notes = loadCandidates(textQuery, SearchFilters())
-        return withContext(Dispatchers.Default) {
+        return withContext(dispatchers.default) {
             textQuery?.let { QueryMatcher.filter(notes, it, LocalDate.now()).size } ?: notes.size
         }
     }
@@ -814,7 +826,12 @@ class SearchViewModel(private val app: GroveApplication) : ViewModel() {
     )
 
     companion object {
-        val Factory = factory { SearchViewModel(it) }
+        val Factory = factory {
+            SearchViewModel(
+                it.vault, it.syncManager, it.searchRepository, it.database,
+                it.keywords, it.settingsRepository, it.dispatchers,
+            )
+        }
 
         private const val TAG = "SearchViewModel"
 

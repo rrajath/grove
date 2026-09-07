@@ -2,7 +2,8 @@ package com.rrajath.grove.ui.agenda
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.rrajath.grove.GroveApplication
+import com.rrajath.grove.AppDispatchers
+import com.rrajath.grove.data.GroveDatabase
 import com.rrajath.grove.data.toNoteMeta
 import com.rrajath.grove.org.OrgDocument
 import com.rrajath.grove.org.OrgHeadline
@@ -15,6 +16,9 @@ import com.rrajath.grove.settings.AgendaGrouping
 import com.rrajath.grove.settings.AgendaStateFilter
 import com.rrajath.grove.settings.AgendaSwipeAction
 import com.rrajath.grove.settings.GroveSettings
+import com.rrajath.grove.settings.SettingsRepository
+import com.rrajath.grove.sync.SyncTrigger
+import com.rrajath.grove.vault.Vault
 import com.rrajath.grove.ui.vault.OutlineSnack
 import com.rrajath.grove.ui.vault.factory
 import com.rrajath.grove.ui.vault.headlineAtLine
@@ -24,7 +28,6 @@ import androidx.compose.runtime.Immutable
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -137,7 +140,14 @@ private data class AgendaPrefs(
  * or mark done, and the overdue card's "Move to today" rewrites every overdue
  * planning date at once. All of them are undoable while the snackbar is up.
  */
-class AgendaViewModel(private val app: GroveApplication) : ViewModel() {
+class AgendaViewModel(
+    private val settingsRepository: SettingsRepository,
+    private val keywordsFlow: StateFlow<OrgKeywords>,
+    private val database: GroveDatabase,
+    private val vaultFlow: StateFlow<Vault?>,
+    private val sync: SyncTrigger,
+    private val dispatchers: AppDispatchers,
+) : ViewModel() {
 
     private val _state = MutableStateFlow(AgendaUiState())
     val state: StateFlow<AgendaUiState> = _state
@@ -176,7 +186,7 @@ class AgendaViewModel(private val app: GroveApplication) : ViewModel() {
             // this, any DataStore write re-buckets the whole agenda — expanding
             // a folder in Notebooks, pinning a notebook, a colour change, a
             // dismissed NEW badge. Mirrors `TreeInputs` in VaultViewModels.
-            app.settingsRepository.settings
+            settingsRepository.settings
                 .distinctUntilChangedBy { AgendaPrefs(it) }
                 .collect { settings ->
                     prefs = settings
@@ -184,7 +194,7 @@ class AgendaViewModel(private val app: GroveApplication) : ViewModel() {
                 }
         }
         viewModelScope.launch {
-            app.keywords.collect { kw ->
+            keywordsFlow.collect { kw ->
                 keywords = kw
                 recompute()
             }
@@ -193,9 +203,9 @@ class AgendaViewModel(private val app: GroveApplication) : ViewModel() {
             // Only rows with a SCHEDULED or DEADLINE: the agenda buckets notes
             // purely by those dates, so an undated note can never surface here
             // and there is no reason to hold one in memory.
-            app.database.indexDao().plannedNotes()
+            database.indexDao().plannedNotes()
                 .map { rows -> rows.map { it.toNoteMeta() } }
-                .flowOn(Dispatchers.Default)
+                .flowOn(dispatchers.default)
                 .collect { notes ->
                     matched = notes
                     recompute()
@@ -234,7 +244,7 @@ class AgendaViewModel(private val app: GroveApplication) : ViewModel() {
     fun setShowFile(show: Boolean) = persist { it.setAgendaShowFile(show) }
 
     private fun persist(block: suspend (com.rrajath.grove.settings.SettingsRepository) -> Unit) {
-        viewModelScope.launch { block(app.settingsRepository) }
+        viewModelScope.launch { block(settingsRepository) }
     }
 
     /** Grows the future-day window on scroll; overdue and today never repage. */
@@ -242,14 +252,14 @@ class AgendaViewModel(private val app: GroveApplication) : ViewModel() {
         if (loadingMore || windowDays >= MAX_WINDOW_DAYS) return
         loadingMore = true
         windowDays = (windowDays + PAGE_SIZE).coerceAtMost(MAX_WINDOW_DAYS)
-        viewModelScope.launch(Dispatchers.Default) {
+        viewModelScope.launch(dispatchers.default) {
             _state.value = buildState()
             loadingMore = false
         }
     }
 
     private fun recompute() {
-        viewModelScope.launch(Dispatchers.Default) { _state.value = buildState() }
+        viewModelScope.launch(dispatchers.default) { _state.value = buildState() }
     }
 
     // --- list construction ---
@@ -324,12 +334,12 @@ class AgendaViewModel(private val app: GroveApplication) : ViewModel() {
 
     private fun mutatePlanning(fileName: String, lineIndex: Int, block: (OrgDocument, OrgHeadline) -> String) {
         viewModelScope.launch {
-            val vault = app.vault.value ?: return@launch
+            val vault = vaultFlow.value ?: return@launch
             val doc = vault.open(fileName) ?: return@launch
             val headline = doc.headlineAtLine(lineIndex) ?: return@launch
-            val newText = withContext(Dispatchers.Default) { block(doc, headline) }
+            val newText = withContext(dispatchers.default) { block(doc, headline) }
             vault.save(fileName, newText)
-            app.syncManager.requestSync("agenda planning edit")
+            sync.requestSync("agenda planning edit")
         }
     }
 
@@ -347,28 +357,28 @@ class AgendaViewModel(private val app: GroveApplication) : ViewModel() {
      */
     fun toggleDone(fileName: String, lineIndex: Int) {
         viewModelScope.launch {
-            val vault = app.vault.value ?: return@launch
+            val vault = vaultFlow.value ?: return@launch
             val doc = vault.open(fileName) ?: return@launch
             val headline = doc.headlineAtLine(lineIndex) ?: return@launch
             if (headline.keyword in doc.keywords.done) {
-                val newText = withContext(Dispatchers.Default) {
+                val newText = withContext(dispatchers.default) {
                     OrgMutations.reopen(doc, headline, doc.keywords.active.firstOrNull())
                 }
                 undoSnapshot = listOf(FileSnapshot(fileName, doc.text))
                 vault.save(fileName, newText)
-                app.syncManager.requestSync("agenda toggle done")
+                sync.requestSync("agenda toggle done")
                 showSnack("Reopened")
                 return@launch
             }
             val doneKeyword = doc.keywords.done.firstOrNull() ?: return@launch
-            val settings = app.settingsRepository.settings.first()
+            val settings = settingsRepository.settings.first()
             when (
                 val result = AutoArchive.apply(vault, settings, doc, fileName, headline, doneKeyword, LocalDateTime.now())
             ) {
                 is StateChangeResult.Plain -> {
                     undoSnapshot = listOf(FileSnapshot(fileName, doc.text))
                     vault.save(fileName, result.text)
-                    app.syncManager.requestSync("agenda toggle done")
+                    sync.requestSync("agenda toggle done")
                     showSnack("Marked done")
                 }
                 is StateChangeResult.Archived -> {
@@ -379,7 +389,7 @@ class AgendaViewModel(private val app: GroveApplication) : ViewModel() {
                     }
                     vault.save(fileName, result.sourceText)
                     if (result.destFile != fileName) vault.save(result.destFile, result.destText)
-                    app.syncManager.requestSync("agenda toggle done")
+                    sync.requestSync("agenda toggle done")
                     showSnack("Marked done. Refiled to ${result.label}")
                 }
             }
@@ -390,10 +400,10 @@ class AgendaViewModel(private val app: GroveApplication) : ViewModel() {
     fun addNote(fileName: String, lineIndex: Int, note: String) {
         if (note.isBlank()) return
         viewModelScope.launch {
-            val vault = app.vault.value ?: return@launch
+            val vault = vaultFlow.value ?: return@launch
             val doc = vault.open(fileName) ?: return@launch
             val headline = doc.headlineAtLine(lineIndex) ?: return@launch
-            val newText = withContext(Dispatchers.Default) {
+            val newText = withContext(dispatchers.default) {
                 val now = LocalDateTime.now()
                 val stamp = OrgTimestamp(
                     now.toLocalDate(),
@@ -403,7 +413,7 @@ class AgendaViewModel(private val app: GroveApplication) : ViewModel() {
                 OrgMutations.appendLogbookNote(doc, headline, note.trim(), stamp)
             }
             vault.save(fileName, newText)
-            app.syncManager.requestSync("agenda note added")
+            sync.requestSync("agenda note added")
             showSnack("Note added")
         }
     }
@@ -421,7 +431,7 @@ class AgendaViewModel(private val app: GroveApplication) : ViewModel() {
         val rows = _state.value.overdue
         if (rows.isEmpty()) return
         viewModelScope.launch {
-            val vault = app.vault.value ?: return@launch
+            val vault = vaultFlow.value ?: return@launch
             val today = LocalDate.now()
             val snapshots = mutableListOf<FileSnapshot>()
             var moved = 0
@@ -430,7 +440,7 @@ class AgendaViewModel(private val app: GroveApplication) : ViewModel() {
                 val doc = vault.open(fileName) ?: continue
                 val original = doc.text
                 var text = original
-                withContext(Dispatchers.Default) {
+                withContext(dispatchers.default) {
                     for (r in fileRows.sortedByDescending { it.lineIndex }) {
                         val parsed = OrgParser.parse(text, doc.keywords)
                         val h = parsed.headlineAtLine(r.lineIndex) ?: continue
@@ -456,7 +466,7 @@ class AgendaViewModel(private val app: GroveApplication) : ViewModel() {
             undoSnapshot = snapshots
             overdueOpen = false
             recompute()
-            app.syncManager.requestSync("agenda move overdue")
+            sync.requestSync("agenda move overdue")
             showSnack("Moved $moved to today")
         }
     }
@@ -467,9 +477,9 @@ class AgendaViewModel(private val app: GroveApplication) : ViewModel() {
         undoSnapshot = emptyList()
         _snack.value = null
         viewModelScope.launch {
-            val vault = app.vault.value ?: return@launch
+            val vault = vaultFlow.value ?: return@launch
             snaps.forEach { vault.save(it.fileName, it.text) }
-            app.syncManager.requestSync("agenda undo")
+            sync.requestSync("agenda undo")
         }
     }
 
@@ -483,7 +493,9 @@ class AgendaViewModel(private val app: GroveApplication) : ViewModel() {
     }
 
     companion object {
-        val Factory = factory { AgendaViewModel(it) }
+        val Factory = factory {
+            AgendaViewModel(it.settingsRepository, it.keywords, it.database, it.vault, it.syncManager, it.dispatchers)
+        }
 
         private const val INITIAL_WINDOW_DAYS = 14
         private const val PAGE_SIZE = 14

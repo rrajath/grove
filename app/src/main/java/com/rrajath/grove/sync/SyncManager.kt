@@ -49,7 +49,7 @@ class SyncManager(
     private val onNotebookIndexed: suspend (fileName: String, doc: com.rrajath.grove.org.OrgDocument) -> Unit = { _, _ -> },
     /** Notified after a sync completes (successfully or not), for cheap DB-only catch-up passes. */
     private val onSyncCompleted: suspend () -> Unit = {},
-) {
+) : SyncTrigger {
     private val mutex = Mutex()
     private var engine: SyncEngine? = null
     private var store: FileStore? = null
@@ -63,10 +63,10 @@ class SyncManager(
     }
 
     private val _state = MutableStateFlow<SyncState>(SyncState.Idle)
-    val state: StateFlow<SyncState> = _state
+    override val state: StateFlow<SyncState> = _state
 
     private val _lastResult = MutableStateFlow<SyncResult?>(null)
-    val lastResult: StateFlow<SyncResult?> = _lastResult
+    override val lastResult: StateFlow<SyncResult?> = _lastResult
 
     private var pollJob: Job? = null
     private var stateJob: Job? = null
@@ -83,7 +83,7 @@ class SyncManager(
         if (store != null) requestSync("folder configured")
     }
 
-    fun requestSync(reason: String) {
+    override fun requestSync(reason: String) {
         if (engine == null) return
         coalescer.request(reason)
     }
@@ -117,7 +117,7 @@ class SyncManager(
      * path, deliberately mutex-free so it works before [attach]), this is only
      * safe to call once a store is attached.
      */
-    fun requestReindex(fileName: String, text: String, reason: String) {
+    override fun requestReindex(fileName: String, text: String, reason: String) {
         val engine = engine ?: return
         scope.launch {
             mutex.withLock {
@@ -140,7 +140,7 @@ class SyncManager(
      * [requestSync] keeps it from racing an in-flight sync's [SyncEngine.sync],
      * which would otherwise see a half-cleared table mid-read.
      */
-    fun clearAndResync(reason: String) {
+    override fun clearAndResync(reason: String) {
         val engine = engine ?: return
         scope.launch {
             mutex.withLock {
@@ -160,7 +160,7 @@ class SyncManager(
 
     // --- conflict resolution ---
 
-    suspend fun conflictTexts(baseName: String): Pair<String, String>? {
+    override suspend fun conflictTexts(baseName: String): Pair<String, String>? {
         val store = store ?: return null
         val copy = database.indexDao().conflictFileNameFor(baseName) ?: return null
         return store.read(baseName) to store.read(copy)
@@ -175,7 +175,7 @@ class SyncManager(
      * otherwise a no-op reads to the user as "Keep both" silently doing nothing
      * (indistinguishable from "kept current").
      */
-    suspend fun resolveConflict(baseName: String, resolution: ConflictResolution): Boolean {
+    override suspend fun resolveConflict(baseName: String, resolution: ConflictResolution): Boolean {
         val store = store ?: return false
         val copyName = database.indexDao().conflictFileNameFor(baseName) ?: return false
         when (resolution) {
@@ -199,7 +199,7 @@ class SyncManager(
     }
 
     /** Force Load: drop the cached index for this notebook and re-pull from disk. */
-    suspend fun forceReload(fileName: String) {
+    override suspend fun forceReload(fileName: String) {
         database.indexDao().removeNotebook(fileName)
         requestSync("force reload $fileName")
     }
