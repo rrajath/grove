@@ -117,6 +117,20 @@ re-uploads the APKs to the existing release instead of failing.
   `SyncManager.requestSync` path (disk → index, deletion → rows removed,
   unchanged revision → no-op, `clearAndResync` rebuild). `GroveApplication` is
   now `open` so a Robolectric test can subclass it with a no-op `onCreate`.
+- Test-suite milestone M3, third tranche: 48 Robolectric integration tests for
+  the last four ViewModels — `NotebooksViewModel` (folder tree from the index;
+  create / rename / move / delete of notebooks and folders → vault + index-row
+  effects), `DocumentViewModel` (load/error; org-link resolution across every
+  target form; the outline mutations `moveUp` / `moveDown` / `promote` /
+  `demote` / `deleteNote` and their undo; note creation; the metadata edits;
+  the heading-less-intro promote; favorites and the `:CUSTOM_ID:` they force;
+  the open-editor pending-buffer splice; cross-file refile), `ConflictViewModel`
+  (copy-name + texts + label pairing, the reload-not-success path), and
+  `SyncLogViewModel` (newest-first stream, page cap + `loadMore`). Each test
+  cancels its ViewModel scope in teardown so a leaked Settings/Favorites
+  DataStore collector can't wedge the shared unit-suite JVM. No app behavior
+  change. `AppViewModel.consumeSharedContent` stays deferred pending a
+  collaborators-explicit refactor of `ShareIntake.consumeShare`.
 - Test-suite milestone M4, first tranche: `androidTest/` Compose UI tests for
   the Search, Notebooks, Outline, and Edit-note screens — each hosted directly
   under `GroveTheme` with a fake-wired ViewModel and asserted through the
