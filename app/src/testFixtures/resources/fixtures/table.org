@@ -1,0 +1,9 @@
+#+TITLE: Table
+
+* Quarterly numbers
+
+| Quarter | Revenue | Growth |
+|---------+---------+--------|
+| Q1      | 120     | 4%     |
+| Q2      | 135     | 12%    |
+| Q3      | 128     | -5%    |

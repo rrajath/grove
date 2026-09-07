@@ -1,0 +1,7 @@
+#+TITLE: Inbox
+
+* Captured
+  :PROPERTIES:
+  :CUSTOM_ID: capture-inbox
+  :END:
+** A first captured thought

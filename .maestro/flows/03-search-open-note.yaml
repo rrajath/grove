@@ -1,0 +1,14 @@
+# Journey 3: search the vault and open a result in Read mode.
+#
+# Seeded vault -> Search -> query "photosynthesis" (seeded only in
+# reading-list.org) -> tap the result -> the note opens in Read mode showing
+# that text.
+appId: com.rrajath.grove.debug
+tags:
+  - e2e
+---
+- runFlow: ../subflows/launch-seeded.yaml
+- runFlow: ../subflows/open-search.yaml
+- runFlow: ../subflows/search-open-photosynthesis.yaml
+- assertVisible:
+    text: ".*photosynthesis.*"

@@ -51,6 +51,28 @@ abstract class CopyChangelogTask : org.gradle.api.DefaultTask() {
     }
 }
 
+// Copies the canonical `.org` test fixtures (src/testFixtures/resources/fixtures,
+// also read by OrgFixtures on the test classpath) into the debug APK's assets so
+// the debug-only test-vault hook (DebugTestVault, src/debug) can seed a vault
+// from identical content with no SAF picker. Wired for the debug variant only —
+// release never carries these. See internal/test-suite-03-e2e-maestro.md.
+abstract class CopyTestFixturesTask : org.gradle.api.DefaultTask() {
+    @get:org.gradle.api.tasks.InputDirectory
+    abstract val inputDir: org.gradle.api.file.DirectoryProperty
+
+    @get:org.gradle.api.tasks.OutputDirectory
+    abstract val outputDir: org.gradle.api.file.DirectoryProperty
+
+    @org.gradle.api.tasks.TaskAction
+    fun run() {
+        val dest = File(outputDir.get().asFile, "fixtures")
+        dest.deleteRecursively()
+        dest.mkdirs()
+        inputDir.get().asFile.listFiles { f -> f.isFile && f.extension == "org" }
+            ?.forEach { it.copyTo(File(dest, it.name), overwrite = true) }
+    }
+}
+
 // Release signing comes from the environment (CI secrets). We validate the
 // keystore and alias up front so a missing or misconfigured secret degrades to
 // an unsigned release build instead of failing packaging, and a local
@@ -205,6 +227,14 @@ androidComponents {
             outputDir.set(layout.buildDirectory.dir("generated/assets/changelog/${variant.name}"))
         }
         variant.sources.assets?.addGeneratedSourceDirectory(copyTask) { it.outputDir }
+
+        if (variant.name == "debug") {
+            val fixturesTask = tasks.register<CopyTestFixturesTask>("copy${variantName}TestFixtures") {
+                inputDir.set(layout.projectDirectory.dir("src/testFixtures/resources/fixtures"))
+                outputDir.set(layout.buildDirectory.dir("generated/assets/testfixtures/${variant.name}"))
+            }
+            variant.sources.assets?.addGeneratedSourceDirectory(fixturesTask) { it.outputDir }
+        }
     }
 }
 

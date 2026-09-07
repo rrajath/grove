@@ -1,0 +1,16 @@
+# Search for the unique word seeded only in reading-list.org and open the first
+# result, landing on the note in Read mode. Assumes the Search screen is open.
+appId: com.rrajath.grove.debug
+---
+- tapOn:
+    id: "search_field"
+- inputText: "photosynthesis"
+- assertVisible:
+    id: "search_result_row"
+    timeout: 15000
+- tapOn:
+    id: "search_result_row"
+    index: 0
+- assertVisible:
+    id: "read_note_screen"
+    timeout: 10000

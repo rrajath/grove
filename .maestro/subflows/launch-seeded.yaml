@@ -1,0 +1,12 @@
+# Fresh launch with the debug test vault seeded from the .org fixtures, skipping
+# onboarding. Lands on the Notebooks screen.
+appId: com.rrajath.grove.debug
+---
+- launchApp:
+    clearState: true
+    arguments:
+      grove_test_direct_vault: true
+      grove_test_seed: true
+- assertVisible:
+    id: "notebooks_capture"
+    timeout: 15000

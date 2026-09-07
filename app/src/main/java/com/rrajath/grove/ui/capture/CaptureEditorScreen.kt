@@ -50,6 +50,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -386,6 +387,7 @@ fun CaptureEditorScreen(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .padding(start = 20.dp, top = 20.dp, end = 20.dp, bottom = 80.dp)
+                                .testTag("capture_body_field")
                                 .focusRequester(focusRequester),
                         )
                     }
@@ -404,6 +406,7 @@ fun CaptureEditorScreen(
                         .clickable(enabled = saveState !is SaveState.Saving) {
                             trySave()
                         }
+                        .testTag("capture_save")
                         .padding(horizontal = 22.dp, vertical = 13.dp),
                 ) {
                     Text(

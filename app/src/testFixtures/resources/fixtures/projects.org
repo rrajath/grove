@@ -1,0 +1,11 @@
+#+TITLE: Projects
+
+* TODO Ship v2 release
+SCHEDULED: <2026-09-10 Thu>
+** DONE Cut the changelog
+** TODO Tag the release
+** IN-PROGRESS Write the store listing
+* TODO Backlog
+** TODO Dark mode polish
+*** TODO Audit contrast ratios
+** CANCELLED Drop the widget rewrite

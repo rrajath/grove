@@ -67,6 +67,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalClipboard
 import kotlinx.coroutines.launch
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.LayoutCoordinates
@@ -279,7 +280,7 @@ fun ReadNoteScreen(
                         // 16dp here + the top bar's own 8dp = the 24dp read-note
                         // gutter, so the toggle's right edge lines up with the
                         // back arrow's optical left edge and the note body.
-                        modifier = Modifier.padding(end = 16.dp).width(140.dp),
+                        modifier = Modifier.padding(end = 16.dp).width(140.dp).testTag("read_edit_toggle"),
                     )
                 },
                 subtitle = {
@@ -304,7 +305,7 @@ fun ReadNoteScreen(
             )
         },
     ) { padding ->
-        Box(Modifier.fillMaxSize()) {
+        Box(Modifier.fillMaxSize().testTag("read_note_screen")) {
         when (val s = state) {
             is DocumentUiState.Loading -> {}
             is DocumentUiState.Error -> Box(
@@ -734,7 +735,7 @@ private fun NoteContent(
                                     fontFamily = PlexSerif, fontWeight = FontWeight.SemiBold,
                                     fontSize = 25.sp, color = c.ink, lineHeight = 1.3.em,
                                 ),
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier.weight(1f).testTag("read_note_title"),
                             )
                             if (favorites.any { it.matches(headline) }) {
                                 Spacer(Modifier.width(8.dp))

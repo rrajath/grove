@@ -83,6 +83,7 @@ import com.rrajath.grove.ui.vault.PendingEdit
 import com.rrajath.grove.ui.theme.ContentFontScale
 import com.rrajath.grove.ui.theme.GroveTheme
 import com.rrajath.grove.ui.theme.grove
+import com.rrajath.grove.vault.TestVaultHook
 import com.rrajath.grove.vault.matchOpenedFileToNotebook
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
@@ -326,7 +327,11 @@ private fun GroveNavigation(
     ) {
         NavHost(
             navController = navController,
-            startDestination = if (settings.onboardingDone) Routes.NOTEBOOKS else Routes.ONBOARDING,
+            startDestination = if (settings.onboardingDone || TestVaultHook.skipOnboarding) {
+                Routes.NOTEBOOKS
+            } else {
+                Routes.ONBOARDING
+            },
             modifier = Modifier
                 .fillMaxSize()
                 .background(MaterialTheme.grove.bg),

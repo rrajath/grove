@@ -22,7 +22,9 @@ import com.rrajath.grove.settings.ThemePreference
 import com.rrajath.grove.sync.SyncManager
 import com.rrajath.grove.vault.FileStore
 import com.rrajath.grove.widget.CaptureNotification
+import com.rrajath.grove.vault.JvmFileStore
 import com.rrajath.grove.vault.SafFileStore
+import com.rrajath.grove.vault.TestVaultHook
 import com.rrajath.grove.vault.Vault
 import com.rrajath.grove.widget.LedgerWidget
 import androidx.glance.appwidget.updateAll
@@ -110,13 +112,23 @@ class GroveApplication : Application() {
         )
     }
 
-    /** The active vault file store, swapping whenever the configured tree URI changes. */
+    /**
+     * The active vault file store, swapping whenever the configured tree URI
+     * changes. [TestVaultHook.root] is a debug-only override (null in every
+     * release process) that forces a plain-directory store for Maestro /
+     * instrumentation; see `src/debug`'s `DebugTestVault`.
+     */
     val fileStore: StateFlow<FileStore?> by lazy {
-        settingsRepository.settings
-            .map { it.vaultTreeUri }
-            .distinctUntilChanged()
-            .map { uriString -> uriString?.let { SafFileStore(this, Uri.parse(it)) } }
-            .stateIn(appScope, SharingStarted.Eagerly, null)
+        combine(
+            settingsRepository.settings.map { it.vaultTreeUri }.distinctUntilChanged(),
+            TestVaultHook.root,
+        ) { uriString, testRoot ->
+            when {
+                testRoot != null -> JvmFileStore(testRoot)
+                uriString != null -> SafFileStore(this, Uri.parse(uriString))
+                else -> null
+            }
+        }.stateIn(appScope, SharingStarted.Eagerly, null)
     }
 
     val vault: StateFlow<Vault?> by lazy {

@@ -48,6 +48,21 @@ class TestInfraSmokeTest {
     }
 
     @Test
+    fun `OrgFixtures load from resources, each ending in exactly one newline`() {
+        // The bodies moved to src/testFixtures/resources/fixtures so the debug
+        // build can seed a Maestro vault from identical content (M5). Guard the
+        // resource-load path and the trailing-newline shape assertions elsewhere
+        // rely on.
+        OrgFixtures.all.forEach { (name, content) ->
+            assertTrue("$name is empty", content.isNotBlank())
+            assertTrue("$name must end with a single newline", content.endsWith("\n"))
+            assertFalse("$name must not end with a blank line", content.endsWith("\n\n"))
+        }
+        assertTrue(OrgFixtures.INBOX.startsWith("#+TITLE: Inbox\n"))
+        assertTrue(OrgFixtures.READING_LIST.contains("photosynthesis"))
+    }
+
+    @Test
     fun `TestVaultSeeder writes every fixture into the store`() = runTest {
         val store = FakeFileStore()
         TestVaultSeeder.seed(store)

@@ -1,0 +1,19 @@
+# Maestro workspace config for Grove (test-suite milestone M5).
+#
+# Flows run against the DEBUG build (com.rrajath.grove.debug) so the debug-only
+# test-vault hook is available: `--ez grove_test_direct_vault true` points the
+# vault at an app-owned directory with no SAF picker, and `--ez grove_test_seed
+# true` fills it from the bundled .org fixtures (assets/fixtures/, copied from
+# app/src/testFixtures/resources/fixtures by the copyDebugTestFixtures Gradle
+# task — the same content OrgFixtures reads in the JVM/UI test layers).
+#
+# Flow 01 (onboarding + SAF system picker) is deferred — see
+# internal/test-suite-03-e2e-maestro.md. Flows 02-04 skip onboarding via the
+# hook.
+#
+# Run:
+#   ./gradlew :app:installDebug
+#   maestro test .maestro/flows
+#   maestro test .maestro/flows/02-capture-to-confirmation.yaml
+flows:
+  - "flows/*.yaml"

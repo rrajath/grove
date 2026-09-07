@@ -6,70 +6,34 @@ package com.rrajath.grove.testing
  * pin their exact text (e.g. the unique word "photosynthesis" in
  * [READING_LIST], the `capture-inbox` CUSTOM_ID in [INBOX]).
  *
- * See internal/test-suite-00-overview.md § Fakes to build (OrgFixtures).
+ * The bodies live as resource files under `src/testFixtures/resources/fixtures/`
+ * so there is a single source of truth: this object reads them off the test
+ * classpath, and the debug build copies the same directory into its APK assets
+ * (`copyDebugTestFixtures` in `app/build.gradle.kts`) so the Maestro debug-vault
+ * hook seeds from identical content. See internal/test-suite-03-e2e-maestro.md.
  */
 object OrgFixtures {
 
-    /** Small note with a capture-target heading the default template inserts under. */
-    val INBOX = """
-        #+TITLE: Inbox
+    private fun load(name: String): String =
+        OrgFixtures::class.java.getResourceAsStream("/fixtures/$name")
+            ?.bufferedReader()
+            ?.use { it.readText() }
+            ?: error("missing test fixture resource: fixtures/$name")
 
-        * Captured
-          :PROPERTIES:
-          :CUSTOM_ID: capture-inbox
-          :END:
-        ** A first captured thought
-    """.trimIndent() + "\n"
+    /** Small note with a capture-target heading the default template inserts under. */
+    val INBOX: String by lazy { load("inbox.org") }
 
     /** Multi-level TODO tree for outline / edit / agenda coverage. */
-    val PROJECTS = """
-        #+TITLE: Projects
-
-        * TODO Ship v2 release
-        SCHEDULED: <2026-09-10 Thu>
-        ** DONE Cut the changelog
-        ** TODO Tag the release
-        ** IN-PROGRESS Write the store listing
-        * TODO Backlog
-        ** TODO Dark mode polish
-        *** TODO Audit contrast ratios
-        ** CANCELLED Drop the widget rewrite
-    """.trimIndent() + "\n"
+    val PROJECTS: String by lazy { load("projects.org") }
 
     /** A heading whose body contains the unique search word "photosynthesis". */
-    val READING_LIST = """
-        #+TITLE: Reading list
-
-        * Articles
-        ** How leaves work
-           The process of photosynthesis converts light into chemical energy.
-        ** Rust ownership, revisited
-           Notes on borrow-checker ergonomics.
-    """.trimIndent() + "\n"
+    val READING_LIST: String by lazy { load("reading-list.org") }
 
     /** Read-mode org table: a header row above a `|---|` rule, then body rows. */
-    val TABLE = """
-        #+TITLE: Table
-
-        * Quarterly numbers
-
-        | Quarter | Revenue | Growth |
-        |---------+---------+--------|
-        | Q1      | 120     | 4%     |
-        | Q2      | 135     | 12%    |
-        | Q3      | 128     | -5%    |
-    """.trimIndent() + "\n"
+    val TABLE: String by lazy { load("table.org") }
 
     /** Large subtree (> LARGE_SUBTREE_THRESHOLD headings) to exercise fold-on-open and scroll. */
-    val LARGE_SUBTREE: String = buildString {
-        appendLine("#+TITLE: Large subtree")
-        appendLine()
-        appendLine("* Everything")
-        for (i in 1..80) {
-            appendLine("** Section ${"%02d".format(i)}")
-            appendLine("   Body line for section $i.")
-        }
-    }
+    val LARGE_SUBTREE: String by lazy { load("large-subtree.org") }
 
     /** The "keep local" side of a Syncthing sync-conflict pair. */
     val CONFLICT_LOCAL = """
@@ -91,17 +55,21 @@ object OrgFixtures {
     const val CONFLICT_SIBLING = "notes.sync-conflict-20260903-120000-ABCDEF1.org"
 
     /** Every fixture keyed by its vault-relative path — the default seed set. */
-    val all: Map<String, String> = mapOf(
-        "inbox.org" to INBOX,
-        "projects.org" to PROJECTS,
-        "reading-list.org" to READING_LIST,
-        "table.org" to TABLE,
-        "large-subtree.org" to LARGE_SUBTREE,
-    )
+    val all: Map<String, String> by lazy {
+        mapOf(
+            "inbox.org" to INBOX,
+            "projects.org" to PROJECTS,
+            "reading-list.org" to READING_LIST,
+            "table.org" to TABLE,
+            "large-subtree.org" to LARGE_SUBTREE,
+        )
+    }
 
     /** [all] plus a live sync-conflict pair, for conflict-resolution tests. */
-    val withConflict: Map<String, String> = all + mapOf(
-        CONFLICT_FILE to CONFLICT_LOCAL,
-        CONFLICT_SIBLING to CONFLICT_REMOTE,
-    )
+    val withConflict: Map<String, String> by lazy {
+        all + mapOf(
+            CONFLICT_FILE to CONFLICT_LOCAL,
+            CONFLICT_SIBLING to CONFLICT_REMOTE,
+        )
+    }
 }

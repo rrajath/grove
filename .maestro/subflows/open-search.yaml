@@ -1,0 +1,8 @@
+# From Notebooks, open the Search screen via the reachability dock.
+appId: com.rrajath.grove.debug
+---
+- tapOn:
+    id: "dock_search"
+- assertVisible:
+    id: "search_field"
+    timeout: 10000

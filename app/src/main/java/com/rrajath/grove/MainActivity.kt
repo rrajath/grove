@@ -14,6 +14,7 @@ import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
+import com.rrajath.grove.debug.DebugTestVault
 import com.rrajath.grove.ui.GroveApp
 
 class MainActivity : ComponentActivity() {
@@ -35,6 +36,10 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        // Debug-only: a `--ez grove_test_direct_vault true` launch extra points
+        // the vault at an app-owned directory (optionally seeded) so Maestro can
+        // skip onboarding and the SAF picker. No-op in release.
+        DebugTestVault.applyFromLaunchIntent(this, intent)
         // Only a genuine cold start carries a pending deep link. After process
         // death savedInstanceState is non-null and the launch Intent is stale;
         // configuration changes (rotation, dark mode, font scale, ...) no longer

@@ -1551,6 +1551,7 @@ private fun NotebooksDock(
                     .background(c.accent, pillShape)
                     .clip(pillShape)
                     .clickable(onClick = onCapture)
+                    .testTag("notebooks_capture")
                     .padding(horizontal = 22.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -1578,7 +1579,8 @@ private fun DockIconButton(
         Modifier
             .size(48.dp)
             .clip(RoundedCornerShape(percent = 50))
-            .clickable(onClick = onClick),
+            .clickable(onClick = onClick)
+            .testTag("dock_" + contentDescription.lowercase().replace(' ', '_')),
         contentAlignment = Alignment.Center,
     ) {
         Icon(

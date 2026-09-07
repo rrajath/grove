@@ -1,0 +1,7 @@
+#+TITLE: Reading list
+
+* Articles
+** How leaves work
+   The process of photosynthesis converts light into chemical energy.
+** Rust ownership, revisited
+   Notes on borrow-checker ergonomics.

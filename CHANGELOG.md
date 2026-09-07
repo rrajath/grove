@@ -88,6 +88,17 @@ re-uploads the APKs to the existing release instead of failing.
   `refileViewModel` parameter. New nightly / manual `ui-tests` CI job runs them
   on an emulator (API 34 + 35); they never run on the per-push net. No app
   behavior change.
+- Test-suite milestone M5, first tranche: three Maestro end-to-end journeys
+  (`.maestro/flows/` — capture → confirm, search → open, edit → save) plus the
+  debug-only test-vault hook they need. `MainActivity` reads
+  `--ez grove_test_direct_vault true` / `--ez grove_test_seed true` launch
+  extras via `DebugTestVault` (no-op unless `BuildConfig.DEBUG`) to run against
+  a seeded app-owned directory vault with no SAF picker or onboarding. Fixture
+  `.org` bodies moved to `app/src/testFixtures/resources/fixtures/` (read by
+  `OrgFixtures` and copied into the debug APK's assets by `copyDebugTestFixtures`).
+  New manual `e2e-maestro` CI job. Release builds carry none of the hook or
+  fixtures. The onboarding + SAF-picker journey is deferred. No app behavior
+  change.
 
 ## [1.5.0] - 2026-09-07
 

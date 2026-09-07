@@ -20,6 +20,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -61,7 +62,7 @@ fun CapturePickerSheet(
         // scrim token, so the notebooks list stays faintly visible behind it.
         scrimColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.8f),
     ) {
-        Column(Modifier.padding(bottom = 26.dp)) {
+        Column(Modifier.padding(bottom = 26.dp).testTag("capture_sheet")) {
             Row(
                 Modifier
                     .fillMaxWidth()
@@ -98,6 +99,7 @@ private fun TemplateRow(template: CaptureTemplate, onClick: () -> Unit) {
         Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
+            .testTag("capture_template_row")
             .padding(horizontal = 22.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

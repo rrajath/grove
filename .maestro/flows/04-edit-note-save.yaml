@@ -1,0 +1,36 @@
+# Journey 4: edit a note and confirm the change persisted.
+#
+# Seeded vault -> open a note via Search -> Edit -> append a marker -> Save ->
+# leave the screen -> reopen the note -> the marker is still there.
+#
+# No relaunch between edit and re-open: clearState would re-seed the vault and
+# wipe the edit. Persistence here means "written to the file, survives leaving
+# and re-entering the note".
+appId: com.rrajath.grove.debug
+tags:
+  - e2e
+---
+- runFlow: ../subflows/launch-seeded.yaml
+- runFlow: ../subflows/open-search.yaml
+- runFlow: ../subflows/search-open-photosynthesis.yaml
+
+# Read -> Edit via the top-bar toggle.
+- tapOn:
+    text: "Edit"
+- assertVisible:
+    id: "edit_note_field"
+    timeout: 10000
+- tapOn:
+    id: "edit_note_field"
+- inputText: " EDITED-BY-MAESTRO"
+- tapOn:
+    id: "edit_note_save"
+
+# Back out to Search and reopen the same note.
+- back
+- back
+- runFlow: ../subflows/open-search.yaml
+- runFlow: ../subflows/search-open-photosynthesis.yaml
+- assertVisible:
+    text: ".*EDITED-BY-MAESTRO.*"
+    timeout: 10000
