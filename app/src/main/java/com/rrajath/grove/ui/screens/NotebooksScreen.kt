@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredHeight
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -71,7 +72,12 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -1468,20 +1474,23 @@ private fun MoveConfirmButton(
 
 /**
  * Bottom inset added to every notebook list's `contentPadding` so the last row
- * can scroll clear of the floating [NotebooksDock] (≈ 60dp capsule + 14dp gap +
- * breathing room). The dock's own `navigationBarsPadding()` handles the system bar.
+ * can scroll clear of the floating [NotebooksDock] (≈ 60dp capsule + 6dp Capture
+ * overhang + 22dp gap + breathing room). The dock's own `navigationBarsPadding()`
+ * handles the system bar.
  */
-private val DOCK_CLEARANCE = 88.dp
+private val DOCK_CLEARANCE = 96.dp
 
 /**
- * Home-screen reachability dock — replaces the old Capture FAB. A floating,
- * content-width pill bar centred at the bottom of the screen: a `surface2`
- * capsule (`RoundedCornerShape(percent = 50)`, `1dp` `line` border, no shadow so
- * the list stays visible around it) holding a Search icon button, a larger inline pill-shaped
- * "＋ Capture" button (the primary action — flush with the bar, not raised),
- * and a New notebook icon button, the icons packed directly beside the pill.
- * Shown on the tree view and while drilling a folder; the caller points New
- * notebook at whichever folder is in view.
+ * Home-screen reachability dock — replaces the old Capture FAB. M3 Expressive's
+ * floating toolbar (design variant 1e): a single `surface2` capsule
+ * (`RoundedCornerShape(30.dp)`, `1dp` `line` border, 6dp inner padding, 4dp gap)
+ * centred at the bottom of the screen, holding a Search icon button, a raised
+ * pill-shaped "＋ Capture" button in the middle (the primary action — 72dp tall
+ * via `requiredHeight`, so it overhangs the capsule ~6dp top and bottom and reads
+ * as lifted), and a New notebook icon button. The capsule carries a layered drop
+ * shadow so it floats above the list scrolling behind it; the Capture pill adds
+ * its own accent-tinted shadow. Shown on the tree view and while drilling a
+ * folder; the caller points New notebook at whichever folder is in view.
  */
 @Composable
 private fun NotebooksDock(
@@ -1491,37 +1500,55 @@ private fun NotebooksDock(
     modifier: Modifier = Modifier,
 ) {
     val c = MaterialTheme.grove
-    // No background: the bar is transparent so the list shows through around the
-    // floating capsule. Only the Row below paints (the surface2 pill).
+    val capsuleShape = RoundedCornerShape(30.dp)
+    val pillShape = RoundedCornerShape(percent = 50)
     Box(
         modifier
             .fillMaxWidth()
             .navigationBarsPadding()
-            .padding(bottom = 14.dp),
+            .padding(bottom = 22.dp),
         contentAlignment = Alignment.Center,
     ) {
+        // A fixed-height capsule: the raised Capture pill overhangs it (see below)
+        // and must not be clipped, so the shape is applied via background/shadows
+        // (clip = false) rather than a .clip() on this Row. The border is a
+        // drawBehind stroke (not Modifier.border, which paints over children) so
+        // it passes behind the overhanging Capture pill.
         Row(
             Modifier
                 .height(60.dp)
-                .clip(RoundedCornerShape(percent = 50))
-                .background(c.surface2)
-                .border(1.dp, c.line, RoundedCornerShape(percent = 50))
-                .padding(horizontal = 7.dp),
-            horizontalArrangement = Arrangement.spacedBy(5.dp),
+                .shadow(18.dp, capsuleShape, clip = false)
+                .shadow(6.dp, capsuleShape, clip = false)
+                .background(c.surface2, capsuleShape)
+                .drawBehind {
+                    val w = 1.dp.toPx()
+                    drawRoundRect(
+                        color = c.line,
+                        topLeft = Offset(w / 2, w / 2),
+                        size = Size(size.width - w, size.height - w),
+                        cornerRadius = CornerRadius(30.dp.toPx() - w / 2),
+                        style = Stroke(w),
+                    )
+                }
+                .padding(6.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             DockIconButton(searchIcon(), "Search", onSearch)
+            // requiredHeight ignores the 48dp content slot so the pill grows to
+            // 72dp and, centred, overhangs the capsule by ~6dp top and bottom.
             Row(
                 Modifier
-                    .height(48.dp)
-                    .clip(RoundedCornerShape(percent = 50))
-                    .background(c.accent)
+                    .requiredHeight(72.dp)
+                    .shadow(8.dp, pillShape, clip = false, ambientColor = c.accent, spotColor = c.accent)
+                    .background(c.accent, pillShape)
+                    .clip(pillShape)
                     .clickable(onClick = onCapture)
-                    .padding(horizontal = 24.dp),
+                    .padding(horizontal = 22.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("+", fontFamily = PlexSans, fontSize = 20.sp, color = c.accentInk)
-                Spacer(Modifier.width(8.dp))
+                Text("+", fontFamily = PlexSans, fontSize = 22.sp, color = c.accentInk)
+                Spacer(Modifier.width(9.dp))
                 Text(
                     "Capture",
                     fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
@@ -1542,7 +1569,7 @@ private fun DockIconButton(
     val c = MaterialTheme.grove
     Box(
         Modifier
-            .size(44.dp)
+            .size(48.dp)
             .clip(RoundedCornerShape(percent = 50))
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
@@ -1550,7 +1577,7 @@ private fun DockIconButton(
         Icon(
             icon,
             contentDescription = contentDescription,
-            tint = c.ink2,
+            tint = c.ink,
             modifier = Modifier.size(20.dp),
         )
     }
