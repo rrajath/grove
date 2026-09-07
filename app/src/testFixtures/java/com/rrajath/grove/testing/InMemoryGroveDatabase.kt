@@ -3,6 +3,8 @@ package com.rrajath.grove.testing
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import com.rrajath.grove.data.GroveDatabase
+import kotlinx.coroutines.Dispatchers
+import kotlin.coroutines.CoroutineContext
 
 /**
  * Builds a throwaway in-memory [GroveDatabase] wired through the production
@@ -14,10 +16,16 @@ import com.rrajath.grove.data.GroveDatabase
  * [GroveDatabase.close] it when done (a `@get:Rule TemporaryFolder`-style
  * teardown, or `@After`).
  *
+ * A JVM (Robolectric) ViewModel test should pass its `TestDispatcher` as
+ * [queryCoroutineContext] so DAO queries run in the test's virtual time and
+ * `advanceUntilIdle()` deterministically drains them; instrumented callers keep
+ * the [Dispatchers.IO] default.
+ *
  * See internal/test-suite-00-overview.md § Fakes to build (in-memory Room).
  */
 object InMemoryGroveDatabase {
     fun create(
         context: Context = ApplicationProvider.getApplicationContext(),
-    ): GroveDatabase = GroveDatabase.inMemory(context)
+        queryCoroutineContext: CoroutineContext = Dispatchers.IO,
+    ): GroveDatabase = GroveDatabase.inMemory(context, queryCoroutineContext)
 }

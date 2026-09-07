@@ -1,0 +1,111 @@
+package com.rrajath.grove.ui.agenda
+
+import android.app.Application
+import androidx.test.core.app.ApplicationProvider
+import com.rrajath.grove.data.GroveDatabase
+import com.rrajath.grove.org.OrgKeywords
+import com.rrajath.grove.settings.SettingsRepository
+import com.rrajath.grove.testing.FakeFileStore
+import com.rrajath.grove.testing.FakeSyncTrigger
+import com.rrajath.grove.testing.InMemoryGroveDatabase
+import com.rrajath.grove.testing.TestVaultSeeder
+import com.rrajath.grove.testing.support.MainDispatcherRule
+import com.rrajath.grove.vault.Vault
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runTest
+import org.junit.After
+import org.junit.Assert.assertTrue
+import org.junit.Rule
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+import java.time.LocalDate
+
+/**
+ * Layer-1 integration coverage for [AgendaViewModel]: planned notes indexed in
+ * Room are bucketed into the agenda, and a swipe-to-done writes the file and
+ * requests a sync.
+ *
+ * See internal/test-suite-01-integration-robolectric.md § Coverage matrix.
+ */
+@OptIn(ExperimentalCoroutinesApi::class)
+@RunWith(RobolectricTestRunner::class)
+@Config(application = Application::class, sdk = [34])
+class AgendaViewModelIntegrationTest {
+
+    @get:Rule
+    val mainDispatcherRule = MainDispatcherRule()
+
+    // A note scheduled yesterday is always overdue, whatever day the test runs.
+    private val yesterday = LocalDate.now().minusDays(1)
+    private val vaultText = """
+        #+TITLE: Agenda fixture
+
+        * TODO Renew the domain
+        SCHEDULED: <${yesterday} ${yesterday.dayOfWeek.name.take(3).lowercase().replaceFirstChar { it.uppercase() }}>
+        * TODO Undated idea
+    """.trimIndent() + "\n"
+
+    private val store = FakeFileStore(mapOf("agenda.org" to vaultText))
+    private val vaultFlow = MutableStateFlow<Vault?>(Vault(store))
+    private val sync = FakeSyncTrigger()
+    private val keywords = MutableStateFlow(OrgKeywords.DEFAULT)
+    private val db: GroveDatabase =
+        InMemoryGroveDatabase.create(queryCoroutineContext = mainDispatcherRule.dispatcher)
+    private val settingsRepository = SettingsRepository(
+        ApplicationProvider.getApplicationContext<Application>(),
+        CoroutineScope(mainDispatcherRule.dispatcher),
+    )
+
+    private fun agenda() = AgendaViewModel(
+        settingsRepository = settingsRepository,
+        keywordsFlow = keywords,
+        database = db,
+        vaultFlow = vaultFlow,
+        sync = sync,
+        dispatchers = mainDispatcherRule.appDispatchers,
+    )
+
+    @After
+    fun tearDown() {
+        db.close()
+    }
+
+    @Test
+    fun `a note scheduled in the past lands in the overdue bucket`() = runTest {
+        TestVaultSeeder.index(db, store)
+        advanceUntilIdle()
+
+        val vm = agenda()
+        advanceUntilIdle()
+
+        val overdueTitles = vm.state.value.overdue.map { it.title }
+        assertTrue("expected 'Renew the domain' in overdue, was $overdueTitles",
+            overdueTitles.contains("Renew the domain"))
+        // The undated heading is excluded by the plannedNotes SQL narrowing.
+        val everyTitle = (vm.state.value.overdue + vm.state.value.groups.flatMap { it.rows })
+            .map { it.title }
+        assertTrue(everyTitle.none { it == "Undated idea" })
+    }
+
+    @Test
+    fun `markDone writes a done keyword to the file and requests a sync`() = runTest {
+        TestVaultSeeder.index(db, store)
+        advanceUntilIdle()
+        val vm = agenda()
+        advanceUntilIdle()
+
+        val row = vm.state.value.overdue.single { it.title == "Renew the domain" }
+        vm.markDone(row.fileName, row.lineIndex)
+        advanceUntilIdle()
+
+        val updated = store.read("agenda.org")
+        assertTrue("file should carry a DONE keyword now:\n$updated",
+            updated.contains("* DONE Renew the domain") || updated.contains("DONE Renew the domain"))
+        assertTrue(sync.syncRequests.isNotEmpty())
+    }
+}

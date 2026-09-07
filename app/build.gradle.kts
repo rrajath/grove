@@ -253,6 +253,10 @@ dependencies {
     testImplementation(libs.turbine)
     testImplementation(libs.androidx.test.core)
     testImplementation(libs.androidx.room.testing)
+    // Desktop SQLite natives so BundledSQLiteDriver (and thus GroveDatabase +
+    // FTS5) works under Robolectric on the host JVM. See internal/LEARNINGS.md
+    // 2026-09-07.
+    testRuntimeOnly(libs.androidx.sqlite.bundled.jvm)
     testImplementation(testFixtures(project(":app")))
 
     androidTestImplementation(libs.androidx.junit)

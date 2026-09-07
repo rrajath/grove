@@ -19,13 +19,12 @@ import org.robolectric.annotation.Config
  * and shared test-fixtures classes resolve from `test/`.
  *
  * `application = Application` bypasses `GroveApplication.onCreate`'s async wiring;
- * the M3 ViewModel tests opt into a real application deliberately.
+ * the M3 ViewModel integration tests build their collaborators directly instead.
  *
- * NOTE for M3: `GroveDatabase.inMemory` uses `BundledSQLiteDriver`, whose native
- * `sqliteJni` is an Android `.so` only and is absent on the Robolectric JVM
- * classpath (`UnsatisfiedLinkError`). Robolectric integration tests that need
- * Room must either swap in `AndroidSQLiteDriver` or run that slice as an
- * instrumented test. `InMemoryGroveDatabase.create()` works unchanged on-device.
+ * `GroveDatabase` under Robolectric: resolved in M3 — the desktop `sqlite-bundled`
+ * natives (`testRuntimeOnly sqlite-bundled-jvm`) let `BundledSQLiteDriver` load on
+ * the JVM with full FTS5. `RoomUnderRobolectricTest` guards that; see
+ * `internal/LEARNINGS.md` 2026-09-07.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(application = Application::class, sdk = [34])

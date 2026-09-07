@@ -71,6 +71,15 @@ re-uploads the APKs to the existing release instead of failing.
   `GroveApplication`, with the production wiring moved into each `Factory`
   companion. New `SyncTrigger` interface over the sync side-effects VMs call
   (`SyncManager` implements it). No app behavior change.
+- Test-suite milestone M3, first tranche: Robolectric + Turbine integration
+  tests for the Editor, Capture, Agenda, and Search ViewModels, running in the
+  existing per-push `testDebugUnitTest` job. `GroveDatabase.inMemory` /
+  `RoomNoteIndex` now work under Robolectric via the desktop `sqlite-bundled`
+  natives on the test classpath, and take an optional query `CoroutineContext`
+  so DAO queries run in a test's virtual time. New `FakeSyncTrigger` fixture,
+  `MainDispatcherRule`, and a `TestVaultSeeder.index` helper. No app behavior
+  change. Remaining VMs (App, Notebooks, Conflict/SyncLog) and the sync
+  round-trip test are a follow-up.
 
 ## [1.5.0] - 2026-09-07
 

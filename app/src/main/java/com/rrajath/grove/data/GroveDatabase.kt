@@ -19,6 +19,7 @@ import androidx.sqlite.SQLiteConnection
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlin.coroutines.CoroutineContext
 
 /**
  * Rebuildable index over the vault (PRD §13): never the source of truth;
@@ -481,11 +482,21 @@ abstract class GroveDatabase : RoomDatabase() {
          * Throwaway in-memory instance wired through the same [create] path, so
          * the instrumented tests exercise the real FTS bootstrap rather than a
          * hand-rolled copy of it that could drift.
+         *
+         * [queryCoroutineContext] defaults to [Dispatchers.IO] as in production;
+         * a JVM (Robolectric) test passes its `TestDispatcher` so DAO queries
+         * run in the test's virtual time and `advanceUntilIdle()` is reliable.
          */
-        fun inMemory(context: Context): GroveDatabase =
-            create(Room.inMemoryDatabaseBuilder(context, GroveDatabase::class.java))
+        fun inMemory(
+            context: Context,
+            queryCoroutineContext: CoroutineContext = Dispatchers.IO,
+        ): GroveDatabase =
+            create(Room.inMemoryDatabaseBuilder(context, GroveDatabase::class.java), queryCoroutineContext)
 
-        private fun create(builder: RoomDatabase.Builder<GroveDatabase>): GroveDatabase {
+        private fun create(
+            builder: RoomDatabase.Builder<GroveDatabase>,
+            queryCoroutineContext: CoroutineContext = Dispatchers.IO,
+        ): GroveDatabase {
             // The callback only fires on first database access, which is
             // necessarily after build() returns, so `database` is always
             // assigned by the time either override runs.
@@ -507,7 +518,7 @@ abstract class GroveDatabase : RoomDatabase() {
                 // the bundled SQLite ships one that has it (plus the trigram
                 // tokenizer the substring semantics depend on).
                 .setDriver(BundledSQLiteDriver())
-                .setQueryCoroutineContext(Dispatchers.IO)
+                .setQueryCoroutineContext(queryCoroutineContext)
                 .fallbackToDestructiveMigration(dropAllTables = true)
                 .addCallback(ftsBootstrap)
                 .build()
