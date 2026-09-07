@@ -35,6 +35,17 @@ object OrgFixtures {
     /** Large subtree (> LARGE_SUBTREE_THRESHOLD headings) to exercise fold-on-open and scroll. */
     val LARGE_SUBTREE: String by lazy { load("large-subtree.org") }
 
+    /**
+     * Hub note whose "Link Hub" heading body holds one of every org link form
+     * (star/fuzzy heading, `#custom-id`, `id:` heading, `id:` file, `file:` with
+     * and without `::` search, path spellings, external, unresolved). Pairs with
+     * [LINKS_FAR] for the cross-file cases. Anchor word: "linkhub".
+     */
+    val LINKS_HUB: String by lazy { load("links-hub.org") }
+
+    /** Cross-file target for [LINKS_HUB]: a file-level `:ID:`, plus a heading with both `:ID:` and `:CUSTOM_ID:`. */
+    val LINKS_FAR: String by lazy { load("links-far.org") }
+
     /** The "keep local" side of a Syncthing sync-conflict pair. */
     val CONFLICT_LOCAL = """
         #+TITLE: Notes
@@ -62,6 +73,8 @@ object OrgFixtures {
             "reading-list.org" to READING_LIST,
             "table.org" to TABLE,
             "large-subtree.org" to LARGE_SUBTREE,
+            "links-hub.org" to LINKS_HUB,
+            "links-far.org" to LINKS_FAR,
         )
     }
 

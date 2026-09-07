@@ -1,0 +1,26 @@
+# Tap a link in the Link Hub body, assert it lands in Read mode showing a body
+# marker, then return to the hub. Params: LINK (visible link label), MARKER
+# (regex expected in the destination note's body).
+appId: com.rrajath.grove.debug
+---
+- scrollUntilVisible:
+    element:
+      text: "${LINK}"
+    direction: DOWN
+    timeout: 20000
+    centerElement: true
+- tapOn:
+    text: "${LINK}"
+- extendedWaitUntil:
+    visible:
+      id: "read_note_screen"
+    timeout: 10000
+- extendedWaitUntil:
+    visible:
+      text: "${MARKER}"
+    timeout: 15000
+- back
+- extendedWaitUntil:
+    visible:
+      id: "read_note_screen"
+    timeout: 10000

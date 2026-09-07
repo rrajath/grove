@@ -1,0 +1,14 @@
+:PROPERTIES:
+:ID: far-file-0000000000
+:END:
+#+TITLE: Links Far
+
+* Far Heading
+  :PROPERTIES:
+  :ID: far-heading-0000000000
+  :CUSTOM_ID: far-custom
+  :END:
+  Body of Far Heading. REACHED-FAR-HEADING.
+
+* Far Plain
+  Body of Far Plain. REACHED-FAR-PLAIN.

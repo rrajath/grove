@@ -1,0 +1,28 @@
+# Tap an external link in the Link Hub body, assert Grove hands off to the OS
+# (the Read screen goes away and the system browser shows the URL), then bring
+# Grove back to the hub. Params: LINK (visible link label), URL (regex expected
+# in the browser's address bar).
+appId: com.rrajath.grove.debug
+---
+- scrollUntilVisible:
+    element:
+      text: "${LINK}"
+    direction: DOWN
+    timeout: 20000
+    centerElement: true
+- tapOn:
+    text: "${LINK}"
+- extendedWaitUntil:
+    notVisible:
+      id: "read_note_screen"
+    timeout: 10000
+- assertVisible:
+    text: "${URL}"
+# One `back` finishes the freshly-opened browser activity and resumes Grove's
+# task on the hub. (`launchApp` would start MainActivity fresh and lose the
+# Read-mode back stack.)
+- back
+- extendedWaitUntil:
+    visible:
+      id: "read_note_screen"
+    timeout: 10000

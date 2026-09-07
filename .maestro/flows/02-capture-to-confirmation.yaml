@@ -17,26 +17,34 @@ tags:
 - tapOn:
     text: "Quick Note"
     optional: true
-- assertVisible:
-    id: "capture_body_field"
+- extendedWaitUntil:
+    visible:
+      id: "capture_body_field"
     timeout: 10000
 # A fixed string is fine: every run starts from a freshly re-seeded vault
 # (clearState + grove_test_seed), so nothing from a prior run lingers.
 - tapOn:
     id: "capture_body_field"
 - inputText: "Maestro capture note"
+# Drop the IME so the Save button isn't behind it and a later `back` navigates
+# the screen instead of first dismissing the keyboard.
+- hideKeyboard
 - tapOn:
     id: "capture_save"
 
 # Editor dismisses on save.
-- assertNotVisible:
-    id: "capture_body_field"
+- extendedWaitUntil:
+    notVisible:
+      id: "capture_body_field"
+    timeout: 10000
 
 # The captured heading is now in the index.
 - runFlow: ../subflows/open-search.yaml
 - tapOn:
     id: "search_field"
 - inputText: "Maestro capture"
-- assertVisible:
-    text: ".*Maestro capture.*"
+- hideKeyboard
+- extendedWaitUntil:
+    visible:
+      text: ".*Maestro capture.*"
     timeout: 15000

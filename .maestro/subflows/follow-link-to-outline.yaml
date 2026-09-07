@@ -1,0 +1,26 @@
+# Tap a link in the Link Hub body, assert it lands on a file's Outline, then
+# return to the hub. Params: LINK (visible link label), FILE_LABEL (the outline
+# top-bar file label, e.g. "links-far.org").
+appId: com.rrajath.grove.debug
+---
+- scrollUntilVisible:
+    element:
+      text: "${LINK}"
+    direction: DOWN
+    timeout: 20000
+    centerElement: true
+- tapOn:
+    text: "${LINK}"
+- extendedWaitUntil:
+    visible:
+      id: "outline_list"
+    timeout: 10000
+- assertVisible:
+    id: "outline_file_label"
+- assertVisible:
+    text: "${FILE_LABEL}"
+- back
+- extendedWaitUntil:
+    visible:
+      id: "read_note_screen"
+    timeout: 10000

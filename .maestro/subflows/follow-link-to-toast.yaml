@@ -1,0 +1,21 @@
+# Tap an unresolvable link in the Link Hub body and assert the feedback toast.
+# Navigation does not change, so there is no `back`. Params: LINK (visible link
+# label), TOAST (regex expected in the toast pill).
+appId: com.rrajath.grove.debug
+---
+- scrollUntilVisible:
+    element:
+      text: "${LINK}"
+    direction: DOWN
+    timeout: 20000
+    centerElement: true
+- tapOn:
+    text: "${LINK}"
+- extendedWaitUntil:
+    visible:
+      id: "grove_toast"
+    timeout: 5000
+- assertVisible:
+    text: "${TOAST}"
+- assertVisible:
+    id: "read_note_screen"

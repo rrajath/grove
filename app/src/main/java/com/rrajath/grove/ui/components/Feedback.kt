@@ -24,6 +24,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -50,6 +51,7 @@ fun GroveToast(toast: OutlineToast?, modifier: Modifier = Modifier) {
     ) {
         Box(
             Modifier
+                .testTag("grove_toast")
                 .clip(RoundedCornerShape(20.dp))
                 .background(c.ink)
                 .padding(horizontal = 16.dp, vertical = 10.dp),

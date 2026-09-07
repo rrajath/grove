@@ -1,0 +1,63 @@
+:PROPERTIES:
+:ID: hub-file-0000000000
+:END:
+#+TITLE: Links Hub
+
+* Hub Target Star
+  Body of Hub Target Star. REACHED-HUB-STAR.
+
+* Hub Target Custom
+  :PROPERTIES:
+  :CUSTOM_ID: hub-custom
+  :END:
+  Body of Hub Target Custom. REACHED-HUB-CUSTOM.
+
+* Hub Target Id
+  :PROPERTIES:
+  :ID: hub-heading-0000000000
+  :END:
+  Body of Hub Target Id. REACHED-HUB-ID.
+
+* Link Hub
+  linkhub anchor word for search.
+
+  Same file, to a heading:
+  - [[*Hub Target Star][L01 star heading same file]]
+  - [[Hub Target Star][L02 fuzzy heading same file]]
+  - [[#hub-custom][L03 custom id same file]]
+  - [[id:hub-heading-0000000000][L04 heading id same file]]
+
+  Same file, to the file itself:
+  - [[id:hub-file-0000000000][L05 file level id same file]]
+  - [[file:links-hub.org][L16 file link to current file]]
+
+  Other file, to a heading:
+  - [[id:far-heading-0000000000][L06 heading id other file]]
+  - [[file:links-far.org::*Far Heading][L07 file star heading other]]
+  - [[file:links-far.org::#far-custom][L08 file custom id other]]
+  - [[./links-far.org::*Far Heading][L09 path star heading other]]
+  - [[links-far.org::#far-custom][L10 basename custom id other]]
+  - [[file:links-hub.org::*Hub Target Star][L11 file link current file heading]]
+
+  Other file, to the file itself:
+  - [[id:far-file-0000000000][L12 file level id other file]]
+  - [[file:links-far.org][L13 whole file with prefix]]
+  - [[./links-far.org][L14 whole file with path]]
+  - [[links-far.org][L15 whole file bare basename]]
+
+  File resolves but the heading is gone (falls back to outline):
+  - [[file:links-far.org::*No Such Heading][L17 file missing heading fallback]]
+  - [[file:links-far.org::#no-such-custom][L18 file missing custom id fallback]]
+
+  External, handed to the OS:
+  - [[https://example.com/grove][L19 external https labelled]]
+  - [[https://example.org/l20bare]]
+  - https://example.net/l21plain
+  - [[mailto:grove@example.com][L22 external mailto]]
+
+  Unresolved, shows a toast:
+  - [[id:nonexistent-0000000000][L23 unresolved id]]
+  - [[#no-such-custom-here][L24 unresolved custom id]]
+  - [[*No Such Heading Here][L25 unresolved heading]]
+  - [[file:missing-file.org][L26 unresolved file]]
+  - [[Far Heading][L27 fuzzy resolves other file only]]

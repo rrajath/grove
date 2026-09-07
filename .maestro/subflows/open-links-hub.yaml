@@ -1,0 +1,23 @@
+# Open the "Link Hub" note (links-hub.org) in Read mode via Search. Its body
+# holds every org link form the follow-links flow exercises. Assumes the app is
+# on a screen reachable from the Notebooks dock (launch-seeded lands there).
+appId: com.rrajath.grove.debug
+---
+- runFlow: open-search.yaml
+- tapOn:
+    id: "search_field"
+- inputText: "linkhub"
+- hideKeyboard
+- extendedWaitUntil:
+    visible:
+      id: "search_result_row"
+    timeout: 15000
+- tapOn:
+    id: "search_result_row"
+    index: 0
+- extendedWaitUntil:
+    visible:
+      id: "read_note_screen"
+    timeout: 10000
+- assertVisible:
+    text: ".*L01 star heading same file.*"

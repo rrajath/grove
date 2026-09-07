@@ -17,20 +17,36 @@ tags:
 # Read -> Edit via the top-bar toggle.
 - tapOn:
     text: "Edit"
-- assertVisible:
-    id: "edit_note_field"
+- extendedWaitUntil:
+    visible:
+      id: "edit_note_field"
     timeout: 10000
 - tapOn:
     id: "edit_note_field"
 - inputText: " EDITED-BY-MAESTRO"
+- hideKeyboard
 - tapOn:
     id: "edit_note_save"
 
-# Back out to Search and reopen the same note.
+# Save keeps you in the editor. One `back` returns to the Search screen with the
+# "photosynthesis" query and its result still in place (that screen re-focuses
+# the field, so drop the IME before tapping the row). Re-opening the row is the
+# "leave and re-enter" that proves the marker was written to the file, not just
+# held in the editor's buffer.
 - back
-- back
-- runFlow: ../subflows/open-search.yaml
-- runFlow: ../subflows/search-open-photosynthesis.yaml
-- assertVisible:
-    text: ".*EDITED-BY-MAESTRO.*"
+- hideKeyboard
+- extendedWaitUntil:
+    visible:
+      id: "search_result_row"
+    timeout: 10000
+- tapOn:
+    id: "search_result_row"
+    index: 0
+- extendedWaitUntil:
+    visible:
+      id: "read_note_screen"
+    timeout: 10000
+- extendedWaitUntil:
+    visible:
+      text: ".*EDITED-BY-MAESTRO.*"
     timeout: 10000

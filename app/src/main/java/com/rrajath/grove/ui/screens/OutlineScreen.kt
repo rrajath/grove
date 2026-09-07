@@ -255,6 +255,7 @@ fun OutlineScreen(
                                 breadcrumbFileLabel(notebookId),
                                 fontFamily = PlexMono, fontWeight = FontWeight.SemiBold,
                                 fontSize = 17.sp, color = c.ink,
+                                modifier = Modifier.testTag("outline_file_label"),
                             )
                             if (narrowTarget != null) {
                                 Text(

@@ -59,6 +59,26 @@ re-uploads the APKs to the existing release instead of failing.
 
 ## [Unreleased]
 
+### Fixed
+- Maestro E2E flows (M5) used a `timeout:` property on `assertVisible` /
+  `assertNotVisible`, which Maestro rejects with "Unknown property: timeout".
+  The waits are now `extendedWaitUntil` with `visible:` / `notVisible:` blocks.
+- Maestro E2E flows: added `hideKeyboard` after each `inputText` that is
+  followed by a tap or `back`, so a visible soft keyboard no longer hides the
+  next target or gets absorbed by the first `back`. Flow 04 now re-opens the
+  edited note with a single `back` to Search plus a row tap instead of an
+  unstable `back` chain. CI pins the emulator to the AOSP image (`target:
+  default`, no Gboard). All three flows verified on a Pixel_9a AVD.
+
+### Added
+- Maestro E2E flow 05 (`follow-links`): opens a "Link Hub" note and follows one
+  of every org link form from Read mode — 27 cases across heading/`#custom-id`/
+  `id:`/`file:` targets (same file and cross-file), file-level `:ID:`, path
+  spellings, `::*Heading` / `::#custom-id` search options, the outline fallback
+  when a named heading is gone, external `https:` / `mailto:`, and unresolved
+  forms. New fixtures `links-hub.org` / `links-far.org`; `grove_toast` and
+  `outline_file_label` test tags. Verified on a Pixel_9a AVD.
+
 ### Changed
 - Test-suite milestone M1 (infra): shared `testFixtures` source set with
   `FakeFileStore`, `FakeSettingsRepository`, `OrgFixtures`, `TestVaultSeeder`,

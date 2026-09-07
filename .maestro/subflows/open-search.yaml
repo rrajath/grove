@@ -3,6 +3,7 @@ appId: com.rrajath.grove.debug
 ---
 - tapOn:
     id: "dock_search"
-- assertVisible:
-    id: "search_field"
+- extendedWaitUntil:
+    visible:
+      id: "search_field"
     timeout: 10000

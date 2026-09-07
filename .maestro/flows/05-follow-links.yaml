@@ -1,0 +1,140 @@
+# Journey 5: follow every org link form from Read mode.
+#
+# Seeded vault -> open the "Link Hub" note (links-hub.org) -> tap each link in
+# its body and assert where it lands. The resolver (OrgLinkParser +
+# DocumentViewModel.resolveOrgLink) routes every form to one of four outcomes:
+#   - Read mode of a heading        (follow-link-to-read.yaml,   asserts a body marker)
+#   - Outline of a file             (follow-link-to-outline.yaml, asserts the file label)
+#   - OS hand-off for external URIs (follow-link-to-external.yaml)
+#   - a "Couldn't ..." feedback toast for anything unresolved (follow-link-to-toast.yaml)
+#
+# links-far.org is the cross-file target: a file-level :ID:, plus "Far Heading"
+# carrying both :ID: and :CUSTOM_ID:.
+appId: com.rrajath.grove.debug
+tags:
+  - e2e
+---
+- runFlow: ../subflows/launch-seeded.yaml
+- runFlow: ../subflows/open-links-hub.yaml
+
+# --- Same file, link to a heading -------------------------------------------
+# L01 [[*Heading]]  star heading, current file
+- runFlow:
+    file: ../subflows/follow-link-to-read.yaml
+    env: { LINK: "L01 star heading same file", MARKER: ".*REACHED-HUB-STAR.*" }
+# L02 [[Heading]]  fuzzy (no star), current file
+- runFlow:
+    file: ../subflows/follow-link-to-read.yaml
+    env: { LINK: "L02 fuzzy heading same file", MARKER: ".*REACHED-HUB-STAR.*" }
+# L03 [[#custom-id]]  current file
+- runFlow:
+    file: ../subflows/follow-link-to-read.yaml
+    env: { LINK: "L03 custom id same file", MARKER: ".*REACHED-HUB-CUSTOM.*" }
+# L04 [[id:UUID]]  heading :ID:, current file (resolved in-document)
+- runFlow:
+    file: ../subflows/follow-link-to-read.yaml
+    env: { LINK: "L04 heading id same file", MARKER: ".*REACHED-HUB-ID.*" }
+
+# --- Same file, link to the file itself ------------------------------------
+# L05 [[id:UUID]]  file-level :ID: of the current file -> its outline
+- runFlow:
+    file: ../subflows/follow-link-to-outline.yaml
+    env: { LINK: "L05 file level id same file", FILE_LABEL: "links-hub.org" }
+# L16 [[file:this-file.org]]  no heading -> current file's outline
+- runFlow:
+    file: ../subflows/follow-link-to-outline.yaml
+    env: { LINK: "L16 file link to current file", FILE_LABEL: "links-hub.org" }
+
+# --- Other file, link to a heading ----------------------------------------
+# L06 [[id:UUID]]  heading :ID: in another file (resolved through the note index)
+- runFlow:
+    file: ../subflows/follow-link-to-read.yaml
+    env: { LINK: "L06 heading id other file", MARKER: ".*REACHED-FAR-HEADING.*" }
+# L07 [[file:other.org::*Heading]]
+- runFlow:
+    file: ../subflows/follow-link-to-read.yaml
+    env: { LINK: "L07 file star heading other", MARKER: ".*REACHED-FAR-HEADING.*" }
+# L08 [[file:other.org::#custom-id]]
+- runFlow:
+    file: ../subflows/follow-link-to-read.yaml
+    env: { LINK: "L08 file custom id other", MARKER: ".*REACHED-FAR-HEADING.*" }
+# L09 [[./other.org::*Heading]]  path form, no file: prefix
+- runFlow:
+    file: ../subflows/follow-link-to-read.yaml
+    env: { LINK: "L09 path star heading other", MARKER: ".*REACHED-FAR-HEADING.*" }
+# L10 [[other.org::#custom-id]]  bare basename + search option
+- runFlow:
+    file: ../subflows/follow-link-to-read.yaml
+    env: { LINK: "L10 basename custom id other", MARKER: ".*REACHED-FAR-HEADING.*" }
+# L11 [[file:this-file.org::*Heading]]  file: link that names the current file
+- runFlow:
+    file: ../subflows/follow-link-to-read.yaml
+    env: { LINK: "L11 file link current file heading", MARKER: ".*REACHED-HUB-STAR.*" }
+
+# --- Other file, link to the file itself ---------------------------------
+# L12 [[id:UUID]]  file-level :ID: of another file -> its outline
+- runFlow:
+    file: ../subflows/follow-link-to-outline.yaml
+    env: { LINK: "L12 file level id other file", FILE_LABEL: "links-far.org" }
+# L13 [[file:other.org]]
+- runFlow:
+    file: ../subflows/follow-link-to-outline.yaml
+    env: { LINK: "L13 whole file with prefix", FILE_LABEL: "links-far.org" }
+# L14 [[./other.org]]
+- runFlow:
+    file: ../subflows/follow-link-to-outline.yaml
+    env: { LINK: "L14 whole file with path", FILE_LABEL: "links-far.org" }
+# L15 [[other.org]]  bare basename
+- runFlow:
+    file: ../subflows/follow-link-to-outline.yaml
+    env: { LINK: "L15 whole file bare basename", FILE_LABEL: "links-far.org" }
+
+# --- File resolves but the named heading is gone -> graceful outline ------
+# L17 [[file:other.org::*Missing]]
+- runFlow:
+    file: ../subflows/follow-link-to-outline.yaml
+    env: { LINK: "L17 file missing heading fallback", FILE_LABEL: "links-far.org" }
+# L18 [[file:other.org::#missing]]
+- runFlow:
+    file: ../subflows/follow-link-to-outline.yaml
+    env: { LINK: "L18 file missing custom id fallback", FILE_LABEL: "links-far.org" }
+
+# --- External schemes, handed to the OS ---------------------------------
+# L19 [[https://...][label]]
+- runFlow:
+    file: ../subflows/follow-link-to-external.yaml
+    env: { LINK: "L19 external https labelled", URL: ".*example.com.*" }
+# L20 [[https://...]]  no label (renders the URL as its own text)
+- runFlow:
+    file: ../subflows/follow-link-to-external.yaml
+    env: { LINK: "https://example.org/l20bare", URL: ".*example.org.*" }
+# L21 bare URL in prose, not wrapped in [[ ]]
+- runFlow:
+    file: ../subflows/follow-link-to-external.yaml
+    env: { LINK: "https://example.net/l21plain", URL: ".*example.net.*" }
+# L22 [[mailto:...]]  no handler on the emulator -> "Couldn't open" toast
+- runFlow:
+    file: ../subflows/follow-link-to-toast.yaml
+    env: { LINK: "L22 external mailto", TOAST: ".*Couldn.t open.*" }
+
+# --- Unresolved -> "Couldn't find" toast, no navigation ------------------
+# L23 [[id:UUID]]  no such :ID: anywhere
+- runFlow:
+    file: ../subflows/follow-link-to-toast.yaml
+    env: { LINK: "L23 unresolved id", TOAST: ".*Couldn.t find.*" }
+# L24 [[#custom-id]]  no such :CUSTOM_ID:
+- runFlow:
+    file: ../subflows/follow-link-to-toast.yaml
+    env: { LINK: "L24 unresolved custom id", TOAST: ".*Couldn.t find.*" }
+# L25 [[*Heading]]  no such heading in the current file
+- runFlow:
+    file: ../subflows/follow-link-to-toast.yaml
+    env: { LINK: "L25 unresolved heading", TOAST: ".*Couldn.t find.*" }
+# L26 [[file:missing.org]]  no such file
+- runFlow:
+    file: ../subflows/follow-link-to-toast.yaml
+    env: { LINK: "L26 unresolved file", TOAST: ".*Couldn.t find.*" }
+# L27 [[Far Heading]]  fuzzy match is current-file only; the heading is in the other file
+- runFlow:
+    file: ../subflows/follow-link-to-toast.yaml
+    env: { LINK: "L27 fuzzy resolves other file only", TOAST: ".*Couldn.t find.*" }

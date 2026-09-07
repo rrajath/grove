@@ -424,6 +424,9 @@ jobs:
         with:
           api-level: 34
           arch: x86_64
+          # Plain AOSP image (no Gboard) — the flows' hideKeyboard steps assume
+          # the AOSP keyboard, not Gboard's first-run popup / floating toolbar.
+          target: default
           disable-animations: true
           script: >-
             adb install -r app/build/outputs/apk/debug/app-debug.apk &&
