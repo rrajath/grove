@@ -693,7 +693,7 @@ private fun NoteContent(
         // stays within a section.
         LazyColumn(
             state = listState,
-            modifier = modifier,
+            modifier = modifier.testTag("read_note_scroll"),
             contentPadding = PaddingValues(start = 24.dp, end = 24.dp, top = 8.dp, bottom = 48.dp),
         ) {
             item(key = "own") {

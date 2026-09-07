@@ -4,6 +4,7 @@ import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -41,12 +42,16 @@ class NotebooksScreenTest {
         env.close()
     }
 
-    private fun content(onOpenNotebook: (String) -> Unit = {}) {
+    private fun content(
+        onOpenNotebook: (String) -> Unit = {},
+        onOpenSearch: () -> Unit = {},
+        onOpenCapture: () -> Unit = {},
+    ) {
         composeRule.setGroveContent {
             NotebooksScreen(
                 onOpenDrawer = {},
-                onOpenSearch = {},
-                onOpenCapture = {},
+                onOpenSearch = onOpenSearch,
+                onOpenCapture = onOpenCapture,
                 onOpenNotebook = onOpenNotebook,
                 onOpenConflict = {},
                 viewModel = vm,
@@ -76,6 +81,22 @@ class NotebooksScreenTest {
         composeRule.waitUntil(timeoutMillis = 3_000) { opened != null }
         assertNotNull(opened)
         assertEquals(true, opened!!.endsWith(".org"))
+    }
+
+    @Test
+    fun theDockAffordancesFireTheirCallbacks() {
+        var captureOpened = false
+        var searchOpened = false
+        content(onOpenCapture = { captureOpened = true }, onOpenSearch = { searchOpened = true })
+
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.onAllNodesWithTag("notebooks_capture").fetchSemanticsNodes().isNotEmpty()
+        }
+        composeRule.onNodeWithTag("notebooks_capture").performClick()
+        composeRule.waitUntil(timeoutMillis = 3_000) { captureOpened }
+
+        composeRule.onNodeWithContentDescription("Search").performClick()
+        composeRule.waitUntil(timeoutMillis = 3_000) { searchOpened }
     }
 
     @Test

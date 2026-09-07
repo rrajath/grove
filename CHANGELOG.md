@@ -139,6 +139,19 @@ re-uploads the APKs to the existing release instead of failing.
   `refileViewModel` parameter. New nightly / manual `ui-tests` CI job runs them
   on an emulator (API 34 + 35); they never run on the per-push net. No app
   behavior change.
+- Test-suite milestone M4, second tranche: `androidTest/` Compose UI tests for
+  the remaining screens — `OnboardingScreen`, `ReadNoteScreen` (heading + body,
+  inline markup and `#+BEGIN_SRC`, org-table grid, large-subtree scroll), the
+  capture flow (`CapturePickerSheet` + `CaptureEditorScreen`), and
+  `SettingsAppearanceScreen` — plus backfilled scenarios on the first four
+  (far-heading scroll, raw org-table source in Edit mode, the Notebooks dock
+  affordances). `ScreenTestEnv` gained a `CaptureViewModel` off the DataStore
+  `TemplatesRepository`; new `org_table` / `read_note_scroll` tags. A
+  stateless-screen slice also runs under Robolectric `@GraphicsMode.NATIVE` in
+  the per-push JVM job. The suite now runs under AndroidX Test Orchestrator
+  (each test in its own process, app data wiped) — without it the ~30 test
+  activities intermittently crashed on a leaked `Choreographer` looper. No app
+  behavior change.
 - Test-suite milestone M5, first tranche: three Maestro end-to-end journeys
   (`.maestro/flows/` — capture → confirm, search → open, edit → save) plus the
   debug-only test-vault hook they need. `MainActivity` reads

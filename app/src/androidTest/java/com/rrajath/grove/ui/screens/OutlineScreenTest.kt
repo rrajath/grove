@@ -2,11 +2,14 @@ package com.rrajath.grove.ui.screens
 
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToNode
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.rrajath.grove.ui.support.ScreenTestEnv
 import com.rrajath.grove.ui.support.setGroveContent
@@ -43,12 +46,13 @@ class OutlineScreenTest {
     }
 
     private fun content(
+        notebookId: String = "projects.org",
         onOpenNote: (NoteRef) -> Unit = {},
         onCreateNote: (NoteRef) -> Unit = {},
     ) {
         composeRule.setGroveContent {
             OutlineScreen(
-                notebookId = "projects.org",
+                notebookId = notebookId,
                 onBack = {},
                 onOpenNote = onOpenNote,
                 onCreateNote = onCreateNote,
@@ -86,6 +90,23 @@ class OutlineScreenTest {
             composeRule.onAllNodesWithText("Cut the changelog", substring = true)
                 .fetchSemanticsNodes().isNotEmpty()
         }
+    }
+
+    @Test
+    fun scrollingReachesAFarHeadingInALargeOutline() {
+        content(notebookId = "large-subtree.org")
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.onAllNodesWithTag("outline_toggle").fetchSemanticsNodes().isNotEmpty()
+        }
+        // "Everything" opens collapsed; expand it to mount the 80 section rows.
+        composeRule.onAllNodesWithTag("outline_toggle")[0].performClick()
+        composeRule.waitUntil(timeoutMillis = 3_000) {
+            composeRule.onAllNodesWithText("Section 01", substring = true).fetchSemanticsNodes().isNotEmpty()
+        }
+
+        composeRule.onNodeWithTag("outline_list")
+            .performScrollToNode(hasText("Section 72", substring = true))
+        composeRule.onNodeWithText("Section 72", substring = true).assertIsDisplayed()
     }
 
     @Test

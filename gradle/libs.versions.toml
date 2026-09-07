@@ -29,6 +29,12 @@ javaDiffUtils = "4.15"
 robolectric = "4.16.1"
 turbine = "1.2.1"
 androidxTest = "1.7.0"
+# AndroidX Test Orchestrator runs each instrumented test in its own process, so
+# the Layer-2 Compose UI suite (ui-tests CI job) stops flaking on a leaked
+# Choreographer looper once ~30 test activities churn in one process; also wipes
+# app data (DataStore) between tests.
+androidxTestOrchestrator = "1.6.1"
+androidxTestServices = "1.6.0"
 # Layer-4 macrobenchmark (internal/test-suite-04-performance-macrobenchmark.md).
 # Kept in lockstep with `benchmark` above.
 baselineprofile = "1.5.0-rc02"
@@ -77,6 +83,8 @@ turbine = { group = "app.cash.turbine", name = "turbine", version.ref = "turbine
 androidx-test-core = { group = "androidx.test", name = "core-ktx", version.ref = "androidxTest" }
 androidx-test-runner = { group = "androidx.test", name = "runner", version.ref = "androidxTest" }
 androidx-test-rules = { group = "androidx.test", name = "rules", version.ref = "androidxTest" }
+androidx-test-orchestrator = { group = "androidx.test", name = "orchestrator", version.ref = "androidxTestOrchestrator" }
+androidx-test-services = { group = "androidx.test.services", name = "test-services", version.ref = "androidxTestServices" }
 androidx-room-testing = { group = "androidx.room", name = "room-testing", version.ref = "room" }
 
 [plugins]

@@ -147,6 +147,10 @@ android {
         versionName = manualVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        // Each instrumented test in its own process (see `execution` below), and
+        // wipe app data (DataStore, files) between them so the Compose UI suite
+        // is order-independent.
+        testInstrumentationRunnerArguments["clearPackageData"] = "true"
 
         // Gates the test-only launch hooks (DebugTestVault: a direct-directory
         // vault + fixture seeding from intent extras). Off by default so any
@@ -219,6 +223,10 @@ android {
             isIncludeAndroidResources = true
             isReturnDefaultValues = true
         }
+        // Run each instrumented test in an isolated process via AndroidX Test
+        // Orchestrator — the Layer-2 Compose UI suite otherwise flakes on a
+        // leaked Choreographer looper once ~30 test activities share one process.
+        execution = "ANDROIDX_TEST_ORCHESTRATOR"
     }
 }
 
@@ -311,6 +319,12 @@ dependencies {
     // FTS5) works under Robolectric on the host JVM. See internal/LEARNINGS.md
     // 2026-09-07.
     testRuntimeOnly(libs.androidx.sqlite.bundled.jvm)
+    // A slice of the Layer-2 Compose UI tests also runs under Robolectric
+    // (@GraphicsMode NATIVE) on the per-push JVM job — see
+    // internal/test-suite-02-ui-compose.md § "Robolectric subset".
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.androidx.compose.ui.test.junit4)
+    testImplementation(libs.androidx.compose.ui.test.manifest)
     testImplementation(testFixtures(project(":app")))
 
     androidTestImplementation(libs.androidx.junit)
@@ -320,6 +334,8 @@ dependencies {
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.androidx.test.rules)
     androidTestImplementation(testFixtures(project(":app")))
+    androidTestUtil(libs.androidx.test.orchestrator)
+    androidTestUtil(libs.androidx.test.services)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)

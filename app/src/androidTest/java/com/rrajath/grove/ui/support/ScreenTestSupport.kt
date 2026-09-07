@@ -6,6 +6,7 @@ import androidx.compose.ui.test.junit4.AndroidComposeTestRule
 import androidx.test.core.app.ApplicationProvider
 import com.rrajath.grove.AppDispatchers
 import com.rrajath.grove.GroveApplication
+import com.rrajath.grove.capture.TemplatesRepository
 import com.rrajath.grove.data.FavoritesRepository
 import com.rrajath.grove.data.GroveDatabase
 import com.rrajath.grove.org.OrgKeywords
@@ -18,6 +19,7 @@ import com.rrajath.grove.testing.FakeSyncTrigger
 import com.rrajath.grove.testing.InMemoryGroveDatabase
 import com.rrajath.grove.testing.OrgFixtures
 import com.rrajath.grove.testing.TestVaultSeeder
+import com.rrajath.grove.ui.capture.CaptureViewModel
 import com.rrajath.grove.ui.editor.EditorViewModel
 import com.rrajath.grove.ui.search.SearchViewModel
 import com.rrajath.grove.ui.theme.GroveTheme
@@ -62,6 +64,7 @@ class ScreenTestEnv(
     val settingsRepository = SettingsRepository(app, scope)
     val searchRepository = SearchRepository(app)
     val favoritesRepository = FavoritesRepository(app)
+    val templatesRepository = TemplatesRepository(app)
 
     private val dispatchers = AppDispatchers()
 
@@ -109,6 +112,15 @@ class ScreenTestEnv(
         database = database,
         settings = fakeSettings,
         keywords = keywords,
+        dispatchers = dispatchers,
+    )
+
+    fun captureViewModel() = CaptureViewModel(
+        templatesRepository = templatesRepository,
+        database = database,
+        sync = sync,
+        vaultFlow = vaultFlow,
+        settings = fakeSettings,
         dispatchers = dispatchers,
     )
 }

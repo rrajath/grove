@@ -26,6 +26,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
@@ -97,6 +98,7 @@ fun OrgTableView(
 
     Column(
         modifier
+            .testTag("org_table")
             .clip(RoundedCornerShape(10.dp))
             .border(1.dp, c.line, RoundedCornerShape(10.dp))
             .background(c.surface)

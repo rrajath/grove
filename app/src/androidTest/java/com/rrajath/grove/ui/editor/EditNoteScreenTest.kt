@@ -1,6 +1,7 @@
 package com.rrajath.grove.ui.editor
 
 import androidx.activity.ComponentActivity
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
@@ -39,6 +40,9 @@ class EditNoteScreenTest {
     private val shipLine =
         OrgParser.parse(OrgFixtures.PROJECTS).headlines.first { it.title.startsWith("Ship v2") }.lineIndex
 
+    private fun lineOf(fixture: String, titlePrefix: String): Int =
+        OrgParser.parse(fixture).headlines.first { it.title.startsWith(titlePrefix) }.lineIndex
+
     @Before
     fun setUp() {
         env = ScreenTestEnv()
@@ -49,10 +53,13 @@ class EditNoteScreenTest {
         env.close()
     }
 
-    private fun content(onBack: () -> Unit = {}) {
+    private fun content(
+        noteRef: NoteRef = NoteRef("projects.org", shipLine),
+        onBack: () -> Unit = {},
+    ) {
         composeRule.setGroveContent {
             EditNoteScreen(
-                noteRef = NoteRef("projects.org", shipLine),
+                noteRef = noteRef,
                 onBack = onBack,
                 onSwitchToRead = {},
                 autoSaveNotes = false,
@@ -69,6 +76,18 @@ class EditNoteScreenTest {
             composeRule.onAllNodesWithText("Ship v2 release", substring = true)
                 .fetchSemanticsNodes().isNotEmpty()
         }
+    }
+
+    @Test
+    fun showsRawOrgTableSourceNotTheRenderedGrid() {
+        content(noteRef = NoteRef("table.org", lineOf(OrgFixtures.TABLE, "Quarterly numbers")))
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.onAllNodesWithText("Quarterly numbers", substring = true)
+                .fetchSemanticsNodes().isNotEmpty()
+        }
+        // Edit mode keeps the pipe-delimited source; the grid is a Read-mode view.
+        composeRule.onNodeWithTag("edit_note_field")
+            .assertTextContains("| Quarter | Revenue | Growth |", substring = true)
     }
 
     @Test
