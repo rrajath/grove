@@ -21,6 +21,7 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -63,12 +64,14 @@ class CaptureViewModelIntegrationTest {
 
     private val context = CaptureContext(now = LocalDateTime.of(2026, 9, 6, 10, 0))
 
-    private fun capture() = CaptureViewModel(
+    private fun capture(
+        settingsSource: FakeSettingsRepository = settings,
+    ) = CaptureViewModel(
         templatesRepository = templatesRepository,
         database = db,
         sync = sync,
         vaultFlow = vaultFlow,
-        settings = settings,
+        settings = settingsSource,
         dispatchers = mainDispatcherRule.appDispatchers,
     )
 
@@ -115,5 +118,90 @@ class CaptureViewModelIntegrationTest {
         assertEquals(SaveState.Failed("Nothing to save"), vm.saveState.value)
         assertEquals(before, store.snapshot())
         assertTrue(sync.syncRequests.isEmpty())
+    }
+
+    @Test
+    fun `save with no vault folder configured fails and never fires a sync`() = runTest {
+        val vm = capture(FakeSettingsRepository(GroveSettings(vaultTreeUri = null)))
+        val before = store.snapshot()
+
+        vm.save(quickNote, "* Should not be saved", context)
+        advanceUntilIdle()
+
+        assertEquals(SaveState.Failed("No sync folder configured"), vm.saveState.value)
+        assertEquals("the vault must be untouched", before, store.snapshot())
+        assertTrue("no sync may be requested on a failed save", sync.syncRequests.isEmpty())
+    }
+
+    @Test
+    fun `save under a heading found by CUSTOM_ID inserts it as that heading's child`() = runTest {
+        val vm = capture()
+        val template = quickNote.copy(
+            targetFile = "inbox.org",
+            location = TargetLocation.UnderHeading(customId = "capture-inbox"),
+        )
+
+        vm.save(template, "* Filed under the custom id", context)
+        advanceUntilIdle()
+
+        assertEquals(SaveState.Saved, vm.saveState.value)
+        val text = store.read("inbox.org")
+        // "Captured" is a level-1 heading, so the entry lands one level deeper.
+        assertTrue(text.contains("** Filed under the custom id"))
+        assertTrue(
+            "entry must sit inside the Captured subtree",
+            text.indexOf("Filed under the custom id") > text.indexOf(":CUSTOM_ID: capture-inbox"),
+        )
+    }
+
+    @Test
+    fun `save under a heading found by exact title inserts it as that heading's child`() = runTest {
+        val vm = capture()
+        val template = quickNote.copy(
+            targetFile = "inbox.org",
+            location = TargetLocation.UnderHeading(title = "Captured"),
+        )
+
+        vm.save(template, "* Filed by title", context)
+        advanceUntilIdle()
+
+        assertEquals(SaveState.Saved, vm.saveState.value)
+        assertTrue(store.read("inbox.org").contains("** Filed by title"))
+    }
+
+    @Test
+    fun `a second autosave replaces the first draft in place rather than duplicating it`() = runTest {
+        val vm = capture()
+
+        vm.autosave(quickNote, "* Draft one", context)
+        advanceUntilIdle()
+        vm.autosave(quickNote, "* Draft two", context)
+        advanceUntilIdle()
+
+        val text = store.read("inbox.org")
+        assertTrue(text.contains("Draft two"))
+        assertFalse("the first draft must have been stripped", text.contains("Draft one"))
+
+        // The final explicit Save replaces the standing draft the same way.
+        vm.save(quickNote, "* Final entry", context)
+        advanceUntilIdle()
+        val saved = store.read("inbox.org")
+        assertTrue(saved.contains("Final entry"))
+        assertFalse(saved.contains("Draft two"))
+    }
+
+    @Test
+    fun `discardDraft removes the autosaved entry and requests a sync`() = runTest {
+        val vm = capture()
+
+        vm.autosave(quickNote, "* Abandoned draft", context)
+        advanceUntilIdle()
+        assertTrue(store.read("inbox.org").contains("Abandoned draft"))
+
+        vm.discardDraft(quickNote)
+        advanceUntilIdle()
+
+        assertFalse(store.read("inbox.org").contains("Abandoned draft"))
+        assertTrue(sync.syncRequests.contains("capture discarded"))
     }
 }

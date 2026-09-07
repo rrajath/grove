@@ -42,8 +42,14 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
-/** Composition root for app-wide singletons (manual DI; the app is small). */
-class GroveApplication : Application() {
+/**
+ * Composition root for app-wide singletons (manual DI; the app is small).
+ *
+ * `open` only so a Robolectric unit test can subclass it with a no-op
+ * [onCreate] (`testing.TestGroveApplication`); production has exactly one
+ * instance, created by the framework.
+ */
+open class GroveApplication : Application() {
 
     val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 

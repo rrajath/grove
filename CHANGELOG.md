@@ -60,6 +60,11 @@ re-uploads the APKs to the existing release instead of failing.
 ## [Unreleased]
 
 ### Fixed
+- Capture: saving a note while no sync folder is configured used to briefly
+  report success and fire a spurious sync request; it now fails cleanly with
+  "No sync folder configured" and touches nothing. Only reachable through code
+  paths (a share-sheet capture on a fresh install); no user-visible change in
+  normal use.
 - Maestro E2E flows (M5) used a `timeout:` property on `assertVisible` /
   `assertNotVisible`, which Maestro rejects with "Unknown property: timeout".
   The waits are now `extendedWaitUntil` with `visible:` / `notVisible:` blocks.
@@ -100,6 +105,18 @@ re-uploads the APKs to the existing release instead of failing.
   `MainDispatcherRule`, and a `TestVaultSeeder.index` helper. No app behavior
   change. Remaining VMs (App, Notebooks, Conflict/SyncLog) and the sync
   round-trip test are a follow-up.
+- Test-suite milestone M3, second tranche: ~34 more Robolectric integration
+  tests. Editor (scoped INTRO / FILE_PROPERTIES / HEADING_LOGBOOK regions,
+  `changeKeyword` to a done state, external-rewrite counter, `deleteSubtree`,
+  metadata mutations), Capture (the no-sync-folder failure above, insert under a
+  heading by `CUSTOM_ID` and by title, autosave-replaces-in-place, discard
+  draft), Search (debounce timing, facet narrowing, `applyQuickQuery`, `setState`
+  write-back), Agenda (Today / Upcoming buckets, `loadMoreDays`,
+  `moveOverdueToToday`, `setPlanningDates`, undo), and a new `AppViewModel`
+  class plus a `SyncManagerRoundTripTest` covering the wired
+  `SyncManager.requestSync` path (disk → index, deletion → rows removed,
+  unchanged revision → no-op, `clearAndResync` rebuild). `GroveApplication` is
+  now `open` so a Robolectric test can subclass it with a no-op `onCreate`.
 - Test-suite milestone M4, first tranche: `androidTest/` Compose UI tests for
   the Search, Notebooks, Outline, and Edit-note screens — each hosted directly
   under `GroveTheme` with a fake-wired ViewModel and asserted through the

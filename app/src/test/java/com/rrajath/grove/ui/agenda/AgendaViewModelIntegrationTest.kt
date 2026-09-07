@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.test.core.app.ApplicationProvider
 import com.rrajath.grove.data.GroveDatabase
 import com.rrajath.grove.org.OrgKeywords
+import com.rrajath.grove.org.OrgTimestamp
 import com.rrajath.grove.settings.SettingsRepository
 import com.rrajath.grove.testing.FakeFileStore
 import com.rrajath.grove.testing.FakeSyncTrigger
@@ -17,6 +18,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -42,13 +45,38 @@ class AgendaViewModelIntegrationTest {
 
     // A note scheduled yesterday is always overdue, whatever day the test runs.
     private val yesterday = LocalDate.now().minusDays(1)
+
+    private fun orgDate(d: LocalDate): String =
+        "<$d ${d.dayOfWeek.name.take(3).lowercase().replaceFirstChar { it.uppercase() }}>"
+
     private val vaultText = """
         #+TITLE: Agenda fixture
 
         * TODO Renew the domain
-        SCHEDULED: <${yesterday} ${yesterday.dayOfWeek.name.take(3).lowercase().replaceFirstChar { it.uppercase() }}>
+        SCHEDULED: ${orgDate(yesterday)}
         * TODO Undated idea
     """.trimIndent() + "\n"
+
+    private val today = LocalDate.now()
+    private val inThreeDays = today.plusDays(3)
+    private val inTwentyDays = today.plusDays(20) // outside the 14-day initial window, inside one page-out
+
+    private val bucketsVault = """
+        #+TITLE: Buckets
+
+        * TODO Water the plants
+        SCHEDULED: ${orgDate(today)}
+        * TODO Quarterly review
+        SCHEDULED: ${orgDate(inThreeDays)}
+        * TODO Renew the passport
+        SCHEDULED: ${orgDate(inTwentyDays)}
+    """.trimIndent() + "\n"
+
+    /** Line index of the first headline whose title starts with [prefix], in [store]'s [file]. */
+    private suspend fun headlineLine(file: String, prefix: String): Int {
+        val doc = com.rrajath.grove.org.OrgParser.parse(store.read(file))
+        return doc.headlines.first { it.title.startsWith(prefix) }.lineIndex
+    }
 
     private val store = FakeFileStore(mapOf("agenda.org" to vaultText))
     private val vaultFlow = MutableStateFlow<Vault?>(Vault(store))
@@ -107,5 +135,108 @@ class AgendaViewModelIntegrationTest {
         assertTrue("file should carry a DONE keyword now:\n$updated",
             updated.contains("* DONE Renew the domain") || updated.contains("DONE Renew the domain"))
         assertTrue(sync.syncRequests.isNotEmpty())
+    }
+
+    @Test
+    fun `a note scheduled today lands in the Today tab`() = runTest {
+        store.write("buckets.org", bucketsVault)
+        TestVaultSeeder.index(db, store)
+        advanceUntilIdle()
+        val vm = agenda()
+        advanceUntilIdle()
+
+        val todayTitles = vm.state.value.groups.flatMap { it.rows }.map { it.title }
+        assertTrue("expected 'Water the plants' in Today, was $todayTitles",
+            todayTitles.contains("Water the plants"))
+        assertTrue(vm.state.value.todayCount >= 1)
+        assertFalse("a future note must not be in Today", todayTitles.contains("Quarterly review"))
+    }
+
+    @Test
+    fun `a note scheduled within the window lands in the Upcoming tab`() = runTest {
+        store.write("buckets.org", bucketsVault)
+        TestVaultSeeder.index(db, store)
+        advanceUntilIdle()
+        val vm = agenda()
+        advanceUntilIdle()
+
+        vm.setTab(AgendaTab.UPCOMING)
+        advanceUntilIdle()
+
+        val upcomingTitles = vm.state.value.groups.flatMap { it.rows }.map { it.title }
+        assertTrue("expected 'Quarterly review' in Upcoming, was $upcomingTitles",
+            upcomingTitles.contains("Quarterly review"))
+        assertFalse("a note 30 days out is beyond the initial window",
+            upcomingTitles.contains("Renew the passport"))
+    }
+
+    @Test
+    fun `loadMoreDays grows the window to reach a further-out note`() = runTest {
+        store.write("buckets.org", bucketsVault)
+        TestVaultSeeder.index(db, store)
+        advanceUntilIdle()
+        val vm = agenda()
+        advanceUntilIdle()
+        vm.setTab(AgendaTab.UPCOMING)
+        advanceUntilIdle()
+
+        vm.loadMoreDays()
+        advanceUntilIdle()
+
+        val upcomingTitles = vm.state.value.groups.flatMap { it.rows }.map { it.title }
+        assertTrue("expected 'Renew the passport' after paging, was $upcomingTitles",
+            upcomingTitles.contains("Renew the passport"))
+    }
+
+    @Test
+    fun `moveOverdueToToday rewrites the overdue SCHEDULED date and requests a sync`() = runTest {
+        TestVaultSeeder.index(db, store)
+        advanceUntilIdle()
+        val vm = agenda()
+        advanceUntilIdle()
+        assertTrue(vm.state.value.overdue.any { it.title == "Renew the domain" })
+
+        vm.moveOverdueToToday()
+        advanceUntilIdle()
+
+        val text = store.read("agenda.org")
+        assertTrue("SCHEDULED should now be today ($today):\n$text", text.contains("SCHEDULED: <$today"))
+        assertFalse("the old date should be gone", text.contains(yesterday.toString()))
+        assertTrue(sync.syncRequests.contains("agenda move overdue"))
+    }
+
+    @Test
+    fun `setPlanningDates writes the new SCHEDULED date to the file and requests a sync`() = runTest {
+        TestVaultSeeder.index(db, store)
+        advanceUntilIdle()
+        val vm = agenda()
+        advanceUntilIdle()
+
+        val line = headlineLine("agenda.org", "Renew the domain")
+        vm.setPlanningDates("agenda.org", line, OrgTimestamp(inThreeDays), null)
+        advanceUntilIdle()
+
+        assertTrue(store.read("agenda.org").contains("SCHEDULED: <$inThreeDays"))
+        assertTrue(sync.syncRequests.contains("agenda planning edit"))
+    }
+
+    @Test
+    fun `undo after markDone restores the file to its pre-mutation text`() = runTest {
+        TestVaultSeeder.index(db, store)
+        advanceUntilIdle()
+        val vm = agenda()
+        advanceUntilIdle()
+        val before = store.read("agenda.org")
+
+        val row = vm.state.value.overdue.single { it.title == "Renew the domain" }
+        vm.markDone(row.fileName, row.lineIndex)
+        advanceUntilIdle()
+        assertFalse(store.read("agenda.org") == before)
+
+        vm.undo()
+        advanceUntilIdle()
+
+        assertEquals(before, store.read("agenda.org"))
+        assertTrue(sync.syncRequests.contains("agenda undo"))
     }
 }

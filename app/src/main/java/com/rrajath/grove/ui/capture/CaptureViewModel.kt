@@ -134,9 +134,12 @@ class CaptureViewModel(
 
     private suspend fun upsertEntry(template: CaptureTemplate, entryText: String, context: CaptureContext) {
         val currentSettings = settings.settings.first()
+        // Throw rather than set state + return: the caller ([save]) continues
+        // running after this returns, and would otherwise overwrite the failure
+        // with SaveState.Saved and fire a spurious sync. [save]'s catch turns
+        // this back into SaveState.Failed; [autosave] swallows it.
         if (currentSettings.vaultTreeUri == null) {
-            _saveState.value = SaveState.Failed("No sync folder configured")
-            return
+            error("No sync folder configured")
         }
         // On a cold start (e.g. launched via app shortcut) the vault may
         // still be initializing even though a folder is configured; await it.
