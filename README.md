@@ -18,8 +18,8 @@ Grove edits plain `.org` files in a folder you choose. There is no account, no p
 ## Highlights
 
 - **File-first**: `.org` files in a synced folder are the sole source of truth. Grove's internal database is only a rebuildable search index.
-- **Lossless org engine**: a custom parser models documents as a thin view over the raw text. Parse → serialize is byte-identical by construction, so Grove never reformats a file it didn't deliberately edit.
-- **Zero-friction capture**: org-capture style templates with `%U`, `%^{prompt}`, `%cursor`-style placeholders; targets include top/bottom of file, under a heading (by name or `CUSTOM_ID`), and year/month/day datetrees. Reachable from a home-screen widget, the share sheet, an optional persistent notification, and `grove://capture` deep links.
+- **Non-destructive org engine**: a custom parser models documents as a thin view over the raw text. Parse → serialize is byte-identical by construction, so Grove never reformats a file it didn't deliberately edit.
+- **Zero-friction capture**: org-capture style templates with `%U`, `%^{prompt}`, `%cursor`-style placeholders; targets include top/bottom of file, under a heading (by name or `CUSTOM_ID` of heading), and year/month/day datetrees. Reachable from a home-screen widget, the share sheet, an optional persistent notification, and `grove://capture` deep links.
 - **Home-screen widgets**: a one-tap Capture widget, and an Agenda ledger widget (overdue + day-grouped upcoming tasks, mark-done and a small quick-add composer right from the home screen — no need to open the app).
 - **Real editor**: raw org subtree editing with syntax highlighting, a formatting toolbar (the link button inserts a URL link on tap, or long-press to link to any file or heading in the vault, by name or by `ID`/`CUSTOM_ID`), list continuation on Enter, a metadata sheet (TODO state, priority, tags with autocomplete, SCHEDULED/DEADLINE), repeater advancement on DONE, and autosave with a stale-file guard (switchable off in Settings › Notes, in which case read mode renders your unsaved buffer until you save).
 - **One canvas for both dates**: scheduling opens a full-screen editor that puts SCHEDULED and DEADLINE on the same calendar (with the lead time between them shaded and a warning if you'd start already late), and commits both in one edit. Each carries presets, a time range and an org repeater, and a shorthand box parses lines like `fri 10-11am ++1w` or `d: aug 5` as you type.
@@ -62,10 +62,10 @@ Grove edits plain `.org` files in a folder you choose. There is no account, no p
 
 ## Roadmap
 Following is the list of features/enhancements I'm planning to make to this app:
-- [ ] Clickable org links
 - [ ] Image support
 - [ ] Nested search expressions
 - [ ] WebDAV support
+- [x] Clickable org links
 - [x] Tips & Tricks page
 
 ## Project layout
