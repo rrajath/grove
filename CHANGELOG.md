@@ -59,6 +59,8 @@ re-uploads the APKs to the existing release instead of failing.
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-09-07
+
 ### Added
 - Debug builds: Settings › Developer has a **Drill-down file count** field that
   overrides the folder drill-down threshold (default 20) for the session, so the
