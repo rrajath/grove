@@ -59,6 +59,17 @@ re-uploads the APKs to the existing release instead of failing.
 
 ## [Unreleased]
 
+### Fixed
+- CI: `OnboardingScreenTest.tappingChooseFolderOpensThePickerWithoutFiringCallbacks`
+  left the real SAF picker activity open; torn down while the next test's
+  process was forking, it got that process SIGKILLed by ActivityManager, which
+  surfaced as a bogus "Test instrumentation process crashed" on
+  `OutlineScreenTest` (API 35 only, by luck of ordering). The test now dismisses
+  the picker, with an `@After` safety net.
+- CI: the `ui-tests` job's logcat/tombstone capture is now a single compound
+  `script:` command — `reactivecircus/android-emulator-runner` runs each line
+  separately, so the earlier multi-line form failed before any test ran.
+
 ## [1.5.0] - 2026-09-08
 
 ### Fixed
