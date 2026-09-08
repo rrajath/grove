@@ -59,6 +59,11 @@ re-uploads the APKs to the existing release instead of failing.
 
 ## [Unreleased]
 
+- Fixed: the CI `macrobenchmark` job failed every run with "ERRORS (not
+  suppressed): EMULATOR" because `androidx.benchmark` refuses to run on an
+  emulator. The job now passes `androidx.benchmark.suppressErrors=EMULATOR`
+  so it works as the intended smoke test. No release impact.
+
 ## [1.5.0] - 2026-09-08
 
 - Fixed: capturing a note in the debug/benchmark direct-directory test vault

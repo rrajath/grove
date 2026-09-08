@@ -505,9 +505,16 @@ jobs:
           arch: x86_64
           profile: pixel_6
           disable-animations: true
+          # androidx.benchmark aborts every test with "ERRORS (not suppressed):
+          # EMULATOR" unless told to allow it — emulator numbers are noise. This
+          # job is only a smoke test that the benchmarks and profile generator
+          # still run (see the job comment above), so suppress the guard here
+          # rather than in macrobenchmark/build.gradle.kts, keeping local
+          # device runs strict.
           script: >-
             ./gradlew :app:generateBaselineProfile
             :macrobenchmark:connectedBenchmarkReleaseAndroidTest
+            -Pandroid.testInstrumentationRunnerArguments.androidx.benchmark.suppressErrors=EMULATOR
 
       - name: Upload benchmark results
         if: always()
