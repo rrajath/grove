@@ -1,17 +1,24 @@
 package com.rrajath.grove.ui.screens
 
+import android.app.Activity
+import android.app.Instrumentation.ActivityResult
+import android.content.Intent
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
-import androidx.test.espresso.Espresso
+import androidx.test.espresso.intent.Intents
+import androidx.test.espresso.intent.Intents.intended
+import androidx.test.espresso.intent.matcher.IntentMatchers.hasAction
+import androidx.test.espresso.intent.matcher.IntentMatchers.anyIntent
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.rrajath.grove.ui.support.setGroveContent
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -28,12 +35,11 @@ import org.junit.runner.RunWith
  * default CI emulator AVD) the actions sit below the fold — every action node
  * is reached with `performScrollTo()` before being asserted or clicked.
  *
- * [tappingChooseFolderOpensThePickerWithoutFiringCallbacks] launches the real
- * SAF `OpenDocumentTree` activity (DocumentsUI). It MUST be dismissed before
- * the test process exits: an orphaned picker task, torn down while the next
+ * Espresso-Intents stubs every outgoing intent so the real SAF `OpenDocumentTree`
+ * activity (DocumentsUI) never launches. That keeps the host activity RESUMED
+ * for the whole test: a real cross-process picker, torn down while the next
  * test's process is forking, gets that process SIGKILLed by ActivityManager
- * ("remove task") — which surfaces as a "Test instrumentation process crashed"
- * on whatever test ran next. [tearDown] is the safety net.
+ * ("remove task") and surfaces as a spurious crash on CI's slow emulator.
  */
 @RunWith(AndroidJUnit4::class)
 class OnboardingScreenTest {
@@ -41,12 +47,17 @@ class OnboardingScreenTest {
     @get:Rule
     val composeRule = createAndroidComposeRule<ComponentActivity>()
 
+    @Before
+    fun setUp() {
+        Intents.init()
+        // Swallow every intent this screen might fire; nothing real launches.
+        Intents.intending(anyIntent())
+            .respondWith(ActivityResult(Activity.RESULT_CANCELED, null))
+    }
+
     @After
     fun tearDown() {
-        // Close anything this test stacked on top of the host activity (the SAF
-        // picker); harmless when there's nothing to dismiss.
-        runCatching { Espresso.pressBackUnconditionally() }
-        runCatching { composeRule.waitForIdle() }
+        Intents.release()
     }
 
     private fun content(
@@ -87,12 +98,10 @@ class OnboardingScreenTest {
         composeRule.onNodeWithText("Choose a local folder").performScrollTo().performClick()
         composeRule.waitForIdle()
 
-        // The launcher opens; neither callback fires until a folder URI comes back.
+        // The CTA fires the SAF folder-picker intent...
+        intended(hasAction(Intent.ACTION_OPEN_DOCUMENT_TREE))
+        // ...but the stubbed RESULT_CANCELED means neither callback runs.
         assertEquals(false, done)
         assertNull(picked)
-
-        // Dismiss the SAF picker now so it can't outlive this test process.
-        Espresso.pressBackUnconditionally()
-        composeRule.waitForIdle()
     }
 }

@@ -59,6 +59,16 @@ re-uploads the APKs to the existing release instead of failing.
 
 ## [Unreleased]
 
+### Fixed
+- CI: `OnboardingScreenTest.tappingChooseFolderOpensThePickerWithoutFiringCallbacks`
+  launched the real SAF picker (DocumentsUI) cross-process. On CI's slow emulator
+  the host activity never came back to RESUMED, so the test failed with
+  `NoActivityResumedException` (and dismiss/back-press didn't reliably recover it).
+  It now stubs the intent with Espresso-Intents (`espresso-intents` added as an
+  `androidTestImplementation` dep) so DocumentsUI never launches; the test asserts
+  the CTA fires `ACTION_OPEN_DOCUMENT_TREE` and that a canceled result fires
+  neither callback.
+
 ## [1.5.0] - 2026-09-08
 
 ### Fixed
