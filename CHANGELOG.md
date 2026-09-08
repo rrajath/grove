@@ -59,6 +59,8 @@ re-uploads the APKs to the existing release instead of failing.
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-09-08
+
 ### Fixed
 - CI: `OnboardingScreenTest.tappingChooseFolderOpensThePickerWithoutFiringCallbacks`
   left the real SAF picker activity open; torn down while the next test's
