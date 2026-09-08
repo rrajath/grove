@@ -13,6 +13,7 @@ import com.rrajath.grove.capture.TemplatesRepository
 import com.rrajath.grove.data.GroveDatabase
 import com.rrajath.grove.settings.SettingsSource
 import com.rrajath.grove.sync.SyncTrigger
+import com.rrajath.grove.vault.TestVaultHook
 import com.rrajath.grove.vault.Vault
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -138,7 +139,12 @@ class CaptureViewModel(
         // running after this returns, and would otherwise overwrite the failure
         // with SaveState.Saved and fire a spurious sync. [save]'s catch turns
         // this back into SaveState.Failed; [autosave] swallows it.
-        if (currentSettings.vaultTreeUri == null) {
+        //
+        // TestVaultHook.root is the debug/benchmark direct-directory vault
+        // (Maestro, :macrobenchmark): it feeds GroveApplication.fileStore
+        // without ever writing vaultTreeUri, so treat it as a configured vault
+        // here too. Always null in release (R8 strips the path).
+        if (currentSettings.vaultTreeUri == null && TestVaultHook.root.value == null) {
             error("No sync folder configured")
         }
         // On a cold start (e.g. launched via app shortcut) the vault may

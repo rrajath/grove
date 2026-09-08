@@ -59,6 +59,11 @@ re-uploads the APKs to the existing release instead of failing.
 
 ## [Unreleased]
 
+- Fixed: capturing a note in the debug/benchmark direct-directory test vault
+  (Maestro, `:macrobenchmark`) failed with "No sync folder configured" because
+  that vault feeds `fileStore` without setting `vaultTreeUri`. `CaptureViewModel`
+  now also accepts `TestVaultHook.root` as a configured vault. No release impact.
+
 ## [1.5.0] - 2026-09-08
 
 ### Fixed
