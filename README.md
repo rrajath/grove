@@ -62,6 +62,8 @@ Grove edits plain `.org` files in a folder you choose. There is no account, no p
 
 ## Roadmap
 Following is the list of features/enhancements I'm planning to make to this app:
+- [ ] Bare active timestamps
+- [ ] Multi-day events
 - [ ] Image support
 - [ ] Nested search expressions
 - [ ] WebDAV support
