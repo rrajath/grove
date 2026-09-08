@@ -60,6 +60,10 @@ re-uploads the APKs to the existing release instead of failing.
 ## [Unreleased]
 
 ### Fixed
+- Read mode: checkbox/bullet markers in a list sat slightly below the center
+  of their item text. The marker box is now sized to the exact first-line box
+  and the item text uses a centered, untrimmed line height, so the glyph and
+  the first line of text line up.
 - Capture: saving a note while no sync folder is configured used to briefly
   report success and fire a spurious sync request; it now fails cleanly with
   "No sync folder configured" and touches nothing. Only reachable through code

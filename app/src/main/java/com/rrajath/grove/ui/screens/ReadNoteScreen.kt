@@ -76,6 +76,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
@@ -1135,15 +1136,19 @@ private fun BodyBlocks(
                             Modifier.padding(vertical = 2.dp).padding(start = (item.indent * 20).dp),
                             verticalAlignment = Alignment.Top,
                         ) {
-                            // Sized to the first line's height (16sp * 1.55 line-height
-                            // below) so the glyph centers against just that line, not
-                            // the full (possibly multi-line) height of the item text.
-                            // Bullets/checkboxes are drawn on a Canvas rather than as
-                            // Unicode glyphs: PlexSerif has no •/☐/☑/◧ glyphs, so those
-                            // fall back to a different font whose vertical metrics don't
-                            // match PlexSerif's, throwing off the centering above.
+                            // Sized to the first line's box (16sp * 1.55 line-height
+                            // below = 24.8sp ≈ 25dp) so the glyph centers against just
+                            // that line, not the full (possibly multi-line) height of
+                            // the item text. Requires the text's LineHeightStyle to be
+                            // Center + Trim.None (set below) so the first line really is
+                            // 24.8sp tall with the glyph centered in it — otherwise the
+                            // default trim collapses the first line and the marker sits
+                            // low. Bullets/checkboxes are drawn on a Canvas rather than
+                            // as Unicode glyphs: PlexSerif has no •/☐/☑/◧ glyphs, so
+                            // those fall back to a different font whose vertical metrics
+                            // don't match PlexSerif's, throwing off the centering above.
                             Box(
-                                Modifier.width(20.dp).heightIn(min = 25.dp),
+                                Modifier.width(20.dp).height(25.dp),
                                 contentAlignment = Alignment.Center,
                             ) {
                                 val markColor = if (done) c.ink3 else c.ink2
@@ -1215,6 +1220,10 @@ private fun BodyBlocks(
                                 style = TextStyle(
                                     fontFamily = PlexSerif, fontSize = 16.sp,
                                     lineHeight = 1.55.em, color = if (done) c.ink3 else c.ink,
+                                    lineHeightStyle = LineHeightStyle(
+                                        alignment = LineHeightStyle.Alignment.Center,
+                                        trim = LineHeightStyle.Trim.None,
+                                    ),
                                 ),
                             )
                         }
