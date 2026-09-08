@@ -365,16 +365,38 @@ jobs:
           api-level: ${{ matrix.api-level }}
           arch: x86_64
           disable-animations: true
-          script: >-
-            ./gradlew :app:connectedDebugAndroidTest
-            -Pandroid.testInstrumentationRunnerArguments.package=com.rrajath.grove.ui
+          # logcat is streamed to a file for the whole run and the gradle exit
+          # status is preserved, so a "Test instrumentation process crashed"
+          # (which leaves no stack in the HTML report) can be diagnosed from the
+          # uploaded logcat / tombstones instead of only from a green-or-red bit.
+          script: |
+            adb logcat -c || true
+            adb logcat > "${{ runner.temp }}/logcat-api${{ matrix.api-level }}.txt" 2>&1 &
+            LOGCAT_PID=$!
+            set +e
+            ./gradlew :app:connectedDebugAndroidTest \
+              -Pandroid.testInstrumentationRunnerArguments.package=com.rrajath.grove.ui
+            STATUS=$?
+            set -e
+            kill "$LOGCAT_PID" 2>/dev/null || true
+            adb root 2>/dev/null || true
+            adb pull /data/tombstones "${{ runner.temp }}/tombstones-api${{ matrix.api-level }}" 2>/dev/null || true
+            exit $STATUS
 
       - name: Upload UI test report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: ui-test-report-api${{ matrix.api-level }}
-          path: app/build/reports/androidTests/connected/**
+          # reports/ is the HTML; outputs/androidTest-results/ holds the raw
+          # per-test .txt / logcat / protobuf UTP writes (where a process-crash
+          # note actually lands); the logcat and tombstones are the run-wide
+          # capture from the step above.
+          path: |
+            app/build/reports/androidTests/connected/**
+            app/build/outputs/androidTest-results/connected/**
+            ${{ runner.temp }}/logcat-api${{ matrix.api-level }}.txt
+            ${{ runner.temp }}/tombstones-api${{ matrix.api-level }}/**
           if-no-files-found: warn
 
   # Layer-3 Maestro end-to-end journeys (internal/test-suite-03-e2e-maestro.md).

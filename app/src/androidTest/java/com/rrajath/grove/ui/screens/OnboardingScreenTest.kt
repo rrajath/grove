@@ -5,6 +5,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.rrajath.grove.ui.support.setGroveContent
 import org.junit.Assert.assertEquals
@@ -40,8 +41,10 @@ class OnboardingScreenTest {
     fun rendersTheBrandCopyAndBothActions() {
         content()
         composeRule.onNodeWithText("Your org-mode notes, at home on your phone.").assertIsDisplayed()
-        composeRule.onNodeWithText("Choose a local folder").assertIsDisplayed()
-        composeRule.onNodeWithText("I'll set this up later").assertIsDisplayed()
+        // The screen is a single verticalScroll Column; on a short viewport the
+        // actions sit below the fold, so scroll each into view first.
+        composeRule.onNodeWithText("Choose a local folder").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("I'll set this up later").performScrollTo().assertIsDisplayed()
     }
 
     @Test
@@ -50,7 +53,7 @@ class OnboardingScreenTest {
         var picked: String? = null
         content(onDone = { done = true }, onFolderPicked = { picked = it })
 
-        composeRule.onNodeWithText("I'll set this up later").performClick()
+        composeRule.onNodeWithText("I'll set this up later").performScrollTo().performClick()
 
         composeRule.waitUntil(timeoutMillis = 3_000) { done }
         assertNull("folder was not picked", picked)
@@ -62,7 +65,7 @@ class OnboardingScreenTest {
         var picked: String? = null
         content(onDone = { done = true }, onFolderPicked = { picked = it })
 
-        composeRule.onNodeWithText("Choose a local folder").performClick()
+        composeRule.onNodeWithText("Choose a local folder").performScrollTo().performClick()
         composeRule.waitForIdle()
 
         // The launcher opens; neither callback fires until a folder URI comes back.

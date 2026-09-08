@@ -60,6 +60,11 @@ re-uploads the APKs to the existing release instead of failing.
 ## [Unreleased]
 
 ### Fixed
+- CI: the nightly Compose UI test job flaked on the short default emulator AVD.
+  `OnboardingScreenTest` now scrolls its action buttons into view before
+  asserting/clicking them (the screen is one scroll container), and the
+  `ui-tests` job streams logcat and pulls native tombstones so a "test
+  instrumentation process crashed" can actually be diagnosed from the artifact.
 - Read mode: checkbox/bullet markers in a list sat slightly below the center
   of their item text. The marker box is now sized to the exact first-line box
   and the item text uses a centered, untrimmed line height, so the glyph and
