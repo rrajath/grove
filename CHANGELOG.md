@@ -59,6 +59,13 @@ re-uploads the APKs to the existing release instead of failing.
 
 ## [Unreleased]
 
+### Fixed
+- CI: the `ui-tests` job failed with "exit code null" even when every test
+  passed. Its cleanup step ran `pkill -f "adb logcat"`, whose pattern also
+  matched the `sh -c` command line running the script (it contains the string
+  "adb logcat"), so pkill signal-killed its own shell before the exit-status
+  line. It now records the logcat PID and kills that.
+
 ## [1.5.0] - 2026-09-08
 
 ### Fixed

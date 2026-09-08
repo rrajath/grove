@@ -371,13 +371,19 @@ jobs:
           # preserved, so a "Test instrumentation process crashed" (which leaves
           # no stack in the HTML report) can be diagnosed from the uploaded
           # logcat / tombstones instead of only from a green-or-red bit.
+          # The logcat process is killed by PID, not `pkill -f "adb logcat"` --
+          # that pattern also matches this very `sh -c` command line (it contains
+          # the string "adb logcat"), so pkill would signal-kill its own parent
+          # shell before `exit $STATUS` and the step would die with "exit code
+          # null" even on a fully green run.
           script: >-
             adb logcat -c || true;
-            (adb logcat > "$RUNNER_TEMP/logcat-api${{ matrix.api-level }}.txt" 2>&1 &);
+            adb logcat > "$RUNNER_TEMP/logcat-api${{ matrix.api-level }}.txt" 2>&1 &
+            LOGCAT_PID=$!;
             ./gradlew :app:connectedDebugAndroidTest
             -Pandroid.testInstrumentationRunnerArguments.package=com.rrajath.grove.ui;
             STATUS=$?;
-            pkill -f "adb logcat" || true;
+            kill "$LOGCAT_PID" 2>/dev/null || true;
             adb pull /data/tombstones "$RUNNER_TEMP/tombstones-api${{ matrix.api-level }}" 2>/dev/null || true;
             exit $STATUS
 
