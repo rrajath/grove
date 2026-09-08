@@ -59,6 +59,8 @@ re-uploads the APKs to the existing release instead of failing.
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-09-08
+
 ### Fixed
 - CI: the nightly Compose UI test job flaked on the short default emulator AVD.
   `OnboardingScreenTest` now scrolls its action buttons into view before
