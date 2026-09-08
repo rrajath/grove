@@ -59,6 +59,8 @@ re-uploads the APKs to the existing release instead of failing.
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-09-08
+
 ### Fixed
 - CI: `OnboardingScreenTest.tappingChooseFolderOpensThePickerWithoutFiringCallbacks`
   launched the real SAF picker (DocumentsUI) cross-process. On CI's slow emulator
