@@ -1,6 +1,7 @@
 package com.rrajath.grove.settings
 
 import kotlinx.serialization.EncodeDefault
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
@@ -32,6 +33,7 @@ object SettingsSerialization {
         json.decodeFromString(SettingsExport.serializer(), text).applyTo(base)
 }
 
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
 data class SettingsExport(
     val version: Int = CURRENT_VERSION,

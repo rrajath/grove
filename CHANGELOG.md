@@ -65,6 +65,10 @@ re-uploads the APKs to the existing release instead of failing.
   suppressed): EMULATOR" because `androidx.benchmark` refuses to run on an
   emulator. The job now passes `androidx.benchmark.suppressErrors=EMULATOR`
   so it works as the intended smoke test. No release impact.
+- Internal: cleared Kotlin compiler warnings in test and settings code. The
+  Compose UI tests now use the `createComposeRule` / `createAndroidComposeRule`
+  v2 factories, and `SettingsExport` opts in to the experimental
+  `@EncodeDefault` serialization annotation explicitly. No release impact.
 
 ## [1.5.0] - 2026-09-08
 
