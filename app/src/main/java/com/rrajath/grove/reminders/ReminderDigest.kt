@@ -39,12 +39,12 @@ object ReminderDigest {
                 scheduled ?: deadline
             }
 
-        // Every overdue anchor plus every anchor due today, regardless of
-        // whether it carries a specific time-of-day (see [ReminderEntity.hasExplicitTime]).
-        // A timed anchor due today is counted here *and* still fires its own
-        // "due now" notification later at its time (ReminderAlarmReceiver) -
-        // that's intentional, not a double-count bug, so this total always
-        // matches what the Agenda screen shows for today.
+        // Every overdue anchor plus every anchor due today, regardless of whether
+        // it fires its own notification (see [ReminderEntity.firesOwnNotification]).
+        // An anchor due today that also pings individually is counted here *and*
+        // fires its own notification later (ReminderAlarmReceiver) - that's
+        // intentional, not a double-count bug, so this total always matches what
+        // the Agenda screen shows for today.
         val planningCount = anchors.count { !dateOf(it).isAfter(today) }
 
         // Active timestamps are events on their exact date, never overdue

@@ -16,13 +16,12 @@ object ReminderPlanning {
 
     /**
      * The trigger instant for [ts]: its own time-of-day if it has one, else
-     * [defaultReminderTime] on its date (Settings › Reminders › "Default
-     * reminder time", for date-only SCHEDULED/DEADLINE stamps). [leadTime]
-     * pulls that instant earlier (Settings › Reminders › "Notify me"), but
-     * only when [ts] carries its own time-of-day: date-only stamps don't fire
-     * an individual notification at all (they bundle into the daily digest),
-     * so shifting their trigger would only misplace which day's digest they
-     * land in for no benefit.
+     * [defaultReminderTime] on its date (Settings › Reminders › "Send reminder
+     * at", for date-only stamps). [leadTime] pulls that instant earlier
+     * (Settings › Reminders › "Notify me"), but only when [ts] carries its own
+     * time-of-day: a date-only stamp fires at [defaultReminderTime] exactly (or
+     * just feeds the digest), so shifting its trigger would only misplace which
+     * day it lands on for no benefit.
      */
     fun triggerAtMillis(
         ts: OrgTimestamp,
@@ -43,6 +42,10 @@ object ReminderPlanning {
      * (`<a>--<b>`) gets a single reminder on its start date. Returns an empty
      * list when reminders are disabled, so callers can feed this straight into
      * [ReminderDiff] to cancel everything that previously existed for the file.
+     *
+     * [notifyUntimed] mirrors Settings › Reminders › "Notify for tasks without a
+     * time": when on, a date-only timestamp fires its own notification (at
+     * [defaultReminderTime] on its date) instead of only feeding the digest.
      */
     fun desiredReminders(
         fileName: String,
@@ -50,6 +53,7 @@ object ReminderPlanning {
         defaultReminderTime: LocalTime,
         remindersEnabled: Boolean,
         leadTime: ReminderLeadTime = ReminderLeadTime.AT_TIME,
+        notifyUntimed: Boolean = false,
         zone: ZoneId = ZoneId.systemDefault(),
     ): List<ReminderEntity> {
         if (!remindersEnabled) return emptyList()
@@ -58,16 +62,16 @@ object ReminderPlanning {
             if (h.keyword != null && doc.keywords.isDone(h.keyword)) return@forEach
             val path = ReminderKeys.headingPath(doc, h)
             h.planning.scheduled?.let { ts ->
-                result.add(entity(fileName, path, h.title, h.level, PlanningType.SCHEDULED, ts, defaultReminderTime, leadTime, zone))
+                result.add(entity(fileName, path, h.title, h.level, PlanningType.SCHEDULED, ts, defaultReminderTime, leadTime, notifyUntimed, zone))
             }
             h.planning.deadline?.let { ts ->
-                result.add(entity(fileName, path, h.title, h.level, PlanningType.DEADLINE, ts, defaultReminderTime, leadTime, zone))
+                result.add(entity(fileName, path, h.title, h.level, PlanningType.DEADLINE, ts, defaultReminderTime, leadTime, notifyUntimed, zone))
             }
             h.activeTimestamps.forEach { ts ->
                 result.add(
                     entity(
                         fileName, path, h.title, h.level, PlanningType.ACTIVE, ts,
-                        defaultReminderTime, leadTime, zone, discriminator = ts.date.toString(),
+                        defaultReminderTime, leadTime, notifyUntimed, zone, discriminator = ts.date.toString(),
                     )
                 )
             }
@@ -84,11 +88,12 @@ object ReminderPlanning {
         ts: OrgTimestamp,
         defaultReminderTime: LocalTime,
         leadTime: ReminderLeadTime,
+        notifyUntimed: Boolean,
         zone: ZoneId,
         discriminator: String? = null,
     ): ReminderEntity {
         val key = ReminderKeys.reminderKey(fileName, headingPath, level, type, discriminator)
-        val hasExplicitTime = ts.time != null
+        val hasOwnTime = ts.time != null
         return ReminderEntity(
             key = key,
             fileName = fileName,
@@ -98,8 +103,8 @@ object ReminderPlanning {
             planningType = type.storageKey,
             triggerAtMillis = triggerAtMillis(ts, defaultReminderTime, zone, leadTime),
             notificationId = ReminderKeys.notificationId(key),
-            hasExplicitTime = hasExplicitTime,
-            leadTime = (if (hasExplicitTime) leadTime else ReminderLeadTime.AT_TIME).storageKey,
+            firesOwnNotification = hasOwnTime || notifyUntimed,
+            leadTime = (if (hasOwnTime) leadTime else ReminderLeadTime.AT_TIME).storageKey,
         )
     }
 }

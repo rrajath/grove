@@ -98,14 +98,31 @@ class ReminderPlanningTest {
     }
 
     @Test
-    fun `hasExplicitTime reflects whether the timestamp carries a time-of-day`() {
+    fun `firesOwnNotification is true only for a timestamp that carries a time-of-day`() {
         val doc = OrgParser.parse(
             "* TODO A\nSCHEDULED: <2026-07-24 Fri>\n" +
                 "* TODO B\nSCHEDULED: <2026-07-24 Fri 14:30>\n"
         )
         val result = ReminderPlanning.desiredReminders("a.org", doc, nineAm, remindersEnabled = true, zone = zone)
-        assertEquals(false, result.single { it.headingTitle == "A" }.hasExplicitTime)
-        assertEquals(true, result.single { it.headingTitle == "B" }.hasExplicitTime)
+        assertEquals(false, result.single { it.headingTitle == "A" }.firesOwnNotification)
+        assertEquals(true, result.single { it.headingTitle == "B" }.firesOwnNotification)
+    }
+
+    @Test
+    fun `notifyUntimed makes a date-only timestamp fire its own notification at the default time`() {
+        val doc = OrgParser.parse(
+            "* TODO A\nSCHEDULED: <2026-07-24 Fri>\n" +
+                "* Holiday\n<2026-07-24 Fri>\n"
+        )
+        val result = ReminderPlanning.desiredReminders(
+            "a.org", doc, nineAm, remindersEnabled = true, notifyUntimed = true, zone = zone,
+        )
+        assertTrue(result.all { it.firesOwnNotification })
+        // Still triggered at the default reminder time, no lead-time shift.
+        val expected = LocalDateTime.of(2026, 7, 24, 9, 0).atZone(zone).toInstant().toEpochMilli()
+        assertTrue(result.all { it.triggerAtMillis == expected })
+        // A date-only row never bakes in a lead time even when it now notifies.
+        assertTrue(result.all { it.leadTime == ReminderLeadTime.AT_TIME.storageKey })
     }
 
     @Test
@@ -114,7 +131,7 @@ class ReminderPlanningTest {
         val result = ReminderPlanning.desiredReminders("a.org", doc, nineAm, remindersEnabled = true, zone = zone)
         val row = result.single()
         assertEquals(PlanningType.ACTIVE.storageKey, row.planningType)
-        assertEquals(true, row.hasExplicitTime)
+        assertEquals(true, row.firesOwnNotification)
         assertEquals(
             LocalDateTime.of(2026, 7, 24, 9, 30).atZone(zone).toInstant().toEpochMilli(),
             row.triggerAtMillis,
@@ -122,10 +139,10 @@ class ReminderPlanningTest {
     }
 
     @Test
-    fun `a date-only active timestamp is digest-only (no explicit time)`() {
+    fun `a date-only active timestamp is digest-only unless notifyUntimed is on`() {
         val doc = OrgParser.parse("* Holiday\n<2026-07-24 Fri>\n")
         val result = ReminderPlanning.desiredReminders("a.org", doc, nineAm, remindersEnabled = true, zone = zone)
-        assertEquals(false, result.single().hasExplicitTime)
+        assertEquals(false, result.single().firesOwnNotification)
     }
 
     @Test

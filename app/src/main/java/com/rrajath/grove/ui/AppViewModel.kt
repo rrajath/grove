@@ -321,6 +321,9 @@ class AppViewModel(
     fun setMorningBriefEnabled(enabled: Boolean) =
         viewModelScope.launch { settingsRepository.setMorningBriefEnabled(enabled) }
 
+    fun setNotifyUntimedTasks(enabled: Boolean) =
+        viewModelScope.launch { settingsRepository.setNotifyUntimedTasks(enabled) }
+
     fun setDefaultReminderTime(time: java.time.LocalTime) =
         viewModelScope.launch { settingsRepository.setDefaultReminderTime(time) }
 

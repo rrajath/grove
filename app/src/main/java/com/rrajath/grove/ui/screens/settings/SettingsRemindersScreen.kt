@@ -19,6 +19,9 @@ import com.rrajath.grove.settings.ReminderLeadTime
 import com.rrajath.grove.ui.components.DropdownPicker
 import com.rrajath.grove.ui.components.ReminderPermissionBanner
 import com.rrajath.grove.ui.components.SimpleTimePicker
+import com.rrajath.grove.ui.newbadge.MarkNewFeatureSeen
+import com.rrajath.grove.ui.newbadge.NewAnchors
+import com.rrajath.grove.ui.newbadge.NewDot
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
@@ -33,6 +36,7 @@ fun SettingsRemindersScreen(
     onBack: () -> Unit,
     onSetRemindersEnabled: (Boolean) -> Unit,
     onSetMorningBriefEnabled: (Boolean) -> Unit,
+    onSetNotifyUntimedTasks: (Boolean) -> Unit,
     onSetDefaultReminderTime: (LocalTime) -> Unit,
     onSetReminderLeadTime: (ReminderLeadTime) -> Unit,
     reminderPendingCount: Int,
@@ -70,6 +74,15 @@ fun SettingsRemindersScreen(
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
+                RowDivider()
+                MarkNewFeatureSeen(NewAnchors.SETTINGS_REMINDERS_UNTIMED)
+                ToggleRow(
+                    label = "Notify for tasks without a time",
+                    description = "A separate notification for each SCHEDULED, DEADLINE, or active timestamp on a day with no time of day",
+                    checked = settings.notifyUntimedTasks,
+                    labelBadge = { NewDot(NewAnchors.SETTINGS_REMINDERS_UNTIMED) },
+                    onToggle = onSetNotifyUntimedTasks,
+                )
             }
             RowDivider()
             ToggleRow(
@@ -78,11 +91,11 @@ fun SettingsRemindersScreen(
                 checked = settings.morningBriefEnabled,
                 onToggle = onSetMorningBriefEnabled,
             )
-            if (settings.morningBriefEnabled) {
+            if (settings.morningBriefEnabled || settings.notifyUntimedTasks) {
                 RowDivider()
                 SettingsRow(
                     label = "Send reminder at",
-                    description = "Used for SCHEDULED/DEADLINE stamps with no time of day",
+                    description = "Time of day for the Morning Brief and any timeless SCHEDULED, DEADLINE, or active stamp",
                     onClick = { showReminderTimePicker = true },
                 ) {
                     Text(

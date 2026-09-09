@@ -146,10 +146,12 @@ data class ReminderEntity(
     /** Set once the "due now" notification has been shown for this trigger time, so
      *  catch-up passes don't re-fire it. Cleared whenever [triggerAtMillis] changes. */
     val firedAt: Long? = null,
-    /** False when [triggerAtMillis] came from the default reminder time rather than
-     *  the timestamp's own time-of-day: those reminders don't fire their own "due
-     *  now" notification and are counted into the daily digest instead. */
-    val hasExplicitTime: Boolean = true,
+    /** Whether this reminder shows its own "due now" notification when it fires.
+     *  True whenever the timestamp carries its own time-of-day; for a date-only
+     *  timestamp it is true only when Settings › Reminders › "Notify for tasks
+     *  without a time" is on, and false otherwise (the row still feeds the daily
+     *  digest count either way). */
+    val firesOwnNotification: Boolean = true,
     /** [com.rrajath.grove.settings.ReminderLeadTime.storageKey] this row's [triggerAtMillis]
      *  was computed with, baked in at scheduling time so the "due in N minutes" notification
      *  text can't drift out of sync with a lead-time setting change made after this was armed. */
@@ -459,6 +461,10 @@ interface ReminderDao {
 
 @Database(
     entities = [NotebookEntity::class, NoteEntity::class, SyncLogEntity::class, ReminderEntity::class],
+    // v13: renamed ReminderEntity.hasExplicitTime → firesOwnNotification (a
+    // date-only reminder now fires its own notification when Settings › Reminders
+    // › "Notify for tasks without a time" is on). Destructive migration drops the
+    // rebuildable reminders table; the next reconcile repopulates it from disk.
     // v12: added NoteEntity.activeTimestamps (space-joined bare active timestamps
     // in a heading's own body) + a secondary index on it for the `IS NOT NULL`
     // probe. Destructive migration drops the rebuildable index; the next sync
@@ -483,7 +489,7 @@ interface ReminderDao {
     // v5: added NotebookEntity.isIndexed (stub vs fully-parsed notebook rows);
     // v4: added NotebookEntity.title (cached #+TITLE: preamble value). Destructive
     // migration drops the index so the next sync rebuilds it from the .org files.
-    version = 12,
+    version = 13,
     exportSchema = false,
 )
 abstract class GroveDatabase : RoomDatabase() {

@@ -107,9 +107,9 @@ enum class NotebookSortKey(val storageKey: String, val label: String) {
 /**
  * Settings § Reminders: how far ahead of a SCHEDULED/DEADLINE's own time-of-day
  * the "due" notification actually fires. Only applies to timestamps that carry
- * an explicit time-of-day; date-only stamps still bundle into the daily digest
- * instead of firing their own notification (see `ReminderEntity.hasExplicitTime`),
- * so a lead time has nothing to shift for those.
+ * an explicit time-of-day; a date-only stamp fires at the "Send reminder at"
+ * time exactly (see `ReminderEntity.firesOwnNotification`), so a lead time has
+ * nothing to shift for those.
  */
 enum class ReminderLeadTime(val storageKey: String, val label: String, val offsetMinutes: Long, val dueMessage: String) {
     AT_TIME("at_time", "At the time of event", 0L, "Your task is due now"),

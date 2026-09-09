@@ -84,6 +84,7 @@ data class SettingsExport(
     val notebookSortAscending: Boolean = true,
     val remindersEnabled: Boolean = true,
     val morningBriefEnabled: Boolean = true,
+    val notifyUntimedTasks: Boolean = false,
     /** "HH:mm", e.g. "09:00". */
     val defaultReminderTime: String = "09:00",
     val reminderLeadTime: String = ReminderLeadTime.AT_TIME.storageKey,
@@ -146,6 +147,7 @@ data class SettingsExport(
         notebookSortAscending = notebookSortAscending,
         remindersEnabled = remindersEnabled,
         morningBriefEnabled = morningBriefEnabled,
+        notifyUntimedTasks = notifyUntimedTasks,
         defaultReminderTime = runCatching { java.time.LocalTime.parse(defaultReminderTime) }
             .getOrDefault(GroveSettings.DEFAULT_REMINDER_TIME),
         reminderLeadTime = ReminderLeadTime.fromStorage(reminderLeadTime),
@@ -215,6 +217,7 @@ data class SettingsExport(
             notebookSortAscending = s.notebookSortAscending,
             remindersEnabled = s.remindersEnabled,
             morningBriefEnabled = s.morningBriefEnabled,
+            notifyUntimedTasks = s.notifyUntimedTasks,
             defaultReminderTime = s.defaultReminderTime.toString(),
             reminderLeadTime = s.reminderLeadTime.storageKey,
             agendaSwipeLeftAction = s.agendaSwipeLeftAction.storageKey,

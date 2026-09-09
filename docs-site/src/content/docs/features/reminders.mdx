@@ -28,7 +28,7 @@ Tapping the notification body itself deep-links into the note in Read mode.
 
 ### Event reminders
 
-A bare active `<date>` timestamp with a time-of-day also fires a notification, worded as an event ("This event is starting now") rather than a task. Because it isn't a task, it carries no Complete or Reschedule action. A date-only event doesn't fire its own notification; it is folded into the daily digest for its day. A date range reminds you once, on its start date.
+A bare active `<date>` timestamp with a time-of-day also fires a notification, worded as an event ("This event is starting now") rather than a task. Because it isn't a task, it carries no Complete or Reschedule action. A date-only event doesn't fire its own notification by default; it is folded into the daily digest for its day (turn on "Notify for tasks without a time" below to get a separate notification instead). A date range reminds you once, on its start date.
 
 ## Reschedule without opening the app
 
@@ -37,6 +37,10 @@ The Reschedule action opens Planning Dates inside its own transparent, taskless 
 ## Daily digest
 
 If enabled, Grove sends one daily notification ("You have X tasks due today") covering overdue items plus anything due today, including any date-only events on today's date. It fires at your configured default reminder time and deep-links straight to Agenda. If the count would be zero, the digest is suppressed rather than sending an empty notification.
+
+## Notify for tasks without a time
+
+By default, a SCHEDULED, DEADLINE, or active timestamp that lands on a day with no time of day is only counted in the daily digest. Turn on **Settings → Reminders → "Notify for tasks without a time"** to get a separate notification for each of them, fired at the default reminder time on its day. The daily digest keeps working alongside it. Only tasks whose day is today or later are notified; a date that has already passed stays silent.
 
 ## Permissions
 
@@ -48,7 +52,7 @@ A boot receiver re-arms all scheduled alarms after the device restarts, and fire
 
 ## Settings
 
-Settings → Reminders covers: the enable/disable toggle, the default reminder time (used by the daily digest and by any timestamp without an explicit time), and the permission banner.
+Settings → Reminders covers: the enable/disable toggle, the "Notify me" lead time for timed reminders, the "Notify for tasks without a time" toggle, the Morning Brief (daily digest) toggle, the default reminder time (used by the digest and by any timestamp without an explicit time), and the permission banner.
 
 ## Related
 

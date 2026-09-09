@@ -27,9 +27,10 @@ class ReminderReconciler(
     // applyPlan() is JVM-unit-testable with a fake dao and no Context. Production
     // uses the defaults (which delegate to the AlarmManager/notification objects).
     private val hasPermission: () -> Boolean = { AlarmScheduler.hasNotificationPermission(context!!) },
-    // Date-only reminders (no explicit time-of-day) don't fire their own
-    // notification; they're counted into the daily digest instead.
-    private val notify: (ReminderEntity) -> Unit = { if (it.hasExplicitTime) ReminderNotification.show(context!!, it) },
+    // A date-only reminder only fires its own notification when the user opted in
+    // ("Notify for tasks without a time"); otherwise it's counted into the daily
+    // digest instead. [ReminderPlanning] bakes that choice into firesOwnNotification.
+    private val notify: (ReminderEntity) -> Unit = { if (it.firesOwnNotification) ReminderNotification.show(context!!, it) },
     private val scheduleAlarm: (ReminderEntity) -> Unit = { AlarmScheduler.schedule(context!!, it) },
     private val cancelAlarm: (ReminderEntity) -> Unit = { AlarmScheduler.cancel(context!!, it) },
 ) {
@@ -41,9 +42,12 @@ class ReminderReconciler(
         defaultReminderTime: LocalTime,
         remindersEnabled: Boolean,
         leadTime: ReminderLeadTime = ReminderLeadTime.AT_TIME,
+        notifyUntimed: Boolean = false,
     ) {
         val existing = dao.forFile(fileName)
-        val desired = ReminderPlanning.desiredReminders(fileName, doc, defaultReminderTime, remindersEnabled, leadTime)
+        val desired = ReminderPlanning.desiredReminders(
+            fileName, doc, defaultReminderTime, remindersEnabled, leadTime, notifyUntimed,
+        )
         applyPlan(ReminderDiff.diff(existing, desired))
     }
 
@@ -53,8 +57,11 @@ class ReminderReconciler(
         defaultReminderTime: LocalTime,
         remindersEnabled: Boolean,
         leadTime: ReminderLeadTime = ReminderLeadTime.AT_TIME,
+        notifyUntimed: Boolean = false,
     ) {
-        documents.forEach { (fileName, doc) -> reconcileFile(fileName, doc, defaultReminderTime, remindersEnabled, leadTime) }
+        documents.forEach { (fileName, doc) ->
+            reconcileFile(fileName, doc, defaultReminderTime, remindersEnabled, leadTime, notifyUntimed)
+        }
     }
 
     /** Settings › Reminders toggled off: cancel every alarm and drop the table. */

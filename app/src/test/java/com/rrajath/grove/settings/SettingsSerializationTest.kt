@@ -47,6 +47,7 @@ class SettingsSerializationTest {
         notebookSortAscending = false,
         remindersEnabled = false,
         morningBriefEnabled = false,
+        notifyUntimedTasks = true,
         defaultReminderTime = java.time.LocalTime.of(7, 45),
         reminderLeadTime = ReminderLeadTime.MIN_15,
         agendaSwipeLeftAction = AgendaSwipeAction.MARK_DONE,
@@ -109,6 +110,7 @@ class SettingsSerializationTest {
         assertEquals(sample.notebookSortAscending, restored.notebookSortAscending)
         assertEquals(sample.remindersEnabled, restored.remindersEnabled)
         assertEquals(sample.morningBriefEnabled, restored.morningBriefEnabled)
+        assertEquals(sample.notifyUntimedTasks, restored.notifyUntimedTasks)
         assertEquals(sample.defaultReminderTime, restored.defaultReminderTime)
         assertEquals(sample.reminderLeadTime, restored.reminderLeadTime)
         assertEquals(sample.agendaSwipeLeftAction, restored.agendaSwipeLeftAction)

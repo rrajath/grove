@@ -86,7 +86,12 @@ fun SettingsScreen(
             onClick = onOpenWidget,
             badge = { NewDot(NewAnchors.SETTINGS_WIDGET) },
         ),
-        SettingsPage("Reminders", "Notifications for SCHEDULED/DEADLINE", onOpenReminders),
+        SettingsPage(
+            "Reminders",
+            "Notifications for SCHEDULED/DEADLINE",
+            onClick = onOpenReminders,
+            badge = { NewDot(NewAnchors.SETTINGS_REMINDERS) },
+        ),
         SettingsPage("Sharing", "Where shared content lands", onOpenSharing),
         SettingsPage("Backup", "Export/import your preferences", onOpenBackup),
     )

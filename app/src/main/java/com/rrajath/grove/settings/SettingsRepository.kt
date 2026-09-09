@@ -158,7 +158,14 @@ data class GroveSettings(
     val remindersEnabled: Boolean = true,
     /** Daily digest ("You have X tasks due today") opt-in; requires [remindersEnabled] too. */
     val morningBriefEnabled: Boolean = true,
-    /** Time of day used for date-only SCHEDULED/DEADLINE stamps (no time-of-day). */
+    /**
+     * Fire a separate notification for every task/event whose SCHEDULED, DEADLINE
+     * or active timestamp lands on a day with no time-of-day, at
+     * [defaultReminderTime] on that day. Off by default (those rows only feed the
+     * daily digest); requires [remindersEnabled] too.
+     */
+    val notifyUntimedTasks: Boolean = false,
+    /** Time of day used for date-only SCHEDULED/DEADLINE/active stamps (no time-of-day). */
     val defaultReminderTime: LocalTime = LocalTime.of(9, 0),
     /** How far ahead of a timestamp's own time-of-day the "due" notification fires. */
     val reminderLeadTime: ReminderLeadTime = ReminderLeadTime.AT_TIME,
@@ -283,6 +290,7 @@ class SettingsRepository(
         val autoArchiveHeadingPath = stringPreferencesKey("auto_archive_heading_path")
         val remindersEnabled = booleanPreferencesKey("reminders_enabled")
         val morningBriefEnabled = booleanPreferencesKey("morning_brief_enabled")
+        val notifyUntimedTasks = booleanPreferencesKey("notify_untimed_tasks")
         val defaultReminderTime = stringPreferencesKey("default_reminder_time")
         val reminderLeadTime = stringPreferencesKey("reminder_lead_time")
         val agendaSwipeLeftAction = stringPreferencesKey("agenda_swipe_left_action")
@@ -357,6 +365,7 @@ class SettingsRepository(
             autoArchiveHeadingPath = prefs[Keys.autoArchiveHeadingPath] ?: "",
             remindersEnabled = prefs[Keys.remindersEnabled] ?: true,
             morningBriefEnabled = prefs[Keys.morningBriefEnabled] ?: true,
+            notifyUntimedTasks = prefs[Keys.notifyUntimedTasks] ?: false,
             defaultReminderTime = decodeTime(prefs[Keys.defaultReminderTime]),
             reminderLeadTime = ReminderLeadTime.fromStorage(prefs[Keys.reminderLeadTime]),
             agendaSwipeLeftAction = AgendaSwipeAction.fromStorage(
@@ -478,6 +487,7 @@ class SettingsRepository(
             p[Keys.flattenNotebookFolders] = s.flattenNotebookFolders
             p[Keys.remindersEnabled] = s.remindersEnabled
             p[Keys.morningBriefEnabled] = s.morningBriefEnabled
+            p[Keys.notifyUntimedTasks] = s.notifyUntimedTasks
             p[Keys.defaultReminderTime] = encodeTime(s.defaultReminderTime)
             p[Keys.reminderLeadTime] = s.reminderLeadTime.storageKey
             p[Keys.agendaSwipeLeftAction] = s.agendaSwipeLeftAction.storageKey
@@ -674,6 +684,10 @@ class SettingsRepository(
 
     suspend fun setMorningBriefEnabled(enabled: Boolean) {
         context.settingsDataStore.edit { it[Keys.morningBriefEnabled] = enabled }
+    }
+
+    suspend fun setNotifyUntimedTasks(enabled: Boolean) {
+        context.settingsDataStore.edit { it[Keys.notifyUntimedTasks] = enabled }
     }
 
     suspend fun setDefaultReminderTime(time: LocalTime) {

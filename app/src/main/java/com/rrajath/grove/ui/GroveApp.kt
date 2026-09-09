@@ -859,6 +859,7 @@ private fun GroveNavigation(
                     onBack = { navController.popBackStack() },
                     onSetRemindersEnabled = viewModel::setRemindersEnabled,
                     onSetMorningBriefEnabled = viewModel::setMorningBriefEnabled,
+                    onSetNotifyUntimedTasks = viewModel::setNotifyUntimedTasks,
                     onSetDefaultReminderTime = viewModel::setDefaultReminderTime,
                     onSetReminderLeadTime = viewModel::setReminderLeadTime,
                     reminderPendingCount = viewModel.reminderPendingCount.collectAsStateWithLifecycle().value,

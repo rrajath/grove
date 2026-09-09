@@ -27,7 +27,10 @@ object ReminderDiff {
         val unchanged = mutableListOf<ReminderEntity>()
         desired.forEach { d ->
             val e = existingByKey[d.key]
-            if (e == null || e.triggerAtMillis != d.triggerAtMillis) {
+            // firesOwnNotification can flip without the trigger time moving (the
+            // "Notify for tasks without a time" toggle): re-arm so the stored row
+            // and its alarm pick up the new notification behaviour.
+            if (e == null || e.triggerAtMillis != d.triggerAtMillis || e.firesOwnNotification != d.firesOwnNotification) {
                 toSchedule.add(d)
             } else {
                 unchanged.add(e)

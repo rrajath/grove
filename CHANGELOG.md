@@ -59,6 +59,12 @@ re-uploads the APKs to the existing release instead of failing.
 
 ## [Unreleased]
 
+- Added a "Notify for tasks without a time" toggle to Settings › Reminders (off
+  by default). When on, every SCHEDULED, DEADLINE, or active timestamp that
+  falls on a day with no time of day fires its own notification at the reminder
+  time, instead of only being counted in the daily digest. The digest keeps
+  working alongside it, and a date that has already passed stays silent.
+
 - Added support for bare active timestamps: a heading can now carry plain
   `<date>` event stamps (single or a `<a>--<b>` range) alongside SCHEDULED and
   DEADLINE, edited on a new ACTIVE tab in the tabbed planning-dates editor with

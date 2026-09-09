@@ -15,9 +15,10 @@ class ReminderAlarmReceiver : BroadcastReceiver() {
         app.appScope.launch {
             try {
                 val reminder = app.database.reminderDao().get(key) ?: return@launch
-                // Date-only reminders (no explicit time-of-day) don't fire their own
-                // notification; they're counted into the daily digest instead.
-                if (reminder.hasExplicitTime) ReminderNotification.show(context, reminder)
+                // A date-only reminder only shows its own notification when the
+                // user opted in ("Notify for tasks without a time"); otherwise it
+                // is silent here and counted into the daily digest instead.
+                if (reminder.firesOwnNotification) ReminderNotification.show(context, reminder)
                 app.database.reminderDao().markFired(key, System.currentTimeMillis())
             } finally {
                 pending.finish()

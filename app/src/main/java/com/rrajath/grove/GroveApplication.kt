@@ -145,7 +145,8 @@ open class GroveApplication : Application() {
     private suspend fun reconcileFileReminders(fileName: String, doc: com.rrajath.grove.org.OrgDocument) {
         val settings = settingsRepository.settings.first()
         reminderReconciler.reconcileFile(
-            fileName, doc, settings.defaultReminderTime, settings.remindersEnabled, settings.reminderLeadTime,
+            fileName, doc, settings.defaultReminderTime, settings.remindersEnabled,
+            settings.reminderLeadTime, settings.notifyUntimedTasks,
         )
     }
 
@@ -285,12 +286,17 @@ open class GroveApplication : Application() {
             // "Enable reminders" toggled off cancels everything immediately rather
             // than waiting for the next per-file reconcile; toggled back on (or the
             // default reminder time / lead time changing, both of which affect
-            // trigger times) re-scans every already-indexed notebook.
+            // trigger times, or the "notify for tasks without a time" toggle) re-scans
+            // every already-indexed notebook.
             settingsRepository.settings
-                .map { Triple(it.remindersEnabled, it.defaultReminderTime, it.reminderLeadTime) }
+                .map {
+                    ReminderReconcileKeys(
+                        it.remindersEnabled, it.defaultReminderTime, it.reminderLeadTime, it.notifyUntimedTasks,
+                    )
+                }
                 .distinctUntilChanged()
                 .drop(1)
-                .collect { (enabled, defaultTime, leadTime) ->
+                .collect { (enabled, defaultTime, leadTime, notifyUntimed) ->
                     if (!enabled) {
                         reminderReconciler.disableAll()
                     } else {
@@ -298,7 +304,7 @@ open class GroveApplication : Application() {
                         val documents = database.indexDao().notebooks()
                             .mapNotNull { nb -> vault.open(nb.fileName)?.let { nb.fileName to it } }
                             .toMap()
-                        reminderReconciler.reconcileAll(documents, defaultTime, enabled, leadTime)
+                        reminderReconciler.reconcileAll(documents, defaultTime, enabled, leadTime, notifyUntimed)
                     }
                 }
         }
@@ -364,3 +370,11 @@ open class GroveApplication : Application() {
         })
     }
 }
+
+/** The settings whose change forces a full re-scan of every notebook's reminders. */
+private data class ReminderReconcileKeys(
+    val enabled: Boolean,
+    val defaultTime: java.time.LocalTime,
+    val leadTime: com.rrajath.grove.settings.ReminderLeadTime,
+    val notifyUntimed: Boolean,
+)

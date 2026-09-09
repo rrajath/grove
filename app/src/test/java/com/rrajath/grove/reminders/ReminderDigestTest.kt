@@ -17,7 +17,7 @@ class ReminderDigestTest {
         date: LocalDate,
         type: PlanningType,
         time: java.time.LocalTime = java.time.LocalTime.of(9, 0),
-        hasExplicitTime: Boolean = false,
+        firesOwnNotification: Boolean = false,
         headingPath: String = key,
     ) = ReminderEntity(
         key = key,
@@ -28,7 +28,7 @@ class ReminderDigestTest {
         planningType = type.storageKey,
         triggerAtMillis = LocalDateTime.of(date, time).atZone(zone).toInstant().toEpochMilli(),
         notificationId = ReminderKeys.notificationId(key),
-        hasExplicitTime = hasExplicitTime,
+        firesOwnNotification = firesOwnNotification,
     )
 
     @Test
@@ -111,8 +111,8 @@ class ReminderDigestTest {
     @Test
     fun `reminders with an explicit time are included too, matching Agenda`() {
         val reminders = listOf(
-            entity("timed-overdue", today.minusDays(1), PlanningType.SCHEDULED, hasExplicitTime = true),
-            entity("timed-today", today, PlanningType.DEADLINE, hasExplicitTime = true),
+            entity("timed-overdue", today.minusDays(1), PlanningType.SCHEDULED, firesOwnNotification = true),
+            entity("timed-today", today, PlanningType.DEADLINE, firesOwnNotification = true),
             entity("date-only-today", today, PlanningType.SCHEDULED),
         )
         assertEquals(3, ReminderDigest.count(reminders, today, zone))
@@ -129,7 +129,7 @@ class ReminderDigestTest {
         val reminders = listOf(
             entity(
                 "task-sched", today.plusDays(3), PlanningType.SCHEDULED,
-                hasExplicitTime = true, headingPath = "task",
+                firesOwnNotification = true, headingPath = "task",
             ),
             entity(
                 "task-deadline", today, PlanningType.DEADLINE,
@@ -148,7 +148,7 @@ class ReminderDigestTest {
         val reminders = listOf(
             entity(
                 "task-sched", today.minusDays(1), PlanningType.SCHEDULED,
-                hasExplicitTime = true, headingPath = "task",
+                firesOwnNotification = true, headingPath = "task",
             ),
             entity(
                 "task-deadline", today, PlanningType.DEADLINE,

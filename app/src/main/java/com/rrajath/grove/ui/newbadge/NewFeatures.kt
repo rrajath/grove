@@ -53,6 +53,12 @@ object NewAnchors {
     /** The "Capture link" section on a template's editor (grove:// link + Add to Homescreen). */
     const val SETTINGS_CAPTURE_TEMPLATES_LINK = "settings.captureTemplates.captureLink"
 
+    /** The Settings hub row leading to the Reminders page. */
+    const val SETTINGS_REMINDERS = "settings.reminders"
+
+    /** The "Notify for tasks without a time" toggle inside Settings § Reminders. */
+    const val SETTINGS_REMINDERS_UNTIMED = "settings.reminders.untimed"
+
     /** The Settings hub row leading to the Widget page. */
     const val SETTINGS_WIDGET = "settings.widget"
 
@@ -198,5 +204,21 @@ val NEW_FEATURES: List<NewFeature> = listOf(
             NewAnchors.PLANNING_DATES_ACTIVE,
         ),
         destination = NewAnchors.PLANNING_DATES_ACTIVE,
+    ),
+    NewFeature(
+        // Settings § Reminders gained a "Notify for tasks without a time" toggle:
+        // a separate notification for every SCHEDULED/DEADLINE/active timestamp
+        // that lands on a day with no time of day, fired at the reminder time.
+        // `since` is the versionCode of the release that ships it — bump it to
+        // match `gradle.properties` versionName when cutting the release.
+        id = "reminders-notify-untimed",
+        since = 10600,
+        anchors = setOf(
+            NewAnchors.TOPBAR_MENU,
+            NewAnchors.DRAWER_SETTINGS,
+            NewAnchors.SETTINGS_REMINDERS,
+            NewAnchors.SETTINGS_REMINDERS_UNTIMED,
+        ),
+        destination = NewAnchors.SETTINGS_REMINDERS_UNTIMED,
     ),
 )
