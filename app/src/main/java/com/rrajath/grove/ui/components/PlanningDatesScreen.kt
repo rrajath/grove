@@ -110,7 +110,9 @@ import kotlin.math.abs
  * SCHEDULED (blue) and DEADLINE (red) each hold one day; ACTIVE (violet) holds
  * any number of event timestamps and one range, made by long-pressing a day and
  * dragging across others. A day already carrying one of the *other* two kinds
- * shows a small dot so it stays visible while you work on the current tab.
+ * shows an outlined cell in that kind's colour so it stays visible while you
+ * work on the current tab (distinct from the small dots that mark other notes'
+ * planned days).
  * Confirming commits all three at once — [onConfirm] takes the triple — so the
  * [focus] tab only decides where you start, not what gets written.
  *
@@ -200,6 +202,24 @@ fun PlanningDatesScreen(
         PlanningKind.ACTIVE -> acts.getOrNull(actI)
     }
     val count = entries.size
+
+    // This note's own dates for the *other* two kinds, kept on the calendar as
+    // outlined accent cells while you edit the current tab. Distinct from the
+    // small dots that mark days other notes already have something on.
+    val secondaryMarks: Map<LocalDate, Color> = buildMap {
+        if (tab != PlanningKind.ACTIVE) {
+            acts.forEach { ts ->
+                var d = ts.date
+                val end = ts.rangeEnd ?: ts.date
+                while (!d.isAfter(end)) {
+                    put(d, c.violet)
+                    d = d.plusDays(1)
+                }
+            }
+        }
+        if (tab != PlanningKind.SCHEDULED) sched?.date?.let { put(it, c.blue) }
+        if (tab != PlanningKind.DEADLINE) dead?.date?.let { put(it, c.red) }
+    }
 
     fun selectTab(next: PlanningKind) {
         tab = next
@@ -433,8 +453,7 @@ fun PlanningDatesScreen(
                         perEntrySelection = isActiveTab,
                         accent = accent,
                         accentSoft = accentSoft,
-                        schedMark = sched?.date?.takeIf { tab != PlanningKind.SCHEDULED },
-                        deadMark = dead?.date?.takeIf { tab != PlanningKind.DEADLINE },
+                        secondaryMarks = secondaryMarks,
                         plannedDates = plannedDates,
                         rangeEnabled = isActiveTab,
                         onPrev = { month = month.minusMonths(1) },
@@ -601,7 +620,9 @@ private fun OrgTimestamp.covers(day: LocalDate): Boolean =
 
 /**
  * One month, single-accent: the current tab's timestamps fill their days (a
- * range draws as one connected pill), the other kinds' days carry a small dot.
+ * range draws as one connected pill), the other kinds' days ([secondaryMarks])
+ * draw as an outlined cell in that kind's colour, and days other notes already
+ * use carry a small dot.
  * A tap sets/moves/clears a day; on the ACTIVE tab a long-press then drag paints
  * a range. No month swipe — the ‹ / › arrows are the only way to change months.
  */
@@ -614,8 +635,7 @@ private fun AccentCalendar(
     perEntrySelection: Boolean,
     accent: Color,
     accentSoft: Color,
-    schedMark: LocalDate?,
-    deadMark: LocalDate?,
+    secondaryMarks: Map<LocalDate, Color>,
     plannedDates: Set<LocalDate>,
     rangeEnabled: Boolean,
     onPrev: () -> Unit,
@@ -748,6 +768,8 @@ private fun AccentCalendar(
                         val sel = if (perEntrySelection) hit == selectedIndex else hit >= 0
                         val inDrag = dragLo != null && dragHi != null &&
                             !day.isBefore(dragLo) && !day.isAfter(dragHi)
+                        // A day this note uses on one of the *other* two tabs.
+                        val secondary = if (posKind == Pos.NONE && !inDrag) secondaryMarks[day] else null
 
                         val shape = when (posKind) {
                             Pos.START -> RoundedCornerShape(topStart = 10.dp, bottomStart = 10.dp)
@@ -770,6 +792,9 @@ private fun AccentCalendar(
                                 fg = if (sel) c.surface else accent
                                 weight = FontWeight.SemiBold
                             }
+                            secondary != null -> {
+                                bg = Color.Transparent; fg = secondary; weight = FontWeight.SemiBold
+                            }
                             else -> {
                                 bg = Color.Transparent; fg = c.ink; weight = FontWeight.Normal
                             }
@@ -777,13 +802,12 @@ private fun AccentCalendar(
                         val border = when {
                             inDrag || (posKind != Pos.NONE && posKind != Pos.MID) -> accent
                             posKind == Pos.MID -> Color.Transparent
+                            secondary != null -> secondary
                             day == today -> c.line2
                             else -> Color.Transparent
                         }
 
-                        val dot = if (posKind == Pos.NONE && !inDrag) when {
-                            day == schedMark -> c.blue
-                            day == deadMark -> c.red
+                        val dot = if (posKind == Pos.NONE && !inDrag && secondary == null) when {
                             day == today -> c.accent
                             day in plannedDates -> c.violet
                             else -> null

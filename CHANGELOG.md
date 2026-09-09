@@ -68,6 +68,17 @@ re-uploads the APKs to the existing release instead of failing.
   reminders like the planning dates do (a timed event pings, a date-only one
   joins the daily digest).
 
+- Fixed the tabbed planning-dates editor collapsing this heading's own dates
+  for the tabs you are not on into the same small dot it uses for other notes'
+  planned days. SCHEDULED, DEADLINE and ACTIVE dates you set this session now
+  stay on the calendar as an outlined cell in their own colour when you switch
+  to another tab.
+
+- Fixed a search result showing only the earliest bare active timestamp. Every
+  active stamp on a heading now gets its own violet pill, each carrying its
+  time of day (and range) when it has one, instead of just the first all-day
+  one.
+
 - Removed the CI `macrobenchmark` job. Benchmark numbers off a shared-runner
   emulator are noise, and keeping the suite green there was a recurring
   maintenance cost (cold-start re-seed/re-index flakiness, the androidx EMULATOR

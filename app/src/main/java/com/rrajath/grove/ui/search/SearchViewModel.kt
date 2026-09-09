@@ -55,6 +55,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import java.util.Locale
@@ -146,8 +147,8 @@ data class SearchResult(
     val scheduledOverdue: Boolean,
     val deadlineLabel: String?,
     val deadlineOverdue: Boolean,
-    /** Earliest bare active timestamp's day, as a short label for the row's event pill. */
-    val activeLabel: String?,
+    /** Every bare active timestamp as a row pill label, earliest first, each with its time when set. */
+    val activeLabels: ImmutableList<String> = persistentListOf(),
     val tagLine: String,
     /** Raw timestamps (vs. the display-only labels above) for the swipe-to-schedule action's date picker. */
     val scheduledTs: OrgTimestamp?,
@@ -786,7 +787,7 @@ class SearchViewModel(
             scheduledOverdue = scheduledOverdue,
             deadlineLabel = deadlineLabel,
             deadlineOverdue = deadlineOverdue,
-            activeLabel = meta.activeDates.minOrNull()?.let { activeDateLabel(it, today) },
+            activeLabels = activeStampLabels(meta.activeTimestamps, today),
             tagLine = meta.tags.joinToString(" ") { ":$it:" },
             scheduledTs = meta.scheduled?.let { OrgTimestamp.parse(it) },
             deadlineTs = meta.deadline?.let { OrgTimestamp.parse(it) },
@@ -809,6 +810,22 @@ class SearchViewModel(
         }
         return text to overdue
     }
+
+    /** Every bare active timestamp as a row pill label, earliest first. Each
+     *  keeps its time-of-day (and range span) when it has one, so a stamp like
+     *  `<2026-09-15 14:00>` no longer vanishes behind the earliest all-day one. */
+    private fun activeStampLabels(stamps: List<OrgTimestamp>, today: LocalDate): ImmutableList<String> =
+        stamps
+            .sortedWith(compareBy({ it.date }, { it.time }))
+            .map { ts ->
+                val start = activeDateLabel(ts.date, today)
+                val span = ts.rangeEnd?.let { "$start – ${activeDateLabel(it, today)}" } ?: start
+                val clock = ts.time?.let { t ->
+                    " " + t.format(CLOCK_FORMAT) + (ts.endTime?.let { "-${it.format(CLOCK_FORMAT)}" } ?: "")
+                } ?: ""
+                span + clock
+            }
+            .toImmutableList()
 
     /** Like [dateLabel] but framed as an event, not a task: a past day reads
      *  "3d ago", never "overdue". */
@@ -902,5 +919,6 @@ class SearchViewModel(
         private const val TAG = "SearchViewModel"
 
         private val DAY_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("EEE d MMM", Locale.ENGLISH)
+        private val CLOCK_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm", Locale.ENGLISH)
     }
 }

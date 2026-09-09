@@ -1055,7 +1055,7 @@ private fun SearchResultRow(result: SearchResult, matchedTerms: List<String>) {
     // A done-type item's dates are no longer actionable, so they're not worth
     // surfacing in results (unlike the still-open items these pills exist for).
     val showDates = !result.isDone
-    val hasMeta = (showDates && (result.scheduledLabel != null || result.deadlineLabel != null || result.activeLabel != null)) ||
+    val hasMeta = (showDates && (result.scheduledLabel != null || result.deadlineLabel != null || result.activeLabels.isNotEmpty())) ||
         result.tagLine.isNotEmpty()
     ResultRowContent(
         keyword = result.keyword,
@@ -1078,7 +1078,7 @@ private fun SearchResultRow(result: SearchResult, matchedTerms: List<String>) {
                     if (showDates) {
                         result.deadlineLabel?.let { DatePillText(it, overdue = result.deadlineOverdue, kind = PillKind.DEADLINE) }
                         result.scheduledLabel?.let { DatePillText(it, overdue = result.scheduledOverdue, kind = PillKind.SCHEDULED) }
-                        result.activeLabel?.let { DatePillText(it, overdue = false, kind = PillKind.ACTIVE) }
+                        result.activeLabels.forEach { DatePillText(it, overdue = false, kind = PillKind.ACTIVE) }
                     }
                     if (result.tagLine.isNotEmpty()) {
                         Text(result.tagLine, fontFamily = PlexMono, fontSize = 11.sp, color = c.synTag)
