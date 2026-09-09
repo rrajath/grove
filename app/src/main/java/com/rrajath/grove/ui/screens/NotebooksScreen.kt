@@ -241,21 +241,33 @@ fun NotebooksScreen(
                     },
                     actions = {
                         if (loadedState != null) {
-                            if (loadedState.hasFolders) {
-                                IconGlyph(
-                                    if (loadedState.allFoldersCollapsed) Icons.Default.UnfoldMore
-                                    else Icons.Default.UnfoldLess,
-                                    contentDescription = if (loadedState.allFoldersCollapsed) {
-                                        "Expand all folders"
-                                    } else {
-                                        "Collapse all folders"
-                                    },
-                                    onClick = {
-                                        viewModel.setAllFoldersExpanded(loadedState.allFoldersCollapsed)
-                                    },
-                                )
+                            // The 8dp end padding pulls the trailing icons' visual
+                            // edge onto the same line as the list rows' trailing
+                            // pin icons. GroveTopBar insets actions by only 8dp and
+                            // an IconButton centres its 24dp glyph in a 48dp box
+                            // (~12dp of slack on the right); the list's pin icons
+                            // land ~8dp further out (14dp Column + 8dp Row + 6dp
+                            // pin end padding, less the pin vector's own margin).
+                            Row(
+                                modifier = Modifier.padding(end = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                if (loadedState.hasFolders) {
+                                    IconGlyph(
+                                        if (loadedState.allFoldersCollapsed) Icons.Default.UnfoldMore
+                                        else Icons.Default.UnfoldLess,
+                                        contentDescription = if (loadedState.allFoldersCollapsed) {
+                                            "Expand all folders"
+                                        } else {
+                                            "Collapse all folders"
+                                        },
+                                        onClick = {
+                                            viewModel.setAllFoldersExpanded(loadedState.allFoldersCollapsed)
+                                        },
+                                    )
+                                }
+                                SyncStatusIcon(loadedState, context)
                             }
-                            SyncStatusIcon(loadedState, context)
                         }
                     },
                 )
@@ -993,25 +1005,31 @@ private fun FolderRow(
                 )
             }
             Spacer(Modifier.width(8.dp))
-            if (flat || chevron) {
-                // Tapping the row navigates away (drill-down / flat list), so
-                // the affordance is a static right-pointing chevron.
-                Text("›", fontFamily = PlexMono, fontSize = 15.sp, color = c.ink3)
-            } else {
-                // Expands in place: a downward chevron that flips 180° when open,
-                // matching the app's dropdown-picker chevron animation.
-                val chevronAngle by animateFloatAsState(
-                    targetValue = if (expanded) 180f else 0f,
-                    animationSpec = tween(TREE_EXPAND_MILLIS, easing = FastOutSlowInEasing),
-                    label = "folderChevron",
-                )
-                Text(
-                    "▾",
-                    fontFamily = PlexMono,
-                    fontSize = 13.sp,
-                    color = c.ink3,
-                    modifier = Modifier.graphicsLayer { rotationZ = chevronAngle },
-                )
+            // 6dp end inset so the chevron's glyph lands on the same trailing
+            // line as the file rows' pin icon (also end = 6.dp) and the top bar's
+            // trailing icons. The Box keeps the padding off the rotating "▾" so
+            // it stays clear of the graphicsLayer pivot.
+            Box(Modifier.padding(end = 6.dp)) {
+                if (flat || chevron) {
+                    // Tapping the row navigates away (drill-down / flat list), so
+                    // the affordance is a static right-pointing chevron.
+                    Text("›", fontFamily = PlexMono, fontSize = 15.sp, color = c.ink3)
+                } else {
+                    // Expands in place: a downward chevron that flips 180° when open,
+                    // matching the app's dropdown-picker chevron animation.
+                    val chevronAngle by animateFloatAsState(
+                        targetValue = if (expanded) 180f else 0f,
+                        animationSpec = tween(TREE_EXPAND_MILLIS, easing = FastOutSlowInEasing),
+                        label = "folderChevron",
+                    )
+                    Text(
+                        "▾",
+                        fontFamily = PlexMono,
+                        fontSize = 13.sp,
+                        color = c.ink3,
+                        modifier = Modifier.graphicsLayer { rotationZ = chevronAngle },
+                    )
+                }
             }
         }
         DropdownMenu(

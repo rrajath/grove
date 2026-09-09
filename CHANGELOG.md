@@ -64,6 +64,10 @@ re-uploads the APKs to the existing release instead of failing.
   round-tripped through disk, and a group of settings rows now animates its
   height when a toggle reveals or hides a follow-up row.
 
+- The Notebooks list lines its trailing icons up on one right edge: the top
+  bar's sync-status icon and each folder row's expand or collapse chevron now
+  sit in line with the notebook rows' pin icon instead of a few dp outside it.
+
 - The time picker's clock dial now renders in the app's sans font instead of
   the read-mode serif, matching the rest of the app chrome.
 
