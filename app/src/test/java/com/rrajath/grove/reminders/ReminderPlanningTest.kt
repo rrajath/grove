@@ -109,6 +109,54 @@ class ReminderPlanningTest {
     }
 
     @Test
+    fun `a bare active timestamp produces an ACTIVE reminder`() {
+        val doc = OrgParser.parse("* Standup\n<2026-07-24 Fri 09:30>\n")
+        val result = ReminderPlanning.desiredReminders("a.org", doc, nineAm, remindersEnabled = true, zone = zone)
+        val row = result.single()
+        assertEquals(PlanningType.ACTIVE.storageKey, row.planningType)
+        assertEquals(true, row.hasExplicitTime)
+        assertEquals(
+            LocalDateTime.of(2026, 7, 24, 9, 30).atZone(zone).toInstant().toEpochMilli(),
+            row.triggerAtMillis,
+        )
+    }
+
+    @Test
+    fun `a date-only active timestamp is digest-only (no explicit time)`() {
+        val doc = OrgParser.parse("* Holiday\n<2026-07-24 Fri>\n")
+        val result = ReminderPlanning.desiredReminders("a.org", doc, nineAm, remindersEnabled = true, zone = zone)
+        assertEquals(false, result.single().hasExplicitTime)
+    }
+
+    @Test
+    fun `two active timestamps on one heading yield two rows with distinct keys`() {
+        val doc = OrgParser.parse("* Trip\n<2026-07-24 Fri> <2026-07-26 Sun>\n")
+        val result = ReminderPlanning.desiredReminders("a.org", doc, nineAm, remindersEnabled = true, zone = zone)
+        assertEquals(2, result.size)
+        assertEquals(2, result.map { it.key }.toSet().size)
+        assertTrue(result.all { it.planningType == PlanningType.ACTIVE.storageKey })
+    }
+
+    @Test
+    fun `a ranged active timestamp gets a single reminder on its start date`() {
+        val doc = OrgParser.parse("* Conference\n<2026-07-24 Fri>--<2026-07-27 Mon>\n")
+        val result = ReminderPlanning.desiredReminders("a.org", doc, nineAm, remindersEnabled = true, zone = zone)
+        assertEquals(
+            LocalDate.of(2026, 7, 24),
+            LocalDateTime.ofInstant(
+                java.time.Instant.ofEpochMilli(result.single().triggerAtMillis), zone,
+            ).toLocalDate(),
+        )
+    }
+
+    @Test
+    fun `a done heading with an active timestamp gets no reminder`() {
+        val doc = OrgParser.parse("* DONE Party\n<2026-07-24 Fri 18:00>\n")
+        val result = ReminderPlanning.desiredReminders("a.org", doc, nineAm, remindersEnabled = true, zone = zone)
+        assertEquals(emptyList<Any>(), result)
+    }
+
+    @Test
     fun `nested headings key by their ancestor path`() {
         val doc = OrgParser.parse("* Project\n** TODO Sub task\nSCHEDULED: <2026-07-24 Fri>\n")
         val result = ReminderPlanning.desiredReminders("a.org", doc, nineAm, remindersEnabled = true, zone = zone)

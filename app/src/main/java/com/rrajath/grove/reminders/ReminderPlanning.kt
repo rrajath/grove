@@ -38,8 +38,10 @@ object ReminderPlanning {
 
     /**
      * Every reminder [fileName]'s headlines should have: one per non-done
-     * heading's SCHEDULED and/or DEADLINE timestamp. Returns an empty list when
-     * reminders are disabled, so callers can feed this straight into
+     * heading's SCHEDULED and/or DEADLINE timestamp, plus one per bare active
+     * timestamp in the heading's own body. A ranged active stamp
+     * (`<a>--<b>`) gets a single reminder on its start date. Returns an empty
+     * list when reminders are disabled, so callers can feed this straight into
      * [ReminderDiff] to cancel everything that previously existed for the file.
      */
     fun desiredReminders(
@@ -61,6 +63,14 @@ object ReminderPlanning {
             h.planning.deadline?.let { ts ->
                 result.add(entity(fileName, path, h.title, h.level, PlanningType.DEADLINE, ts, defaultReminderTime, leadTime, zone))
             }
+            h.activeTimestamps.forEach { ts ->
+                result.add(
+                    entity(
+                        fileName, path, h.title, h.level, PlanningType.ACTIVE, ts,
+                        defaultReminderTime, leadTime, zone, discriminator = ts.date.toString(),
+                    )
+                )
+            }
         }
         return result
     }
@@ -75,8 +85,9 @@ object ReminderPlanning {
         defaultReminderTime: LocalTime,
         leadTime: ReminderLeadTime,
         zone: ZoneId,
+        discriminator: String? = null,
     ): ReminderEntity {
-        val key = ReminderKeys.reminderKey(fileName, headingPath, level, type)
+        val key = ReminderKeys.reminderKey(fileName, headingPath, level, type, discriminator)
         val hasExplicitTime = ts.time != null
         return ReminderEntity(
             key = key,

@@ -43,19 +43,30 @@ object ReminderNotification {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
 
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+        // A bare active timestamp is an event, not a task: it reads as "starting
+        // now" rather than "due", and carries no Complete/Reschedule actions
+        // (nothing to mark done, and its date lives inline in the body, not on a
+        // planning line the reschedule flow knows how to rewrite).
+        val isEvent = reminder.planningType == PlanningType.ACTIVE.storageKey
+
+        val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
             .setColor(NotificationAppearance.markColor(context))
             .setContentTitle(orgInlinePlainText(reminder.headingTitle))
-            .setContentText(ReminderLeadTime.fromStorage(reminder.leadTime).dueMessage)
+            .setContentText(
+                if (isEvent) eventMessage(ReminderLeadTime.fromStorage(reminder.leadTime))
+                else ReminderLeadTime.fromStorage(reminder.leadTime).dueMessage
+            )
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setContentIntent(contentIntent)
             .setAutoCancel(true)
-            .addAction(0, "Complete", completeAction(context, reminder))
-            .addAction(0, "Reschedule", rescheduleAction(context, reminder))
-            .build()
-        nm.notify(reminder.notificationId, notification)
+        if (!isEvent) {
+            builder
+                .addAction(0, "Complete", completeAction(context, reminder))
+                .addAction(0, "Reschedule", rescheduleAction(context, reminder))
+        }
+        nm.notify(reminder.notificationId, builder.build())
     }
 
     fun cancel(context: Context, notificationId: Int) {
@@ -93,6 +104,11 @@ object ReminderNotification {
             .build()
         nm.notify(DIGEST_NOTIFICATION_ID, notification)
     }
+
+    /** Event phrasing for an ACTIVE reminder, honouring the lead time it was armed with. */
+    private fun eventMessage(leadTime: ReminderLeadTime): String =
+        if (leadTime == ReminderLeadTime.AT_TIME) "This event is starting now"
+        else "This event starts in ${leadTime.label.substringBefore(" before the event")}"
 
     private fun completeAction(context: Context, reminder: ReminderEntity): PendingIntent {
         val intent = Intent(context, ReminderActionReceiver::class.java)

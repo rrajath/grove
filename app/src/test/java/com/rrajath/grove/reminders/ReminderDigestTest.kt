@@ -71,6 +71,33 @@ class ReminderDigestTest {
     }
 
     @Test
+    fun `an active event today is counted`() {
+        val reminders = listOf(entity("evt", today, PlanningType.ACTIVE))
+        assertEquals(1, ReminderDigest.count(reminders, today, zone))
+    }
+
+    @Test
+    fun `a past active event is not counted (events are never overdue)`() {
+        val reminders = listOf(entity("evt", today.minusDays(1), PlanningType.ACTIVE))
+        assertEquals(0, ReminderDigest.count(reminders, today, zone))
+    }
+
+    @Test
+    fun `a future active event is not counted`() {
+        val reminders = listOf(entity("evt", today.plusDays(1), PlanningType.ACTIVE))
+        assertEquals(0, ReminderDigest.count(reminders, today, zone))
+    }
+
+    @Test
+    fun `an event and a task on the same heading today each count`() {
+        val reminders = listOf(
+            entity("h-sched", today, PlanningType.SCHEDULED, headingPath = "h"),
+            entity("h-evt", today, PlanningType.ACTIVE, headingPath = "h"),
+        )
+        assertEquals(2, ReminderDigest.count(reminders, today, zone))
+    }
+
+    @Test
     fun `empty table counts zero`() {
         assertEquals(0, ReminderDigest.count(emptyList(), today, zone))
     }

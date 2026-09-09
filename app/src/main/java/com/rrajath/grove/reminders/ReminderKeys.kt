@@ -6,7 +6,14 @@ import com.rrajath.grove.org.OrgHeadline
 /** Which planning timestamp a reminder tracks. */
 enum class PlanningType(val storageKey: String) {
     SCHEDULED("SCHEDULED"),
-    DEADLINE("DEADLINE");
+    DEADLINE("DEADLINE"),
+
+    /**
+     * A bare active timestamp in the heading's own body (`<2026-09-08 Mon>`),
+     * not a planning-line SCHEDULED/DEADLINE. A heading can carry several, so
+     * these keys need a per-stamp [ReminderKeys.reminderKey] discriminator.
+     */
+    ACTIVE("ACTIVE");
 
     companion object {
         fun fromStorage(value: String): PlanningType? = entries.firstOrNull { it.storageKey == value }
@@ -38,9 +45,22 @@ object ReminderKeys {
         return ancestors.joinToString("/")
     }
 
-    /** Composite primary key for the `reminders` table. */
-    fun reminderKey(fileName: String, headingPath: String, level: Int, type: PlanningType): String =
-        "$fileName$SEP$level$SEP$headingPath$SEP${type.storageKey}"
+    /**
+     * Composite primary key for the `reminders` table. [discriminator] tells
+     * apart several reminders that share a heading and [type] — an ACTIVE
+     * heading with more than one bare timestamp passes each stamp's ISO date
+     * here so the rows don't collide. Null for SCHEDULED/DEADLINE, which are
+     * unique per heading.
+     */
+    fun reminderKey(
+        fileName: String,
+        headingPath: String,
+        level: Int,
+        type: PlanningType,
+        discriminator: String? = null,
+    ): String =
+        "$fileName$SEP$level$SEP$headingPath$SEP${type.storageKey}" +
+            (if (discriminator != null) "$SEP$discriminator" else "")
 
     /**
      * Stable, positive per-[key] id reused for both the notification and its alarm

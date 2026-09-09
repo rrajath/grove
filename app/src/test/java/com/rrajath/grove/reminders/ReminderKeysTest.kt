@@ -30,6 +30,17 @@ class ReminderKeysTest {
     }
 
     @Test
+    fun `active reminder keys differ by their date discriminator`() {
+        val base = ReminderKeys.reminderKey("a.org", "A", 1, PlanningType.ACTIVE, "2026-09-08")
+        assertNotEquals(base, ReminderKeys.reminderKey("a.org", "A", 1, PlanningType.ACTIVE, "2026-09-09"))
+        assertNotEquals(base, ReminderKeys.reminderKey("a.org", "A", 1, PlanningType.ACTIVE))
+        assertNotEquals(
+            base,
+            ReminderKeys.reminderKey("a.org", "A", 1, PlanningType.SCHEDULED, "2026-09-08"),
+        )
+    }
+
+    @Test
     fun `reminder key differs by file, level, or path`() {
         val base = ReminderKeys.reminderKey("a.org", "A", 1, PlanningType.SCHEDULED)
         assertNotEquals(base, ReminderKeys.reminderKey("b.org", "A", 1, PlanningType.SCHEDULED))
