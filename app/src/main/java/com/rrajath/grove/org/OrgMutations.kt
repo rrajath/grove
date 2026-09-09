@@ -54,6 +54,40 @@ object OrgMutations {
     ): String = writePlanning(doc, h, h.planning.copy(scheduled = scheduled, deadline = deadline))
 
     /**
+     * Write [h]'s bare active timestamps as one dedicated line at [h.bodyStart]
+     * (right after any planning line and drawers). If a "pure active-timestamp
+     * line" (only `<…>` stamps + whitespace) is already there it is replaced;
+     * otherwise one is inserted. An empty [stamps] removes the dedicated line.
+     * Active timestamps typed inline in prose are left untouched — only this
+     * one managed line is edited, mirroring [writePlanning].
+     */
+    fun setActiveTimestamps(doc: OrgDocument, h: OrgHeadline, stamps: List<OrgTimestamp>): String {
+        val lines = doc.lines.toMutableList()
+        val at = h.bodyStart
+        val hadLine = at < h.contentEnd && at < lines.size && isPureActiveTimestampLine(lines[at])
+        val newLine = stamps
+            .filter { it.active }
+            .takeIf { it.isNotEmpty() }
+            ?.joinToString(" ") { it.format() }
+        when {
+            hadLine && newLine != null -> lines[at] = newLine
+            hadLine -> lines.removeAt(at)
+            newLine != null -> lines.add(at, newLine)
+        }
+        return lines.joinToString("\n")
+    }
+
+    private val PURE_ACTIVE_TS_LINE =
+        Regex("""^\s*(?:<[^<>\n]+>(?:--<[^<>\n]+>)?\s*)+$""")
+
+    /** True when [line] holds only active `<…>` timestamps (and whitespace). */
+    private fun isPureActiveTimestampLine(line: String): Boolean {
+        if (!PURE_ACTIVE_TS_LINE.matches(line)) return false
+        val stamps = OrgTimestamp.parseAll(line.trim())
+        return stamps.isNotEmpty() && stamps.all { it.active }
+    }
+
+    /**
      * Mark done per org rules: a repeating SCHEDULED/DEADLINE advances its date
      * and the keyword stays active; otherwise the keyword becomes [doneKeyword]
      * and a CLOSED stamp is added.

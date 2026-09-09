@@ -38,6 +38,13 @@ data class OrgHeadline(
     val properties: Map<String, String>,
     /** Raw lines inside a `:LOGBOOK: ... :END:` drawer, marker lines excluded. */
     val logbook: List<String> = emptyList(),
+    /**
+     * Bare active timestamps in the headline's *own* body (`<2026-09-08 Mon>`,
+     * or a range `<a>--<b>`), descendants and drawers excluded. These are events
+     * on their date, never overdue. The planning line's SCHEDULED/DEADLINE
+     * stamps are parsed separately into [planning] and never appear here.
+     */
+    val activeTimestamps: List<OrgTimestamp> = emptyList(),
     /** First line of body content (after planning line, properties and logbook drawers). */
     val bodyStart: Int,
     /** Exclusive end: line index of the next headline (any level) or EOF. */
@@ -372,6 +379,10 @@ object OrgParser {
             }
         }
 
+        val body = if (cursor < contentEnd) lines.subList(cursor, contentEnd) else emptyList()
+        val activeTimestamps = OrgTimestamp.parseAll(body.joinToString("\n"))
+            .filter { it.active }
+
         return OrgHeadline(
             index = index,
             lineIndex = lineIndex,
@@ -383,6 +394,7 @@ object OrgParser {
             planning = planning,
             properties = properties,
             logbook = logbook,
+            activeTimestamps = activeTimestamps,
             bodyStart = cursor,
             contentEnd = contentEnd,
         )

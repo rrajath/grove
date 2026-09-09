@@ -160,4 +160,65 @@ class OrgTimestampTest {
         assertNotNull(ts)
         assertEquals("<2025-04-09 Wed>", text.substring(range))
     }
+
+    @Test
+    fun `parseAll returns a single bare timestamp`() {
+        val all = OrgTimestamp.parseAll("meeting <2026-09-08 Mon> in the body")
+        assertEquals(1, all.size)
+        assertEquals(LocalDate.of(2026, 9, 8), all[0].date)
+        assertNull(all[0].rangeEnd)
+    }
+
+    @Test
+    fun `parseAll returns multiple timestamps across prose`() {
+        val all = OrgTimestamp.parseAll("first <2026-09-08 Mon> then later <2026-09-10 Wed>")
+        assertEquals(2, all.size)
+        assertEquals(LocalDate.of(2026, 9, 8), all[0].date)
+        assertEquals(LocalDate.of(2026, 9, 10), all[1].date)
+    }
+
+    @Test
+    fun `parseAll pairs a range into one timestamp`() {
+        val all = OrgTimestamp.parseAll("<2026-09-08 Mon>--<2026-09-10 Wed>")
+        assertEquals(1, all.size)
+        assertEquals(LocalDate.of(2026, 9, 8), all[0].date)
+        assertEquals(LocalDate.of(2026, 9, 10), all[0].rangeEnd)
+    }
+
+    @Test
+    fun `parseAll parses a range then a following standalone stamp`() {
+        val all = OrgTimestamp.parseAll("<2026-09-08 Mon>--<2026-09-10 Wed> and <2026-09-20 Sat>")
+        assertEquals(2, all.size)
+        assertEquals(LocalDate.of(2026, 9, 10), all[0].rangeEnd)
+        assertEquals(LocalDate.of(2026, 9, 20), all[1].date)
+        assertNull(all[1].rangeEnd)
+    }
+
+    @Test
+    fun `parseAll ignores inactive stamps only when filtered by caller`() {
+        val all = OrgTimestamp.parseAll("[2026-09-08 Mon] <2026-09-09 Tue>")
+        assertEquals(2, all.size)
+        assertEquals(listOf(false, true), all.map { it.active })
+    }
+
+    @Test
+    fun `format round-trips a range`() {
+        val ts = OrgTimestamp.parseAll("<2026-09-08 Mon>--<2026-09-10 Wed>").single()
+        assertEquals("<2026-09-08 Tue>--<2026-09-10 Thu>", ts.format())
+    }
+
+    @Test
+    fun `formatHuman shows a range with an en dash`() {
+        val ts = OrgTimestamp.parseAll("<2026-09-08 Mon>--<2026-09-10 Wed>").single()
+        assertEquals("Sep 8 – Sep 10", ts.formatHuman(today = LocalDate.of(2026, 1, 1)))
+    }
+
+    @Test
+    fun `advanceRepeater shifts the range end by the same delta`() {
+        val ts = OrgTimestamp.parseAll("<2026-09-08 Mon>--<2026-09-10 Wed>").single()
+            .copy(repeater = Repeater(RepeaterType.CUMULATIVE, 1, 'w'))
+        val advanced = ts.advanceRepeater(today = LocalDate.of(2026, 9, 1))
+        assertEquals(LocalDate.of(2026, 9, 15), advanced.date)
+        assertEquals(LocalDate.of(2026, 9, 17), advanced.rangeEnd)
+    }
 }

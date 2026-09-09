@@ -317,4 +317,39 @@ class OrgParserTest {
         assertNull(doc.headlines[1].keyword)
         assertEquals("TODO not a keyword here", doc.headlines[1].title)
     }
+
+    // --- Bare active timestamps ---
+
+    @Test
+    fun `parses a bare active timestamp from the body`() {
+        val doc = OrgParser.parse("* Concert\nsome context <2026-09-12 Fri> more text\n")
+        val h = doc.headlines.first()
+        assertEquals(1, h.activeTimestamps.size)
+        assertEquals(java.time.LocalDate.of(2026, 9, 12), h.activeTimestamps[0].date)
+    }
+
+    @Test
+    fun `parses a dedicated active-timestamp line and a ranged one`() {
+        val doc = OrgParser.parse(
+            "* Trip\n<2026-09-08 Mon>--<2026-09-10 Wed>\nbody\n* Party\n<2026-09-20 Sat>\n"
+        )
+        val trip = doc.findByTitle("Trip")!!
+        assertEquals(1, trip.activeTimestamps.size)
+        assertEquals(java.time.LocalDate.of(2026, 9, 10), trip.activeTimestamps[0].rangeEnd)
+        val party = doc.findByTitle("Party")!!
+        assertEquals(java.time.LocalDate.of(2026, 9, 20), party.activeTimestamps.single().date)
+    }
+
+    @Test
+    fun `active timestamps exclude descendants, planning and inactive stamps`() {
+        val doc = OrgParser.parse(
+            "* Parent\nSCHEDULED: <2026-09-01 Tue>\n:PROPERTIES:\n:CREATED: [2026-08-01 Sat]\n:END:\n" +
+                "note [2026-08-15 Sat] and <2026-09-05 Sat>\n** Child\n<2026-09-30 Wed>\n"
+        )
+        val parent = doc.findByTitle("Parent")!!
+        assertEquals(
+            listOf(java.time.LocalDate.of(2026, 9, 5)),
+            parent.activeTimestamps.map { it.date },
+        )
+    }
 }

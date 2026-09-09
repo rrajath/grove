@@ -1046,4 +1046,65 @@ class OrgMutationsTest {
         assertEquals("  - [ ] item b", result.lines()[cookieDoc.lines.indexOf("  - [ ] item b")])
         assertEquals("- Outer [/]", result.lines()[cookieDoc.lines.indexOf("- Outer [/]")])
     }
+
+    // --- setActiveTimestamps ---
+
+    private val activeDoc = OrgParser.parse(
+        """
+        * Event
+        :PROPERTIES:
+        :ID: e1
+        :END:
+        the body
+
+        * Other
+        """.trimIndent() + "\n"
+    )
+
+    @Test
+    fun `setActiveTimestamps inserts a dedicated line after the drawer`() {
+        val ts = OrgTimestamp.parse("<2026-09-12 Fri>")!!
+        val result = OrgMutations.setActiveTimestamps(activeDoc, h2("Event"), listOf(ts))
+        val redoc = OrgParser.parse(result)
+        val ev = redoc.findByTitle("Event")!!
+        assertEquals(listOf(java.time.LocalDate.of(2026, 9, 12)), ev.activeTimestamps.map { it.date })
+        assertEquals("<2026-09-12 Sat>", redoc.lines[ev.bodyStart])
+        assertTrue(result.contains("the body"))
+    }
+
+    @Test
+    fun `setActiveTimestamps replaces an existing pure line and is idempotent`() {
+        val once = OrgMutations.setActiveTimestamps(
+            activeDoc, h2("Event"), listOf(OrgTimestamp.parse("<2026-09-12 Fri>")!!)
+        )
+        val doc1 = OrgParser.parse(once)
+        val edited = OrgMutations.setActiveTimestamps(
+            doc1, doc1.findByTitle("Event")!!,
+            listOf(OrgTimestamp.parseAll("<2026-09-08 Mon>--<2026-09-10 Wed>").single()),
+        )
+        val doc2 = OrgParser.parse(edited)
+        assertEquals(
+            "<2026-09-08 Tue>--<2026-09-10 Thu>",
+            doc2.lines[doc2.findByTitle("Event")!!.bodyStart],
+        )
+        // Re-applying the same list changes nothing.
+        val again = OrgMutations.setActiveTimestamps(
+            doc2, doc2.findByTitle("Event")!!,
+            listOf(OrgTimestamp.parseAll("<2026-09-08 Mon>--<2026-09-10 Wed>").single()),
+        )
+        assertEquals(edited, again)
+    }
+
+    @Test
+    fun `setActiveTimestamps with an empty list removes the dedicated line`() {
+        val once = OrgMutations.setActiveTimestamps(
+            activeDoc, h2("Event"), listOf(OrgTimestamp.parse("<2026-09-12 Fri>")!!)
+        )
+        val doc1 = OrgParser.parse(once)
+        val cleared = OrgMutations.setActiveTimestamps(doc1, doc1.findByTitle("Event")!!, emptyList())
+        assertTrue(!cleared.contains("<2026-09-12 Fri>"))
+        assertTrue(cleared.contains("the body"))
+    }
+
+    private fun h2(title: String) = activeDoc.headlines.first { it.title == title }
 }

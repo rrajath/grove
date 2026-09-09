@@ -41,6 +41,12 @@ data class OrgTimestamp(
     val repeater: Repeater? = null,
     /** Warning/delay cookie such as `-2d`, kept verbatim. */
     val warning: String? = null,
+    /**
+     * End date of an org timestamp *range* (`<a …>--<b …>`), or null for a plain
+     * single-day timestamp. A ranged event spans every day from [date] to
+     * [rangeEnd] inclusive.
+     */
+    val rangeEnd: LocalDate? = null,
 ) {
     fun format(): String {
         val sb = StringBuilder()
@@ -54,6 +60,13 @@ data class OrgTimestamp(
         if (repeater != null) sb.append(' ').append(repeater)
         if (warning != null) sb.append(' ').append(warning)
         sb.append(if (active) '>' else ']')
+        if (rangeEnd != null) {
+            sb.append("--")
+            sb.append(if (active) '<' else '[')
+            sb.append(rangeEnd)
+            sb.append(' ').append(dayAbbrev(rangeEnd))
+            sb.append(if (active) '>' else ']')
+        }
         return sb.toString()
     }
 
@@ -72,6 +85,10 @@ data class OrgTimestamp(
         val sb = StringBuilder()
         sb.append(HUMAN_DATE.format(date))
         if (date.year != today.year) sb.append(", ").append(date.year)
+        if (rangeEnd != null) {
+            sb.append(" – ").append(HUMAN_DATE.format(rangeEnd))
+            if (rangeEnd.year != today.year) sb.append(", ").append(rangeEnd.year)
+        }
         if (time != null) {
             sb.append(' ').append(formatTime(time))
             if (endTime != null) sb.append('-').append(formatTime(endTime))
@@ -155,6 +172,34 @@ data class OrgTimestamp(
                 warning = warning,
             ) to (m.range)
         }
+
+        /**
+         * Every timestamp in [text], in order. When a match is immediately
+         * followed by `--<…>` the two are paired into one ranged [OrgTimestamp]
+         * ([rangeEnd] set from the second bracket's date). Used to scan an
+         * entry's body for bare active timestamps.
+         */
+        fun parseAll(text: String): List<OrgTimestamp> {
+            val result = mutableListOf<OrgTimestamp>()
+            var offset = 0
+            while (offset < text.length) {
+                val rest = text.substring(offset)
+                val (ts, range) = parseWithRange(rest) ?: break
+                val absEnd = offset + range.last + 1
+                val after = text.substring(absEnd)
+                if (ts.active && ts.rangeEnd == null && after.startsWith("--")) {
+                    val endMatch = parseWithRange(after.substring(2))
+                    if (endMatch != null && endMatch.second.first == 0 && endMatch.first.active) {
+                        result.add(ts.copy(rangeEnd = endMatch.first.date))
+                        offset = absEnd + 2 + endMatch.second.last + 1
+                        continue
+                    }
+                }
+                result.add(ts)
+                offset = absEnd
+            }
+            return result
+        }
     }
 }
 
@@ -190,5 +235,6 @@ fun OrgTimestamp.advanceRepeater(today: LocalDate): OrgTimestamp {
         }
         time.plusHours(total.toLong())
     } else time
-    return copy(date = newDate, time = newTime)
+    val dayDelta = java.time.temporal.ChronoUnit.DAYS.between(date, newDate)
+    return copy(date = newDate, time = newTime, rangeEnd = rangeEnd?.plusDays(dayDelta))
 }
