@@ -29,6 +29,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckBox
 import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
+import androidx.compose.material.icons.filled.Circle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.automirrored.filled.FormatIndentDecrease
 import androidx.compose.material.icons.automirrored.filled.FormatIndentIncrease
@@ -1053,7 +1054,8 @@ private fun OutlineNode(
             // line only if they don't both fit on one.
             val hasScheduled = headline.planning.scheduled != null && flags.timestamps
             val hasDeadline = headline.planning.deadline != null && flags.timestamps
-            if (hasScheduled || hasDeadline) {
+            val hasActive = headline.activeTimestamps.isNotEmpty() && flags.timestamps
+            if (hasScheduled || hasDeadline || hasActive) {
                 FlowRow(
                     modifier = Modifier.padding(top = 3.dp),
                     horizontalArrangement = Arrangement.spacedBy(5.dp),
@@ -1089,6 +1091,26 @@ private fun OutlineNode(
                                 ts.formatHuman(),
                                 fontFamily = PlexMono, fontSize = 11.sp, color = c.red,
                             )
+                        }
+                    }
+                    // Bare active timestamps (events): violet dot chip. M8 swaps the
+                    // derived background for a tuned c.violetSoft token.
+                    if (flags.timestamps) {
+                        headline.activeTimestamps.forEach { ts ->
+                            Row(
+                                Modifier
+                                    .clip(RoundedCornerShape(5.dp))
+                                    .background(c.violet.copy(alpha = 0.14f))
+                                    .padding(horizontal = 5.dp, vertical = 1.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(3.dp),
+                            ) {
+                                Icon(Icons.Filled.Circle, contentDescription = null, tint = c.violet, modifier = Modifier.size(7.dp))
+                                Text(
+                                    ts.formatHuman(),
+                                    fontFamily = PlexMono, fontSize = 11.sp, color = c.violet,
+                                )
+                            }
                         }
                     }
                 }

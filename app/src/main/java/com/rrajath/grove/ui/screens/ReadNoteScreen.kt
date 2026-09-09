@@ -34,6 +34,7 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Save
+import androidx.compose.material.icons.filled.Circle
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -78,6 +79,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
@@ -749,7 +751,9 @@ private fun NoteContent(
                         // renders first here too, matching edit mode's line order.
                         // Both chips share a row and wrap to a second line only if
                         // they don't fit side by side.
-                        if (headline.planning.scheduled != null || headline.planning.deadline != null) {
+                        if (headline.planning.scheduled != null || headline.planning.deadline != null ||
+                            headline.activeTimestamps.isNotEmpty()
+                        ) {
                             Spacer(Modifier.height(6.dp))
                             FlowRow(
                                 horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -760,6 +764,18 @@ private fun NoteContent(
                                 }
                                 headline.planning.deadline?.let {
                                     PlanningChip(it.formatHuman(), icon = Icons.Filled.Flag, fg = c.red, bg = c.redSoft)
+                                }
+                                // Bare active timestamps (events): a filled dot in the
+                                // violet event colour. M8 replaces the derived soft
+                                // background with a tuned c.violetSoft token.
+                                headline.activeTimestamps.forEach {
+                                    PlanningChip(
+                                        it.formatHuman(),
+                                        icon = Icons.Filled.Circle,
+                                        fg = c.violet,
+                                        bg = c.violet.copy(alpha = 0.14f),
+                                        iconSize = 8.dp,
+                                    )
                                 }
                             }
                         }
@@ -1076,7 +1092,13 @@ private fun LinkActionMenuItems(target: String, onDismiss: () -> Unit) {
  * `<2026-07-30 Thu>` belongs.
  */
 @Composable
-private fun PlanningChip(text: String, icon: androidx.compose.ui.graphics.vector.ImageVector, fg: Color, bg: Color) {
+private fun PlanningChip(
+    text: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    fg: Color,
+    bg: Color,
+    iconSize: Dp = 13.dp,
+) {
     Row(
         Modifier
             .clip(RoundedCornerShape(6.dp))
@@ -1085,7 +1107,7 @@ private fun PlanningChip(text: String, icon: androidx.compose.ui.graphics.vector
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        Icon(icon, contentDescription = null, tint = fg, modifier = Modifier.size(13.dp))
+        Icon(icon, contentDescription = null, tint = fg, modifier = Modifier.size(iconSize))
         Text(text, fontFamily = PlexMono, fontSize = 12.5.sp, color = fg)
     }
 }

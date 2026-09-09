@@ -120,6 +120,30 @@ class ReadNoteScreenTest {
     }
 
     @Test
+    fun bareActiveTimestampRendersAsAnEventChip() {
+        runBlocking {
+            env.store.write(
+                "events.org",
+                """
+                #+TITLE: Events
+
+                * Team offsite
+                  <2099-01-15 Fri>
+                  Annual planning session.
+                """.trimIndent() + "\n",
+            )
+        }
+        content(NoteRef("events.org", lineOf(runBlocking { env.store.read("events.org") }, "Team offsite")))
+
+        // The humanised chip label ("Jan 15, 2099") — distinct from the raw
+        // `<2099-01-15 Fri>` the body renders — proves the violet event chip drew.
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.onAllNodesWithText("Jan 15, 2099", substring = true).fetchSemanticsNodes().isNotEmpty()
+        }
+        composeRule.onNodeWithText("Jan 15, 2099", substring = true).assertIsDisplayed()
+    }
+
+    @Test
     fun aLargeSubtreeScrollsWithoutCrashing() {
         content(NoteRef("large-subtree.org", lineOf(OrgFixtures.LARGE_SUBTREE, "Everything")))
 

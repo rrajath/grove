@@ -14,6 +14,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.rrajath.grove.ui.support.ScreenTestEnv
 import com.rrajath.grove.ui.support.setGroveContent
 import com.rrajath.grove.ui.vault.NoteRef
+import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
@@ -107,6 +108,30 @@ class OutlineScreenTest {
         composeRule.onNodeWithTag("outline_list")
             .performScrollToNode(hasText("Section 72", substring = true))
         composeRule.onNodeWithText("Section 72", substring = true).assertIsDisplayed()
+    }
+
+    @Test
+    fun bareActiveTimestampRendersAsAnEventChip() {
+        runBlocking {
+            env.store.write(
+                "events.org",
+                """
+                #+TITLE: Events
+
+                * Team offsite
+                  <2099-01-15 Fri>
+                  Annual planning session.
+                """.trimIndent() + "\n",
+            )
+        }
+        content(notebookId = "events.org")
+
+        // Humanised chip label ("Jan 15, 2099") — the raw stamp never appears in
+        // the outline, so this proves the violet event chip drew.
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.onAllNodesWithText("Jan 15, 2099", substring = true).fetchSemanticsNodes().isNotEmpty()
+        }
+        composeRule.onNodeWithText("Jan 15, 2099", substring = true).assertIsDisplayed()
     }
 
     @Test
