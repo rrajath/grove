@@ -1,5 +1,6 @@
 package com.rrajath.grove.ui.screens.settings
 
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -21,6 +22,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -112,6 +114,10 @@ internal fun SettingsGroup(content: @Composable () -> Unit) {
     Column(
         Modifier
             .fillMaxWidth()
+            // Rows disclosed by an `if` (e.g. a toggle revealing a follow-up row)
+            // otherwise snap the card's height in one frame; animate the resize so
+            // it reads as an expand/collapse rather than a jump.
+            .animateContentSize()
             .clip(RoundedCornerShape(15.dp))
             .background(c.surface)
             .border(1.dp, c.line, RoundedCornerShape(15.dp)),
@@ -177,10 +183,17 @@ internal fun ToggleRow(
     onToggle: (Boolean) -> Unit,
 ) {
     val c = MaterialTheme.grove
+    // The `checked` source is a DataStore-backed StateFlow, so it only flips a few
+    // frames after the tap (coroutine hop + disk write + emit + recompose). Driving
+    // the Switch straight off it makes the thumb snap late instead of sliding. Track
+    // the state locally for an instant, smooth animation and let the store catch up.
+    var shown by remember { mutableStateOf(checked) }
+    LaunchedEffect(checked) { shown = checked }
+    val setChecked: (Boolean) -> Unit = { shown = it; onToggle(it) }
     Row(
         Modifier
             .fillMaxWidth()
-            .clickable { onToggle(!checked) }
+            .clickable { setChecked(!shown) }
             .padding(horizontal = 15.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -205,8 +218,8 @@ internal fun ToggleRow(
         }
         Spacer(Modifier.width(12.dp))
         androidx.compose.material3.Switch(
-            checked = checked,
-            onCheckedChange = onToggle,
+            checked = shown,
+            onCheckedChange = setChecked,
             colors = androidx.compose.material3.SwitchDefaults.colors(
                 checkedTrackColor = c.accent,
                 checkedThumbColor = c.accentInk,
