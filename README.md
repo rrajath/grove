@@ -54,6 +54,30 @@ Grove edits plain `.org` files in a folder you choose. There is no account, no p
 ./gradlew lintDebug              # lint
 ```
 
+### Testing
+
+```bash
+./gradlew testDebugUnitTest        # JVM unit tests (run in CI on every push)
+./gradlew connectedAndroidTest     # instrumented + Compose UI tests (needs a device/emulator)
+```
+
+CI runs the unit tests on every push and the Compose UI tests nightly. Maestro
+end-to-end flows live in `.maestro/`.
+
+#### Performance benchmarks
+
+The Macrobenchmark suite (`:macrobenchmark`) measures cold/warm startup and
+scroll jank, and regenerates the Baseline Profile that ships in the APK. It is
+**not** run in CI: benchmark numbers off a shared-runner emulator are noise, so
+run it locally on a real device instead.
+
+```bash
+./gradlew :macrobenchmark:connectedBenchmarkReleaseAndroidTest   # startup + scroll benchmarks
+./gradlew :app:generateBaselineProfile                           # writes app/src/main/baselineProfiles/
+```
+
+Results land in `macrobenchmark/build/outputs/connected_android_test_additional_output/`.
+
 ### First run
 
 1. Launch Grove and pick your org folder (any folder reachable through Android's file picker).

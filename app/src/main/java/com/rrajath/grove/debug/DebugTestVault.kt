@@ -46,10 +46,14 @@ object DebugTestVault {
      * [VAULT_DIR]. The scroll benchmarks launch COLD × 10 iterations, so
      * `applyFromLaunchIntent` runs ~10 times per test; without this guard each
      * run would `wipe` + rewrite ~560 files, bumping every mtime and forcing the
-     * app to fully re-index the vault before the Notebooks list appears — which
-     * blows past the launch timeout on CI's shared emulator. When the signature
+     * app to fully re-index the vault before the Notebooks list appears, which
+     * blew past the launch timeout on a slow emulator. When the signature
      * already matches, seeding is a no-op and only the first iteration pays the
      * write + index cost.
+     *
+     * The signature covers the seed *shape* (kind + counts), not file contents,
+     * so after changing the generated `.org` bodies below, delete the vault dir
+     * (or bump a count) to force a reseed.
      */
     private const val SEED_MARKER = ".grove-seed"
 

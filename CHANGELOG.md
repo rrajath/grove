@@ -59,6 +59,16 @@ re-uploads the APKs to the existing release instead of failing.
 
 ## [Unreleased]
 
+- Removed the CI `macrobenchmark` job. Benchmark numbers off a shared-runner
+  emulator are noise, and keeping the suite green there was a recurring
+  maintenance cost (cold-start re-seed/re-index flakiness, the androidx EMULATOR
+  guard). The `:macrobenchmark` module stays; run it locally on a real device
+  (`./gradlew :macrobenchmark:connectedBenchmarkReleaseAndroidTest`), as the
+  README now documents. The debug/benchmark test-vault seed is also now
+  idempotent (a `.grove-seed` marker file) so repeated cold launches don't
+  re-index ~560 files each time, and the benchmarks' "wait for the list" step is
+  a hard assertion with a longer timeout. No release impact.
+
 ## [1.5.0] - 2026-09-09
 
 - Fixed: the CI `macrobenchmark` job's `ScrollBenchmark` tests crashed with a
