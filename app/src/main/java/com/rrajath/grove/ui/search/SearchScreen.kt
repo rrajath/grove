@@ -995,9 +995,8 @@ private enum class PillKind { SCHEDULED, DEADLINE, ACTIVE, CLOSED, CREATED }
 private fun DatePillText(label: String, overdue: Boolean, kind: PillKind) {
     val c = MaterialTheme.grove
     val (fg, bg) = when {
-        // Bare active timestamps are events, never overdue-styled (M8 swaps the
-        // derived background for a tuned c.violetSoft token).
-        kind == PillKind.ACTIVE -> c.violet to c.violet.copy(alpha = 0.14f)
+        // Bare active timestamps are events, never overdue-styled.
+        kind == PillKind.ACTIVE -> c.violet to c.violetSoft
         overdue -> c.red to c.redSoft
         kind == PillKind.DEADLINE -> c.amber to c.amberSoft
         else -> c.blue to c.blueSoft

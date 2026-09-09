@@ -86,6 +86,9 @@ import com.rrajath.grove.org.PlanningKind
 import com.rrajath.grove.org.Repeater
 import com.rrajath.grove.org.RepeaterType
 import com.rrajath.grove.org.ShorthandParse
+import com.rrajath.grove.ui.newbadge.MarkNewFeatureSeen
+import com.rrajath.grove.ui.newbadge.NewAnchors
+import com.rrajath.grove.ui.newbadge.NewDot
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
@@ -179,11 +182,10 @@ fun PlanningDatesScreen(
         PlanningKind.DEADLINE -> c.red
         PlanningKind.ACTIVE -> c.violet
     }
-    // M8 replaces the derived active tint with a tuned c.violetSoft token.
     val accentSoft = when (tab) {
         PlanningKind.SCHEDULED -> c.blueSoft
         PlanningKind.DEADLINE -> c.redSoft
-        PlanningKind.ACTIVE -> c.violet.copy(alpha = 0.14f)
+        PlanningKind.ACTIVE -> c.violetSoft
     }
     val isActiveTab = tab == PlanningKind.ACTIVE
 
@@ -461,9 +463,12 @@ fun PlanningDatesScreen(
                             selectTab(PlanningKind.DEADLINE)
                         }
                         TabButton(
-                            "●", "ACTIVE", acts.size, isActiveTab, c.violet, c.violet.copy(alpha = 0.14f),
+                            "●", "ACTIVE", acts.size, isActiveTab, c.violet, c.violetSoft,
+                            badgeAnchor = NewAnchors.PLANNING_DATES_ACTIVE,
                         ) { selectTab(PlanningKind.ACTIVE) }
                     }
+                    // Retire the "NEW" trail once the user actually opens the ACTIVE tab.
+                    if (isActiveTab) MarkNewFeatureSeen(NewAnchors.PLANNING_DATES_ACTIVE)
 
                     Text(
                         if (isActiveTab)
@@ -840,26 +845,34 @@ private fun RowScope.TabButton(
     selected: Boolean,
     accent: Color,
     accentSoft: Color,
+    badgeAnchor: String? = null,
     onClick: () -> Unit,
 ) {
     val c = MaterialTheme.grove
-    Text(
-        buildString {
-            append(glyph).append(' ').append(label)
-            if (count > 1) append(' ').append(count)
-        },
-        fontFamily = PlexMono, fontWeight = FontWeight.Bold,
-        fontSize = 11.sp, letterSpacing = 0.6.sp,
-        color = if (selected) accent else c.ink3,
-        textAlign = TextAlign.Center, maxLines = 1,
-        modifier = Modifier
+    Box(
+        Modifier
             .weight(1f)
             .clip(RoundedCornerShape(12.dp))
             .background(if (selected) accentSoft else c.surface2)
             .border(1.dp, if (selected) accent else c.line, RoundedCornerShape(12.dp))
             .clickable(onClick = onClick)
             .padding(vertical = 9.dp, horizontal = 5.dp),
-    )
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            buildString {
+                append(glyph).append(' ').append(label)
+                if (count > 1) append(' ').append(count)
+            },
+            fontFamily = PlexMono, fontWeight = FontWeight.Bold,
+            fontSize = 11.sp, letterSpacing = 0.6.sp,
+            color = if (selected) accent else c.ink3,
+            textAlign = TextAlign.Center, maxLines = 1,
+        )
+        if (badgeAnchor != null) {
+            NewDot(badgeAnchor, Modifier.align(Alignment.TopEnd))
+        }
+    }
 }
 
 /** A set stamp in the list under the tabs: `Jan 15  ×`, filled when selected. */

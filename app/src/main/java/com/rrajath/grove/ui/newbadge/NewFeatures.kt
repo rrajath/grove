@@ -64,6 +64,9 @@ object NewAnchors {
      *  button carries a corner dot until the feature is seen. */
     const val TOPBAR_MENU = "topbar.menu"
 
+    /** The ACTIVE tab in the tabbed planning-dates editor (bare active timestamps / events). */
+    const val PLANNING_DATES_ACTIVE = "planningDates.active"
+
     /** A Tips & Tricks section, keyed by its [TipGroup] id. */
     fun tipsGroup(id: String) = "tips.group.$id"
 }
@@ -179,5 +182,21 @@ val NEW_FEATURES: List<NewFeature> = listOf(
             NewAnchors.SETTINGS_WIDGET_PAGE,
         ),
         destination = NewAnchors.SETTINGS_WIDGET_PAGE,
+    ),
+    NewFeature(
+        // Bare active timestamps: a heading can now carry plain `<date>` event
+        // stamps (single or a range), managed on the new ACTIVE tab of the
+        // planning-dates editor. They show on the agenda, in read mode / outline
+        // as a violet dot chip, are searchable with `a.` filters, and fire
+        // reminders like SCHEDULED/DEADLINE.
+        // `since` is the versionCode of the release that ships it — bump it to
+        // match `gradle.properties` versionName when cutting the release.
+        id = "bare-active-timestamps",
+        since = 10600,
+        anchors = setOf(
+            NewAnchors.TOPBAR_MENU,
+            NewAnchors.PLANNING_DATES_ACTIVE,
+        ),
+        destination = NewAnchors.PLANNING_DATES_ACTIVE,
     ),
 )

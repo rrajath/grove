@@ -1094,14 +1094,13 @@ private fun OutlineNode(
                             )
                         }
                     }
-                    // Bare active timestamps (events): violet dot chip. M8 swaps the
-                    // derived background for a tuned c.violetSoft token.
+                    // Bare active timestamps (events): violet dot chip.
                     if (flags.timestamps) {
                         headline.activeTimestamps.forEach { ts ->
                             Row(
                                 Modifier
                                     .clip(RoundedCornerShape(5.dp))
-                                    .background(c.violet.copy(alpha = 0.14f))
+                                    .background(c.violetSoft)
                                     .padding(horizontal = 5.dp, vertical = 1.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(3.dp),

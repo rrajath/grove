@@ -1,6 +1,6 @@
 ---
 title: Reminders
-description: System notifications for SCHEDULED/DEADLINE timestamps, a daily digest, and reschedule-without-opening-the-app.
+description: System notifications for SCHEDULED, DEADLINE, and event timestamps, a daily digest, and reschedule-without-opening-the-app.
 ---
 
 import ThemeShot from '../../../components/ThemeShot.astro';
@@ -26,13 +26,17 @@ When a heading's planning date arrives, Grove fires a system notification with t
 
 Tapping the notification body itself deep-links into the note in Read mode.
 
+### Event reminders
+
+A bare active `<date>` timestamp with a time-of-day also fires a notification, worded as an event ("This event is starting now") rather than a task. Because it isn't a task, it carries no Complete or Reschedule action. A date-only event doesn't fire its own notification; it is folded into the daily digest for its day. A date range reminds you once, on its start date.
+
 ## Reschedule without opening the app
 
 The Reschedule action opens Planning Dates inside its own transparent, taskless activity, not the main app. That means rescheduling from a notification never actually navigates into Grove; you set the new date and land right back wherever you were (home screen, another app, the lock screen).
 
 ## Daily digest
 
-If enabled, Grove sends one daily notification ("You have X tasks due today") covering overdue items plus anything due today. It fires at your configured default reminder time and deep-links straight to Agenda. If the count would be zero, the digest is suppressed rather than sending an empty notification.
+If enabled, Grove sends one daily notification ("You have X tasks due today") covering overdue items plus anything due today, including any date-only events on today's date. It fires at your configured default reminder time and deep-links straight to Agenda. If the count would be zero, the digest is suppressed rather than sending an empty notification.
 
 ## Permissions
 

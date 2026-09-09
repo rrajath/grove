@@ -1,23 +1,31 @@
 ---
 title: Planning Dates
-description: "The unified SCHEDULED/DEADLINE editor: shorthand text entry, a calendar, repeaters, and a live org-syntax preview."
+description: "The unified SCHEDULED / DEADLINE / ACTIVE editor: tabbed date entry, shorthand text, a calendar with drag-to-range, repeaters, and a live org-syntax preview."
 ---
 
-Planning Dates is Grove's full-screen editor for a heading's SCHEDULED and DEADLINE timestamps. It opens from the Schedule/Deadline pill in the [Metadata Sheet](/features/metadata-sheet), from Outline View's Schedule swipe action, from Search's swipe action, and from reminder notifications' Reschedule action.
+Planning Dates is Grove's full-screen editor for a heading's dates: its SCHEDULED and DEADLINE planning timestamps and its bare active `<date>` event timestamps. It opens from the Dates pill in the [Metadata Sheet](/features/metadata-sheet), from Outline View's Schedule swipe action, from Search's swipe action, and from reminder notifications' Reschedule action.
 
-![Planning Dates screen for "Finish Q3 roadmap deck" showing a shorthand entry field, quick-token chips, a July 2026 calendar with Jul 31 selected, preset buttons, Time/Repeat toggles, and an org-syntax preview footer](../assets/planning-dates.png)
+![Planning Dates screen showing a shorthand entry field, quick-token chips, a month calendar, preset buttons, Time/Repeat toggles, and an org-syntax preview footer](../assets/planning-dates.png)
+
+## Three tabs, one calendar
+
+A segmented control picks which kind the one calendar is editing:
+
+- **SCHEDULED** (`◷`, blue): the day you plan to act. Holds one day.
+- **DEADLINE** (`⚑`, red): the day it is due. Holds one day.
+- **ACTIVE** (`●`, violet): a plain `<date>` event on the heading. Holds any number of separate event timestamps, plus one date range. Events show on the [Agenda](/features/agenda) on their exact day and never go overdue.
+
+Tapping a day on SCHEDULED or DEADLINE sets that date; tapping it again clears it; tapping a different day moves it. On ACTIVE, each tap toggles a separate event on or off, and a **long-press and drag** sweeps a range (`<2026-09-15 Tue>--<2026-09-18 Fri>` on disk), shown on the calendar as one connected pill. A live `MMM d → MMM d` pill appears by the month header while you drag.
+
+Days carrying one of the *other* kinds show a small dot (blue scheduled, red deadline, violet other-planned, accent for today). There is no month swipe: the `‹` / `›` arrows are the only way to change months.
 
 ## Shorthand entry
 
-The text field at the top accepts compact shorthand instead of tapping through the calendar:
+The text field at the top accepts compact shorthand instead of tapping the calendar:
 
-- `d:` prefix targets DEADLINE, `s:` targets SCHEDULED (the field defaults to whichever the "taps set..." indicator below the calendar currently points at)
-- Relative tokens like `+2w`, `++1w`, `fri`, `aug 3`, `10-11am`, `d: mon`: tapping any of the quick-token chips inserts it into the field
+- `s:` targets SCHEDULED, `d:` targets DEADLINE, `a:` targets ACTIVE (it defaults to the current tab)
+- Relative tokens like `+2w`, `++1w`, `fri`, `aug 3`, `10-11am`: tapping a quick-token chip inserts it
 - **Set** applies the parsed value immediately
-
-## Calendar
-
-A month grid below the shorthand field. Tapping a date sets whichever of SCHEDULED/DEADLINE the toggle at bottom-left of the calendar ("taps set SCHEDULED") currently targets. Scheduled and deadline dates are color-coded (blue dot / red dot per the legend) so you can see both on the same month at a glance.
 
 ## Presets
 
@@ -25,15 +33,15 @@ Below the calendar, one-tap presets for the most common targets: **Today**, **To
 
 ## Time and Repeat
 
-- **Time** toggle switches between all-day and a specific time range
-- **Repeat** toggle exposes the org repeater cookie editor (`+1w`, `++1m`, `.+3d`, etc.) for recurring tasks
+- **Time** toggle switches between all-day and a specific time range. A timed active timestamp fires its own [reminder](/features/reminders); a date-only one is folded into the daily digest.
+- **Repeat** toggle exposes the org repeater cookie editor (`+1w`, `++1m`, `.+3d`) for recurring SCHEDULED / DEADLINE tasks
 
 ## Preview footer
 
-A raw org-syntax preview (`SCHEDULED: <2026-07-31 Fri>` / `DEADLINE: -`) sits above the action button, so you can see exactly what will be written before committing. The action button's label adapts to what's set (**Apply Scheduled Date**, **Apply Deadline**, or **Apply Both Dates**), and **Clear** in the top-right removes both.
+A raw org-syntax preview sits above the action button, so you see exactly what will be written before committing. **Confirm** applies all three kinds at once; the ACTIVE line is written as the heading's first body line.
 
 ## Related
 
 - [Metadata Sheet](/features/metadata-sheet): where the pill that opens this screen lives
-- [Agenda](/features/agenda): how SCHEDULED/DEADLINE dates surface in the daily view
+- [Agenda](/features/agenda): how SCHEDULED, DEADLINE, and event dates surface in the daily view
 - [Reminders](/features/reminders): notifications fired from these dates, and rescheduling directly from a notification

@@ -766,14 +766,13 @@ private fun NoteContent(
                                     PlanningChip(it.formatHuman(), icon = Icons.Filled.Flag, fg = c.red, bg = c.redSoft)
                                 }
                                 // Bare active timestamps (events): a filled dot in the
-                                // violet event colour. M8 replaces the derived soft
-                                // background with a tuned c.violetSoft token.
+                                // violet event colour.
                                 headline.activeTimestamps.forEach {
                                     PlanningChip(
                                         it.formatHuman(),
                                         icon = Icons.Filled.Circle,
                                         fg = c.violet,
-                                        bg = c.violet.copy(alpha = 0.14f),
+                                        bg = c.violetSoft,
                                         iconSize = 8.dp,
                                     )
                                 }

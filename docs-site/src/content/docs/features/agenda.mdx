@@ -9,7 +9,7 @@ import agendaDark from '../assets/dark/agenda.png';
 import settingsAgendaLight from '../assets/light/settings-agenda.png';
 import settingsAgendaDark from '../assets/dark/settings-agenda.png';
 
-Agenda pulls every SCHEDULED and DEADLINE item across your whole vault into a single day-by-day timeline, separate from browsing notebook-by-notebook.
+Agenda pulls every SCHEDULED and DEADLINE item across your whole vault into a single day-by-day timeline, separate from browsing notebook-by-notebook. Bare active `<date>` timestamps (events) join it too, each shown on its exact day with a violet `●` chip.
 
 <ThemeShot
   light={agendaLight}
@@ -21,7 +21,7 @@ Agenda pulls every SCHEDULED and DEADLINE item across your whole vault into a si
 
 ## Today / Upcoming tabs
 
-- **Today**: everything scheduled or due today, plus an **Overdue** card for anything past its date
+- **Today**: everything scheduled or due today, plus an **Overdue** card for anything past its date. Events only ever appear on their own day, never in the Overdue card
 - **Upcoming**: an infinite-scroll timeline of future days, grouped under day headers like "Tuesday, Jul 28 · Today"
 
 ## Overdue card

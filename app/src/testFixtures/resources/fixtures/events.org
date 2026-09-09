@@ -1,0 +1,12 @@
+#+TITLE: Events
+
+* Team standup
+<2026-09-10 Thu 09:30>
+Daily sync with the eventfixture crew.
+
+* Conference trip
+<2026-09-15 Tue>--<2026-09-18 Fri>
+Annual org-mode conference, out of office.
+
+* Dentist
+<2026-09-12 Sat>

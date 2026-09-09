@@ -46,6 +46,12 @@ object OrgFixtures {
     /** Cross-file target for [LINKS_HUB]: a file-level `:ID:`, plus a heading with both `:ID:` and `:CUSTOM_ID:`. */
     val LINKS_FAR: String by lazy { load("links-far.org") }
 
+    /**
+     * Bare active timestamps: a timed single-day event, a ranged event
+     * (`<a>--<b>`), and a date-only one. Anchor word: "eventfixture".
+     */
+    val EVENTS: String by lazy { load("events.org") }
+
     /** The "keep local" side of a Syncthing sync-conflict pair. */
     val CONFLICT_LOCAL = """
         #+TITLE: Notes
@@ -75,6 +81,7 @@ object OrgFixtures {
             "large-subtree.org" to LARGE_SUBTREE,
             "links-hub.org" to LINKS_HUB,
             "links-far.org" to LINKS_FAR,
+            "events.org" to EVENTS,
         )
     }
 

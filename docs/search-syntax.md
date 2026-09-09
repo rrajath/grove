@@ -24,12 +24,13 @@ An empty query matches everything.
 | `p.X` | have priority X | `p.a` |
 | `s.PERIOD` | are scheduled on or before the period's end; overdue items always match | `s.today`, `s.3d` |
 | `d.PERIOD` | have a deadline on or before the period's end; overdue items always match | `d.1w` |
+| `a.PERIOD` | have a bare active `<date>` timestamp (an event) on or before the period's end; `a.today` matches an event exactly on today, `a.overdue` matches an event that has fully passed, `a.none` = no event timestamp. A ranged event counts on every day it spans | `a.today`, `a.7d`, `.a.none` |
 | `c.PERIOD` | were closed within the past period | `c.yesterday`, `c.1m` |
 | `cr.PERIOD` | were created within the past period (from the `CREATED` property) | `cr.2w` |
 
 ## Periods
 
-Used by `s.` `d.` `c.` `cr.`:
+Used by `s.` `d.` `a.` `c.` `cr.`:
 
 | Token | Meaning |
 |---|---|
@@ -38,13 +39,13 @@ Used by `s.` `d.` `c.` `cr.`:
 | `yesterday` | today − 1 day |
 | `Nd` / `Nw` / `Nm` | N days / weeks / months from today (for `c.`/`cr.`: into the past) |
 
-`s.`/`d.` windows are *"within the period or overdue"*: `s.3d` means scheduled in the next three days **or** any time in the past. `c.`/`cr.` windows are `[today − period, today]`.
+`s.`/`d.` windows are *"within the period or overdue"*: `s.3d` means scheduled in the next three days **or** any time in the past. `a.` relative windows behave the same way (a past event still matches `a.7d`); `a.today` is exact-day only. `c.`/`cr.` windows are `[today − period, today]`.
 
 ## Directives
 
 | Syntax | Effect |
 |---|---|
-| `o.PROP` | Sort results by a property instead of relevance. Properties: `priority`/`p`, `scheduled`/`s`, `deadline`/`d`, `created`/`cr`, `title`, `notebook`/`b`. Repeatable: `o.p o.d` sorts by priority, then deadline. |
+| `o.PROP` | Sort results by a property instead of relevance. Properties: `priority`/`p`, `scheduled`/`s`, `deadline`/`d`, `active`/`a` (earliest event date), `created`/`cr`, `title`, `notebook`/`b`. Repeatable: `o.p o.d` sorts by priority, then deadline. |
 | `ad.N` | Agenda mode: group results by day over the next N days. A note appears under each day it is scheduled or due; overdue, not-done items surface on today. The drawer's **Agenda** item is `ad.7`. |
 
 ## What gets searched
@@ -64,6 +65,7 @@ i.todo s.today                  things to do today (or overdue)
 i.todo t.work .t.someday        work TODOs, excluding :someday:
 b.inbox OR b.capture            everything in either notebook
 d.1w o.d                        deadlines within a week, soonest first
+a.7d o.a                        events in the next week, earliest first
 phone call cr.2w                notes created in the last 2 weeks mentioning "phone call"
 i.none b.journal grateful       journal prose (no TODO keyword) containing "grateful"
 ad.7 t.work                     one-week work agenda

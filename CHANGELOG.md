@@ -59,6 +59,15 @@ re-uploads the APKs to the existing release instead of failing.
 
 ## [Unreleased]
 
+- Added support for bare active timestamps: a heading can now carry plain
+  `<date>` event stamps (single or a `<a>--<b>` range) alongside SCHEDULED and
+  DEADLINE, edited on a new ACTIVE tab in the tabbed planning-dates editor with
+  long-press-drag for ranges. Events show on the Agenda on their exact day
+  (never overdue), render as a violet dot chip in read mode and the outline,
+  are searchable with `a.` date filters and an `o.active` sort, and fire
+  reminders like the planning dates do (a timed event pings, a date-only one
+  joins the daily digest).
+
 - Removed the CI `macrobenchmark` job. Benchmark numbers off a shared-runner
   emulator are noise, and keeping the suite green there was a recurring
   maintenance cost (cold-start re-seed/re-index flakiness, the androidx EMULATOR
