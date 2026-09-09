@@ -1035,7 +1035,7 @@ private fun StampEditor(
                     else patch { it.copy(time = t) }
                 }
                 Text("to", fontFamily = PlexSans, fontSize = 13.sp, color = c.ink3)
-                TimeField(value.endTime, "-") { t -> patch { it.copy(endTime = t) } }
+                TimeField(value.endTime, "-", allowClear = true) { t -> patch { it.copy(endTime = t) } }
                 Row(
                     Modifier.weight(1f),
                     horizontalArrangement = Arrangement.spacedBy(5.dp, Alignment.End),
@@ -1357,37 +1357,46 @@ private fun GroveSwitch(on: Boolean, accent: Color, onToggle: () -> Unit) {
     }
 }
 
-/** Free-text `HH:mm` field; the model only updates when the text parses. */
+/**
+ * Tap-to-pick `HH:mm` field: opens the M3 clock dial ([SimpleTimePicker]).
+ * Free-text time entry still lives in the shorthand box above the calendar.
+ * [allowClear] adds a "Clear" button to the dialog (used for the optional end time).
+ */
 @Composable
-private fun TimeField(value: LocalTime?, placeholder: String, onChange: (LocalTime?) -> Unit) {
+private fun TimeField(
+    value: LocalTime?,
+    placeholder: String,
+    allowClear: Boolean = false,
+    onChange: (LocalTime?) -> Unit,
+) {
     val c = MaterialTheme.grove
-    var text by remember(value) { mutableStateOf(value?.format(ClockTime) ?: "") }
+    var picking by remember { mutableStateOf(false) }
     Box(
         Modifier
             .width(74.dp)
             .clip(RoundedCornerShape(10.dp))
             .background(c.surface2)
             .border(1.dp, c.line, RoundedCornerShape(10.dp))
+            .clickable { picking = true }
             .padding(horizontal = 6.dp, vertical = 9.dp),
         contentAlignment = Alignment.Center,
     ) {
-        if (text.isEmpty()) {
-            Text(placeholder, fontFamily = PlexMono, fontSize = 14.sp, color = c.ink3)
-        }
-        BasicTextField(
-            value = text,
-            onValueChange = { raw ->
-                text = raw
-                if (raw.isBlank()) onChange(null) else parseClock(raw)?.let(onChange)
+        Text(
+            value?.format(ClockTime) ?: placeholder,
+            fontFamily = PlexMono, fontSize = 14.sp,
+            color = if (value == null) c.ink3 else c.ink,
+        )
+    }
+    if (picking) {
+        SimpleTimePicker(
+            initial = value ?: LocalTime.of(9, 0),
+            onDismiss = { picking = false },
+            onConfirm = { picking = false; onChange(it) },
+            onClear = if (allowClear) {
+                { picking = false; onChange(null) }
+            } else {
+                null
             },
-            singleLine = true,
-            textStyle = TextStyle(
-                fontFamily = PlexMono, fontSize = 14.sp, color = c.ink,
-                textAlign = TextAlign.Center,
-            ),
-            cursorBrush = SolidColor(c.accent),
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-            modifier = Modifier.fillMaxWidth(),
         )
     }
 }
@@ -1410,13 +1419,6 @@ private val HumanDate: DateTimeFormatter = DateTimeFormatter.ofPattern("EEE, MMM
 private val ShortDate: DateTimeFormatter = DateTimeFormatter.ofPattern("MMM d")
 private val MonthLabel: DateTimeFormatter = DateTimeFormatter.ofPattern("MMM yyyy")
 private val ClockTime: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
-
-private val CLOCK = Regex("""^\s*(\d{1,2})\s*:?\s*(\d{2})\s*$""")
-
-private fun parseClock(raw: String): LocalTime? {
-    val m = CLOCK.find(raw) ?: return null
-    return runCatching { LocalTime.of(m.groupValues[1].toInt(), m.groupValues[2].toInt()) }.getOrNull()
-}
 
 private fun plural(n: Int) = if (n == 1) "" else "s"
 

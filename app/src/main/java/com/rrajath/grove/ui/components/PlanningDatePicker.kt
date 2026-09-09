@@ -24,6 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
 import java.time.Instant
 import java.time.LocalDate
@@ -97,6 +98,7 @@ fun SimpleTimePicker(
     initial: LocalTime,
     onDismiss: () -> Unit,
     onConfirm: (LocalTime) -> Unit,
+    onClear: (() -> Unit)? = null,
 ) {
     val c = MaterialTheme.grove
     val timeState = rememberTimePickerState(initialHour = initial.hour, initialMinute = initial.minute)
@@ -108,10 +110,23 @@ fun SimpleTimePicker(
             }
         },
         dismissButton = {
+            if (onClear != null) {
+                TextButton(onClick = onClear) { Text("Clear", color = c.ink2) }
+            }
             TextButton(onClick = onDismiss) { Text("Cancel", color = c.ink2) }
         },
     ) {
-        TimePicker(state = timeState)
+        // M3's TimePicker resolves its clock-dial number labels to
+        // typography.bodyLarge, which is PlexSerif in this app (read-mode prose).
+        // Override just that role to PlexSans so the dial matches app chrome; the
+        // big HH:MM digits already use displayLarge (PlexSans).
+        MaterialTheme(
+            typography = MaterialTheme.typography.copy(
+                bodyLarge = MaterialTheme.typography.bodyLarge.copy(fontFamily = PlexSans),
+            ),
+        ) {
+            TimePicker(state = timeState)
+        }
     }
 }
 

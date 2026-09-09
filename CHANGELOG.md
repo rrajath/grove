@@ -59,6 +59,13 @@ re-uploads the APKs to the existing release instead of failing.
 
 ## [Unreleased]
 
+- The time picker's clock dial now renders in the app's sans font instead of
+  the read-mode serif, matching the rest of the app chrome.
+
+- In the planning-dates editor, tapping a start or end time field now opens the
+  clock dial instead of a text field; the end field's dialog gains a "Clear"
+  button. Free-text time entry stays available in the shorthand box.
+
 - Added a "Notify for tasks without a time" toggle to Settings › Reminders (off
   by default). When on, every SCHEDULED, DEADLINE, or active timestamp that
   falls on a day with no time of day fires its own notification at the reminder
