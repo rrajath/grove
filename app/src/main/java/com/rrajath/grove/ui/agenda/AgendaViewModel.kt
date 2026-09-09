@@ -47,9 +47,9 @@ import java.util.Locale
 import kotlin.math.abs
 
 /** Which theme color one meta chip on an agenda row renders in. */
-enum class AgendaMetaTone { NORMAL, MUTED, DANGER, TAG }
+enum class AgendaMetaTone { NORMAL, MUTED, DANGER, TAG, EVENT }
 
-/** One entry in a row's mono meta strip: the date, a `⚑` deadline, a time range, `↻` repeater, tags, or the file. */
+/** One entry in a row's mono meta strip: the date, a `⚑` deadline, a `●` event day, a time range, `↻` repeater, tags, or the file. */
 @Immutable
 data class AgendaMeta(val text: String, val tone: AgendaMetaTone)
 
@@ -65,6 +65,8 @@ data class AgendaRow(
     /** Prefills the Dates screen for the swipe-to-schedule/deadline actions. */
     val scheduledTs: OrgTimestamp?,
     val deadlineTs: OrgTimestamp?,
+    /** Set when a bare active timestamp (an event) is what put this row on this day. */
+    val activeTs: OrgTimestamp? = null,
 )
 
 /** One "Group by" bucket: an uppercase key, its count, and its rows. */
@@ -200,9 +202,10 @@ class AgendaViewModel(
             }
         }
         viewModelScope.launch {
-            // Only rows with a SCHEDULED or DEADLINE: the agenda buckets notes
-            // purely by those dates, so an undated note can never surface here
-            // and there is no reason to hold one in memory.
+            // Only rows with a SCHEDULED, a DEADLINE, or a bare active timestamp:
+            // the agenda places notes purely by those dates, so a note with none
+            // of them can never surface here and there is no reason to hold one
+            // in memory.
             database.indexDao().plannedNotes()
                 .map { rows -> rows.map { it.toNoteMeta() } }
                 .flowOn(dispatchers.default)
@@ -285,25 +288,34 @@ class AgendaViewModel(
         val todayItems = AgendaBuckets.onDay(visible, today)
         val overdueItems = AgendaBuckets.overdue(visible, today)
         val futureItems = AgendaBuckets.upcoming(visible, today, windowDays)
+        // Events (bare active timestamps) dated today, for the Today tab and the count.
+        val todayEvents = AgendaBuckets.activeEventsOn(visible, today)
 
         val list = if (isTodayTab) todayItems else futureItems
         // Date grouping already puts the day in the section header; every other
         // grouping mixes days together, so the rows have to carry it themselves.
         val showDate = grouping != AgendaGrouping.DATE && !isTodayTab
 
+        // Events only weave into the Date grouping (both tabs); Priority/Tag/File
+        // are deliberate slices and stay planned-rows-only.
+        val groups = if (grouping == AgendaGrouping.DATE) {
+            dateGroups(visible, list, today, isTodayTab, windowDays, p)
+        } else {
+            AgendaBuckets.group(list, today, grouping, isTodayTab)
+                .map { b ->
+                    AgendaGroup(b.key, b.notes.size, b.notes.map { row(it, today, showDate, p) }.toImmutableList())
+                }
+        }
+
         return AgendaUiState(
             headerDay = today.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.ENGLISH),
             headerDate = today.format(HEADER_DATE),
-            todayCount = todayItems.size,
+            todayCount = todayItems.size + todayEvents.size,
             tab = tab,
             leversOpen = leversOpen,
             overdueOpen = overdueOpen,
             overdue = overdueItems.map { row(it, today, showDate = true, p = p) }.toImmutableList(),
-            groups = AgendaBuckets.group(list, today, grouping, isTodayTab)
-                .map { b ->
-                    AgendaGroup(b.key, b.notes.size, b.notes.map { row(it, today, showDate, p) }.toImmutableList())
-                }
-                .toImmutableList(),
+            groups = groups.toImmutableList(),
             grouping = grouping,
             stateFilter = filter,
             activeKeywords = active.toImmutableList(),
@@ -312,6 +324,66 @@ class AgendaViewModel(
             swipeLeftAction = p.agendaSwipeLeftAction,
             swipeRightAction = p.agendaSwipeRightAction,
         )
+    }
+
+    /** One row's worth of "something on this day": a planned heading or a bare-timestamp event. */
+    private sealed interface DayEntry {
+        val meta: NoteMeta
+
+        data class Planned(override val meta: NoteMeta) : DayEntry
+        data class Event(override val meta: NoteMeta, val ts: OrgTimestamp) : DayEntry
+
+        /** Untimed entries sort last within a day, matching [AgendaBuckets.BY_TIME]. */
+        fun sortTime(): LocalTime = when (this) {
+            is Planned -> (if (meta.scheduledDate != null) meta.scheduledTime else meta.deadlineTime) ?: LocalTime.MAX
+            is Event -> ts.time ?: LocalTime.MAX
+        }
+    }
+
+    /**
+     * The "Group by · Date" buckets with bare-timestamp events woven in. Planned
+     * headings keep their one-day-each rule; each event contributes one row per
+     * day it covers, sorted into that day's bucket by time. A heading that is
+     * both scheduled and carries an active date shows twice, once per occurrence.
+     */
+    private fun dateGroups(
+        visible: List<NoteMeta>,
+        planned: List<NoteMeta>,
+        today: LocalDate,
+        isTodayTab: Boolean,
+        windowDays: Int,
+        p: GroveSettings,
+    ): List<AgendaGroup> {
+        fun bucket(key: String, day: LocalDate, entries: List<DayEntry>): AgendaGroup {
+            val sorted = entries.sortedWith(
+                compareBy<DayEntry> { it.sortTime() }.thenBy { it.meta.title.lowercase() },
+            )
+            val rows = sorted.map { e ->
+                when (e) {
+                    is DayEntry.Planned -> row(e.meta, today, showDate = false, p = p)
+                    is DayEntry.Event -> row(e.meta, today, showDate = false, p = p, activeTs = e.ts, eventDay = day)
+                }
+            }
+            return AgendaGroup(key, rows.size, rows.toImmutableList())
+        }
+
+        if (isTodayTab) {
+            val entries = planned.map { DayEntry.Planned(it) } +
+                AgendaBuckets.activeEventsOn(visible, today).map { DayEntry.Event(it.first, it.second) }
+            return if (entries.isEmpty()) emptyList() else listOf(bucket("Scheduled today", today, entries))
+        }
+
+        val horizon = today.plusDays((windowDays - 1).coerceAtLeast(0).toLong())
+        val plannedByDay = planned.groupBy { AgendaBuckets.whenDate(it)!! }
+        val eventsByDay = generateSequence(today.plusDays(1)) { it.plusDays(1) }
+            .takeWhile { !it.isAfter(horizon) }
+            .associateWith { AgendaBuckets.activeEventsOn(visible, it) }
+            .filterValues { it.isNotEmpty() }
+        return (plannedByDay.keys + eventsByDay.keys).toSortedSet().map { day ->
+            val entries = plannedByDay[day].orEmpty().map { DayEntry.Planned(it) } +
+                eventsByDay[day].orEmpty().map { DayEntry.Event(it.first, it.second) }
+            bucket(AgendaBuckets.dayLabel(day, today), day, entries)
+        }
     }
 
     // --- swipe-to-act mutations ---
@@ -510,10 +582,53 @@ class AgendaViewModel(
         /**
          * Builds one agenda row from a matched [NoteMeta]. Pure (no instance
          * state), so it lives here for direct unit testing.
+         *
+         * When [activeTs] is set the row is an *event* placed on [eventDay] by
+         * that bare active timestamp: it renders a violet `●` day chip, its own
+         * time range and repeater, and never the overdue / `⚑` deadline
+         * styling. [scheduledTs]/[deadlineTs] on the row still carry the
+         * heading's real planning so swipe-to-schedule prefills correctly.
          */
-        internal fun row(m: NoteMeta, today: LocalDate, showDate: Boolean, p: GroveSettings): AgendaRow {
+        internal fun row(
+            m: NoteMeta,
+            today: LocalDate,
+            showDate: Boolean,
+            p: GroveSettings,
+            activeTs: OrgTimestamp? = null,
+            eventDay: LocalDate? = null,
+        ): AgendaRow {
             val scheduledTs = m.scheduled?.let { OrgTimestamp.parse(it) }
             val deadlineTs = m.deadline?.let { OrgTimestamp.parse(it) }
+
+            if (activeTs != null) {
+                val day = eventDay ?: activeTs.date
+                val meta = buildList {
+                    add(AgendaMeta("● ${AgendaBuckets.dayLabel(day, today)}", AgendaMetaTone.EVENT))
+                    activeTs.time?.let { start ->
+                        val range = start.format(CLOCK) + (activeTs.endTime?.let { "–${it.format(CLOCK)}" } ?: "")
+                        add(AgendaMeta(range, AgendaMetaTone.NORMAL))
+                    }
+                    activeTs.repeater?.let { add(AgendaMeta("↻ $it", AgendaMetaTone.MUTED)) }
+                    if (p.agendaShowTags) {
+                        m.inheritedTags.takeIf { it.isNotEmpty() }
+                            ?.let { add(AgendaMeta(it.joinToString(":", ":", ":"), AgendaMetaTone.TAG)) }
+                    }
+                    if (p.agendaShowFile) add(AgendaMeta(m.fileName, AgendaMetaTone.MUTED))
+                }
+                return AgendaRow(
+                    fileName = m.fileName,
+                    lineIndex = m.lineIndex,
+                    title = m.title,
+                    keyword = m.keyword,
+                    isDone = m.isDoneKeyword,
+                    priority = m.priority,
+                    meta = meta.toImmutableList(),
+                    scheduledTs = scheduledTs,
+                    deadlineTs = deadlineTs,
+                    activeTs = activeTs,
+                )
+            }
+
             // The timestamp that decides which day the row lands on.
             val anchor = scheduledTs ?: deadlineTs
             val anchorDate = anchor?.date

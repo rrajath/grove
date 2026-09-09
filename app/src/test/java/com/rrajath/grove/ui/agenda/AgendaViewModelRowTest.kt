@@ -1,9 +1,12 @@
 package com.rrajath.grove.ui.agenda
 
 import com.rrajath.grove.org.OrgParser
+import com.rrajath.grove.org.OrgTimestamp
 import com.rrajath.grove.search.NoteMeta
 import com.rrajath.grove.settings.GroveSettings
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDate
 
@@ -82,5 +85,23 @@ class AgendaViewModelRowTest {
 
         val tagChip = row.meta.single { it.tone == AgendaMetaTone.TAG }
         assertEquals(":urgent:", tagChip.text)
+    }
+
+    @Test
+    fun `an event row renders a violet dot day chip and its own time range`() {
+        val meta = note(title = "Team offsite", tags = emptyList(), inheritedTags = emptyList())
+        val ts = OrgTimestamp.parse("<2025-06-13 Fri 09:00-17:00>")!!
+
+        val row = AgendaViewModel.row(
+            meta, today, showDate = false, p = GroveSettings(),
+            activeTs = ts, eventDay = LocalDate.of(2025, 6, 13),
+        )
+
+        assertEquals(ts, row.activeTs)
+        assertEquals("● Friday", row.meta.single { it.tone == AgendaMetaTone.EVENT }.text)
+        assertTrue(row.meta.any { it.text == "09:00–17:00" })
+        // Events never carry overdue / deadline styling.
+        assertTrue(row.meta.none { it.tone == AgendaMetaTone.DANGER })
+        assertNull(row.scheduledTs)
     }
 }

@@ -5,6 +5,7 @@ import com.rrajath.grove.settings.AgendaGrouping
 import com.rrajath.grove.settings.AgendaStateFilter
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDate
@@ -55,6 +56,50 @@ class AgendaBucketsTest {
         val note = note("PastDeadline", scheduled = "<2025-06-11 Wed>", deadline = "<2025-06-01 Sun>")
         assertTrue(AgendaBuckets.overdue(listOf(note), today).isEmpty())
         assertEquals(listOf("PastDeadline"), AgendaBuckets.onDay(listOf(note), today).map { it.title })
+    }
+
+    // --- bare active timestamps (events) ---
+
+    @Test
+    fun `an active timestamp is an event on its own day only`() {
+        val event = note("Standup", active = "<2025-06-12 Thu>")
+        assertTrue(AgendaBuckets.activeEventsOn(listOf(event), today).isEmpty())
+        assertEquals(
+            listOf("Standup"),
+            AgendaBuckets.activeEventsOn(listOf(event), LocalDate.of(2025, 6, 12)).map { it.first.title },
+        )
+        assertTrue(AgendaBuckets.activeEventsOn(listOf(event), LocalDate.of(2025, 6, 13)).isEmpty())
+    }
+
+    @Test
+    fun `a ranged active timestamp shows on every day it spans`() {
+        val trip = note("Trip", active = "<2025-06-12 Thu>--<2025-06-14 Sat>")
+        listOf(12, 13, 14).forEach { d ->
+            assertEquals(
+                "day $d",
+                listOf("Trip"),
+                AgendaBuckets.activeEventsOn(listOf(trip), LocalDate.of(2025, 6, d)).map { it.first.title },
+            )
+        }
+        assertTrue(AgendaBuckets.activeEventsOn(listOf(trip), LocalDate.of(2025, 6, 15)).isEmpty())
+    }
+
+    @Test
+    fun `a past active date is never overdue`() {
+        val past = note("Concert", active = "<2025-06-01 Sun>")
+        assertTrue(AgendaBuckets.overdue(listOf(past), today).isEmpty())
+        assertNull(AgendaBuckets.whenDate(past))
+    }
+
+    @Test
+    fun `a heading with two active dates on one day yields two event entries`() {
+        val twice = note("Clinic", active = "<2025-06-12 Thu 09:00> <2025-06-12 Thu 15:00>")
+        val events = AgendaBuckets.activeEventsOn(listOf(twice), LocalDate.of(2025, 6, 12))
+        assertEquals(2, events.size)
+        assertEquals(
+            listOf(java.time.LocalTime.of(9, 0), java.time.LocalTime.of(15, 0)),
+            events.map { it.second.time },
+        )
     }
 
     // --- sections ---

@@ -703,6 +703,7 @@ internal fun GroveColors.metaColor(tone: AgendaMetaTone): Color = when (tone) {
     AgendaMetaTone.MUTED -> ink3
     AgendaMetaTone.DANGER -> red
     AgendaMetaTone.TAG -> synTag
+    AgendaMetaTone.EVENT -> violet
 }
 
 /** Maps a configured [AgendaSwipeAction] to the glyph/label/color and effect for one swipe direction. */
