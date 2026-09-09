@@ -7,8 +7,8 @@ import androidx.benchmark.macro.junit4.MacrobenchmarkRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.uiautomator.By
 import androidx.test.uiautomator.Direction
-import androidx.test.uiautomator.Until
 import com.rrajath.grove.macrobenchmark.BenchmarkVault.awaitNotebooks
+import com.rrajath.grove.macrobenchmark.BenchmarkVault.awaitObject
 import com.rrajath.grove.macrobenchmark.BenchmarkVault.withSeededVault
 import org.junit.Rule
 import org.junit.Test
@@ -44,6 +44,7 @@ class ScrollBenchmark {
             device.awaitNotebooks()
         },
     ) {
+        device.awaitObject(BenchmarkVault.NOTEBOOKS_LIST, "Notebooks list")
         val list = device.findObject(By.res(BenchmarkVault.NOTEBOOKS_LIST))
         list.setGestureMargin(device.displayWidth / 5)
         repeat(3) {
@@ -69,9 +70,10 @@ class ScrollBenchmark {
             device.awaitNotebooks()
             // Open the first notebook → its Outline.
             device.findObject(By.res(BenchmarkVault.NOTEBOOK_ROW)).click()
-            device.wait(Until.hasObject(By.res(BenchmarkVault.OUTLINE_LIST)), BenchmarkVault.LAUNCH_TIMEOUT_MS)
+            device.awaitObject(BenchmarkVault.OUTLINE_LIST, "Outline list")
         },
     ) {
+        device.awaitObject(BenchmarkVault.OUTLINE_LIST, "Outline list")
         val list = device.findObject(By.res(BenchmarkVault.OUTLINE_LIST))
         list.setGestureMargin(device.displayWidth / 5)
         repeat(3) {

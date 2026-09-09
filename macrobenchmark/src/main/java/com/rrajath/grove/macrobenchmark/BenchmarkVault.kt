@@ -33,7 +33,14 @@ object BenchmarkVault {
     const val NOTEBOOK_ROW = "notebook_row"
     const val OUTLINE_LIST = "outline_list"
 
-    const val LAUNCH_TIMEOUT_MS = 10_000L
+    /**
+     * Generous: the direct-directory test vault is seeded and fully indexed into
+     * Room before the Notebooks list renders, and the scroll benchmarks' large
+     * vault (~560 files) takes a while to index on CI's shared emulator the first
+     * time. Seeding is idempotent (see `debug.DebugTestVault`), so only the first
+     * COLD iteration actually waits this long; the rest resolve near-instantly.
+     */
+    const val LAUNCH_TIMEOUT_MS = 40_000L
 
     /**
      * Adds the extras that make MainActivity seed and open a directory vault.
@@ -45,8 +52,18 @@ object BenchmarkVault {
         if (vaultSize > 0) putExtra(EXTRA_VAULT_SIZE, vaultSize) else putExtra(EXTRA_SEED, true)
     }
 
-    /** Block until the Notebooks list is on screen (or time out). */
+    /** Block until the Notebooks list is on screen; fail loudly if it never is. */
     fun UiDevice.awaitNotebooks() {
-        wait(Until.hasObject(By.res(NOTEBOOKS_LIST)), LAUNCH_TIMEOUT_MS)
+        check(wait(Until.hasObject(By.res(NOTEBOOKS_LIST)), LAUNCH_TIMEOUT_MS)) {
+            "Notebooks list ($NOTEBOOKS_LIST) never appeared within ${LAUNCH_TIMEOUT_MS}ms " +
+                "— the seeded vault likely failed to index."
+        }
+    }
+
+    /** Block until [res] is on screen; fail loudly with [what] if it never is. */
+    fun UiDevice.awaitObject(res: String, what: String) {
+        check(wait(Until.hasObject(By.res(res)), LAUNCH_TIMEOUT_MS)) {
+            "$what ($res) never appeared within ${LAUNCH_TIMEOUT_MS}ms."
+        }
     }
 }

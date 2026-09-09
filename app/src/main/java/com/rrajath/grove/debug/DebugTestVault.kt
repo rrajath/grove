@@ -41,6 +41,18 @@ object DebugTestVault {
     /** Directory name under the app's external files dir used as the test vault root. */
     private const val VAULT_DIR = "testvault"
 
+    /**
+     * Non-`.org` marker file holding a signature of whatever seed last populated
+     * [VAULT_DIR]. The scroll benchmarks launch COLD × 10 iterations, so
+     * `applyFromLaunchIntent` runs ~10 times per test; without this guard each
+     * run would `wipe` + rewrite ~560 files, bumping every mtime and forcing the
+     * app to fully re-index the vault before the Notebooks list appears — which
+     * blows past the launch timeout on CI's shared emulator. When the signature
+     * already matches, seeding is a no-op and only the first iteration pays the
+     * write + index cost.
+     */
+    private const val SEED_MARKER = ".grove-seed"
+
     /** Called from `MainActivity.onCreate` before content is set. */
     fun applyFromLaunchIntent(context: Context, intent: Intent?) {
         if (!BuildConfig.TEST_HOOKS || intent == null) return
@@ -57,13 +69,16 @@ object DebugTestVault {
 
     /** Wipe [root] and rewrite it from the debug/benchmark APK's bundled `.org` fixtures. */
     private fun seed(context: Context, root: File) {
-        wipe(root)
         val names = context.assets.list("fixtures").orEmpty().filter { it.endsWith(".org") }
+        val signature = "fixtures:" + names.sorted().joinToString(",")
+        if (isSeeded(root, signature)) return
+        wipe(root)
         names.forEach { name ->
             context.assets.open("fixtures/$name").use { input ->
                 File(root, name).outputStream().use { input.copyTo(it) }
             }
         }
+        markSeeded(root, signature)
     }
 
     /**
@@ -71,6 +86,8 @@ object DebugTestVault {
      * benchmarks: [notebooks] short files plus one long single-file outline.
      */
     private fun seedLarge(root: File, notebooks: Int) {
+        val signature = "large:$notebooks:$LARGE_OUTLINE_HEADINGS"
+        if (isSeeded(root, signature)) return
         wipe(root)
         File(root, "big-outline.org").writeText(
             buildString {
@@ -86,6 +103,15 @@ object DebugTestVault {
                 "#+TITLE: Notebook ${i + 1}\n\n* Item A\n  Note body.\n* Item B\n",
             )
         }
+        markSeeded(root, signature)
+    }
+
+    /** True when [root] was last seeded with exactly [signature] (see [SEED_MARKER]). */
+    private fun isSeeded(root: File, signature: String): Boolean =
+        runCatching { File(root, SEED_MARKER).takeIf { it.isFile }?.readText() }.getOrNull() == signature
+
+    private fun markSeeded(root: File, signature: String) {
+        runCatching { File(root, SEED_MARKER).writeText(signature) }
     }
 
     private fun wipe(root: File) {

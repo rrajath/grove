@@ -59,6 +59,16 @@ re-uploads the APKs to the existing release instead of failing.
 
 ## [Unreleased]
 
+- Fixed: the CI `macrobenchmark` job's `ScrollBenchmark` tests crashed with a
+  `NullPointerException` (`setGestureMargin` on null) because the seeded vault
+  had not finished indexing when the scroll gesture ran. The scroll tests
+  launch cold 10 times each and the debug/benchmark test-vault hook re-wrote
+  all ~560 files every launch, forcing a full re-index that outran the wait on
+  CI's shared emulator. Seeding is now idempotent (a signature marker file), so
+  only the first launch pays the cost, and the "wait for the list" step is a
+  hard assertion with a longer timeout instead of a silent fall-through. No
+  release impact.
+
 ## [1.5.0] - 2026-09-08
 
 - Fixed: the CI `macrobenchmark` job failed every run with "ERRORS (not

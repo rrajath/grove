@@ -4,8 +4,8 @@ import androidx.benchmark.macro.junit4.BaselineProfileRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.uiautomator.By
 import androidx.test.uiautomator.Direction
-import androidx.test.uiautomator.Until
 import com.rrajath.grove.macrobenchmark.BenchmarkVault.awaitNotebooks
+import com.rrajath.grove.macrobenchmark.BenchmarkVault.awaitObject
 import com.rrajath.grove.macrobenchmark.BenchmarkVault.withSeededVault
 import org.junit.Rule
 import org.junit.Test
@@ -40,7 +40,7 @@ class BaselineProfileGenerator {
         device.waitForIdle()
 
         device.findObject(By.res(BenchmarkVault.NOTEBOOK_ROW)).click()
-        device.wait(Until.hasObject(By.res(BenchmarkVault.OUTLINE_LIST)), BenchmarkVault.LAUNCH_TIMEOUT_MS)
+        device.awaitObject(BenchmarkVault.OUTLINE_LIST, "Outline list")
         device.findObject(By.res(BenchmarkVault.OUTLINE_LIST)).fling(Direction.DOWN)
         device.waitForIdle()
 
