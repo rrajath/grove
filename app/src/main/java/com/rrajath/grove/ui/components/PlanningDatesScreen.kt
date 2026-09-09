@@ -90,6 +90,7 @@ import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import java.time.LocalDate
@@ -135,9 +136,23 @@ fun PlanningDatesScreen(
     // thread: the calendar just needs the set of days that already have
     // something on them, not any note's identity or body.
     val plannedDatesFlow = remember(app) {
-        app.database.indexDao().plannedTimestamps()
-            .map { stamps -> stamps.mapNotNullTo(mutableSetOf()) { OrgTimestamp.parse(it)?.date } }
-            .flowOn(Dispatchers.Default)
+        combine(
+            app.database.indexDao().plannedTimestamps(),
+            app.database.indexDao().plannedActiveTimestamps(),
+        ) { planned, active ->
+            val days = planned.mapNotNullTo(mutableSetOf()) { OrgTimestamp.parse(it)?.date }
+            active.forEach { row ->
+                OrgTimestamp.parseAll(row).forEach { ts ->
+                    val end = ts.rangeEnd ?: ts.date
+                    var d = ts.date
+                    while (!d.isAfter(end)) {
+                        days.add(d)
+                        d = d.plusDays(1)
+                    }
+                }
+            }
+            days
+        }.flowOn(Dispatchers.Default)
     }
     val plannedDates by plannedDatesFlow.collectAsState(initial = emptySet())
 

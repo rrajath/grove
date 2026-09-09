@@ -106,7 +106,9 @@ class AppViewModelIntegrationTest {
         val vm = appVm()
         assertEquals("Eagerly seeded null before DataStore reads", null, vm.settings.value)
 
-        advanceUntilIdle()
+        // DataStore's first read runs on real Dispatchers.IO, off the virtual
+        // clock — advanceUntilIdle() alone can return before it lands.
+        settleUntil { vm.settings.value != null }
 
         assertNotNull(vm.settings.value)
         assertEquals(settingsRepository.settings.first(), vm.settings.value)

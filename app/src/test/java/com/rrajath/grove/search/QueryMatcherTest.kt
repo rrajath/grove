@@ -20,12 +20,13 @@ class QueryMatcherTest {
         scheduled: String? = null,
         deadline: String? = null,
         closed: String? = null,
+        active: String? = null,
         created: String? = null,
         body: String = "",
         modified: Long = 0L,
     ) = NoteMeta(
         fileName, 0, title, keyword, done, priority, tags, inherited,
-        scheduled, deadline, closed, created, modified, "$title\n$body",
+        scheduled, deadline, closed, active, created, modified, "$title\n$body",
     )
 
     private fun run(query: String, vararg notes: NoteMeta): List<String> =

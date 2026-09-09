@@ -73,6 +73,7 @@ data class NotebookEntity(
         Index("priority"),
         Index("scheduled"),
         Index("deadline"),
+        Index("activeTimestamps"),
         // Back the vault-wide `[[id:…]]` / `[[#custom-id]]` link lookups so they
         // probe an index instead of scanning every note row.
         Index("orgId"),
@@ -93,6 +94,13 @@ data class NoteEntity(
     val scheduled: String?,
     val deadline: String?,
     val closed: String?,
+    /**
+     * Space-joined `format()` forms of every bare active timestamp in the
+     * heading's own body (the dedicated line plus any inline in prose), or null
+     * when there are none. What the agenda and search read to place an event on
+     * its day(s); never becomes overdue.
+     */
+    val activeTimestamps: String?,
     val orgId: String?,
     val customId: String?,
     val createdAt: String?,
@@ -182,6 +190,7 @@ data class NoteFacetRow(
     val inheritedTags: String,
     val scheduled: String?,
     val deadline: String?,
+    val activeTimestamps: String?,
     /** Mirror of the notebook's mtime, for recency-ranking filename matches. */
     val lastModified: Long,
 )
@@ -204,6 +213,7 @@ data class PlannedNoteRow(
     val scheduled: String?,
     val deadline: String?,
     val closed: String?,
+    val activeTimestamps: String?,
     val createdAt: String?,
     val isDone: Boolean,
     val lastModified: Long,
@@ -257,20 +267,22 @@ abstract class IndexDao {
     abstract suspend fun noteLocationByCustomId(customId: String): NoteKey?
 
     @Query(
-        "SELECT fileName, keyword, isDone, inheritedTags, scheduled, deadline, lastModified FROM notes"
+        "SELECT fileName, keyword, isDone, inheritedTags, scheduled, deadline, " +
+            "activeTimestamps, lastModified FROM notes"
     )
     abstract fun noteFacets(): Flow<List<NoteFacetRow>>
 
     /**
-     * Rows the agenda can possibly show. `QueryMatcher.agenda` only ever buckets
-     * notes by their SCHEDULED/DEADLINE date, so an undated note can never
-     * appear: excluding those in SQL is an exact narrowing, not an
-     * approximation.
+     * Rows the agenda can possibly show. `QueryMatcher.agenda` buckets notes by
+     * their SCHEDULED/DEADLINE date or a bare active timestamp, so a note with
+     * none of the three can never appear: excluding those in SQL is an exact
+     * narrowing, not an approximation.
      */
     @Query(
         "SELECT fileName, lineIndex, title, keyword, priority, tags, inheritedTags, " +
-            "scheduled, deadline, closed, createdAt, isDone, lastModified " +
-            "FROM notes WHERE scheduled IS NOT NULL OR deadline IS NOT NULL"
+            "scheduled, deadline, closed, activeTimestamps, createdAt, isDone, lastModified " +
+            "FROM notes WHERE scheduled IS NOT NULL OR deadline IS NOT NULL " +
+            "OR activeTimestamps IS NOT NULL"
     )
     abstract fun plannedNotes(): Flow<List<PlannedNoteRow>>
 
@@ -284,6 +296,14 @@ abstract class IndexDao {
             "UNION SELECT deadline AS ts FROM notes WHERE deadline IS NOT NULL"
     )
     abstract fun plannedTimestamps(): Flow<List<String>>
+
+    /**
+     * Every note's space-joined active-timestamp string (see
+     * [NoteEntity.activeTimestamps]). Each row may hold several stamps / a
+     * range, so the one consumer splits and `OrgTimestamp.parseAll`s them.
+     */
+    @Query("SELECT activeTimestamps FROM notes WHERE activeTimestamps IS NOT NULL")
+    abstract fun plannedActiveTimestamps(): Flow<List<String>>
 
     /**
      * Candidate rows for one search, built by `NoteCandidateQuery`. Raw because
@@ -439,6 +459,10 @@ interface ReminderDao {
 
 @Database(
     entities = [NotebookEntity::class, NoteEntity::class, SyncLogEntity::class, ReminderEntity::class],
+    // v12: added NoteEntity.activeTimestamps (space-joined bare active timestamps
+    // in a heading's own body) + a secondary index on it for the `IS NOT NULL`
+    // probe. Destructive migration drops the rebuildable index; the next sync
+    // repopulates it from the .org files, no file data touched.
     // v11: added NotebookEntity.orgId (file-level `:ID:` from the leading property
     // drawer, so `[[id:…]]` links to a whole file resolve to its outline) and
     // secondary indices on notebooks.orgId / notes.orgId / notes.customId so the
@@ -459,7 +483,7 @@ interface ReminderDao {
     // v5: added NotebookEntity.isIndexed (stub vs fully-parsed notebook rows);
     // v4: added NotebookEntity.title (cached #+TITLE: preamble value). Destructive
     // migration drops the index so the next sync rebuilds it from the .org files.
-    version = 11,
+    version = 12,
     exportSchema = false,
 )
 abstract class GroveDatabase : RoomDatabase() {

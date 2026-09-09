@@ -28,9 +28,10 @@ class AgendaBucketsTest {
         tags: List<String> = emptyList(),
         scheduled: String? = null,
         deadline: String? = null,
+        active: String? = null,
     ) = NoteMeta(
         fileName, 0, title, keyword, done, priority, tags, tags,
-        scheduled, deadline, null, null, 0L, title,
+        scheduled, deadline, null, active, null, 0L, title,
     )
 
     // --- which day a heading lands on ---

@@ -20,9 +20,10 @@ class LedgerBucketsTest {
         priority: String? = null,
         scheduled: String? = null,
         deadline: String? = null,
+        active: String? = null,
     ) = NoteMeta(
         fileName, 0, title, keyword, done, priority, emptyList(), emptyList(),
-        scheduled, deadline, null, null, 0L, title,
+        scheduled, deadline, null, active, null, 0L, title,
     )
 
     @Test

@@ -17,6 +17,8 @@ data class NoteMeta(
     val scheduled: String?,
     val deadline: String?,
     val closed: String?,
+    /** Space-joined bare active timestamps in the note's own body (see NoteEntity). */
+    val active: String? = null,
     val createdAt: String?,
     val lastModified: Long,
     /** Heading + body text for plain-term matching. */
@@ -35,6 +37,22 @@ data class NoteMeta(
     val createdDate: LocalDate? get() = createdTs?.date
     val scheduledTime: LocalTime? get() = scheduledTs?.time
     val deadlineTime: LocalTime? get() = deadlineTs?.time
+
+    /** Every parsed bare active timestamp in the note's body. */
+    val activeTimestamps: List<OrgTimestamp> by lazy(LazyThreadSafetyMode.PUBLICATION) {
+        active?.let { OrgTimestamp.parseAll(it).filter { ts -> ts.active } } ?: emptyList()
+    }
+
+    /**
+     * Every calendar day a bare active timestamp puts this note on: a single
+     * stamp is one day, a ranged stamp is every day from start to end inclusive.
+     */
+    val activeDates: List<LocalDate> by lazy(LazyThreadSafetyMode.PUBLICATION) {
+        activeTimestamps.flatMap { ts ->
+            val end = ts.rangeEnd ?: ts.date
+            generateSequence(ts.date) { d -> d.plusDays(1).takeIf { !it.isAfter(end) } }.toList()
+        }
+    }
 
     private fun tsOf(raw: String?) = lazy(LazyThreadSafetyMode.PUBLICATION) {
         raw?.let { OrgTimestamp.parse(it) }

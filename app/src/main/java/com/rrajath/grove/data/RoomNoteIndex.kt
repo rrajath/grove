@@ -65,6 +65,9 @@ class RoomNoteIndex(
                 scheduled = h.planning.scheduled?.format(),
                 deadline = h.planning.deadline?.format(),
                 closed = h.planning.closed?.format(),
+                activeTimestamps = h.activeTimestamps
+                    .takeIf { it.isNotEmpty() }
+                    ?.joinToString(" ") { it.format() },
                 orgId = h.id,
                 customId = h.customId,
                 createdAt = h.properties["CREATED"],
@@ -111,6 +114,7 @@ class RoomNoteIndex(
                 scheduled = null,
                 deadline = null,
                 closed = null,
+                activeTimestamps = null,
                 orgId = null,
                 customId = null,
                 createdAt = null,
