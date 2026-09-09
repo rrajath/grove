@@ -4,8 +4,11 @@ import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalTime
 
-/** Which planning line a date belongs to. */
-enum class PlanningKind { SCHEDULED, DEADLINE }
+/**
+ * Which planning surface a date belongs to. [ACTIVE] is a bare active timestamp
+ * in the entry body (an event), not a planning-line keyword.
+ */
+enum class PlanningKind { SCHEDULED, DEADLINE, ACTIVE }
 
 /**
  * One line of shorthand typed into the Dates screen's `›` box, already parsed:
@@ -45,6 +48,7 @@ object DateShorthandParser {
 
     private val DEADLINE_PREFIX = Regex("""^(?:deadline|dead|dl|d)\s*:\s*""")
     private val SCHEDULED_PREFIX = Regex("""^(?:scheduled|sched|s)\s*:\s*""")
+    private val ACTIVE_PREFIX = Regex("""^(?:active|act|a)\s*:\s*""")
     private val REPEAT_COOKIE = Regex("""(\+\+|\.\+)(\d+)\s*([dwmyh])""")
     private val REPEAT_WORDS = Regex("""every\s*(\d+)?\s*(day|week|month|year|hour|d|w|m|y|h)s?""")
     private val ISO_DATE = Regex("""\d{4}-\d{2}-\d{2}""")
@@ -81,6 +85,7 @@ object DateShorthandParser {
         return when {
             DEADLINE_PREFIX.containsMatchIn(s) -> PlanningKind.DEADLINE
             SCHEDULED_PREFIX.containsMatchIn(s) -> PlanningKind.SCHEDULED
+            ACTIVE_PREFIX.containsMatchIn(s) -> PlanningKind.ACTIVE
             else -> null
         }
     }
@@ -98,6 +103,12 @@ object DateShorthandParser {
         if (target == null) {
             SCHEDULED_PREFIX.find(s)?.let { m ->
                 target = PlanningKind.SCHEDULED
+                s = s.blankOut(m.range)
+            }
+        }
+        if (target == null) {
+            ACTIVE_PREFIX.find(s)?.let { m ->
+                target = PlanningKind.ACTIVE
                 s = s.blankOut(m.range)
             }
         }

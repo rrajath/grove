@@ -1106,5 +1106,59 @@ class OrgMutationsTest {
         assertTrue(cleared.contains("the body"))
     }
 
+    // --- OrgHeadline.dedicatedActiveTimestamps / setPlanningAndActiveTimestamps ---
+
+    @Test
+    fun `dedicatedActiveTimestamps reads the bodyStart line only, not inline prose`() {
+        val doc = OrgParser.parse(
+            """
+            * Event
+            <2026-09-12 Fri>
+            met the team <2026-09-20 Sun> for lunch
+            """.trimIndent() + "\n"
+        )
+        val h = doc.findByTitle("Event")!!
+        // The parser sees both stamps; only the dedicated bodyStart line counts here.
+        assertEquals(2, h.activeTimestamps.size)
+        assertEquals(
+            listOf(java.time.LocalDate.of(2026, 9, 12)),
+            h.dedicatedActiveTimestamps.map { it.date },
+        )
+
+        val inlineOnly = OrgParser.parse("* Event\nmet the team <2026-09-20 Sun> for lunch\n")
+        assertEquals(
+            emptyList<java.time.LocalDate>(),
+            inlineOnly.findByTitle("Event")!!.dedicatedActiveTimestamps.map { it.date },
+        )
+    }
+
+    @Test
+    fun `setPlanningAndActiveTimestamps writes the planning line and the active line together`() {
+        val doc = OrgParser.parse("* Pay rent\nthe body\n")
+        val h = doc.findByTitle("Pay rent")!!
+        val result = OrgMutations.setPlanningAndActiveTimestamps(
+            doc, h,
+            scheduled = OrgTimestamp.parse("<2026-09-10 Thu>"),
+            deadline = null,
+            active = listOf(OrgTimestamp.parse("<2026-09-12 Fri>")!!),
+        )
+        val redoc = OrgParser.parse(result)
+        val again = redoc.findByTitle("Pay rent")!!
+        assertEquals(java.time.LocalDate.of(2026, 9, 10), again.planning.scheduled?.date)
+        assertEquals(
+            listOf(java.time.LocalDate.of(2026, 9, 12)),
+            again.dedicatedActiveTimestamps.map { it.date },
+        )
+        assertTrue(result.contains("the body"))
+
+        // Clearing both removes both managed lines.
+        val cleared = OrgMutations.setPlanningAndActiveTimestamps(
+            redoc, again, scheduled = null, deadline = null, active = emptyList(),
+        )
+        assertTrue(!cleared.contains("SCHEDULED:"))
+        assertTrue(!cleared.contains("<2026-09-12"))
+        assertTrue(cleared.contains("the body"))
+    }
+
     private fun h2(title: String) = activeDoc.headlines.first { it.title == title }
 }

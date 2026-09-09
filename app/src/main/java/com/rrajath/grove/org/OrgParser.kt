@@ -45,6 +45,14 @@ data class OrgHeadline(
      * stamps are parsed separately into [planning] and never appear here.
      */
     val activeTimestamps: List<OrgTimestamp> = emptyList(),
+    /**
+     * The active timestamps on the *dedicated* first body line only — a line
+     * that is nothing but `<…>` stamps (and whitespace). This is the subset the
+     * tabbed Dates editor manages; [activeTimestamps] additionally includes any
+     * stamp the note carries inline in its prose, which the editor leaves alone.
+     * Empty when the first body line is prose.
+     */
+    val dedicatedActiveTimestamps: List<OrgTimestamp> = emptyList(),
     /** First line of body content (after planning line, properties and logbook drawers). */
     val bodyStart: Int,
     /** Exclusive end: line index of the next headline (any level) or EOF. */
@@ -250,6 +258,9 @@ object OrgParser {
     private val FILETAGS = Regex("""^#\+(?i:FILETAGS):\s*(.*)$""")
     internal val PROPERTY_LINE = Regex("""^\s*:([^:\s]+):\s*(.*)$""")
     private val PLANNING_PART = Regex("""(SCHEDULED|DEADLINE|CLOSED):\s*""")
+
+    /** A body line that is nothing but active `<…>` timestamps (and whitespace). */
+    private val PURE_ACTIVE_TS_LINE = Regex("""^\s*(?:<[^<>\n]+>(?:--<[^<>\n]+>)?\s*)+$""")
     internal val PREAMBLE_KEYWORD = Regex("""^#\+([A-Za-z][A-Za-z0-9_-]*):(.*)$""")
 
     fun parse(text: String, keywords: OrgKeywords = OrgKeywords.DEFAULT): OrgDocument {
@@ -382,6 +393,11 @@ object OrgParser {
         val body = if (cursor < contentEnd) lines.subList(cursor, contentEnd) else emptyList()
         val activeTimestamps = OrgTimestamp.parseAll(body.joinToString("\n"))
             .filter { it.active }
+        val dedicatedActiveTimestamps = body.firstOrNull()
+            ?.takeIf { PURE_ACTIVE_TS_LINE.matches(it) }
+            ?.let { OrgTimestamp.parseAll(it.trim()).filter { ts -> ts.active } }
+            ?.takeIf { it.isNotEmpty() }
+            .orEmpty()
 
         return OrgHeadline(
             index = index,
@@ -395,6 +411,7 @@ object OrgParser {
             properties = properties,
             logbook = logbook,
             activeTimestamps = activeTimestamps,
+            dedicatedActiveTimestamps = dedicatedActiveTimestamps,
             bodyStart = cursor,
             contentEnd = contentEnd,
         )

@@ -106,7 +106,17 @@ class DateShorthandTest {
         assertEquals(PlanningKind.DEADLINE, ok("deadline: mon").target)
         assertEquals(PlanningKind.SCHEDULED, ok("s: mon").target)
         assertEquals(PlanningKind.SCHEDULED, ok("sched: mon").target)
+        assertEquals(PlanningKind.ACTIVE, ok("a: mon").target)
+        assertEquals(PlanningKind.ACTIVE, ok("act: mon").target)
+        assertEquals(PlanningKind.ACTIVE, ok("active: mon").target)
         assertNull(ok("mon").target)
+    }
+
+    @Test
+    fun `targetPrefix reads the active prefix off half-typed input`() {
+        assertEquals(PlanningKind.ACTIVE, DateShorthandParser.targetPrefix("a: fr"))
+        assertEquals(PlanningKind.ACTIVE, DateShorthandParser.targetPrefix("active: "))
+        assertNull(DateShorthandParser.targetPrefix("aug 3"))
     }
 
     @Test

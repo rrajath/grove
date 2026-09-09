@@ -77,6 +77,26 @@ object OrgMutations {
         return lines.joinToString("\n")
     }
 
+    /**
+     * SCHEDULED / DEADLINE and the dedicated active-timestamp line in one logical
+     * edit: what the Dates editor's "Apply" commits. The planning line is written
+     * first, then the document is re-parsed so [setActiveTimestamps] places its
+     * line after the (possibly just-added) planning line — the same re-parse
+     * dance [markDone] does.
+     */
+    fun setPlanningAndActiveTimestamps(
+        doc: OrgDocument,
+        h: OrgHeadline,
+        scheduled: OrgTimestamp?,
+        deadline: OrgTimestamp?,
+        active: List<OrgTimestamp>,
+    ): String {
+        val withPlanning = setPlanningDates(doc, h, scheduled, deadline)
+        val redoc = OrgParser.parse(withPlanning, doc.keywords)
+        val again = redoc.headlines.first { it.lineIndex == h.lineIndex }
+        return setActiveTimestamps(redoc, again, active)
+    }
+
     private val PURE_ACTIVE_TS_LINE =
         Regex("""^\s*(?:<[^<>\n]+>(?:--<[^<>\n]+>)?\s*)+$""")
 
