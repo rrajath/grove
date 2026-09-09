@@ -92,6 +92,10 @@ re-uploads the APKs to the existing release instead of failing.
   a heading now renders only as the chip. Stamps written inline in a sentence
   are unchanged.
 
+- Fixed the note editor's floating menu button covering the last lines of text.
+  The editor now keeps a clear band at the bottom so text always scrolls above
+  the button.
+
 - Fixed a search result showing only the earliest bare active timestamp. Every
   active stamp on a heading now gets its own violet pill, each carrying its
   time of day (and range) when it has one, instead of just the first all-day

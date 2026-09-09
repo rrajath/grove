@@ -480,7 +480,10 @@ fun EditNoteScreen(
                         scrollState = scrollState,
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(18.dp)
+                            // Extra bottom room so the last lines scroll clear of the
+                            // floating EditorMenuFab (54dp + 16dp inset) instead of
+                            // sitting under it. Mirrors CaptureEditorScreen's field.
+                            .padding(start = 18.dp, top = 18.dp, end = 18.dp, bottom = 80.dp)
                             .focusRequester(focusRequester)
                             .testTag("edit_note_field"),
                     )
