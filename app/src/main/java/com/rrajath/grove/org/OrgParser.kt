@@ -239,6 +239,22 @@ class OrgDocument(
         return lines.subList(h.bodyStart, end)
     }
 
+    /**
+     * [bodyOf] without the leading bare active-timestamp line (org's event-date
+     * convention). Read mode and the Outline preview show [OrgHeadline.dedicatedActiveTimestamps]
+     * as a chip, so that line would otherwise appear twice: once as the chip, once
+     * as plain body text. Inline `<…>` stamps inside prose are left alone.
+     */
+    fun bodyWithoutDedicatedTimestamp(h: OrgHeadline): List<String> {
+        val body = bodyOf(h)
+        return if (h.dedicatedActiveTimestamps.isNotEmpty() && body.isNotEmpty()) body.drop(1) else body
+    }
+
+    /** [OrgHeadline.bodyStart] shifted past the line [bodyWithoutDedicatedTimestamp] drops, so
+     *  body-relative block line numbers still resolve to absolute document lines. */
+    fun bodyStartWithoutDedicatedTimestamp(h: OrgHeadline): Int =
+        if (h.dedicatedActiveTimestamps.isNotEmpty()) h.bodyStart + 1 else h.bodyStart
+
     /** Exclusive end line of [h]'s entire subtree (own content + descendants). */
     fun subtreeEndLine(h: OrgHeadline): Int =
         (subtree(h).lastOrNull() ?: h).contentEnd

@@ -135,8 +135,8 @@ class ReadNoteScreenTest {
         }
         content(NoteRef("events.org", lineOf(runBlocking { env.store.read("events.org") }, "Team offsite")))
 
-        // The humanised chip label ("Jan 15, 2099") — distinct from the raw
-        // `<2099-01-15 Fri>` the body renders — proves the violet event chip drew.
+        // The dedicated `<2099-01-15 Fri>` line collapses to the chip only: the
+        // humanised label ("Jan 15, 2099"), never the raw stamp, appears.
         composeRule.waitUntil(timeoutMillis = 5_000) {
             composeRule.onAllNodesWithText("Jan 15, 2099", substring = true).fetchSemanticsNodes().isNotEmpty()
         }

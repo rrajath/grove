@@ -1035,7 +1035,7 @@ private fun OutlineNode(
             // (when there is one) so it overflows past maxLines = 2 and draws a
             // trailing ellipsis — the cue that there's more content below.
             val preview = remember(doc, headline) {
-                doc.bodyOf(headline)
+                doc.bodyWithoutDedicatedTimestamp(headline)
                     .map { it.trim() }
                     .filter { it.isNotEmpty() }
                     .take(3)
@@ -1055,7 +1055,7 @@ private fun OutlineNode(
             // line only if they don't both fit on one.
             val hasScheduled = headline.planning.scheduled != null && flags.timestamps
             val hasDeadline = headline.planning.deadline != null && flags.timestamps
-            val hasActive = headline.activeTimestamps.isNotEmpty() && flags.timestamps
+            val hasActive = headline.dedicatedActiveTimestamps.isNotEmpty() && flags.timestamps
             if (hasScheduled || hasDeadline || hasActive) {
                 FlowRow(
                     modifier = Modifier.padding(top = 3.dp),
@@ -1094,9 +1094,11 @@ private fun OutlineNode(
                             )
                         }
                     }
-                    // Bare active timestamps (events): violet dot chip.
+                    // Bare active timestamps (events): violet dot chip. Only the
+                    // dedicated line right after the heading — inline `<…>` stamps in
+                    // prose stay as text in the preview above, not chipped here.
                     if (flags.timestamps) {
-                        headline.activeTimestamps.forEach { ts ->
+                        headline.dedicatedActiveTimestamps.forEach { ts ->
                             Row(
                                 Modifier
                                     .clip(RoundedCornerShape(5.dp))

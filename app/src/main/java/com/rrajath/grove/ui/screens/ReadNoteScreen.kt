@@ -667,7 +667,10 @@ private fun NoteContent(
     // #+FILETAGS: — the sheet's own row lost the chip, but this header kept
     // showing it via inheritance.
     val tags = remember(doc, headline) { headline.tags }
-    val ownBody = remember(doc, headline) { doc.bodyOf(headline) }
+    // Minus the leading bare active-timestamp line: it renders as a chip below the
+    // title instead (headline.dedicatedActiveTimestamps).
+    val ownBody = remember(doc, headline) { doc.bodyWithoutDedicatedTimestamp(headline) }
+    val ownBodyStart = remember(doc, headline) { doc.bodyStartWithoutDedicatedTimestamp(headline) }
     val subtree = remember(doc, headline) { doc.subtree(headline) }
 
     // A heading whose subtree is huge or very deep (e.g. a 2000-heading "note")
@@ -752,7 +755,7 @@ private fun NoteContent(
                         // Both chips share a row and wrap to a second line only if
                         // they don't fit side by side.
                         if (headline.planning.scheduled != null || headline.planning.deadline != null ||
-                            headline.activeTimestamps.isNotEmpty()
+                            headline.dedicatedActiveTimestamps.isNotEmpty()
                         ) {
                             Spacer(Modifier.height(6.dp))
                             FlowRow(
@@ -766,8 +769,9 @@ private fun NoteContent(
                                     PlanningChip(it.formatHuman(), icon = Icons.Filled.Flag, fg = c.red, bg = c.redSoft)
                                 }
                                 // Bare active timestamps (events): a filled dot in the
-                                // violet event colour.
-                                headline.activeTimestamps.forEach {
+                                // violet event colour. Only the dedicated line after the
+                                // heading — inline `<…>` stamps stay in the body text.
+                                headline.dedicatedActiveTimestamps.forEach {
                                     PlanningChip(
                                         it.formatHuman(),
                                         icon = Icons.Filled.Circle,
@@ -812,7 +816,7 @@ private fun NoteContent(
                         Spacer(Modifier.height(16.dp))
 
                         // Own body
-                        BodyBlocks(ownBody, headline.bodyStart, onToggleCheckbox, openLink, onLinkLongPress, { onEditAt(null) }, onOpenBlock)
+                        BodyBlocks(ownBody, ownBodyStart, onToggleCheckbox, openLink, onLinkLongPress, { onEditAt(null) }, onOpenBlock)
                     }
                 }
             }

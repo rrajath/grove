@@ -341,6 +341,24 @@ class OrgParserTest {
     }
 
     @Test
+    fun `bodyWithoutDedicatedTimestamp drops the leading bare stamp line and shifts bodyStart`() {
+        val doc = OrgParser.parse(
+            "* Trip\n<2026-09-08 Mon>--<2026-09-10 Wed>\nPack the bags.\nBook the train.\n"
+        )
+        val trip = doc.findByTitle("Trip")!!
+        assertEquals(listOf("Pack the bags.", "Book the train.", ""), doc.bodyWithoutDedicatedTimestamp(trip))
+        assertEquals(trip.bodyStart + 1, doc.bodyStartWithoutDedicatedTimestamp(trip))
+    }
+
+    @Test
+    fun `bodyWithoutDedicatedTimestamp is a no-op when the stamp is only inline`() {
+        val doc = OrgParser.parse("* Note\nMeeting on <2026-09-08 Mon> as planned.\n")
+        val note = doc.findByTitle("Note")!!
+        assertEquals(doc.bodyOf(note), doc.bodyWithoutDedicatedTimestamp(note))
+        assertEquals(note.bodyStart, doc.bodyStartWithoutDedicatedTimestamp(note))
+    }
+
+    @Test
     fun `active timestamps exclude descendants, planning and inactive stamps`() {
         val doc = OrgParser.parse(
             "* Parent\nSCHEDULED: <2026-09-01 Tue>\n:PROPERTIES:\n:CREATED: [2026-08-01 Sat]\n:END:\n" +

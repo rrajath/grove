@@ -87,6 +87,11 @@ re-uploads the APKs to the existing release instead of failing.
   stay on the calendar as an outlined cell in their own colour when you switch
   to another tab.
 
+- Fixed a bare `<date>` event stamp showing twice in read mode and the outline
+  — once as plain text, once as the violet chip. The dedicated event line after
+  a heading now renders only as the chip. Stamps written inline in a sentence
+  are unchanged.
+
 - Fixed a search result showing only the earliest bare active timestamp. Every
   active stamp on a heading now gets its own violet pill, each carrying its
   time of day (and range) when it has one, instead of just the first all-day
