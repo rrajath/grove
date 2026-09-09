@@ -59,6 +59,8 @@ re-uploads the APKs to the existing release instead of failing.
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-09-09
+
 - Fixed: the CI `macrobenchmark` job's `ScrollBenchmark` tests crashed with a
   `NullPointerException` (`setGestureMargin` on null) because the seeded vault
   had not finished indexing when the scroll gesture ran. The scroll tests
