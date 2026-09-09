@@ -79,6 +79,11 @@ re-uploads the APKs to the existing release instead of failing.
   time of day (and range) when it has one, instead of just the first all-day
   one.
 
+- Fixed the planning-dates editor crashing when you paged the calendar to
+  another month and back. The day grid now renders as a fixed six-row shape, so
+  changing months no longer reshapes the view tree in a way the UI framework
+  could not apply.
+
 - Removed the CI `macrobenchmark` job. Benchmark numbers off a shared-runner
   emulator are noise, and keeping the suite green there was a recurring
   maintenance cost (cold-start re-seed/re-index flakiness, the androidx EMULATOR

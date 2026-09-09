@@ -40,6 +40,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -714,7 +715,6 @@ private fun AccentCalendar(
             }
         }
 
-        val cells = List(leading) { null } + (1..len).map { month.atDay(it) }
         Column(
             Modifier
                 .fillMaxWidth()
@@ -745,110 +745,151 @@ private fun AccentCalendar(
                     } else Modifier,
                 ),
         ) {
-            cells.chunked(7).forEach { week ->
+            // A fixed 6×7 grid: every cell is the same node shape (one Box → one
+            // Text) behind a stable key(). The old grid emitted a variable number
+            // of week Rows plus per-row trailing Spacers with no keys, so paging
+            // months reshaped the layout-node tree mid-recompose and the Compose
+            // applier crashed (negative arraycopy in PostInsertNodeFixup).
+            repeat(GRID_ROWS) { row ->
                 Row(
                     Modifier.fillMaxWidth().padding(bottom = 2.dp),
                     horizontalArrangement = Arrangement.spacedBy(2.dp),
                 ) {
-                    week.forEach { day ->
-                        if (day == null) {
-                            Spacer(Modifier.weight(1f).height(38.dp))
-                            return@forEach
-                        }
-                        val hit = entries.indexOfFirst { it.covers(day) }
-                        val e = entries.getOrNull(hit)
-                        val ranged = e != null && e.rangeEnd != null && e.rangeEnd != e.date
-                        val posKind = when {
-                            e == null -> Pos.NONE
-                            !ranged -> Pos.SOLO
-                            day == e.date -> Pos.START
-                            day == e.rangeEnd -> Pos.END
-                            else -> Pos.MID
-                        }
-                        val sel = if (perEntrySelection) hit == selectedIndex else hit >= 0
-                        val inDrag = dragLo != null && dragHi != null &&
-                            !day.isBefore(dragLo) && !day.isAfter(dragHi)
-                        // A day this note uses on one of the *other* two tabs.
-                        val secondary = if (posKind == Pos.NONE && !inDrag) secondaryMarks[day] else null
-
-                        val shape = when (posKind) {
-                            Pos.START -> RoundedCornerShape(topStart = 10.dp, bottomStart = 10.dp)
-                            Pos.END -> RoundedCornerShape(topEnd = 10.dp, bottomEnd = 10.dp)
-                            Pos.MID -> RoundedCornerShape(0.dp)
-                            else -> RoundedCornerShape(10.dp)
-                        }
-                        val bg: Color
-                        val fg: Color
-                        val weight: FontWeight
-                        when {
-                            inDrag -> {
-                                bg = accentSoft; fg = accent; weight = FontWeight.SemiBold
-                            }
-                            posKind == Pos.MID -> {
-                                bg = accentSoft; fg = accent; weight = FontWeight.SemiBold
-                            }
-                            posKind != Pos.NONE -> {
-                                bg = if (sel) accent else accentSoft
-                                fg = if (sel) c.surface else accent
-                                weight = FontWeight.SemiBold
-                            }
-                            secondary != null -> {
-                                bg = Color.Transparent; fg = secondary; weight = FontWeight.SemiBold
-                            }
-                            else -> {
-                                bg = Color.Transparent; fg = c.ink; weight = FontWeight.Normal
-                            }
-                        }
-                        val border = when {
-                            inDrag || (posKind != Pos.NONE && posKind != Pos.MID) -> accent
-                            posKind == Pos.MID -> Color.Transparent
-                            secondary != null -> secondary
-                            day == today -> c.line2
-                            else -> Color.Transparent
-                        }
-
-                        val dot = if (posKind == Pos.NONE && !inDrag && secondary == null) when {
-                            day == today -> c.accent
-                            day in plannedDates -> c.violet
-                            else -> null
-                        } else null
-
-                        Box(
-                            Modifier
-                                .weight(1f)
-                                .height(38.dp)
-                                .clip(shape)
-                                .background(bg)
-                                .then(
-                                    if (inDrag) Modifier.dashedBorder(accent, if (posKind == Pos.MID) 0.dp else 10.dp)
-                                    else Modifier.border(1.dp, border, shape),
-                                ),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Text(
-                                day.dayOfMonth.toString(),
-                                fontFamily = PlexMono, fontSize = 13.sp, color = fg, fontWeight = weight,
+                    repeat(7) { col ->
+                        val dayNum = row * 7 + col - leading + 1
+                        val day = if (dayNum in 1..len) month.atDay(dayNum) else null
+                        key(row * 7 + col) {
+                            DayCell(
+                                day = day,
+                                today = today,
+                                entries = entries,
+                                selectedIndex = selectedIndex,
+                                perEntrySelection = perEntrySelection,
+                                accent = accent,
+                                accentSoft = accentSoft,
+                                secondaryMarks = secondaryMarks,
+                                plannedDates = plannedDates,
+                                dragLo = dragLo,
+                                dragHi = dragHi,
                             )
-                            if (dot != null) {
-                                Box(
-                                    Modifier
-                                        .align(Alignment.BottomCenter)
-                                        .padding(bottom = 5.dp)
-                                        .size(4.dp)
-                                        .clip(CircleShape)
-                                        .background(dot),
-                                )
-                            }
                         }
                     }
-                    repeat(7 - week.size) { Spacer(Modifier.weight(1f)) }
                 }
             }
         }
     }
 }
 
+/** Always six week rows so [AccentCalendar]'s node tree never changes shape. */
+private const val GRID_ROWS = 6
+
 private enum class Pos { NONE, SOLO, START, MID, END }
+
+/**
+ * One calendar day. Renders the same node shape whether or not [day] is set (an
+ * out-of-month slot is a blank cell), so the grid stays structurally stable as
+ * the month changes. The other-note / today dot is painted in [Modifier.drawBehind]
+ * rather than as a conditional child for the same reason.
+ */
+@Composable
+private fun RowScope.DayCell(
+    day: LocalDate?,
+    today: LocalDate,
+    entries: List<OrgTimestamp>,
+    selectedIndex: Int,
+    perEntrySelection: Boolean,
+    accent: Color,
+    accentSoft: Color,
+    secondaryMarks: Map<LocalDate, Color>,
+    plannedDates: Set<LocalDate>,
+    dragLo: LocalDate?,
+    dragHi: LocalDate?,
+) {
+    val c = MaterialTheme.grove
+    val hit = day?.let { d -> entries.indexOfFirst { it.covers(d) } } ?: -1
+    val e = entries.getOrNull(hit)
+    val ranged = e != null && e.rangeEnd != null && e.rangeEnd != e.date
+    val posKind = when {
+        day == null || e == null -> Pos.NONE
+        !ranged -> Pos.SOLO
+        day == e.date -> Pos.START
+        day == e.rangeEnd -> Pos.END
+        else -> Pos.MID
+    }
+    val sel = if (perEntrySelection) hit == selectedIndex else hit >= 0
+    val inDrag = day != null && dragLo != null && dragHi != null &&
+        !day.isBefore(dragLo) && !day.isAfter(dragHi)
+    // A day this note uses on one of the *other* two tabs.
+    val secondary = if (day != null && posKind == Pos.NONE && !inDrag) secondaryMarks[day] else null
+
+    val shape = when (posKind) {
+        Pos.START -> RoundedCornerShape(topStart = 10.dp, bottomStart = 10.dp)
+        Pos.END -> RoundedCornerShape(topEnd = 10.dp, bottomEnd = 10.dp)
+        Pos.MID -> RoundedCornerShape(0.dp)
+        else -> RoundedCornerShape(10.dp)
+    }
+    val bg: Color
+    val fg: Color
+    val weight: FontWeight
+    when {
+        inDrag -> {
+            bg = accentSoft; fg = accent; weight = FontWeight.SemiBold
+        }
+        posKind == Pos.MID -> {
+            bg = accentSoft; fg = accent; weight = FontWeight.SemiBold
+        }
+        posKind != Pos.NONE -> {
+            bg = if (sel) accent else accentSoft
+            fg = if (sel) c.surface else accent
+            weight = FontWeight.SemiBold
+        }
+        secondary != null -> {
+            bg = Color.Transparent; fg = secondary; weight = FontWeight.SemiBold
+        }
+        else -> {
+            bg = Color.Transparent; fg = c.ink; weight = FontWeight.Normal
+        }
+    }
+    val border = when {
+        inDrag || (posKind != Pos.NONE && posKind != Pos.MID) -> accent
+        posKind == Pos.MID -> Color.Transparent
+        secondary != null -> secondary
+        day != null && day == today -> c.line2
+        else -> Color.Transparent
+    }
+    val dot = if (day != null && posKind == Pos.NONE && !inDrag && secondary == null) when {
+        day == today -> c.accent
+        day in plannedDates -> c.violet
+        else -> null
+    } else null
+
+    Box(
+        Modifier
+            .weight(1f)
+            .height(38.dp)
+            .clip(shape)
+            .background(bg)
+            .then(
+                if (inDrag) Modifier.dashedBorder(accent, if (posKind == Pos.MID) 0.dp else 10.dp)
+                else Modifier.border(1.dp, border, shape),
+            )
+            .drawBehind {
+                if (dot != null) {
+                    drawCircle(
+                        color = dot,
+                        radius = 2.dp.toPx(),
+                        center = Offset(size.width / 2f, size.height - 7.dp.toPx()),
+                    )
+                }
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            day?.dayOfMonth?.toString() ?: "",
+            fontFamily = PlexMono, fontSize = 13.sp, color = fg, fontWeight = weight,
+        )
+    }
+}
 
 @Composable
 private fun MonthArrow(glyph: String, onClick: () -> Unit) {
