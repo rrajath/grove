@@ -38,17 +38,18 @@ class QueryParserTest {
 
     @Test
     fun `all operator types parse`() {
-        val q = QueryParser.parse("s.today d.2d c.yesterday cr.1w i.todo b.inbox t.x tn.y p.a")
+        val q = QueryParser.parse("s.today d.2d a.7d c.yesterday cr.1w i.todo b.inbox t.x tn.y p.a")
         val conditions = q.groups[0].map { it.condition }
         assertEquals(Condition.Scheduled(Period("today")), conditions[0])
         assertEquals(Condition.Deadline(Period("2d")), conditions[1])
-        assertEquals(Condition.Closed(Period("yesterday")), conditions[2])
-        assertEquals(Condition.Created(Period("1w")), conditions[3])
-        assertEquals(Condition.State("todo"), conditions[4])
-        assertEquals(Condition.Notebook("inbox"), conditions[5])
-        assertEquals(Condition.Tag("x", ownOnly = false), conditions[6])
-        assertEquals(Condition.Tag("y", ownOnly = true), conditions[7])
-        assertEquals(Condition.Priority("a"), conditions[8])
+        assertEquals(Condition.Active(Period("7d")), conditions[2])
+        assertEquals(Condition.Closed(Period("yesterday")), conditions[3])
+        assertEquals(Condition.Created(Period("1w")), conditions[4])
+        assertEquals(Condition.State("todo"), conditions[5])
+        assertEquals(Condition.Notebook("inbox"), conditions[6])
+        assertEquals(Condition.Tag("x", ownOnly = false), conditions[7])
+        assertEquals(Condition.Tag("y", ownOnly = true), conditions[8])
+        assertEquals(Condition.Priority("a"), conditions[9])
     }
 
     @Test

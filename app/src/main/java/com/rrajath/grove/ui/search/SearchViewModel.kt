@@ -96,6 +96,8 @@ data class SearchFilters(
     val scheduledRange: DateRange? = null,
     val deadline: DatePreset = DatePreset.ANY,
     val deadlineRange: DateRange? = null,
+    val active: DatePreset = DatePreset.ANY,
+    val activeRange: DateRange? = null,
     val closed: DatePreset = DatePreset.ANY,
     val closedRange: DateRange? = null,
     val created: DatePreset = DatePreset.ANY,
@@ -109,6 +111,7 @@ data class SearchFilters(
             (if (priorities.isNotEmpty() || excludedPriorities.isNotEmpty()) 1 else 0) +
             (if (scheduled != DatePreset.ANY) 1 else 0) +
             (if (deadline != DatePreset.ANY) 1 else 0) +
+            (if (active != DatePreset.ANY) 1 else 0) +
             (if (closed != DatePreset.ANY) 1 else 0) +
             (if (created != DatePreset.ANY) 1 else 0) +
             (if (notebooks.isNotEmpty() || excludedNotebooks.isNotEmpty()) 1 else 0)
@@ -143,6 +146,8 @@ data class SearchResult(
     val scheduledOverdue: Boolean,
     val deadlineLabel: String?,
     val deadlineOverdue: Boolean,
+    /** Earliest bare active timestamp's day, as a short label for the row's event pill. */
+    val activeLabel: String?,
     val tagLine: String,
     /** Raw timestamps (vs. the display-only labels above) for the swipe-to-schedule action's date picker. */
     val scheduledTs: OrgTimestamp?,
@@ -445,6 +450,15 @@ class SearchViewModel(
     fun setDeadlineRange(start: LocalDate, end: LocalDate) =
         filtersFlow.update { it.copy(deadline = DatePreset.CUSTOM, deadlineRange = DateRange(start, end)) }
 
+    fun setActivePreset(preset: DatePreset) =
+        filtersFlow.update {
+            if (it.active == preset) it.copy(active = DatePreset.ANY, activeRange = null)
+            else it.copy(active = preset, activeRange = null)
+        }
+
+    fun setActiveRange(start: LocalDate, end: LocalDate) =
+        filtersFlow.update { it.copy(active = DatePreset.CUSTOM, activeRange = DateRange(start, end)) }
+
     fun setClosedPreset(preset: DatePreset) =
         filtersFlow.update {
             if (it.closed == preset) it.copy(closed = DatePreset.ANY, closedRange = null)
@@ -526,6 +540,7 @@ class SearchViewModel(
         f.excludedNotebooks.sorted().forEach { fixed += ".b.${it.removeSuffix(".org")}" }
         datePresetToken("s", f.scheduled, f.scheduledRange)?.let { fixed += it }
         datePresetToken("d", f.deadline, f.deadlineRange)?.let { fixed += it }
+        datePresetToken("a", f.active, f.activeRange)?.let { fixed += it }
         datePresetToken("c", f.closed, f.closedRange)?.let { fixed += it }
         datePresetToken("cr", f.created, f.createdRange)?.let { fixed += it }
 
@@ -679,6 +694,7 @@ class SearchViewModel(
         tags = tags,
         scheduled = scheduled.presence(),
         deadline = deadline.presence(),
+        active = active.presence(),
         closed = closed.presence(),
         created = created.presence(),
     )
@@ -703,6 +719,9 @@ class SearchViewModel(
         ) return false
         if (f.deadline != DatePreset.ANY &&
             !datePresetMatches(note.deadlineDate, f.deadline, today, f.deadlineRange, note.isDoneKeyword)
+        ) return false
+        if (f.active != DatePreset.ANY &&
+            !activePresetMatches(note, f.active, today, f.activeRange)
         ) return false
         if (f.closed != DatePreset.ANY &&
             !datePresetMatches(note.closedDate, f.closed, today, f.closedRange, note.isDoneKeyword)
@@ -731,6 +750,27 @@ class SearchViewModel(
         DatePreset.CUSTOM -> date != null && range != null && date in range
     }
 
+    /** The list-valued counterpart for bare active timestamps: a preset matches
+     *  when any day the events land on satisfies it. Events are never "done", so
+     *  Overdue here just means an event that has fully passed (search shows those;
+     *  the agenda hides them). */
+    private fun activePresetMatches(
+        note: NoteMeta,
+        preset: DatePreset,
+        today: LocalDate,
+        range: DateRange?,
+    ): Boolean {
+        val dates = note.activeDates
+        return when (preset) {
+            DatePreset.ANY -> true
+            DatePreset.NO_DATE -> dates.isEmpty()
+            DatePreset.TODAY -> today in dates
+            DatePreset.NEXT_7_DAYS -> dates.any { !it.isBefore(today) && !it.isAfter(today.plusDays(7)) }
+            DatePreset.OVERDUE -> note.activeTimestamps.any { (it.rangeEnd ?: it.date).isBefore(today) }
+            DatePreset.CUSTOM -> range != null && dates.any { it in range }
+        }
+    }
+
     private fun toResult(meta: NoteMeta, terms: List<String>, today: LocalDate): SearchResult {
         val (scheduledLabel, scheduledOverdue) = dateLabel(meta.scheduledDate, today)
         val (deadlineLabel, deadlineOverdue) = dateLabel(meta.deadlineDate, today)
@@ -746,6 +786,7 @@ class SearchViewModel(
             scheduledOverdue = scheduledOverdue,
             deadlineLabel = deadlineLabel,
             deadlineOverdue = deadlineOverdue,
+            activeLabel = meta.activeDates.minOrNull()?.let { activeDateLabel(it, today) },
             tagLine = meta.tags.joinToString(" ") { ":$it:" },
             scheduledTs = meta.scheduled?.let { OrgTimestamp.parse(it) },
             deadlineTs = meta.deadline?.let { OrgTimestamp.parse(it) },
@@ -767,6 +808,19 @@ class SearchViewModel(
             else -> date.format(DAY_FORMAT)
         }
         return text to overdue
+    }
+
+    /** Like [dateLabel] but framed as an event, not a task: a past day reads
+     *  "3d ago", never "overdue". */
+    private fun activeDateLabel(date: LocalDate, today: LocalDate): String {
+        val n = ChronoUnit.DAYS.between(today, date)
+        return when {
+            n == 0L -> "today"
+            n == 1L -> "tomorrow"
+            n == -1L -> "yesterday"
+            n < 0 -> "${-n}d ago"
+            else -> date.format(DAY_FORMAT)
+        }
     }
 
     /** Recomputed from the whole vault (not the active filters), so the

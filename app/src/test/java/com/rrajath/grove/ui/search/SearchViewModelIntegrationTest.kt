@@ -163,6 +163,26 @@ class SearchViewModelIntegrationTest {
     }
 
     @Test
+    fun `an active-date preset counts as a filter and mirrors an a token into the query`() = runTest {
+        TestVaultSeeder.index(db, store)
+        advanceUntilIdle()
+        val vm = search()
+        advanceUntilIdle()
+
+        vm.setActivePreset(DatePreset.TODAY)
+        advanceUntilIdle()
+
+        assertEquals(1, vm.state.value.filters.activeCount)
+        assertTrue(vm.state.value.query.contains("a.today"))
+
+        // Tapping the same preset again clears it.
+        vm.setActivePreset(DatePreset.TODAY)
+        advanceUntilIdle()
+        assertEquals(0, vm.state.value.filters.activeCount)
+        assertFalse(vm.state.value.query.contains("a.today"))
+    }
+
+    @Test
     fun `setState writes the new keyword to the file and requests a sync`() = runTest {
         TestVaultSeeder.index(db, store)
         advanceUntilIdle()

@@ -112,6 +112,34 @@ class QueryMatcherTest {
     }
 
     @Test
+    fun `a period matches bare active timestamps over the whole list`() {
+        val soon = note("Soon", active = "<2025-06-13 Fri>")
+        val far = note("Far", active = "<2025-07-20 Sun>")
+        val multi = note("Multi", active = "<2025-09-01 Mon> <2025-06-12 Thu>")
+        val none = note("None")
+        assertEquals(listOf("Soon", "Multi"), run("a.7d", soon, far, multi, none))
+        // "none" alias matches only notes with no active timestamp at all.
+        assertEquals(listOf("None"), run("a.none", soon, far, none))
+        assertEquals(listOf("Soon", "Far"), run(".a.none", soon, far, none))
+    }
+
+    @Test
+    fun `a today matches a ranged event that spans today`() {
+        val spanning = note("Spanning", active = "<2025-06-09 Mon>--<2025-06-15 Sun>")
+        val past = note("Past", active = "<2025-06-01 Sun>--<2025-06-05 Thu>")
+        assertEquals(listOf("Spanning"), run("a.today", spanning, past))
+        // A past event is still reachable by an explicit a.overdue (only the agenda hides it).
+        assertEquals(listOf("Past"), run("a.overdue", spanning, past))
+    }
+
+    @Test
+    fun `o active sorts by the earliest active date`() {
+        val a = note("A", active = "<2025-06-20 Fri>")
+        val b = note("B", active = "<2025-08-01 Fri> <2025-06-12 Thu>")
+        assertEquals(listOf("B", "A"), run("a.3m o.active", a, b))
+    }
+
+    @Test
     fun `negation and OR`() {
         val a = note("A", keyword = "TODO", tags = listOf("work"))
         val b = note("B", keyword = "DONE", done = true, tags = listOf("work"))

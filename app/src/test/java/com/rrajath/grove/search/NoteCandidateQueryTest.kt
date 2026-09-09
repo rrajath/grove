@@ -73,6 +73,7 @@ class NoteCandidateQueryTest {
     fun `date windows only require the timestamp to exist`() {
         assertTrue(build("s.3d").sql.contains("scheduled IS NOT NULL"))
         assertTrue(build("d.today").sql.contains("deadline IS NOT NULL"))
+        assertTrue(build("a.7d").sql.contains("activeTimestamps IS NOT NULL"))
         assertTrue(build("c.1w").sql.contains("closed IS NOT NULL"))
         assertTrue(build("cr.1m").sql.contains("createdAt IS NOT NULL"))
     }
@@ -83,6 +84,7 @@ class NoteCandidateQueryTest {
         assertFalse(build("s.none").sql.contains("scheduled IS NOT NULL"))
         assertTrue(build("d.none").sql.contains("deadline IS NULL"))
         assertFalse(build("d.none").sql.contains("deadline IS NOT NULL"))
+        assertTrue(build("a.none").sql.contains("activeTimestamps IS NULL"))
     }
 
     @Test
@@ -190,6 +192,8 @@ class NoteCandidateQueryTest {
         assertTrue(build(facets = FacetNarrowing(scheduled = DatePresence.ABSENT)).sql.contains("scheduled IS NULL"))
         assertTrue(build(facets = FacetNarrowing(deadline = DatePresence.PRESENT)).sql.contains("deadline IS NOT NULL"))
         assertTrue(build(facets = FacetNarrowing(deadline = DatePresence.ANY)).isFullScan)
+        assertTrue(build(facets = FacetNarrowing(active = DatePresence.PRESENT)).sql.contains("activeTimestamps IS NOT NULL"))
+        assertTrue(build(facets = FacetNarrowing(active = DatePresence.ABSENT)).sql.contains("activeTimestamps IS NULL"))
         assertTrue(build(facets = FacetNarrowing(closed = DatePresence.PRESENT)).sql.contains("closed IS NOT NULL"))
         assertTrue(build(facets = FacetNarrowing(created = DatePresence.ABSENT)).sql.contains("createdAt IS NULL"))
     }

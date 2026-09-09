@@ -33,6 +33,11 @@ sealed class Condition {
     data class Priority(val priority: String) : Condition()
     data class Scheduled(val period: Period) : Condition()
     data class Deadline(val period: Period) : Condition()
+
+    /** `a.PERIOD`: a bare active timestamp (event) whose day falls in the window;
+     *  `a.overdue` still matches a past event (only the agenda suppresses those). */
+    data class Active(val period: Period) : Condition()
+
     data class Closed(val period: Period) : Condition()
     data class Created(val period: Period) : Condition()
 }
@@ -133,6 +138,7 @@ object QueryParser {
                     "p" -> return Condition.Priority(value)
                     "s" -> return Condition.Scheduled(Period(value))
                     "d" -> return Condition.Deadline(Period(value))
+                    "a" -> return Condition.Active(Period(value))
                     "c" -> return Condition.Closed(Period(value))
                     "cr" -> return Condition.Created(Period(value))
                 }

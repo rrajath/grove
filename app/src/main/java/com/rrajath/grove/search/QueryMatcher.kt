@@ -91,6 +91,7 @@ object QueryMatcher {
 
             is Condition.Scheduled -> withinFuture(note.scheduledDate, c.period, today)
             is Condition.Deadline -> withinFuture(note.deadlineDate, c.period, today)
+            is Condition.Active -> anyActiveWithin(note, c.period, today)
             is Condition.Closed -> withinPast(note.closedDate, c.period, today)
             is Condition.Created -> withinPast(note.createdDate, c.period, today)
         }
@@ -108,6 +109,23 @@ object QueryMatcher {
         period.exactDate(today)?.let { return date == it }
         val pivot = period.pivot(today) ?: return false
         return !date.isAfter(pivot)
+    }
+
+    /** a.: any bare active timestamp whose day satisfies the window, mirroring
+     *  [withinFuture] over the whole list (a ranged event contributes every day
+     *  it spans via [NoteMeta.activeDates]). `a.overdue` matches an event that
+     *  has fully passed (its last day is before today) on purpose: search is
+     *  explicit, only the agenda hides overdue events. */
+    private fun anyActiveWithin(note: NoteMeta, period: Period, today: LocalDate): Boolean {
+        val dates = note.activeDates
+        if (period.isNoDate) return dates.isEmpty()
+        if (dates.isEmpty()) return false
+        if (period.isOverdue) {
+            return note.activeTimestamps.any { (it.rangeEnd ?: it.date).isBefore(today) }
+        }
+        period.exactDate(today)?.let { d -> return dates.any { it == d } }
+        val pivot = period.pivot(today) ?: return false
+        return dates.any { !it.isAfter(pivot) }
     }
 
     /** c./cr.: timestamp within [pastPivot, today] for a relative window;
@@ -135,6 +153,7 @@ object QueryMatcher {
                     "priority", "p" -> compareBy { it.priority ?: "Z" }
                     "scheduled", "s" -> compareBy { it.scheduledDate ?: LocalDate.MAX }
                     "deadline", "d" -> compareBy { it.deadlineDate ?: LocalDate.MAX }
+                    "active", "a" -> compareBy { it.activeDates.minOrNull() ?: LocalDate.MAX }
                     "created", "cr" -> compareBy { it.createdDate ?: LocalDate.MAX }
                     "title" -> compareBy { it.title.lowercase() }
                     "notebook", "b" -> compareBy { it.fileName.lowercase() }

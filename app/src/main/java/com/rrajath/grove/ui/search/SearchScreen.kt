@@ -33,6 +33,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
+import androidx.compose.material.icons.filled.Circle
 import androidx.compose.material.icons.filled.EventBusy
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Flag
@@ -108,7 +109,7 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 private val OPERATOR_CHIPS = listOf(
-    "t.TAG", "i.STATE", "s.PERIOD", "d.PERIOD", "c.PERIOD", "cr.PERIOD", "b.NOTEBOOK", "p.PRIORITY",
+    "t.TAG", "i.STATE", "s.PERIOD", "d.PERIOD", "a.PERIOD", "c.PERIOD", "cr.PERIOD", "b.NOTEBOOK", "p.PRIORITY",
 )
 
 /** Quick-start card labels (see [BlankState]), included in the star button's
@@ -323,6 +324,8 @@ fun SearchScreen(
             onSetScheduledRange = viewModel::setScheduledRange,
             onSetDeadline = viewModel::setDeadlinePreset,
             onSetDeadlineRange = viewModel::setDeadlineRange,
+            onSetActive = viewModel::setActivePreset,
+            onSetActiveRange = viewModel::setActiveRange,
             onSetClosed = viewModel::setClosedPreset,
             onSetClosedRange = viewModel::setClosedRange,
             onSetCreated = viewModel::setCreatedPreset,
@@ -469,12 +472,13 @@ private val OPERATOR_LEGEND = listOf(
     "space" to "AND: every term must match",
     "OR" to "starts a new AND-group: either side can match",
     ". prefix" to "NOT: excludes rather than requires",
-    "o.PROP" to "sort by PROP (priority, scheduled, deadline, created, title, notebook)",
+    "o.PROP" to "sort by PROP (priority, scheduled, deadline, active, created, title, notebook)",
     "t.TAG / tn.TAG" to "tag anywhere in the heading / on this heading only",
     "i.STATE" to "TODO keyword (i.none = no keyword)",
     "b.NOTEBOOK" to "restrict to one notebook",
     "p.PRIORITY" to "priority letter (A/B/C)",
     "s./d." to "scheduled/deadline within a period (today, tomorrow, 3d, 1w, overdue, nodate…)",
+    "a." to "bare active timestamp (event) within a period (same tokens as s./d.)",
     "c./cr." to "closed/created within a period (same period tokens as s./d.)",
 )
 
@@ -985,23 +989,35 @@ private fun highlightedFileName(
     }
 }
 
-private enum class PillKind { SCHEDULED, DEADLINE, CLOSED, CREATED }
+private enum class PillKind { SCHEDULED, DEADLINE, ACTIVE, CLOSED, CREATED }
 
 @Composable
 private fun DatePillText(label: String, overdue: Boolean, kind: PillKind) {
     val c = MaterialTheme.grove
     val (fg, bg) = when {
+        // Bare active timestamps are events, never overdue-styled (M8 swaps the
+        // derived background for a tuned c.violetSoft token).
+        kind == PillKind.ACTIVE -> c.violet to c.violet.copy(alpha = 0.14f)
         overdue -> c.red to c.redSoft
         kind == PillKind.DEADLINE -> c.amber to c.amberSoft
         else -> c.blue to c.blueSoft
     }
-    val icon = if (kind == PillKind.DEADLINE) Icons.Filled.Flag else Icons.Outlined.CalendarMonth
+    val icon = when (kind) {
+        PillKind.DEADLINE -> Icons.Filled.Flag
+        PillKind.ACTIVE -> Icons.Filled.Circle
+        else -> Icons.Outlined.CalendarMonth
+    }
     Row(
         modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(bg).padding(horizontal = 7.dp, vertical = 3.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(3.dp),
     ) {
-        Icon(icon, contentDescription = null, tint = fg, modifier = Modifier.size(10.5.dp))
+        Icon(
+            icon,
+            contentDescription = null,
+            tint = fg,
+            modifier = Modifier.size(if (kind == PillKind.ACTIVE) 7.5.dp else 10.5.dp),
+        )
         Text(
             label,
             fontFamily = PlexMono, fontWeight = FontWeight.SemiBold, fontSize = 10.5.sp, color = fg,
@@ -1040,7 +1056,7 @@ private fun SearchResultRow(result: SearchResult, matchedTerms: List<String>) {
     // A done-type item's dates are no longer actionable, so they're not worth
     // surfacing in results (unlike the still-open items these pills exist for).
     val showDates = !result.isDone
-    val hasMeta = (showDates && (result.scheduledLabel != null || result.deadlineLabel != null)) ||
+    val hasMeta = (showDates && (result.scheduledLabel != null || result.deadlineLabel != null || result.activeLabel != null)) ||
         result.tagLine.isNotEmpty()
     ResultRowContent(
         keyword = result.keyword,
@@ -1063,6 +1079,7 @@ private fun SearchResultRow(result: SearchResult, matchedTerms: List<String>) {
                     if (showDates) {
                         result.deadlineLabel?.let { DatePillText(it, overdue = result.deadlineOverdue, kind = PillKind.DEADLINE) }
                         result.scheduledLabel?.let { DatePillText(it, overdue = result.scheduledOverdue, kind = PillKind.SCHEDULED) }
+                        result.activeLabel?.let { DatePillText(it, overdue = false, kind = PillKind.ACTIVE) }
                     }
                     if (result.tagLine.isNotEmpty()) {
                         Text(result.tagLine, fontFamily = PlexMono, fontSize = 11.sp, color = c.synTag)
@@ -1086,6 +1103,8 @@ private fun FilterPanel(
     onSetScheduledRange: (LocalDate, LocalDate) -> Unit,
     onSetDeadline: (DatePreset) -> Unit,
     onSetDeadlineRange: (LocalDate, LocalDate) -> Unit,
+    onSetActive: (DatePreset) -> Unit,
+    onSetActiveRange: (LocalDate, LocalDate) -> Unit,
     onSetClosed: (DatePreset) -> Unit,
     onSetClosedRange: (LocalDate, LocalDate) -> Unit,
     onSetCreated: (DatePreset) -> Unit,
@@ -1204,6 +1223,15 @@ private fun FilterPanel(
                         else rangeTarget = PillKind.DEADLINE
                     }
                 }
+                FilterSection("Active") {
+                    DatePreset.entries.filter { it != DatePreset.ANY && it != DatePreset.CUSTOM }.forEach { preset ->
+                        PanelChip(preset.label, filters.active == preset) { onSetActive(preset) }
+                    }
+                    PanelChip(customRangeLabel(filters.activeRange), filters.active == DatePreset.CUSTOM) {
+                        if (filters.active == DatePreset.CUSTOM) onSetActive(DatePreset.CUSTOM)
+                        else rangeTarget = PillKind.ACTIVE
+                    }
+                }
                 FilterSection("Closed") {
                     DatePreset.entries.filter { it != DatePreset.ANY && it != DatePreset.CUSTOM }.forEach { preset ->
                         PanelChip(preset.label, filters.closed == preset) { onSetClosed(preset) }
@@ -1256,6 +1284,7 @@ private fun FilterPanel(
         val current = when (target) {
             PillKind.SCHEDULED -> filters.scheduledRange
             PillKind.DEADLINE -> filters.deadlineRange
+            PillKind.ACTIVE -> filters.activeRange
             PillKind.CLOSED -> filters.closedRange
             PillKind.CREATED -> filters.createdRange
         }
@@ -1267,6 +1296,7 @@ private fun FilterPanel(
                 when (target) {
                     PillKind.SCHEDULED -> onSetScheduledRange(start, end)
                     PillKind.DEADLINE -> onSetDeadlineRange(start, end)
+                    PillKind.ACTIVE -> onSetActiveRange(start, end)
                     PillKind.CLOSED -> onSetClosedRange(start, end)
                     PillKind.CREATED -> onSetCreatedRange(start, end)
                 }
