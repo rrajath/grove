@@ -85,6 +85,7 @@ private data class DatePickerRequest(
     val title: String,
     val scheduled: OrgTimestamp?,
     val deadline: OrgTimestamp?,
+    val active: List<OrgTimestamp>,
 )
 
 /**
@@ -119,6 +120,7 @@ fun AgendaScreen(
             title = row.title,
             scheduled = row.scheduledTs,
             deadline = row.deadlineTs,
+            active = row.activeTimestamps,
         )
     }
 
@@ -187,10 +189,11 @@ fun AgendaScreen(
             title = req.title,
             scheduled = req.scheduled,
             deadline = req.deadline,
+            active = req.active,
             focus = req.target,
             onDismiss = { datePickerRequest = null },
-            onConfirm = { sched, dead ->
-                viewModel.setPlanningDates(req.fileName, req.lineIndex, sched, dead)
+            onConfirm = { sched, dead, active ->
+                viewModel.setPlanningDates(req.fileName, req.lineIndex, sched, dead, active)
                 datePickerRequest = null
             },
         )

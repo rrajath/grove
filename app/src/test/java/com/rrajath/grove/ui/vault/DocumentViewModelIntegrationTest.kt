@@ -430,10 +430,33 @@ class DocumentViewModelIntegrationTest {
         val vm = loaded("projects.org")
         val when_ = LocalDate.now().plusDays(2)
 
-        vm.setPlanningDates(headline(vm, "Backlog"), OrgTimestamp(when_), null)
+        vm.setPlanningDates(headline(vm, "Backlog"), OrgTimestamp(when_), null, emptyList())
         advanceUntilIdle()
 
         assertTrue(store.read("projects.org").contains("SCHEDULED: <$when_"))
+    }
+
+    @Test
+    fun `setPlanningDates writes a dedicated active-timestamp line`() = runTest {
+        val vm = loaded("projects.org")
+        val event = LocalDate.now().plusDays(5)
+
+        vm.setPlanningDates(
+            headline(vm, "Backlog"),
+            scheduled = null,
+            deadline = null,
+            active = listOf(OrgTimestamp(event)),
+        )
+        advanceUntilIdle()
+
+        val text = store.read("projects.org")
+        val backlog = com.rrajath.grove.org.OrgParser.parse(text).headlines.first { it.title == "Backlog" }
+        assertEquals(listOf(event), backlog.dedicatedActiveTimestamps.map { it.date })
+
+        // Clearing it removes the line again.
+        vm.setPlanningDates(headline(vm, "Backlog"), null, null, emptyList())
+        advanceUntilIdle()
+        assertFalse(store.read("projects.org").contains("<$event"))
     }
 
     @Test

@@ -286,12 +286,12 @@ private fun QuickAddSheet(onDismiss: () -> Unit) {
             title = text.ifBlank { "New task" },
             scheduled = selectedDate,
             deadline = null,
+            active = emptyList(),
             focus = PlanningKind.SCHEDULED,
             onDismiss = { customDateOpen = false },
-            // Quick-add has no deadline concept, so PlanningDatesScreen is reused
-            // exactly as Reschedule uses it (both sections shown); the deadline
-            // half of the result is simply never read.
-            onConfirm = { sched, _ -> dateOption = null; customDate = sched; customDateOpen = false },
+            // Quick-add only picks a scheduled day for a task that does not exist
+            // yet; the deadline and active halves of the result are never read.
+            onConfirm = { sched, _, _ -> dateOption = null; customDate = sched; customDateOpen = false },
         )
     }
 }

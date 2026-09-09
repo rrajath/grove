@@ -1,16 +1,9 @@
 package com.rrajath.grove.ui.components
 
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,6 +11,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -46,20 +40,24 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
@@ -70,9 +68,11 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -92,7 +92,6 @@ import com.rrajath.grove.ui.theme.grove
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.flow.map
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.YearMonth
@@ -101,50 +100,53 @@ import java.time.temporal.ChronoUnit
 import kotlin.math.abs
 
 /**
- * SCHEDULED and DEADLINE on one canvas ("Dates C" in `design/Grove.dc.html`).
+ * SCHEDULED, DEADLINE and bare active timestamps on one canvas ("Dates B — tabs"
+ * in `design/Grove.dc.html`).
  *
- * Both dates live on a single calendar: the scheduled day in blue, the deadline
- * in red, the lead time between them shaded; and calendar taps set whichever
- * section is expanded. Above the calendar is a shorthand box (`fri 10-11am ++1w`)
- * that patches the target timestamp; below it are the two expandable sections
- * carrying presets, time-of-day and the org repeater. Confirming commits *both*
- * timestamps at once, which is why [onConfirm] takes the pair: [focus] only
- * decides which section starts open, not what gets written.
+ * A three-way segmented control picks which surface the calendar edits:
+ * SCHEDULED (blue) and DEADLINE (red) each hold one day; ACTIVE (violet) holds
+ * any number of event timestamps and one range, made by long-pressing a day and
+ * dragging across others. A day already carrying one of the *other* two kinds
+ * shows a small dot so it stays visible while you work on the current tab.
+ * Confirming commits all three at once — [onConfirm] takes the triple — so the
+ * [focus] tab only decides where you start, not what gets written.
  *
- * Presented as a full-window [Dialog] rather than a nav destination so the four
- * entry points (agenda swipe, outline row, metadata sheet, reminder reschedule)
- * keep their existing local state and ViewModel wiring.
+ * The dedicated active-timestamp line is the only one this editor manages;
+ * active stamps a note carries inline in its prose are shown as read-mode chips
+ * but are edited in the raw editor, so the caller passes in only
+ * [com.rrajath.grove.org.OrgMutations.dedicatedActiveTimestamps].
+ *
+ * Presented as a full-window [Dialog] rather than a nav destination so the entry
+ * points (agenda swipe, outline row, metadata sheet, reminder reschedule, quick
+ * add) keep their existing local state and ViewModel wiring.
  */
 @Composable
 fun PlanningDatesScreen(
     title: String,
     scheduled: OrgTimestamp?,
     deadline: OrgTimestamp?,
+    active: List<OrgTimestamp>,
     focus: PlanningKind,
     onDismiss: () -> Unit,
-    onConfirm: (scheduled: OrgTimestamp?, deadline: OrgTimestamp?) -> Unit,
+    onConfirm: (scheduled: OrgTimestamp?, deadline: OrgTimestamp?, active: List<OrgTimestamp>) -> Unit,
 ) {
     val c = MaterialTheme.grove
     val today = remember { LocalDate.now() }
 
-    // Every other note's SCHEDULED/DEADLINE day, so the calendar can mark days
-    // that already have something on them (mirrors Emacs org-mode's scheduling
-    // calendar) distinctly from this note's own dates, which get the full blue/
-    // red fill instead.
+    // Every other note's SCHEDULED/DEADLINE/active day, so the calendar can mark
+    // days that already have something on them (mirrors Emacs org-mode's
+    // scheduling calendar) with a small dot, distinct from this note's own dates.
     val app = LocalContext.current.applicationContext as GroveApplication
-    // Distinct SCHEDULED/DEADLINE strings only, parsed to dates off the main
-    // thread: the calendar just needs the set of days that already have
-    // something on them, not any note's identity or body.
     val plannedDatesFlow = remember(app) {
         combine(
             app.database.indexDao().plannedTimestamps(),
             app.database.indexDao().plannedActiveTimestamps(),
-        ) { planned, active ->
+        ) { planned, activeRows ->
             val days = planned.mapNotNullTo(mutableSetOf()) { OrgTimestamp.parse(it)?.date }
-            active.forEach { row ->
+            activeRows.forEach { row ->
                 OrgTimestamp.parseAll(row).forEach { ts ->
-                    val end = ts.rangeEnd ?: ts.date
                     var d = ts.date
+                    val end = ts.rangeEnd ?: ts.date
                     while (!d.isAfter(end)) {
                         days.add(d)
                         d = d.plusDays(1)
@@ -158,64 +160,158 @@ fun PlanningDatesScreen(
 
     var sched by remember { mutableStateOf(scheduled) }
     var dead by remember { mutableStateOf(deadline) }
+    val acts = remember { active.sortedBy { it.date }.toMutableStateList() }
+    var actI by remember { mutableIntStateOf(0) }
     var tab by remember { mutableStateOf(focus) }
-    var month by remember {
-        val start = (if (focus == PlanningKind.SCHEDULED) scheduled else deadline)?.date ?: today
-        mutableStateOf(YearMonth.from(start))
-    }
     var shorthand by remember { mutableStateOf("") }
-    // True right after "Clear" is tapped, so the footer button can say "Clear
-    // Dates" instead of its usual disabled-state text; cleared the moment
-    // either date is set again.
-    var showClearedLabel by remember { mutableStateOf(false) }
-    LaunchedEffect(sched, dead) {
-        if (sched != null || dead != null) showClearedLabel = false
+    // Transient one-liner under the calendar ("Removed …", "Cleared …").
+    var note by remember { mutableStateOf("") }
+
+    val startDate = when (focus) {
+        PlanningKind.SCHEDULED -> scheduled?.date
+        PlanningKind.DEADLINE -> deadline?.date
+        PlanningKind.ACTIVE -> active.firstOrNull()?.date
+    } ?: today
+    var month by remember { mutableStateOf(YearMonth.from(startDate)) }
+
+    val accent = when (tab) {
+        PlanningKind.SCHEDULED -> c.blue
+        PlanningKind.DEADLINE -> c.red
+        PlanningKind.ACTIVE -> c.violet
+    }
+    // M8 replaces the derived active tint with a tuned c.violetSoft token.
+    val accentSoft = when (tab) {
+        PlanningKind.SCHEDULED -> c.blueSoft
+        PlanningKind.DEADLINE -> c.redSoft
+        PlanningKind.ACTIVE -> c.violet.copy(alpha = 0.14f)
+    }
+    val isActiveTab = tab == PlanningKind.ACTIVE
+
+    val entries: List<OrgTimestamp> = when (tab) {
+        PlanningKind.SCHEDULED -> listOfNotNull(sched)
+        PlanningKind.DEADLINE -> listOfNotNull(dead)
+        PlanningKind.ACTIVE -> acts
+    }
+    val current: OrgTimestamp? = when (tab) {
+        PlanningKind.SCHEDULED -> sched
+        PlanningKind.DEADLINE -> dead
+        PlanningKind.ACTIVE -> acts.getOrNull(actI)
+    }
+    val count = entries.size
+
+    fun selectTab(next: PlanningKind) {
+        tab = next
+        note = ""
+        val d = when (next) {
+            PlanningKind.SCHEDULED -> sched?.date
+            PlanningKind.DEADLINE -> dead?.date
+            PlanningKind.ACTIVE -> acts.getOrNull(actI)?.date
+        }
+        if (d != null) month = YearMonth.from(d)
     }
 
-    val isSched = tab == PlanningKind.SCHEDULED
-    val accent = if (isSched) c.blue else c.red
-    val accentSoft = if (isSched) c.blueSoft else c.redSoft
-    val active = if (isSched) sched else dead
-
-    fun setActive(next: OrgTimestamp?) {
-        if (isSched) sched = next else dead = next
+    fun patchCurrent(block: (OrgTimestamp) -> OrgTimestamp) {
+        when (tab) {
+            PlanningKind.SCHEDULED -> sched = block(sched ?: OrgTimestamp(today))
+            PlanningKind.DEADLINE -> dead = block(dead ?: OrgTimestamp(today))
+            PlanningKind.ACTIVE ->
+                if (acts.isEmpty()) {
+                    acts.add(block(OrgTimestamp(today)))
+                    actI = 0
+                } else {
+                    val i = actI.coerceIn(0, acts.lastIndex)
+                    acts[i] = block(acts[i])
+                    actI = i
+                }
+        }
     }
 
-    fun patchActive(block: (OrgTimestamp) -> OrgTimestamp) {
-        setActive(block(active ?: OrgTimestamp(today)))
+    fun tapDay(day: LocalDate) {
+        note = ""
+        when (tab) {
+            PlanningKind.ACTIVE -> {
+                val i = acts.indexOfFirst { it.covers(day) }
+                if (i >= 0) {
+                    val removed = acts.removeAt(i)
+                    actI = actI.coerceIn(0, maxOf(0, acts.lastIndex))
+                    note = "Removed ${removed.formatHuman(today)}"
+                } else {
+                    acts.add(OrgTimestamp(day))
+                    acts.sortBy { it.date }
+                    actI = acts.indexOfFirst { it.date == day && it.rangeEnd == null }.coerceAtLeast(0)
+                    month = YearMonth.from(day)
+                }
+            }
+            PlanningKind.SCHEDULED ->
+                if (sched?.covers(day) == true) {
+                    sched = null
+                    note = "Cleared — tap a day to set it again."
+                } else {
+                    sched = (sched ?: OrgTimestamp(day)).copy(date = day, rangeEnd = null)
+                    month = YearMonth.from(day)
+                }
+            PlanningKind.DEADLINE ->
+                if (dead?.covers(day) == true) {
+                    dead = null
+                    note = "Cleared — tap a day to set it again."
+                } else {
+                    dead = (dead ?: OrgTimestamp(day)).copy(date = day, rangeEnd = null)
+                    month = YearMonth.from(day)
+                }
+        }
+    }
+
+    // Long-press-drag on the ACTIVE tab only; SCHEDULED/DEADLINE stay single-day.
+    fun rangeDays(lo: LocalDate, hi: LocalDate) {
+        acts.removeAll { it.covers(lo) || it.covers(hi) }
+        acts.add(OrgTimestamp(lo, rangeEnd = hi))
+        acts.sortBy { it.date }
+        actI = acts.indexOfFirst { it.date == lo && it.rangeEnd == hi }.coerceAtLeast(0)
+        note = ""
+        month = YearMonth.from(lo)
     }
 
     val parse = remember(shorthand, today) { DateShorthandParser.parse(shorthand, today) }
     val parsedOk = parse as? ShorthandParse.Ok
 
-    // The shorthand field wears the colours of the field the line will land in,
-    // which an explicit "s:" / "d:" prefix can point away from the open section.
-    // Read straight off the raw text so a half-typed "d: fr" is already red.
     val shorthandTarget = DateShorthandParser.targetPrefix(shorthand) ?: tab
-    val shorthandAccent =
-        if (shorthandTarget == PlanningKind.SCHEDULED) c.blue else c.red
+    val shorthandAccent = when (shorthandTarget) {
+        PlanningKind.SCHEDULED -> c.blue
+        PlanningKind.DEADLINE -> c.red
+        PlanningKind.ACTIVE -> c.violet
+    }
 
     fun applyShorthand() {
         val sh = parsedOk?.value ?: return
         val kind = sh.target ?: tab
-        val current = if (kind == PlanningKind.SCHEDULED) sched else dead
-        var next = current ?: OrgTimestamp(sh.date ?: today)
-        if (sh.date != null) next = next.copy(date = sh.date)
-        if (sh.time != null) next = next.copy(time = sh.time, endTime = sh.endTime)
-        if (sh.repeater != null) next = next.copy(repeater = sh.repeater)
-        if (kind == PlanningKind.SCHEDULED) sched = next else dead = next
+        fun merged(base: OrgTimestamp?): OrgTimestamp {
+            var n = base ?: OrgTimestamp(sh.date ?: today)
+            sh.date?.let { n = n.copy(date = it) }
+            sh.time?.let { n = n.copy(time = it, endTime = sh.endTime) }
+            sh.repeater?.let { n = n.copy(repeater = it) }
+            return n
+        }
+        when (kind) {
+            PlanningKind.SCHEDULED -> sched = merged(sched)
+            PlanningKind.DEADLINE -> dead = merged(dead)
+            PlanningKind.ACTIVE -> {
+                val n = merged(acts.getOrNull(actI))
+                if (acts.isEmpty()) acts.add(n) else acts[actI.coerceIn(0, acts.lastIndex)] = n
+                acts.sortBy { it.date }
+                actI = acts.indexOf(n).coerceAtLeast(0)
+            }
+        }
         tab = kind
-        month = YearMonth.from(next.date)
+        month = YearMonth.from(
+            when (kind) {
+                PlanningKind.SCHEDULED -> sched?.date
+                PlanningKind.DEADLINE -> dead?.date
+                PlanningKind.ACTIVE -> acts.getOrNull(actI)?.date
+            } ?: month.atDay(1),
+        )
         shorthand = ""
+        note = ""
     }
-
-    // Lead time is only meaningful with both dates set; negative means the work
-    // is scheduled to start after it is already due.
-    val leadDays = if (sched != null && dead != null) {
-        ChronoUnit.DAYS.between(sched!!.date, dead!!.date).toInt()
-    } else null
-    val clash = leadDays != null && leadDays < 0
-    val suggestion = if (dead != null && sched == null) dead!!.date.minusDays(3) else null
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -225,10 +321,9 @@ fun PlanningDatesScreen(
         ),
     ) {
         // This Dialog opens its own platform Window (decorFitsSystemWindows = false
-        // to go edge-to-edge), separate from the Activity window GroveTheme's
-        // SideEffect already styles — so the status/nav bar icon appearance has to
-        // be re-asserted here too, or it falls back to the platform default (light
-        // icons), unreadable over Grove's light-theme background.
+        // for edge-to-edge), separate from the Activity window GroveTheme's
+        // SideEffect styles — so the status/nav bar icon appearance has to be
+        // re-asserted here or it falls back to the platform default.
         val dialogView = LocalView.current
         if (!dialogView.isInEditMode) {
             SideEffect {
@@ -271,12 +366,18 @@ fun PlanningDatesScreen(
                         fontSize = 12.5.sp, color = c.ink2,
                         modifier = Modifier
                             .clip(RoundedCornerShape(9.dp))
-                            .clickable { sched = null; dead = null; showClearedLabel = true }
+                            .clickable {
+                                sched = null
+                                dead = null
+                                acts.clear()
+                                actI = 0
+                                note = ""
+                            }
                             .padding(horizontal = 10.dp, vertical = 8.dp),
                     )
                 }
 
-                // ---- scrolling canvas ------------------------------------------
+                // ---- scrolling canvas ----------------------------------------
                 Column(
                     Modifier
                         .weight(1f)
@@ -320,98 +421,127 @@ fun PlanningDatesScreen(
                         }
                     }
 
-                    BothDatesCalendar(
+                    Spacer(Modifier.height(13.dp))
+
+                    AccentCalendar(
                         month = month,
                         today = today,
-                        scheduled = sched?.date,
-                        deadline = dead?.date,
+                        entries = entries,
+                        selectedIndex = if (isActiveTab) actI else 0,
+                        perEntrySelection = isActiveTab,
+                        accent = accent,
+                        accentSoft = accentSoft,
+                        schedMark = sched?.date?.takeIf { tab != PlanningKind.SCHEDULED },
+                        deadMark = dead?.date?.takeIf { tab != PlanningKind.DEADLINE },
                         plannedDates = plannedDates,
-                        activeLabel = if (isSched) "SCHEDULED" else "DEADLINE",
+                        rangeEnabled = isActiveTab,
                         onPrev = { month = month.minusMonths(1) },
                         onNext = { month = month.plusMonths(1) },
-                        onPick = { date -> patchActive { it.copy(date = date) } },
+                        onTapDay = ::tapDay,
+                        onRange = ::rangeDays,
                     )
 
-                    if (leadDays != null && !clash) {
+                    if (note.isNotEmpty()) {
                         Text(
-                            if (leadDays == 0) "Starting the day it is due, no lead time."
-                            else "$leadDays day${plural(leadDays)} of lead time before it is due.",
-                            fontFamily = PlexSans, fontSize = 11.5.sp, color = c.ink2,
-                            modifier = Modifier.padding(horizontal = 2.dp).padding(top = 9.dp),
+                            note,
+                            fontFamily = PlexSans, fontSize = 11.5.sp, color = c.ink2, lineHeight = 16.sp,
+                            modifier = Modifier.padding(horizontal = 3.dp).padding(top = 10.dp),
                         )
                     }
 
-                    if (clash) {
-                        val late = abs(leadDays!!)
-                        Row(
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(top = 12.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(c.redSoft)
-                                .border(1.dp, c.red, RoundedCornerShape(12.dp))
-                                .padding(horizontal = 12.dp, vertical = 10.dp),
-                            horizontalArrangement = Arrangement.spacedBy(9.dp),
-                        ) {
-                            Text("!", fontFamily = PlexSans, fontSize = 14.sp, color = c.red)
-                            Text(
-                                "Scheduled $late day${plural(late)} after the deadline, " +
-                                        "you would start it already late.",
-                                fontFamily = PlexSans, fontSize = 12.sp, color = c.ink, lineHeight = 17.sp,
-                            )
+                    // ---- tab control -------------------------------------------
+                    Row(
+                        Modifier.fillMaxWidth().padding(top = 14.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        TabButton("◷", "SCHEDULED", 0, tab == PlanningKind.SCHEDULED, c.blue, c.blueSoft) {
+                            selectTab(PlanningKind.SCHEDULED)
                         }
+                        TabButton("⚑", "DEADLINE", 0, tab == PlanningKind.DEADLINE, c.red, c.redSoft) {
+                            selectTab(PlanningKind.DEADLINE)
+                        }
+                        TabButton(
+                            "●", "ACTIVE", acts.size, isActiveTab, c.violet, c.violet.copy(alpha = 0.14f),
+                        ) { selectTab(PlanningKind.ACTIVE) }
                     }
 
-                    Spacer(Modifier.height(14.dp))
-
-                    PlanningSection(
-                        kind = PlanningKind.SCHEDULED,
-                        expanded = isSched,
-                        value = sched,
-                        today = today,
-                        showDurationChips = true,
-                        onExpand = {
-                            tab = PlanningKind.SCHEDULED
-                            month = YearMonth.from(sched?.date ?: month.atDay(1))
-                        },
-                        onChange = { sched = it },
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    PlanningSection(
-                        kind = PlanningKind.DEADLINE,
-                        expanded = !isSched,
-                        value = dead,
-                        today = today,
-                        showDurationChips = false,
-                        onExpand = {
-                            tab = PlanningKind.DEADLINE
-                            month = YearMonth.from(dead?.date ?: month.atDay(1))
-                        },
-                        onChange = { dead = it },
+                    Text(
+                        if (isActiveTab)
+                            "Long-press and drag for a range · tap days for separate timestamps · tap one again to remove it"
+                        else
+                            "One day only. Tapping another day moves it; tapping it again clears it.",
+                        fontFamily = PlexSans, fontSize = 11.5.sp, color = c.ink2, lineHeight = 16.sp,
+                        modifier = Modifier.padding(horizontal = 3.dp).padding(top = 10.dp),
                     )
 
-                    if (suggestion != null) {
-                        Row(
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(top = 10.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .dashedBorder(c.line2, 12.dp)
-                                .clickable { sched = OrgTimestamp(suggestion) }
-                                .padding(horizontal = 11.dp, vertical = 9.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    Text(
+                        when {
+                            count == 0 -> "Not set"
+                            isActiveTab -> "$count timestamp${plural(count)}"
+                            else -> "1 timestamp"
+                        },
+                        fontFamily = PlexMono, fontWeight = FontWeight.Bold,
+                        fontSize = 11.sp, letterSpacing = 0.7.sp,
+                        color = if (count > 0) accent else c.ink3,
+                        modifier = Modifier.padding(horizontal = 3.dp).padding(top = 14.dp),
+                    )
+
+                    if (count == 0) {
+                        Text(
+                            if (isActiveTab)
+                                "No active date yet. Tap a day above, or long-press and drag across a few for a range."
+                            else
+                                "Nothing set. Tap a day above.",
+                            fontFamily = PlexSans, fontSize = 11.5.sp, color = c.ink2, lineHeight = 16.sp,
+                            modifier = Modifier.padding(horizontal = 3.dp).padding(top = 4.dp),
+                        )
+                    } else {
+                        FlowRow(
+                            Modifier.fillMaxWidth().padding(top = 10.dp),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
                         ) {
-                            Text("+", fontFamily = PlexSans, fontSize = 12.5.sp, color = c.accent)
-                            Text(
-                                "Start 3 days earlier, ${suggestion.format(HumanDate)}",
-                                fontFamily = PlexSans, fontSize = 12.5.sp, color = c.ink2,
+                            entries.forEachIndexed { i, ts ->
+                                StampChip(
+                                    label = ts.formatHuman(today),
+                                    selected = !isActiveTab || i == actI,
+                                    accent = accent,
+                                    accentSoft = accentSoft,
+                                    onClick = {
+                                        if (isActiveTab) {
+                                            actI = i
+                                            month = YearMonth.from(ts.date)
+                                        }
+                                    },
+                                    onDelete = {
+                                        when (tab) {
+                                            PlanningKind.SCHEDULED -> sched = null
+                                            PlanningKind.DEADLINE -> dead = null
+                                            PlanningKind.ACTIVE -> {
+                                                acts.removeAt(i)
+                                                actI = actI.coerceIn(0, maxOf(0, acts.lastIndex))
+                                            }
+                                        }
+                                        note = ""
+                                    },
+                                )
+                            }
+                        }
+
+                        current?.let { value ->
+                            Spacer(Modifier.height(4.dp))
+                            StampEditor(
+                                value = value,
+                                today = today,
+                                accent = accent,
+                                accentSoft = accentSoft,
+                                onChange = { next -> patchCurrent { next } },
                             )
                         }
                     }
                 }
 
-                // ---- footer ----------------------------------------------------
+                // ---- footer --------------------------------------------------
                 HorizontalDivider(color = c.line)
                 Column(
                     Modifier
@@ -420,6 +550,13 @@ fun PlanningDatesScreen(
                         .padding(start = 14.dp, end = 14.dp, top = 10.dp, bottom = 14.dp),
                 ) {
                     Column(Modifier.padding(horizontal = 2.dp).padding(top = 1.dp, bottom = 10.dp)) {
+                        acts.forEach { ts ->
+                            Text(
+                                ts.format(),
+                                fontFamily = PlexMono, fontSize = 12.sp, lineHeight = 20.sp,
+                                color = c.violet,
+                            )
+                        }
                         Text(
                             "SCHEDULED: " + (sched?.format() ?: "-"),
                             fontFamily = PlexMono, fontSize = 12.sp, lineHeight = 20.sp,
@@ -431,25 +568,16 @@ fun PlanningDatesScreen(
                             color = if (dead != null) c.red else c.ink3,
                         )
                     }
-                    val canApplyDates = sched != null || dead != null
-                    val footerLabel = when {
-                        showClearedLabel -> "Clear Dates"
-                        sched != null && dead != null -> "Apply Both Dates"
-                        sched != null -> "Apply Scheduled Date"
-                        dead != null -> "Apply Deadline"
-                        else -> "Apply Both Dates"
-                    }
                     Text(
-                        footerLabel,
+                        "Apply dates",
                         fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
-                        fontSize = 14.5.sp,
-                        color = if (canApplyDates) c.accentInk else c.ink3,
+                        fontSize = 14.5.sp, color = c.accentInk,
                         textAlign = TextAlign.Center,
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(13.dp))
-                            .background(if (canApplyDates) c.accent else c.surface2)
-                            .clickable(enabled = canApplyDates) { onConfirm(sched, dead) }
+                            .background(c.accent)
+                            .clickable { onConfirm(sched, dead, acts.toList()) }
                             .padding(vertical = 13.dp),
                     )
                 }
@@ -458,7 +586,419 @@ fun PlanningDatesScreen(
     }
 }
 
-private val ShorthandHints = listOf("fri", "+2w", "aug 3", "10-11am", "++1w", "d: mon")
+private val ShorthandHints = listOf("fri", "+2w", "aug 3", "10-11am", "++1w", "a: sat")
+
+/** `covers` — is [day] within this stamp's span (a range end, or the single day)? */
+private fun OrgTimestamp.covers(day: LocalDate): Boolean =
+    !day.isBefore(date) && !day.isAfter(rangeEnd ?: date)
+
+// ---- calendar ---------------------------------------------------------------
+
+/**
+ * One month, single-accent: the current tab's timestamps fill their days (a
+ * range draws as one connected pill), the other kinds' days carry a small dot.
+ * A tap sets/moves/clears a day; on the ACTIVE tab a long-press then drag paints
+ * a range. No month swipe — the ‹ / › arrows are the only way to change months.
+ */
+@Composable
+private fun AccentCalendar(
+    month: YearMonth,
+    today: LocalDate,
+    entries: List<OrgTimestamp>,
+    selectedIndex: Int,
+    perEntrySelection: Boolean,
+    accent: Color,
+    accentSoft: Color,
+    schedMark: LocalDate?,
+    deadMark: LocalDate?,
+    plannedDates: Set<LocalDate>,
+    rangeEnabled: Boolean,
+    onPrev: () -> Unit,
+    onNext: () -> Unit,
+    onTapDay: (LocalDate) -> Unit,
+    onRange: (LocalDate, LocalDate) -> Unit,
+) {
+    val c = MaterialTheme.grove
+    val density = LocalDensity.current
+
+    // Sunday-first grid: DayOfWeek.value is Mon=1..Sun=7, so % 7 puts Sunday at 0.
+    val leading = month.atDay(1).dayOfWeek.value % 7
+    val len = month.lengthOfMonth()
+    val weeks = (leading + len + 6) / 7
+    val cellHeightPx = with(density) { 38.dp.toPx() }
+    val rowGapPx = with(density) { 2.dp.toPx() }
+
+    var gridSize by remember { mutableStateOf(IntSize.Zero) }
+    var dragFrom by remember { mutableStateOf<LocalDate?>(null) }
+    var dragTo by remember { mutableStateOf<LocalDate?>(null) }
+
+    fun dayAt(pos: Offset): LocalDate? {
+        if (gridSize.width == 0) return null
+        val col = (pos.x / (gridSize.width / 7f)).toInt()
+        val row = (pos.y / (cellHeightPx + rowGapPx)).toInt()
+        if (col !in 0..6 || row !in 0 until weeks) return null
+        val dayNum = row * 7 + col - leading + 1
+        return if (dayNum in 1..len) month.atDay(dayNum) else null
+    }
+
+    val dragLo = dragFrom?.let { f -> dragTo?.let { t -> minOf(f, t) } }
+    val dragHi = dragFrom?.let { f -> dragTo?.let { t -> maxOf(f, t) } }
+
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(c.surface)
+            .border(1.dp, c.line, RoundedCornerShape(16.dp))
+            .padding(start = 11.dp, end = 11.dp, top = 11.dp, bottom = 12.dp),
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            MonthArrow("‹", onPrev)
+            Text(
+                month.format(MonthLabel),
+                fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
+                fontSize = 13.5.sp, color = c.ink, textAlign = TextAlign.Center,
+                modifier = Modifier.weight(1f),
+            )
+            if (dragLo != null && dragHi != null) {
+                Text(
+                    "${dragLo.format(ShortDate)} → ${dragHi.format(ShortDate)}",
+                    fontFamily = PlexMono, fontWeight = FontWeight.Bold, fontSize = 11.sp,
+                    color = accent,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(accentSoft)
+                        .padding(horizontal = 9.dp, vertical = 4.dp),
+                )
+            }
+            MonthArrow("›", onNext)
+        }
+
+        Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+            listOf("S", "M", "T", "W", "T", "F", "S").forEach { d ->
+                Text(
+                    d,
+                    fontFamily = PlexSans, fontSize = 10.sp, color = c.ink3,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.weight(1f).padding(bottom = 4.dp),
+                )
+            }
+        }
+
+        val cells = List(leading) { null } + (1..len).map { month.atDay(it) }
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .onSizeChanged { gridSize = it }
+                .pointerInput(month, entries, selectedIndex) {
+                    detectTapGestures { pos -> dayAt(pos)?.let(onTapDay) }
+                }
+                .then(
+                    if (rangeEnabled) Modifier.pointerInput(month, entries) {
+                        detectDragGesturesAfterLongPress(
+                            onDragStart = { pos -> dayAt(pos)?.let { dragFrom = it; dragTo = it } },
+                            onDrag = { change, _ ->
+                                dayAt(change.position)?.let { dragTo = it }
+                                change.consume()
+                            },
+                            onDragEnd = {
+                                val f = dragFrom
+                                val t = dragTo
+                                dragFrom = null
+                                dragTo = null
+                                if (f != null && t != null) {
+                                    if (f == t) onTapDay(f)
+                                    else onRange(minOf(f, t), maxOf(f, t))
+                                }
+                            },
+                            onDragCancel = { dragFrom = null; dragTo = null },
+                        )
+                    } else Modifier,
+                ),
+        ) {
+            cells.chunked(7).forEach { week ->
+                Row(
+                    Modifier.fillMaxWidth().padding(bottom = 2.dp),
+                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    week.forEach { day ->
+                        if (day == null) {
+                            Spacer(Modifier.weight(1f).height(38.dp))
+                            return@forEach
+                        }
+                        val hit = entries.indexOfFirst { it.covers(day) }
+                        val e = entries.getOrNull(hit)
+                        val ranged = e != null && e.rangeEnd != null && e.rangeEnd != e.date
+                        val posKind = when {
+                            e == null -> Pos.NONE
+                            !ranged -> Pos.SOLO
+                            day == e.date -> Pos.START
+                            day == e.rangeEnd -> Pos.END
+                            else -> Pos.MID
+                        }
+                        val sel = if (perEntrySelection) hit == selectedIndex else hit >= 0
+                        val inDrag = dragLo != null && dragHi != null &&
+                            !day.isBefore(dragLo) && !day.isAfter(dragHi)
+
+                        val shape = when (posKind) {
+                            Pos.START -> RoundedCornerShape(topStart = 10.dp, bottomStart = 10.dp)
+                            Pos.END -> RoundedCornerShape(topEnd = 10.dp, bottomEnd = 10.dp)
+                            Pos.MID -> RoundedCornerShape(0.dp)
+                            else -> RoundedCornerShape(10.dp)
+                        }
+                        val bg: Color
+                        val fg: Color
+                        val weight: FontWeight
+                        when {
+                            inDrag -> {
+                                bg = accentSoft; fg = accent; weight = FontWeight.SemiBold
+                            }
+                            posKind == Pos.MID -> {
+                                bg = accentSoft; fg = accent; weight = FontWeight.SemiBold
+                            }
+                            posKind != Pos.NONE -> {
+                                bg = if (sel) accent else accentSoft
+                                fg = if (sel) c.surface else accent
+                                weight = FontWeight.SemiBold
+                            }
+                            else -> {
+                                bg = Color.Transparent; fg = c.ink; weight = FontWeight.Normal
+                            }
+                        }
+                        val border = when {
+                            inDrag || (posKind != Pos.NONE && posKind != Pos.MID) -> accent
+                            posKind == Pos.MID -> Color.Transparent
+                            day == today -> c.line2
+                            else -> Color.Transparent
+                        }
+
+                        val dot = if (posKind == Pos.NONE && !inDrag) when {
+                            day == schedMark -> c.blue
+                            day == deadMark -> c.red
+                            day == today -> c.accent
+                            day in plannedDates -> c.violet
+                            else -> null
+                        } else null
+
+                        Box(
+                            Modifier
+                                .weight(1f)
+                                .height(38.dp)
+                                .clip(shape)
+                                .background(bg)
+                                .then(
+                                    if (inDrag) Modifier.dashedBorder(accent, if (posKind == Pos.MID) 0.dp else 10.dp)
+                                    else Modifier.border(1.dp, border, shape),
+                                ),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                day.dayOfMonth.toString(),
+                                fontFamily = PlexMono, fontSize = 13.sp, color = fg, fontWeight = weight,
+                            )
+                            if (dot != null) {
+                                Box(
+                                    Modifier
+                                        .align(Alignment.BottomCenter)
+                                        .padding(bottom = 5.dp)
+                                        .size(4.dp)
+                                        .clip(CircleShape)
+                                        .background(dot),
+                                )
+                            }
+                        }
+                    }
+                    repeat(7 - week.size) { Spacer(Modifier.weight(1f)) }
+                }
+            }
+        }
+    }
+}
+
+private enum class Pos { NONE, SOLO, START, MID, END }
+
+@Composable
+private fun MonthArrow(glyph: String, onClick: () -> Unit) {
+    val c = MaterialTheme.grove
+    Box(
+        Modifier.size(30.dp).clip(CircleShape).clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(glyph, fontFamily = PlexSans, fontSize = 16.sp, color = c.ink2)
+    }
+}
+
+@Composable
+private fun RowScope.TabButton(
+    glyph: String,
+    label: String,
+    count: Int,
+    selected: Boolean,
+    accent: Color,
+    accentSoft: Color,
+    onClick: () -> Unit,
+) {
+    val c = MaterialTheme.grove
+    Text(
+        buildString {
+            append(glyph).append(' ').append(label)
+            if (count > 1) append(' ').append(count)
+        },
+        fontFamily = PlexMono, fontWeight = FontWeight.Bold,
+        fontSize = 11.sp, letterSpacing = 0.6.sp,
+        color = if (selected) accent else c.ink3,
+        textAlign = TextAlign.Center, maxLines = 1,
+        modifier = Modifier
+            .weight(1f)
+            .clip(RoundedCornerShape(12.dp))
+            .background(if (selected) accentSoft else c.surface2)
+            .border(1.dp, if (selected) accent else c.line, RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+            .padding(vertical = 9.dp, horizontal = 5.dp),
+    )
+}
+
+/** A set stamp in the list under the tabs: `Jan 15  ×`, filled when selected. */
+@Composable
+private fun StampChip(
+    label: String,
+    selected: Boolean,
+    accent: Color,
+    accentSoft: Color,
+    onClick: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    val c = MaterialTheme.grove
+    Row(
+        Modifier
+            .clip(RoundedCornerShape(10.dp))
+            .background(if (selected) accentSoft else c.surface2)
+            .border(1.dp, if (selected) accent else c.line, RoundedCornerShape(10.dp))
+            .clickable(onClick = onClick)
+            .padding(start = 11.dp, end = 4.dp, top = 5.dp, bottom = 5.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(5.dp),
+    ) {
+        Text(
+            label,
+            fontFamily = PlexMono, fontWeight = FontWeight.SemiBold, fontSize = 12.sp,
+            color = if (selected) accent else c.ink2,
+        )
+        Box(
+            Modifier.size(20.dp).clip(RoundedCornerShape(6.dp)).clickable(onClick = onDelete),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text("×", fontFamily = PlexSans, fontSize = 13.sp, color = c.ink3)
+        }
+    }
+}
+
+/**
+ * Presets, time-of-day and the org repeater for whichever stamp is currently
+ * selected. Shown only once a date is set (the tab's chip list is how you get
+ * one), mirroring the prototype.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun StampEditor(
+    value: OrgTimestamp,
+    today: LocalDate,
+    accent: Color,
+    accentSoft: Color,
+    onChange: (OrgTimestamp) -> Unit,
+) {
+    val c = MaterialTheme.grove
+    fun patch(block: (OrgTimestamp) -> OrgTimestamp) = onChange(block(value))
+
+    Column(Modifier.padding(horizontal = 2.dp).padding(top = 14.dp, bottom = 2.dp)) {
+        FlowRow(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            datePresets(today).forEach { (name, date) ->
+                Chip(
+                    label = "$name · ${date.format(ShortDate)}",
+                    selected = value.date == date && value.rangeEnd == null,
+                    accent = accent,
+                    onClick = { patch { it.copy(date = date, rangeEnd = null) } },
+                )
+            }
+        }
+
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 2.dp).padding(top = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text(
+                timeLabel(value, c.ink, c.ink2),
+                fontFamily = PlexSans, fontSize = 13.5.sp,
+                modifier = Modifier.weight(1f),
+            )
+            GroveSwitch(on = value.time != null, accent = accent) {
+                if (value.time != null) patch { it.copy(time = null, endTime = null) }
+                else patch { it.copy(time = LocalTime.of(9, 0)) }
+            }
+        }
+
+        if (value.time != null) {
+            Row(
+                Modifier.fillMaxWidth().padding(top = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                TimeField(value.time, "09:00") { t ->
+                    if (t == null) patch { it.copy(time = null, endTime = null) }
+                    else patch { it.copy(time = t) }
+                }
+                Text("to", fontFamily = PlexSans, fontSize = 13.sp, color = c.ink3)
+                TimeField(value.endTime, "-") { t -> patch { it.copy(endTime = t) } }
+                Row(
+                    Modifier.weight(1f),
+                    horizontalArrangement = Arrangement.spacedBy(5.dp, Alignment.End),
+                ) {
+                    listOf("30m" to 30L, "1h" to 60L, "2h" to 120L).forEach { (name, mins) ->
+                        MiniChip(name) {
+                            val start = value.time ?: LocalTime.of(9, 0)
+                            patch { it.copy(time = start, endTime = start.plusMinutes(mins)) }
+                        }
+                    }
+                }
+            }
+        }
+
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 2.dp).padding(top = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text(
+                "Repeat",
+                fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
+                fontSize = 13.5.sp, color = c.ink,
+                modifier = Modifier.weight(1f),
+            )
+            GroveSwitch(on = value.repeater != null, accent = accent) {
+                if (value.repeater != null) patch { it.copy(repeater = null) }
+                else patch { it.copy(repeater = Repeater(RepeaterType.CUMULATIVE, 1, 'w')) }
+            }
+        }
+
+        value.repeater?.let { rep ->
+            RepeaterCard(
+                repeater = rep,
+                accent = accent,
+                accentSoft = accentSoft,
+                onChange = { next -> patch { it.copy(repeater = next) } },
+            )
+        }
+    }
+}
 
 /** `› [ fri 10-11am ++1w ]  (Set)`: the free-text row above the calendar. */
 @Composable
@@ -484,7 +1024,7 @@ private fun ShorthandBox(
         Box(Modifier.weight(1f)) {
             if (value.isEmpty()) {
                 Text(
-                    "d: aug 5 ++1m",
+                    "a: fri  ·  d: aug 5 ++1m",
                     fontFamily = PlexMono, fontSize = 14.sp, color = c.ink3,
                     modifier = Modifier.padding(vertical = 11.dp),
                 )
@@ -493,9 +1033,7 @@ private fun ShorthandBox(
                 value = value,
                 onValueChange = onValueChange,
                 singleLine = true,
-                textStyle = androidx.compose.ui.text.TextStyle(
-                    fontFamily = PlexMono, fontSize = 14.sp, color = c.ink,
-                ),
+                textStyle = TextStyle(fontFamily = PlexMono, fontSize = 14.sp, color = c.ink),
                 cursorBrush = SolidColor(accent),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = { onApply() }),
@@ -512,380 +1050,6 @@ private fun ShorthandBox(
                 .clickable(enabled = canApply, onClick = onApply)
                 .padding(horizontal = 12.dp, vertical = 7.dp),
         )
-    }
-}
-
-/**
- * One month with both planning dates on it. The scheduled day is a solid blue
- * cell, the deadline a solid red one, and the days strictly between them carry a
- * soft accent band so the lead time reads at a glance.
- */
-@Composable
-private fun BothDatesCalendar(
-    month: YearMonth,
-    today: LocalDate,
-    scheduled: LocalDate?,
-    deadline: LocalDate?,
-    plannedDates: Set<LocalDate>,
-    activeLabel: String,
-    onPrev: () -> Unit,
-    onNext: () -> Unit,
-    onPick: (LocalDate) -> Unit,
-) {
-    val c = MaterialTheme.grove
-    val bandStart = if (scheduled != null && deadline != null && scheduled.isBefore(deadline)) scheduled else null
-    val bandEnd = if (bandStart != null) deadline else null
-
-    // Left/right swipe steps the month, same direction convention as the ‹/›
-    // arrows: a leftward drag (negative total) reveals next month, rightward
-    // reveals the previous one. Accumulated over the whole gesture rather than
-    // acted on per-move so a single swipe only ever changes one month.
-    val density = LocalDensity.current
-    val swipeThresholdPx = remember(density) { with(density) { 56.dp.toPx() } }
-    var dragAccum by remember { mutableFloatStateOf(0f) }
-
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .padding(top = 13.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .background(c.surface)
-            .border(1.dp, c.line, RoundedCornerShape(16.dp))
-            .pointerInput(onPrev, onNext) {
-                detectHorizontalDragGestures(
-                    onDragStart = { dragAccum = 0f },
-                    onDragEnd = {
-                        if (dragAccum <= -swipeThresholdPx) onNext()
-                        else if (dragAccum >= swipeThresholdPx) onPrev()
-                        dragAccum = 0f
-                    },
-                    onDragCancel = { dragAccum = 0f },
-                ) { change, dragAmount ->
-                    change.consume()
-                    dragAccum += dragAmount
-                }
-            }
-            .padding(start = 11.dp, end = 11.dp, top = 11.dp, bottom = 12.dp),
-    ) {
-        AnimatedContent(
-            targetState = month,
-            transitionSpec = {
-                // Same direction convention as the swipe/arrows: moving to a later
-                // month slides the new one in from the right as the old one exits
-                // left; moving earlier reverses it.
-                val forward = targetState.isAfter(initialState)
-                (slideInHorizontally(tween(260)) { width -> if (forward) width else -width } + fadeIn(tween(260)))
-                    .togetherWith(
-                        slideOutHorizontally(tween(260)) { width -> if (forward) -width else width } + fadeOut(tween(260)),
-                    )
-            },
-            label = "calendar-month",
-        ) { animatedMonth ->
-            Column {
-                Row(
-                    Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    MonthArrow("‹", onPrev)
-                    Text(
-                        animatedMonth.format(MonthLabel),
-                        fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
-                        fontSize = 13.5.sp, color = c.ink, textAlign = TextAlign.Center,
-                        modifier = Modifier.weight(1f),
-                    )
-                    MonthArrow("›", onNext)
-                }
-
-                Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                    listOf("S", "M", "T", "W", "T", "F", "S").forEach { d ->
-                        Text(
-                            d,
-                            fontFamily = PlexSans, fontSize = 10.sp, color = c.ink3,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.weight(1f).padding(bottom = 4.dp),
-                        )
-                    }
-                }
-
-                // Sunday-first grid: DayOfWeek.value is Mon=1..Sun=7, so % 7 puts Sunday at 0.
-                val leading = animatedMonth.atDay(1).dayOfWeek.value % 7
-                val cells = List(leading) { null } + (1..animatedMonth.lengthOfMonth()).map { animatedMonth.atDay(it) }
-                cells.chunked(7).forEach { week ->
-                    Row(
-                        Modifier.fillMaxWidth().padding(bottom = 2.dp),
-                        horizontalArrangement = Arrangement.spacedBy(2.dp),
-                    ) {
-                        week.forEach { date ->
-                            DayCell(
-                                date = date,
-                                today = today,
-                                isScheduled = date != null && date == scheduled,
-                                isDeadline = date != null && date == deadline,
-                                inBand = date != null && bandStart != null && bandEnd != null &&
-                                        date.isAfter(bandStart) && date.isBefore(bandEnd),
-                                hasPlanned = date != null && date in plannedDates,
-                                onPick = onPick,
-                                modifier = Modifier.weight(1f),
-                            )
-                        }
-                        repeat(7 - week.size) { Spacer(Modifier.weight(1f)) }
-                    }
-                }
-            }
-        }
-
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal = 2.dp).padding(top = 11.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            LegendSwatch(c.blue, "scheduled")
-            LegendSwatch(c.red, "deadline")
-            Text(
-                "taps set $activeLabel",
-                fontFamily = PlexMono, fontSize = 11.sp, color = c.ink2,
-                textAlign = TextAlign.End,
-                modifier = Modifier.weight(1f),
-            )
-        }
-    }
-}
-
-@Composable
-private fun MonthArrow(glyph: String, onClick: () -> Unit) {
-    val c = MaterialTheme.grove
-    Box(
-        Modifier.size(30.dp).clip(CircleShape).clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(glyph, fontFamily = PlexSans, fontSize = 16.sp, color = c.ink2)
-    }
-}
-
-@Composable
-private fun LegendSwatch(color: Color, label: String) {
-    val c = MaterialTheme.grove
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        Box(Modifier.size(11.dp).clip(RoundedCornerShape(4.dp)).background(color))
-        Text(label, fontFamily = PlexSans, fontSize = 11.sp, color = c.ink2)
-    }
-}
-
-@Composable
-private fun DayCell(
-    date: LocalDate?,
-    today: LocalDate,
-    isScheduled: Boolean,
-    isDeadline: Boolean,
-    inBand: Boolean,
-    hasPlanned: Boolean,
-    onPick: (LocalDate) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val c = MaterialTheme.grove
-    if (date == null) {
-        Spacer(modifier.height(37.dp))
-        return
-    }
-    val isToday = date == today
-    val background = when {
-        isDeadline -> c.red
-        isScheduled -> c.blue
-        inBand -> c.accentSoft
-        else -> Color.Transparent
-    }
-    // Deadline wins over scheduled when both land on the same day: the harder
-    // constraint is the one worth showing.
-    val border = when {
-        isDeadline -> c.red
-        isScheduled -> c.blue
-        isToday -> c.line2
-        else -> Color.Transparent
-    }
-    // Some other note has a SCHEDULED/DEADLINE this day; this note's own dates
-    // already get the full blue/red fill above, so this only ever applies to
-    // days that fill doesn't already cover. Emacs-style: tint the day number
-    // itself rather than a dot. No tint on today unless today itself is
-    // scheduled/deadlined.
-    val hasPlannedTint = hasPlanned && !isToday && !isScheduled && !isDeadline
-    val ink = when {
-        isScheduled || isDeadline -> c.surface
-        hasPlannedTint -> c.violet
-        else -> c.ink
-    }
-
-    Box(
-        modifier
-            .height(37.dp)
-            .clip(RoundedCornerShape(10.dp))
-            .background(background)
-            .border(1.dp, border, RoundedCornerShape(10.dp))
-            .clickable { onPick(date) },
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            date.dayOfMonth.toString(),
-            fontFamily = PlexMono, fontSize = 13.sp, color = ink,
-            fontWeight = when {
-                isScheduled || isDeadline -> FontWeight.SemiBold
-                hasPlannedTint -> FontWeight.Bold
-                else -> FontWeight.Normal
-            },
-        )
-    }
-}
-
-/**
- * SCHEDULED or DEADLINE: a summary row that expands into presets, time-of-day and
- * the repeater editor. Only one section is expanded at a time; the expanded one
- * is also the target of calendar taps, which is what the legend's "taps set …"
- * spells out.
- */
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun PlanningSection(
-    kind: PlanningKind,
-    expanded: Boolean,
-    value: OrgTimestamp?,
-    today: LocalDate,
-    showDurationChips: Boolean,
-    onExpand: () -> Unit,
-    onChange: (OrgTimestamp?) -> Unit,
-) {
-    val c = MaterialTheme.grove
-    val isSched = kind == PlanningKind.SCHEDULED
-    val accent = if (isSched) c.blue else c.red
-    val accentSoft = if (isSched) c.blueSoft else c.redSoft
-    val label = if (isSched) "SCHEDULED" else "DEADLINE"
-
-    fun patch(block: (OrgTimestamp) -> OrgTimestamp) = onChange(block(value ?: OrgTimestamp(today)))
-
-    Column {
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(13.dp))
-                .background(if (expanded) accentSoft else c.surface2)
-                .border(1.dp, if (expanded) accent else c.line, RoundedCornerShape(13.dp))
-                .clickable(onClick = onExpand)
-                .padding(horizontal = 12.dp, vertical = 11.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            // "◷" is drawn much smaller inside its em box than "⚑" is, so the
-            // two glyphs only look the same size at different point sizes.
-            Text(
-                if (isSched) "◷" else "⚑",
-                fontFamily = PlexSans, fontSize = if (isSched) 21.sp else 15.sp,
-                color = accent,
-            )
-            Column(Modifier.weight(1f)) {
-                Text(
-                    label,
-                    fontFamily = PlexMono, fontWeight = FontWeight.Bold,
-                    fontSize = 10.sp, letterSpacing = 0.8.sp, color = accent,
-                )
-                Text(
-                    summarize(value),
-                    fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
-                    fontSize = 13.sp, color = if (value != null) c.ink else c.ink3,
-                    maxLines = 1, overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(top = 3.dp),
-                )
-            }
-        }
-
-        if (!expanded) return@Column
-
-        Column(Modifier.padding(horizontal = 2.dp).padding(top = 10.dp, bottom = 2.dp)) {
-            FlowRow(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                datePresets(today).forEach { (name, date) ->
-                    // "Today · Jul 29": the absolute date next to the relative name,
-                    // so a preset never needs a second glance at the calendar.
-                    Chip(
-                        label = "$name · ${date.format(ShortDate)}",
-                        selected = value?.date == date,
-                        accent = accent,
-                        onClick = { patch { it.copy(date = date) } },
-                    )
-                }
-            }
-
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 2.dp).padding(top = 14.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                Text(
-                    timeLabel(value, c.ink, c.ink2),
-                    fontFamily = PlexSans, fontSize = 13.5.sp,
-                    modifier = Modifier.weight(1f),
-                )
-                GroveSwitch(on = value?.time != null, accent = accent) {
-                    if (value?.time != null) patch { it.copy(time = null, endTime = null) }
-                    else patch { it.copy(time = LocalTime.of(9, 0)) }
-                }
-            }
-
-            if (value?.time != null) {
-                Row(
-                    Modifier.fillMaxWidth().padding(top = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    TimeField(value.time, "09:00") { t ->
-                        if (t == null) patch { it.copy(time = null, endTime = null) }
-                        else patch { it.copy(time = t) }
-                    }
-                    Text("to", fontFamily = PlexSans, fontSize = 13.sp, color = c.ink3)
-                    TimeField(value.endTime, "-") { t -> patch { it.copy(endTime = t) } }
-                    if (showDurationChips) {
-                        Row(
-                            Modifier.weight(1f),
-                            horizontalArrangement = Arrangement.spacedBy(5.dp, Alignment.End),
-                        ) {
-                            listOf("30m" to 30L, "1h" to 60L, "2h" to 120L).forEach { (name, mins) ->
-                                MiniChip(name) {
-                                    val start = value.time ?: LocalTime.of(9, 0)
-                                    patch { it.copy(time = start, endTime = start.plusMinutes(mins)) }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 2.dp).padding(top = 16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                Text(
-                    "Repeat",
-                    fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
-                    fontSize = 13.5.sp, color = c.ink,
-                    modifier = Modifier.weight(1f),
-                )
-                GroveSwitch(on = value?.repeater != null, accent = accent) {
-                    if (value?.repeater != null) patch { it.copy(repeater = null) }
-                    else patch { it.copy(repeater = Repeater(RepeaterType.CUMULATIVE, 1, 'w')) }
-                }
-            }
-
-            value?.repeater?.let { rep ->
-                RepeaterCard(
-                    repeater = rep,
-                    accent = accent,
-                    accentSoft = accentSoft,
-                    onChange = { next -> patch { it.copy(repeater = next) } },
-                )
-            }
-        }
     }
 }
 
@@ -907,11 +1071,6 @@ private fun RepeaterCard(
             .border(1.dp, c.line, RoundedCornerShape(14.dp))
             .padding(12.dp),
     ) {
-        // A single Text (rather than a FlowRow of separate Text composables) so the
-        // whole sentence shares one text layout: the bold accent words then sit on
-        // the exact same baseline as the plain words around them, and the trailing
-        // "." can't drift onto its own mis-aligned box (which used to read as a
-        // stray "·" floating above the line).
         val sentence = remember(repeater.value, repeater.unit, repeater.type, accent) {
             buildRepeaterSentence(intervalLabel(repeater), kindWords(repeater.type).lowercase(), accent)
         }
@@ -925,7 +1084,7 @@ private fun RepeaterCard(
                 .pointerInput(sentence) {
                     detectTapGestures { tapOffset ->
                         val result = layoutResult ?: return@detectTapGestures
-                        when (val position = result.getOffsetForPosition(tapOffset)) {
+                        when (result.getOffsetForPosition(tapOffset)) {
                             in sentence.intervalRange -> {
                                 val units = listOf('d', 'w', 'm', 'y')
                                 val next = units[(units.indexOf(repeater.unit).coerceAtLeast(0) + 1) % units.size]
@@ -948,10 +1107,6 @@ private fun RepeaterCard(
 
         Row(
             Modifier.fillMaxWidth().padding(top = 10.dp),
-            // Top-aligned: the cookie pill is a fixed-height single line, but
-            // kindHint() can wrap to two lines, so centering the row would
-            // float the pill below the hint's first line instead of flush
-            // with it.
             verticalAlignment = Alignment.Top,
             horizontalArrangement = Arrangement.spacedBy(9.dp),
         ) {
@@ -1029,8 +1184,7 @@ private fun buildRepeaterSentence(intervalText: String, kindText: String, accent
  * Draws a dashed rule under [range] of [layout], anchored to that range's own
  * *font baseline* (not the line box's bottom): the 26sp line height that keeps
  * the sentence readable pads extra leading below the glyphs, which would leave
- * the rule floating well below the text if it were anchored to the box bottom
- * instead. Splits across lines in case the picked word ever wraps.
+ * the rule floating well below the text if it were anchored to the box bottom.
  */
 private fun DrawScope.drawDashedUnderline(layout: TextLayoutResult, range: IntRange, color: Color) {
     if (range.isEmpty()) return
@@ -1069,7 +1223,7 @@ private fun StepButton(glyph: String, onClick: () -> Unit) {
     }
 }
 
-/** Selectable preset/unit chip: filled in the section's accent when active. */
+/** Selectable preset/unit chip: filled in the tab's accent when active. */
 @Composable
 private fun Chip(label: String, selected: Boolean, accent: Color, onClick: () -> Unit) {
     val c = MaterialTheme.grove
@@ -1149,7 +1303,7 @@ private fun TimeField(value: LocalTime?, placeholder: String, onChange: (LocalTi
                 if (raw.isBlank()) onChange(null) else parseClock(raw)?.let(onChange)
             },
             singleLine = true,
-            textStyle = androidx.compose.ui.text.TextStyle(
+            textStyle = TextStyle(
                 fontFamily = PlexMono, fontSize = 14.sp, color = c.ink,
                 textAlign = TextAlign.Center,
             ),
@@ -1160,19 +1314,19 @@ private fun TimeField(value: LocalTime?, placeholder: String, onChange: (LocalTi
     }
 }
 
-/** 1dp dashed rounded outline (the "Start 3 days earlier" suggestion row). */
-private fun Modifier.dashedBorder(color: Color, radius: androidx.compose.ui.unit.Dp) = drawBehind {
+/** 1dp dashed rounded outline (the calendar's in-drag day cells). */
+private fun Modifier.dashedBorder(color: Color, radius: Dp) = drawBehind {
     drawRoundRect(
         color = color,
-        cornerRadius = androidx.compose.ui.geometry.CornerRadius(radius.toPx()),
-        style = androidx.compose.ui.graphics.drawscope.Stroke(
+        cornerRadius = CornerRadius(radius.toPx()),
+        style = Stroke(
             width = 1.dp.toPx(),
             pathEffect = PathEffect.dashPathEffect(floatArrayOf(4.dp.toPx(), 3.dp.toPx()), 0f),
         ),
     )
 }
 
-// ---- formatting helpers -------------------------------------------------------
+// ---- formatting helpers -----------------------------------------------------
 
 private val HumanDate: DateTimeFormatter = DateTimeFormatter.ofPattern("EEE, MMM d")
 private val ShortDate: DateTimeFormatter = DateTimeFormatter.ofPattern("MMM d")
@@ -1199,17 +1353,6 @@ private fun datePresets(today: LocalDate): List<Pair<String, LocalDate>> {
         "This weekend" to next(java.time.DayOfWeek.SATURDAY),
         "Next week" to next(java.time.DayOfWeek.MONDAY),
     )
-}
-
-private fun summarize(ts: OrgTimestamp?): String {
-    if (ts == null) return "Not set"
-    val sb = StringBuilder(ts.date.format(HumanDate))
-    ts.time?.let {
-        sb.append(" · ").append(it.format(ClockTime))
-        ts.endTime?.let { end -> sb.append('–').append(end.format(ClockTime)) }
-    }
-    ts.repeater?.let { sb.append(" · ").append(it) }
-    return sb.toString()
 }
 
 /** "**Time** · All day": the label is semibold, the current value is not. */
@@ -1267,11 +1410,10 @@ private fun shorthandEcho(parse: ShorthandParse, today: LocalDate, activeTab: Pl
         "Not understood, try “fri”, “+2w”, “aug 3 10-11am”"
     is ShorthandParse.Ok -> {
         val sh = parse.value
-        // No explicit s:/d: prefix falls back to whichever section is active
-        // (the same fallback applyShorthand() itself uses), so the echo always
-        // states which field the line will actually be applied to.
+        // No explicit s:/d:/a: prefix falls back to the open tab (the same
+        // fallback applyShorthand() uses), so the echo always names its target.
         val target = sh.target ?: activeTab
-        val arrow = "→ ${if (target == PlanningKind.DEADLINE) "DEADLINE" else "SCHEDULED"}"
+        val arrow = "→ ${target.name}"
         val segments = listOfNotNull(
             sh.date?.let { "${it.format(HumanDate)} · ${relativeDay(it, today)}" },
             sh.time?.let { t ->
@@ -1279,8 +1421,6 @@ private fun shorthandEcho(parse: ShorthandParse, today: LocalDate, activeTab: Pl
             },
             sh.repeater?.let { r -> "every ${intervalLabel(r)} $r" },
         )
-        // The arrow segment is a destination label, not another fact to bullet
-        // alongside the date/time/repeater: no "·" separator in front of it.
         if (segments.isEmpty()) arrow else segments.joinToString("  ·  ") + "  " + arrow
     }
 }

@@ -67,6 +67,8 @@ data class AgendaRow(
     val deadlineTs: OrgTimestamp?,
     /** Set when a bare active timestamp (an event) is what put this row on this day. */
     val activeTs: OrgTimestamp? = null,
+    /** Every active timestamp on the heading, so the Dates screen's ACTIVE tab prefills. */
+    val activeTimestamps: ImmutableList<OrgTimestamp> = persistentListOf(),
 )
 
 /** One "Group by" bucket: an uppercase key, its count, and its rows. */
@@ -394,14 +396,15 @@ class AgendaViewModel(
     fun setDeadline(fileName: String, lineIndex: Int, ts: OrgTimestamp?) =
         mutatePlanning(fileName, lineIndex) { doc, h -> OrgMutations.setDeadline(doc, h, ts) }
 
-    /** Both planning dates in one edit: what the Dates screen commits. */
+    /** Planning dates + the dedicated active line in one edit: what the Dates screen commits. */
     fun setPlanningDates(
         fileName: String,
         lineIndex: Int,
         scheduled: OrgTimestamp?,
         deadline: OrgTimestamp?,
+        active: List<OrgTimestamp>,
     ) = mutatePlanning(fileName, lineIndex) { doc, h ->
-        OrgMutations.setPlanningDates(doc, h, scheduled, deadline)
+        OrgMutations.setPlanningAndActiveTimestamps(doc, h, scheduled, deadline, active)
     }
 
     private fun mutatePlanning(fileName: String, lineIndex: Int, block: (OrgDocument, OrgHeadline) -> String) {
@@ -599,6 +602,10 @@ class AgendaViewModel(
         ): AgendaRow {
             val scheduledTs = m.scheduled?.let { OrgTimestamp.parse(it) }
             val deadlineTs = m.deadline?.let { OrgTimestamp.parse(it) }
+            val allActive = m.active
+                ?.let { OrgTimestamp.parseAll(it).filter { ts -> ts.active } }
+                .orEmpty()
+                .toImmutableList()
 
             if (activeTs != null) {
                 val day = eventDay ?: activeTs.date
@@ -626,6 +633,7 @@ class AgendaViewModel(
                     scheduledTs = scheduledTs,
                     deadlineTs = deadlineTs,
                     activeTs = activeTs,
+                    activeTimestamps = allActive,
                 )
             }
 
@@ -676,6 +684,7 @@ class AgendaViewModel(
                 meta = meta.toImmutableList(),
                 scheduledTs = scheduledTs,
                 deadlineTs = deadlineTs,
+                activeTimestamps = allActive,
             )
         }
     }

@@ -404,9 +404,12 @@ class EditorViewModel(
     fun setScheduled(ts: OrgTimestamp?) = mutateBuffer { d, h -> OrgMutations.setScheduled(d, h, ts) }
     fun setDeadline(ts: OrgTimestamp?) = mutateBuffer { d, h -> OrgMutations.setDeadline(d, h, ts) }
 
-    /** Both planning dates in one edit: what the Dates screen commits. */
-    fun setPlanningDates(scheduled: OrgTimestamp?, deadline: OrgTimestamp?) =
-        mutateBuffer { d, h -> OrgMutations.setPlanningDates(d, h, scheduled, deadline) }
+    /** Planning dates + the dedicated active line in one edit: what the Dates screen commits. */
+    fun setPlanningDates(
+        scheduled: OrgTimestamp?,
+        deadline: OrgTimestamp?,
+        active: List<OrgTimestamp>,
+    ) = mutateBuffer { d, h -> OrgMutations.setPlanningAndActiveTimestamps(d, h, scheduled, deadline, active) }
 
     /** Metadata sheet's "Add note": org's C-c C-z, logged into the LOGBOOK drawer. */
     fun addNote(note: String) {

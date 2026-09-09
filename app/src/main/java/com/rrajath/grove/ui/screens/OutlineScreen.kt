@@ -628,10 +628,11 @@ fun OutlineScreen(
                         title = headline?.title.orEmpty(),
                         scheduled = headline?.planning?.scheduled,
                         deadline = headline?.planning?.deadline,
+                        active = headline?.dedicatedActiveTimestamps.orEmpty(),
                         focus = if (target == "scheduled") PlanningKind.SCHEDULED else PlanningKind.DEADLINE,
                         onDismiss = { datePickerFor = null },
-                        onConfirm = { sched, dead ->
-                            if (headline != null) viewModel.setPlanningDates(headline, sched, dead)
+                        onConfirm = { sched, dead, active ->
+                            if (headline != null) viewModel.setPlanningDates(headline, sched, dead, active)
                             datePickerFor = null
                         },
                     )

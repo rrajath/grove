@@ -352,10 +352,11 @@ fun SearchScreen(
             title = result.title,
             scheduled = result.scheduledTs,
             deadline = result.deadlineTs,
+            active = result.activeTs,
             focus = PlanningKind.SCHEDULED,
             onDismiss = { schedulePickerFor = null },
-            onConfirm = { sched, dead ->
-                viewModel.setPlanningDates(result.fileName, result.lineIndex, sched, dead)
+            onConfirm = { sched, dead, active ->
+                viewModel.setPlanningDates(result.fileName, result.lineIndex, sched, dead, active)
                 schedulePickerFor = null
             },
         )

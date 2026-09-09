@@ -147,6 +147,8 @@ data class SearchResult(
     /** Raw timestamps (vs. the display-only labels above) for the swipe-to-schedule action's date picker. */
     val scheduledTs: OrgTimestamp?,
     val deadlineTs: OrgTimestamp?,
+    /** Active timestamps on the heading, so the date picker's ACTIVE tab prefills. */
+    val activeTs: ImmutableList<OrgTimestamp> = persistentListOf(),
 )
 
 @Immutable
@@ -383,14 +385,20 @@ class SearchViewModel(
         }
     }
 
-    /** Swipe-to-schedule action: both planning dates in one edit, as the Dates screen commits. */
-    fun setPlanningDates(fileName: String, lineIndex: Int, scheduled: OrgTimestamp?, deadline: OrgTimestamp?) {
+    /** Swipe-to-schedule action: planning dates + the dedicated active line, as the Dates screen commits. */
+    fun setPlanningDates(
+        fileName: String,
+        lineIndex: Int,
+        scheduled: OrgTimestamp?,
+        deadline: OrgTimestamp?,
+        active: List<OrgTimestamp>,
+    ) {
         viewModelScope.launch {
             val vault = vaultFlow.value ?: return@launch
             val doc = vault.open(fileName) ?: return@launch
             val headline = doc.headlineAtLine(lineIndex) ?: return@launch
             val newText = withContext(dispatchers.default) {
-                OrgMutations.setPlanningDates(doc, headline, scheduled, deadline)
+                OrgMutations.setPlanningAndActiveTimestamps(doc, headline, scheduled, deadline, active)
             }
             vault.save(fileName, newText)
             sync.requestSync("search planning edit")
@@ -741,6 +749,10 @@ class SearchViewModel(
             tagLine = meta.tags.joinToString(" ") { ":$it:" },
             scheduledTs = meta.scheduled?.let { OrgTimestamp.parse(it) },
             deadlineTs = meta.deadline?.let { OrgTimestamp.parse(it) },
+            activeTs = meta.active
+                ?.let { OrgTimestamp.parseAll(it).filter { ts -> ts.active } }
+                .orEmpty()
+                .toImmutableList(),
         )
     }
 

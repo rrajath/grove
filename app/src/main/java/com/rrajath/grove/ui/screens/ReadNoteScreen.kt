@@ -460,10 +460,10 @@ fun ReadNoteScreen(
                     metadataOpen = false
                     viewModel.withIntroHeading("") { d, h -> OrgMutations.setTags(d, h, tags) }
                 },
-                onSetPlanningDates = { sched, dead ->
+                onSetPlanningDates = { sched, dead, active ->
                     metadataOpen = false
                     viewModel.withIntroHeading("Planning updated") { d, h ->
-                        OrgMutations.setPlanningDates(d, h, sched, dead)
+                        OrgMutations.setPlanningAndActiveTimestamps(d, h, sched, dead, active)
                     }
                 },
                 onAddNote = { note ->
@@ -494,7 +494,7 @@ fun ReadNoteScreen(
                 onChangeKeyword = { kw -> viewModel.setState(headline, kw) },
                 onSetPriority = { p -> viewModel.setPriority(headline, p) },
                 onSetTags = { tags -> viewModel.setTags(headline, tags) },
-                onSetPlanningDates = { sched, dead -> viewModel.setPlanningDates(headline, sched, dead) },
+                onSetPlanningDates = { sched, dead, active -> viewModel.setPlanningDates(headline, sched, dead, active) },
                 onAddNote = { note -> viewModel.addNote(headline, note) },
                 onRefile = { metadataOpen = false; viewModel.startRefile(headline) },
                 showFavorite = true,

@@ -504,8 +504,8 @@ fun CaptureEditorScreen(
             },
             onSetPriority = { p -> mutateDraft { d, h -> OrgMutations.setPriority(d, h, p) } },
             onSetTags = { tags -> mutateDraft { d, h -> OrgMutations.setTags(d, h, tags) } },
-            onSetPlanningDates = { sched, dead ->
-                mutateDraft { d, h -> OrgMutations.setPlanningDates(d, h, sched, dead) }
+            onSetPlanningDates = { sched, dead, active ->
+                mutateDraft { d, h -> OrgMutations.setPlanningAndActiveTimestamps(d, h, sched, dead, active) }
             },
             onAddNote = { note ->
                 val stamp = LocalDateTime.now().let {

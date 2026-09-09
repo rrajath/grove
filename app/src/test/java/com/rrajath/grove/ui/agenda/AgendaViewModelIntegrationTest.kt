@@ -213,7 +213,7 @@ class AgendaViewModelIntegrationTest {
         advanceUntilIdle()
 
         val line = headlineLine("agenda.org", "Renew the domain")
-        vm.setPlanningDates("agenda.org", line, OrgTimestamp(inThreeDays), null)
+        vm.setPlanningDates("agenda.org", line, OrgTimestamp(inThreeDays), null, emptyList())
         advanceUntilIdle()
 
         assertTrue(store.read("agenda.org").contains("SCHEDULED: <$inThreeDays"))

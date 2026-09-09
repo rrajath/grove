@@ -1269,12 +1269,19 @@ class DocumentViewModel(
      * Both planning dates in one edit: what the Dates screen commits. The toast
      * names whichever dates survived so clearing one is still acknowledged.
      */
-    fun setPlanningDates(headline: OrgHeadline, scheduled: OrgTimestamp?, deadline: OrgTimestamp?) {
+    fun setPlanningDates(
+        headline: OrgHeadline,
+        scheduled: OrgTimestamp?,
+        deadline: OrgTimestamp?,
+        active: List<OrgTimestamp>,
+    ) {
         val loaded = _state.value as? DocumentUiState.Loaded ?: return
         val vault = vaultFlow.value ?: return
         viewModelScope.launch {
             val (newText, newDoc) = withContext(dispatchers.default) {
-                val text = OrgMutations.setPlanningDates(loaded.document, headline, scheduled, deadline)
+                val text = OrgMutations.setPlanningAndActiveTimestamps(
+                    loaded.document, headline, scheduled, deadline, active,
+                )
                 text to OrgParser.parse(text, loaded.document.keywords)
             }
             _state.value = DocumentUiState.Loaded(loaded.fileName, newDoc)
@@ -1283,6 +1290,9 @@ class DocumentViewModel(
             val parts = listOfNotNull(
                 scheduled?.let { "Scheduled · ${it.date.format(fmt)}" },
                 deadline?.let { "Deadline · ${it.date.format(fmt)}" },
+                active.firstOrNull()?.let {
+                    "Event · ${it.date.format(fmt)}" + if (active.size > 1) " +${active.size - 1}" else ""
+                },
             )
             showToast(if (parts.isEmpty()) "Planning cleared" else parts.joinToString("  ·  "))
         }

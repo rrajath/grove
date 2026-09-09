@@ -124,10 +124,11 @@ private fun RescheduleFlow(reminderKey: String, onDone: () -> Unit) {
         title = resolved.headline.title,
         scheduled = resolved.headline.planning.scheduled,
         deadline = resolved.headline.planning.deadline,
+        active = resolved.headline.dedicatedActiveTimestamps,
         focus = if (resolved.isDeadline) PlanningKind.DEADLINE else PlanningKind.SCHEDULED,
         onDismiss = onDone,
-        onConfirm = { sched, dead ->
-            app.appScope.launch { writePlanning(app, reminderKey, sched, dead) }
+        onConfirm = { sched, dead, active ->
+            app.appScope.launch { writePlanning(app, reminderKey, sched, dead, active) }
             // The reminder that sent us here was for one of the two dates, so
             // the toast reports that one, not whichever else was also edited.
             val reported = if (resolved.isDeadline) dead else sched
@@ -157,12 +158,16 @@ private suspend fun writePlanning(
     reminderKey: String,
     scheduled: OrgTimestamp?,
     deadline: OrgTimestamp?,
+    active: List<OrgTimestamp>,
 ) {
     val reminder = app.database.reminderDao().get(reminderKey) ?: return
     val vault = app.vault.value ?: return
     val doc = vault.open(reminder.fileName) ?: return
     val headline = ReminderKeys.findHeadline(doc, reminder.headingPath, reminder.headingLevel) ?: return
-    vault.save(reminder.fileName, OrgMutations.setPlanningDates(doc, headline, scheduled, deadline))
+    vault.save(
+        reminder.fileName,
+        OrgMutations.setPlanningAndActiveTimestamps(doc, headline, scheduled, deadline, active),
+    )
     app.syncManager.requestSync("reminder rescheduled")
     // Only now that the new date is durably on disk: the shown notification is
     // stale. Its alarm and row are the reconciler's to update, and it re-derives

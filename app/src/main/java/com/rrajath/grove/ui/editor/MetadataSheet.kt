@@ -70,7 +70,7 @@ fun MetadataSheet(
     onChangeKeyword: (String?) -> Unit,
     onSetPriority: (Char?) -> Unit,
     onSetTags: (List<String>) -> Unit,
-    onSetPlanningDates: (OrgTimestamp?, OrgTimestamp?) -> Unit,
+    onSetPlanningDates: (OrgTimestamp?, OrgTimestamp?, List<OrgTimestamp>) -> Unit,
     onAddNote: (String) -> Unit,
     onRefile: () -> Unit,
     onDismiss: () -> Unit,
@@ -240,10 +240,11 @@ fun MetadataSheet(
                 )
             }
 
-            SheetLabel("Schedule/Deadline")
+            SheetLabel("Dates")
             CombinedPlanningRow(
                 scheduled = headline?.planning?.scheduled,
                 deadline = headline?.planning?.deadline,
+                active = headline?.dedicatedActiveTimestamps.orEmpty(),
                 onPick = { planningOpen = true },
             )
 
@@ -290,16 +291,23 @@ fun MetadataSheet(
     if (planningOpen) {
         val scheduled = headline?.planning?.scheduled
         val deadline = headline?.planning?.deadline
+        val activeDates = headline?.dedicatedActiveTimestamps.orEmpty()
         PlanningDatesScreen(
             title = headline?.title.orEmpty(),
             scheduled = scheduled,
             deadline = deadline,
-            // Opens on whichever field is more relevant: the unset one when only
-            // one of the two is set, otherwise SCHEDULED.
-            focus = if (scheduled == null && deadline != null) PlanningKind.DEADLINE else PlanningKind.SCHEDULED,
+            active = activeDates,
+            // Opens on whichever surface is most relevant: an unset planning
+            // field when only one is set; the ACTIVE tab when only events exist;
+            // otherwise SCHEDULED.
+            focus = when {
+                scheduled == null && deadline != null -> PlanningKind.DEADLINE
+                scheduled == null && deadline == null && activeDates.isNotEmpty() -> PlanningKind.ACTIVE
+                else -> PlanningKind.SCHEDULED
+            },
             onDismiss = { planningOpen = false },
-            onConfirm = { sched, dead ->
-                onSetPlanningDates(sched, dead)
+            onConfirm = { sched, dead, active ->
+                onSetPlanningDates(sched, dead, active)
                 planningOpen = false
             },
         )
@@ -414,6 +422,7 @@ private fun StateChip(
 private fun CombinedPlanningRow(
     scheduled: OrgTimestamp?,
     deadline: OrgTimestamp?,
+    active: List<OrgTimestamp>,
     onPick: () -> Unit,
 ) {
     val c = MaterialTheme.grove
@@ -425,10 +434,10 @@ private fun CombinedPlanningRow(
             .clickable(onClick = onPick)
             .padding(horizontal = 10.dp, vertical = 9.dp),
     ) {
-        if (scheduled == null && deadline == null) {
+        if (scheduled == null && deadline == null && active.isEmpty()) {
             Text("set date…", fontFamily = PlexMono, fontSize = 12.5.sp, color = c.ink3)
         } else {
-            Column {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 scheduled?.let {
                     Text(
                         "SCHEDULED " + it.format(),
@@ -436,14 +445,18 @@ private fun CombinedPlanningRow(
                         fontSize = 12.5.sp, color = c.blue,
                     )
                 }
-                if (scheduled != null && deadline != null) {
-                    Spacer(Modifier.height(4.dp))
-                }
                 deadline?.let {
                     Text(
                         "DEADLINE " + it.format(),
                         fontFamily = PlexMono, fontWeight = FontWeight.SemiBold,
                         fontSize = 12.5.sp, color = c.red,
+                    )
+                }
+                active.forEach {
+                    Text(
+                        "● " + it.format(),
+                        fontFamily = PlexMono, fontWeight = FontWeight.SemiBold,
+                        fontSize = 12.5.sp, color = c.violet,
                     )
                 }
             }
