@@ -30,6 +30,10 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Circle
+import androidx.compose.material.icons.filled.FiberManualRecord
+import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -57,6 +61,7 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
@@ -74,7 +79,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
-import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -477,17 +481,17 @@ fun PlanningDatesScreen(
                         Modifier.fillMaxWidth().padding(top = 14.dp),
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
-                        TabButton(
-                            "◷", "SCHEDULED", 0, tab == PlanningKind.SCHEDULED, c.blue, c.blueSoft,
-                            glyphSize = 16.sp,
+                        TabButton(Icons.Outlined.CalendarMonth, "SCHEDULED", 0,
+                            tab == PlanningKind.SCHEDULED, c.blue, c.blueSoft,
                         ) {
                             selectTab(PlanningKind.SCHEDULED)
                         }
-                        TabButton("⚑", "DEADLINE", 0, tab == PlanningKind.DEADLINE, c.red, c.redSoft) {
+                        TabButton(Icons.Filled.Flag, "DEADLINE", 0,
+                            tab == PlanningKind.DEADLINE, c.red, c.redSoft,
+                        ) {
                             selectTab(PlanningKind.DEADLINE)
                         }
-                        TabButton(
-                            "●", "ACTIVE", acts.size, isActiveTab, c.violet, c.violetSoft,
+                        TabButton(Icons.Filled.FiberManualRecord, "ACTIVE", acts.size, isActiveTab, c.violet, c.violetSoft,
                             badgeAnchor = NewAnchors.PLANNING_DATES_ACTIVE,
                         ) { selectTab(PlanningKind.ACTIVE) }
                     }
@@ -912,19 +916,18 @@ private fun MonthArrow(glyph: String, onClick: () -> Unit) {
 
 @Composable
 private fun RowScope.TabButton(
-    glyph: String,
+    icon: ImageVector,
     label: String,
     count: Int,
     selected: Boolean,
     accent: Color,
     accentSoft: Color,
     badgeAnchor: String? = null,
-    glyphSize: TextUnit = 11.sp,
     onClick: () -> Unit,
 ) {
     val c = MaterialTheme.grove
-    // Fixed height so the tabs stay identical even though the thin `◷` glyph is
-    // rendered a few sp larger than `⚑` / `●` to optically match their weight.
+    // Fixed height so all three tabs stay identical; each leads with a 14.dp
+    // icon in the tab's accent (or ink3 when inactive) ahead of its label.
     Box(
         Modifier
             .weight(1f)
@@ -936,18 +939,27 @@ private fun RowScope.TabButton(
             .padding(horizontal = 5.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Text(
-            buildAnnotatedString {
-                withStyle(SpanStyle(fontSize = glyphSize)) { append(glyph) }
-                append(' ')
-                append(label)
-                if (count > 1) append(" $count")
-            },
-            fontFamily = PlexMono, fontWeight = FontWeight.Bold,
-            fontSize = 11.sp, letterSpacing = 0.6.sp,
-            color = if (selected) accent else c.ink3,
-            textAlign = TextAlign.Center, maxLines = 1,
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(5.dp),
+        ) {
+            Icon(
+                icon,
+                contentDescription = null,
+                tint = if (selected) accent else c.ink3,
+                modifier = Modifier.size(14.dp),
+            )
+            Text(
+                buildString {
+                    append(label)
+                    if (count > 1) append(" $count")
+                },
+                fontFamily = PlexMono, fontWeight = FontWeight.Bold,
+                fontSize = 11.sp, letterSpacing = 0.6.sp,
+                color = if (selected) accent else c.ink3,
+                textAlign = TextAlign.Center, maxLines = 1,
+            )
+        }
         if (badgeAnchor != null) {
             NewDot(badgeAnchor, Modifier.align(Alignment.TopEnd))
         }
