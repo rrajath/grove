@@ -3,18 +3,21 @@ package com.rrajath.grove.ui.screens
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.rrajath.grove.R
@@ -55,7 +58,9 @@ fun SettingsScreen(
     onOpenBackup: () -> Unit,
     onOpenBugReport: () -> Unit,
     onOpenTips: () -> Unit,
+    onOpenWhatsNew: () -> Unit,
     onOpenDeveloper: () -> Unit,
+    whatsNewHasUnseen: Boolean = false,
 ) {
     val c = MaterialTheme.grove
     val pages = listOf(
@@ -154,6 +159,29 @@ fun SettingsScreen(
                 }
             }
 
+            Spacer(Modifier.height(10.dp))
+            SectionLabel("ABOUT")
+            SettingsGroup {
+                SettingsRow(
+                    label = "What's New",
+                    description = "Changes in this and earlier releases",
+                    labelBadge = if (whatsNewHasUnseen) ({ UnseenDot() }) else null,
+                    onClick = onOpenWhatsNew,
+                ) {
+                    Text("›", fontFamily = PlexMono, fontSize = 14.sp, color = c.ink2)
+                }
+                RowDivider()
+                SettingsRow(
+                    label = stringResource(R.string.app_name),
+                    description = "Version ${com.rrajath.grove.BuildConfig.VERSION_NAME}",
+                ) {
+                    Text(
+                        com.rrajath.grove.BuildConfig.APPLICATION_ID,
+                        fontFamily = PlexMono, fontSize = 11.5.sp, color = c.ink3,
+                    )
+                }
+            }
+
             if (com.rrajath.grove.BuildConfig.DEBUG) {
                 Spacer(Modifier.height(10.dp))
                 SectionLabel("DEVELOPER")
@@ -168,14 +196,20 @@ fun SettingsScreen(
                 }
             }
 
-            Text(
-                "${stringResource(R.string.app_name)} v${com.rrajath.grove.BuildConfig.VERSION_NAME}",
-                fontFamily = PlexMono, fontSize = 11.5.sp, color = c.ink3,
-                textAlign = TextAlign.Center,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 20.dp),
-            )
+            Spacer(Modifier.height(24.dp))
         }
     }
+}
+
+/** The 7dp accent dot marking the What's New row while a release the user hasn't opened
+ *  the screen for has shipped. Mirrors `ui/newbadge`'s NewDot, but is driven by the
+ *  last-seen-changelog build rather than the NEW-feature registry. */
+@Composable
+private fun UnseenDot() {
+    Box(
+        Modifier
+            .size(7.dp)
+            .clip(CircleShape)
+            .background(MaterialTheme.grove.accent),
+    )
 }

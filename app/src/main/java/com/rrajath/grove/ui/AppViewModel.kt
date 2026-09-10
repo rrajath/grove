@@ -175,7 +175,29 @@ class AppViewModel(
         if (entries.isNotEmpty()) _whatsNew.value = entries
     }
 
-    fun dismissWhatsNew() {
+    fun dismissWhatsNew() = markWhatsNewSeen()
+
+    /**
+     * Full shipped-release history for Settings › About › What's New, loaded once from the
+     * bundled CHANGELOG.md asset. Empty until [loadWhatsNewHistory] has run.
+     */
+    private val _whatsNewHistory = MutableStateFlow<List<ChangelogVersion>>(emptyList())
+    val whatsNewHistory: StateFlow<List<ChangelogVersion>> = _whatsNewHistory
+
+    fun loadWhatsNewHistory() = viewModelScope.launch(dispatchers.io) {
+        if (_whatsNewHistory.value.isNotEmpty()) return@launch
+        val text = runCatching {
+            app.assets.open("CHANGELOG.md").bufferedReader().use { it.readText() }
+        }.getOrNull() ?: return@launch
+        _whatsNewHistory.value = ChangelogParser.shippedReleases(text)
+    }
+
+    /**
+     * Records the current build as the last one whose changes the user has seen and clears any
+     * pending launch-time modal. Called both when that modal is dismissed and when the What's
+     * New screen is opened, so seeing it in one place suppresses it in the other.
+     */
+    fun markWhatsNewSeen() {
         _whatsNew.value = emptyList()
         viewModelScope.launch { settingsRepository.setLastSeenChangelogBuild(com.rrajath.grove.BuildConfig.VERSION_CODE) }
     }

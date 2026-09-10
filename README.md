@@ -93,6 +93,7 @@ Following is the list of features/enhancements I'm planning to make to this app:
 - [ ] WebDAV support
 - [x] Clickable org links
 - [x] Tips & Tricks page
+- [x] What's New screen (Settings › About)
 
 ## Project layout
 

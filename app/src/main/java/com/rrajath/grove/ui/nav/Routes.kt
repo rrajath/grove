@@ -39,6 +39,7 @@ object Routes {
     const val SETTINGS_BACKUP = "settings/backup"
     const val SETTINGS_BUG_REPORT = "settings/bug"
     const val SETTINGS_TIPS = "settings/tips"
+    const val SETTINGS_WHATS_NEW = "settings/whatsnew"
 
     /** Debug-only: reset the "NEW" feature badges and other dev actions (see [SETTINGS] gate). */
     const val SETTINGS_DEVELOPER = "settings/developer"

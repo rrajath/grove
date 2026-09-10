@@ -43,11 +43,15 @@ fun WhatsNewDialog(versions: List<ChangelogVersion>, onDismiss: () -> Unit) {
                         fontFamily = PlexSans, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = c.accent,
                     )
                     version.subsections.forEach { section ->
-                        Text(
-                            section.heading,
-                            fontFamily = PlexSans, fontWeight = FontWeight.SemiBold, fontSize = 12.sp, color = c.ink2,
-                            modifier = Modifier.padding(top = 10.dp, bottom = 3.dp),
-                        )
+                        if (section.heading.isNotBlank()) {
+                            Text(
+                                section.heading,
+                                fontFamily = PlexSans, fontWeight = FontWeight.SemiBold, fontSize = 12.sp, color = c.ink2,
+                                modifier = Modifier.padding(top = 10.dp, bottom = 3.dp),
+                            )
+                        } else {
+                            Spacer(Modifier.height(7.dp))
+                        }
                         section.items.forEach { item ->
                             Text(
                                 "•  $item",

@@ -76,6 +76,7 @@ import com.rrajath.grove.ui.screens.settings.SettingsRemindersScreen
 import com.rrajath.grove.ui.screens.settings.SettingsSharingScreen
 import com.rrajath.grove.ui.screens.settings.SettingsSyncScreen
 import com.rrajath.grove.ui.screens.settings.SettingsTipsScreen
+import com.rrajath.grove.ui.screens.settings.SettingsWhatsNewScreen
 import com.rrajath.grove.ui.screens.settings.SettingsWidgetScreen
 import com.rrajath.grove.ui.screens.SyncLogScreen
 import com.rrajath.grove.ui.vault.NoteRef
@@ -298,6 +299,12 @@ private fun GroveNavigation(
 
     val newBadgeState by viewModel.newBadgeState.collectAsStateWithLifecycle()
     val newBadges = NewBadges(newBadgeState) { ids -> viewModel.markNewFeaturesSeen(ids) }
+
+    val whatsNewHistory by viewModel.whatsNewHistory.collectAsStateWithLifecycle()
+    // A dot on Settings › About › What's New while the running build carries changes the user
+    // hasn't opened the screen for; opening it stamps the build seen (also killing the launch modal).
+    val whatsNewHasUnseen = settings.lastSeenChangelogBuild != com.rrajath.grove.BuildConfig.VERSION_CODE
+    LaunchedEffect(Unit) { viewModel.loadWhatsNewHistory() }
 
     CompositionLocalProvider(LocalNewBadges provides newBadges) {
     ModalNavigationDrawer(
@@ -754,7 +761,9 @@ private fun GroveNavigation(
                     onOpenBackup = { navController.navigate(Routes.SETTINGS_BACKUP) },
                     onOpenBugReport = { navController.navigate(Routes.SETTINGS_BUG_REPORT) },
                     onOpenTips = { navController.navigate(Routes.SETTINGS_TIPS) },
+                    onOpenWhatsNew = { navController.navigate(Routes.SETTINGS_WHATS_NEW) },
                     onOpenDeveloper = { navController.navigate(Routes.SETTINGS_DEVELOPER) },
+                    whatsNewHasUnseen = whatsNewHasUnseen,
                 )
             }
             composable(Routes.SETTINGS_APPEARANCE) {
@@ -884,6 +893,15 @@ private fun GroveNavigation(
             }
             composable(Routes.SETTINGS_TIPS) {
                 SettingsTipsScreen(onBack = { navController.popBackStack() })
+            }
+            composable(Routes.SETTINGS_WHATS_NEW) {
+                // Opening the screen counts as seeing what's new: stamp the build so the
+                // launch-time WhatsNewDialog won't also fire for these same releases.
+                LaunchedEffect(Unit) { viewModel.markWhatsNewSeen() }
+                SettingsWhatsNewScreen(
+                    versions = whatsNewHistory,
+                    onBack = { navController.popBackStack() },
+                )
             }
             composable(Routes.SETTINGS_DEVELOPER) {
                 SettingsDeveloperScreen(

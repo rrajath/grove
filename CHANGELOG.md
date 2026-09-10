@@ -59,6 +59,12 @@ re-uploads the APKs to the existing release instead of failing.
 
 ## [Unreleased]
 
+- Added a What's New screen in Settings › About: recent releases as cards, with
+  an unseen-release dot on the row.
+
+- Fixed the What's New popup showing nothing for releases whose changelog
+  bullets have no `### Added`/`### Fixed` heading.
+
 - Settings toggles now animate smoothly. The switch thumb follows the tap
   immediately instead of snapping a few frames later once the setting had
   round-tripped through disk, and a group of settings rows now animates its
