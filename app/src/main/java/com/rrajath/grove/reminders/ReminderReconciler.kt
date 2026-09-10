@@ -71,6 +71,35 @@ class ReminderReconciler(
     }
 
     /**
+     * Cancel the alarms and drop the rows for one file's reminders. For when a
+     * notebook is deleted or renamed/moved away: [reconcileFile] only ever runs
+     * against a file that still exists, so nothing else would ever clear a gone
+     * file's pre-armed alarms — they'd keep firing stale "due now" notifications
+     * that resolve to nothing (landing the user on the notebook list).
+     */
+    suspend fun removeFile(fileName: String) {
+        dao.forFile(fileName).forEach { entity ->
+            cancelAlarm(entity)
+            dao.delete(entity.key)
+        }
+    }
+
+    /**
+     * DB-only sweep: [removeFile] every reminder whose file is no longer in
+     * [liveFileNames] (the current `notebooks` index). Cheap catch-all for
+     * deletes/renames that happened outside the app (Syncthing, a file manager)
+     * or while it was dead — run after every sync and on app start.
+     */
+    suspend fun pruneRemovedFiles(liveFileNames: Set<String>) {
+        dao.all()
+            .filter { it.fileName !in liveFileNames }
+            .forEach { entity ->
+                cancelAlarm(entity)
+                dao.delete(entity.key)
+            }
+    }
+
+    /**
      * Re-run scheduling for reminders that were waiting on a permission. Only
      * reminders whose trigger time is still in the future get scheduled; ones
      * that went overdue while permission was missing are settled silently

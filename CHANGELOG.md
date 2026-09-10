@@ -59,6 +59,9 @@ re-uploads the APKs to the existing release instead of failing.
 
 ## [Unreleased]
 
+- Fixed deleted notebooks still firing reminder notifications; their alarms are
+  now cancelled on delete, sync, and app start.
+
 - The navigation drawer's item list now scrolls when it overflows; the header
   stays pinned.
 

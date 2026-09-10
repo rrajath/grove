@@ -147,6 +147,33 @@ class ReminderReconcilerTest {
     }
 
     @Test
+    fun `removeFile cancels the alarms and drops the rows for that file only`() = runTest {
+        val dao = FakeReminderDao()
+        dao.rows["gone"] = entity("gone", triggerAtMillis = now + 5_000L).copy(fileName = "gone.org")
+        dao.rows["keep"] = entity("keep", triggerAtMillis = now + 5_000L).copy(fileName = "keep.org")
+        val rec = Recorder()
+
+        reconciler(dao, rec).removeFile("gone.org")
+
+        assertEquals(listOf("gone"), rec.cancelled)
+        assertNull(dao.rows["gone"])
+        assertEquals(setOf("keep"), dao.rows.keys)
+    }
+
+    @Test
+    fun `pruneRemovedFiles drops reminders whose file is no longer indexed`() = runTest {
+        val dao = FakeReminderDao()
+        dao.rows["gone"] = entity("gone", triggerAtMillis = now + 5_000L).copy(fileName = "gone.org")
+        dao.rows["live"] = entity("live", triggerAtMillis = now + 5_000L).copy(fileName = "live.org")
+        val rec = Recorder()
+
+        reconciler(dao, rec).pruneRemovedFiles(setOf("live.org"))
+
+        assertEquals(listOf("gone"), rec.cancelled)
+        assertEquals(setOf("live"), dao.rows.keys)
+    }
+
+    @Test
     fun `setting a SCHEDULED time already in the past does not fire an immediate notification`() = runTest {
         val dao = FakeReminderDao()
         val rec = Recorder()

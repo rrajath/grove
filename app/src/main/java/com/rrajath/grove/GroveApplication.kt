@@ -111,7 +111,15 @@ open class GroveApplication : Application() {
             this, appScope, database,
             keywords = { keywords.value },
             onNotebookIndexed = ::reconcileFileReminders,
-            onSyncCompleted = {
+            onSyncCompleted = { result ->
+                // Only prune on a real directory-diffed pass: a null result means
+                // the sync failed (or was a targeted single-file reindex), where
+                // an empty/stale notebook list would wrongly cancel live reminders.
+                if (result != null) {
+                    reminderReconciler.pruneRemovedFiles(
+                        database.indexDao().notebooks().mapTo(HashSet()) { it.fileName },
+                    )
+                }
                 reminderReconciler.catchUpOverdue()
                 LedgerWidget().updateAll(this@GroveApplication)
             },
@@ -278,6 +286,9 @@ open class GroveApplication : Application() {
         // process was dead, and pick up reminders that were only waiting on a
         // permission grant. DB-only: doesn't need the vault to be ready.
         appScope.launch {
+            reminderReconciler.pruneRemovedFiles(
+                database.indexDao().notebooks().mapTo(HashSet()) { it.fileName },
+            )
             reminderReconciler.catchUpOverdue()
             reminderReconciler.reconcilePending()
         }

@@ -47,8 +47,13 @@ class SyncManager(
     private val keywords: () -> com.rrajath.grove.org.OrgKeywords = { com.rrajath.grove.org.OrgKeywords.DEFAULT },
     /** Notified right after each notebook is (re)indexed during a sync (see [RoomNoteIndex]). */
     private val onNotebookIndexed: suspend (fileName: String, doc: com.rrajath.grove.org.OrgDocument) -> Unit = { _, _ -> },
-    /** Notified after a sync completes (successfully or not), for cheap DB-only catch-up passes. */
-    private val onSyncCompleted: suspend () -> Unit = {},
+    /**
+     * Notified after a sync completes, for cheap DB-only catch-up passes. The
+     * argument is the pass's [SyncResult], or null when the sync failed or the
+     * caller did a targeted single-file reindex (no directory diff, so no
+     * removals to reconcile against).
+     */
+    private val onSyncCompleted: suspend (result: SyncResult?) -> Unit = {},
 ) : SyncTrigger {
     private val mutex = Mutex()
     private var engine: SyncEngine? = null
@@ -99,7 +104,7 @@ class SyncManager(
             if (result.conflicts.isNotEmpty()) notifyConflicts(result.conflicts.keys)
         }
         database.syncLogDao().trim()
-        onSyncCompleted()
+        onSyncCompleted(result)
     }
 
     /**
@@ -129,7 +134,7 @@ class SyncManager(
                     log("reindex failed for $fileName: ${e.message}")
                 }
                 database.syncLogDao().trim()
-                onSyncCompleted()
+                onSyncCompleted(null)
             }
         }
     }
@@ -153,7 +158,7 @@ class SyncManager(
                     if (result.conflicts.isNotEmpty()) notifyConflicts(result.conflicts.keys)
                 }
                 database.syncLogDao().trim()
-                onSyncCompleted()
+                onSyncCompleted(result)
             }
         }
     }
