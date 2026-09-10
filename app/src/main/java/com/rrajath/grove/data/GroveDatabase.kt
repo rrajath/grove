@@ -126,7 +126,13 @@ data class SyncLogEntity(
  * scheduling state (the AlarmManager alarm, whether it already fired, whether
  * it's waiting on a permission) that isn't derivable from disk alone.
  */
-@Entity(tableName = "reminders")
+@Entity(
+    tableName = "reminders",
+    // ReminderDao.forFile does `WHERE fileName = ?` once per file on every sync
+    // (ReminderReconciler.reconcileFile, driven by RoomNoteIndex.onIndexed);
+    // without this index that is a full table scan per file.
+    indices = [Index("fileName")],
+)
 data class ReminderEntity(
     /** Composite: fileName + ancestor-title-path + own title + level + planning type. */
     @PrimaryKey val key: String,
@@ -461,6 +467,10 @@ interface ReminderDao {
 
 @Database(
     entities = [NotebookEntity::class, NoteEntity::class, SyncLogEntity::class, ReminderEntity::class],
+    // v14: added a secondary index on reminders.fileName (ReminderDao.forFile
+    // runs `WHERE fileName = ?` once per file on every sync). Destructive
+    // migration drops the rebuildable reminders table; the next reconcile
+    // repopulates it from disk.
     // v13: renamed ReminderEntity.hasExplicitTime → firesOwnNotification (a
     // date-only reminder now fires its own notification when Settings › Reminders
     // › "Notify for tasks without a time" is on). Destructive migration drops the
@@ -489,7 +499,7 @@ interface ReminderDao {
     // v5: added NotebookEntity.isIndexed (stub vs fully-parsed notebook rows);
     // v4: added NotebookEntity.title (cached #+TITLE: preamble value). Destructive
     // migration drops the index so the next sync rebuilds it from the .org files.
-    version = 13,
+    version = 14,
     exportSchema = false,
 )
 abstract class GroveDatabase : RoomDatabase() {
