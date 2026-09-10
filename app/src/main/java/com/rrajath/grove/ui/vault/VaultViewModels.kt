@@ -1347,7 +1347,11 @@ class DocumentViewModel(
     fun startRefile(headline: OrgHeadline) {
         _refile.value = RefileUiState(sourceLine = headline.lineIndex)
         viewModelScope.launch {
-            val notebooks = vaultFlow.value?.notebooks().orEmpty()
+            // Read file names + note counts from the Room index, not vault.notebooks()
+            // (which re-reads and re-parses every .org file just to count level-1
+            // headlines). Both columns are already on NotebookEntity.
+            val notebooks = database.indexDao().notebooks()
+                .sortedBy { it.fileName }
                 .map { RefileNotebook(it.fileName, it.noteCount) }
                 .toImmutableList()
             val settings = settingsRepository.settings.first()

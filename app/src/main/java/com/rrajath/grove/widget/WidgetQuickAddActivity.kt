@@ -126,8 +126,10 @@ private fun QuickAddSheet(onDismiss: () -> Unit) {
     LaunchedEffect(Unit) {
         val settings = app.settingsRepository.settings.first()
         keywords = app.keywords.first().active.ifEmpty { listOf("TODO") }
-        val vault = app.vault.filterNotNull().first()
-        notebooks = vault.notebooks().map { it.fileName }.sorted()
+        // Read file names from the Room index rather than vault.notebooks(), which
+        // would re-read and re-parse every .org file just to count headlines —
+        // costly on a cold-started widget process before the sheet is usable.
+        notebooks = app.database.indexDao().notebooks().map { it.fileName }.sorted()
         defaultNotebook = resolveShareTargetFile(settings)
     }
 

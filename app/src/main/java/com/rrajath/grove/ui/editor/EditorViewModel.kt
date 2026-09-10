@@ -560,7 +560,10 @@ class EditorViewModel(
         _linkPicker.value = RefileUiState(sourceLine = -1)
         viewModelScope.launch {
             val vault = vaultFlow.value ?: return@launch
-            val notebooks = vault.notebooks()
+            // File names + counts come from the Room index; vault.notebooks() would
+            // re-read and re-parse every .org file just for the level-1 count.
+            val notebooks = database.indexDao().notebooks()
+                .sortedBy { it.fileName }
                 .map { RefileNotebook(it.fileName, it.noteCount) }
                 .toImmutableList()
             val currentDoc = currentFile.takeIf { it.isNotEmpty() }?.let { vault.open(it) }

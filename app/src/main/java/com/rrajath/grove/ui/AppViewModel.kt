@@ -294,7 +294,10 @@ class AppViewModel(
     fun startArchiveLocationPick() {
         _archiveLocationPicker.value = RefileUiState(sourceLine = -1)
         viewModelScope.launch {
-            val notebooks = vaultFlow.value?.notebooks().orEmpty()
+            // From the Room index, not vault.notebooks() (which re-parses every
+            // .org file); fileName + noteCount are columns on NotebookEntity.
+            val notebooks = database.indexDao().notebooks()
+                .sortedBy { it.fileName }
                 .map { RefileNotebook(it.fileName, it.noteCount) }
                 .toImmutableList()
             _archiveLocationPicker.value = _archiveLocationPicker.value?.copy(notebooks = notebooks)
