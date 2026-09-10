@@ -34,6 +34,17 @@ class SafFileStore(
     /** relative directory path ("" == vault root) -> document id */
     private var dirDocIds = mutableMapOf<String, String>()
 
+    /**
+     * True once [list] has walked the whole tree at least once. A lookup that
+     * misses both maps then answers "not found" without re-walking: the maps are
+     * authoritative because [create]/[rename]/[delete] keep them coherent, and
+     * every sync begins with a fresh [list]. The one thing this does not catch is
+     * a file appearing via the sync backend between two [list] calls, but the
+     * only names Grove looks up are ones a prior [list] surfaced (from the index
+     * or a sync pass), so that window does not arise in practice.
+     */
+    private var listed = false
+
     private val projection = arrayOf(
         DocumentsContract.Document.COLUMN_DOCUMENT_ID,
         DocumentsContract.Document.COLUMN_DISPLAY_NAME,
@@ -71,6 +82,7 @@ class SafFileStore(
         }
         docIds = files
         dirDocIds = dirs
+        listed = true
         entries.sortedBy { it.name }
     }
 
@@ -231,7 +243,10 @@ class SafFileStore(
         )?.use { cursor -> if (cursor.moveToFirst()) cursor.getString(0) else null }
 
     private suspend fun documentUri(name: String): Uri? {
-        if (name !in docIds) list()
+        // Only re-walk the tree if we have never listed it; once listed, a miss
+        // is authoritative (see [listed]). This is what keeps exists()/create()/
+        // rename() on an absent name from triggering a full recursive walk.
+        if (name !in docIds && !listed) list()
         val docId = docIds[name] ?: return null
         return DocumentsContract.buildDocumentUriUsingTree(treeUri, docId)
     }

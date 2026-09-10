@@ -104,13 +104,15 @@ class Vault(
     /**
      * Whether [path] already names a file in the vault, compared
      * case-insensitively. SAF providers over FAT/exFAT (and the stock Documents
-     * provider) treat file names case-insensitively, but [FileStore.exists] is a
-     * keyed lookup on the exact display name, so it would miss `Work.org` when
-     * asked about `work.org` and let a colliding create/rename through. Same
+     * provider) treat file names case-insensitively, so the exact-name
+     * [FileStore.exists] check would miss `Work.org` when asked about `work.org`
+     * and let a colliding create/rename through. The case-insensitive [list]
+     * scan strictly subsumes an exact-name lookup, so `exists` is redundant here;
+     * dropping it avoids a second tree walk on every create/rename. Same
      * rationale as [matchOpenedFileToNotebook].
      */
     private suspend fun pathTaken(path: String): Boolean =
-        store.exists(path) || store.list().any { it.name.equals(path, ignoreCase = true) }
+        store.list().any { it.name.equals(path, ignoreCase = true) }
 
     /**
      * Rename and/or move a notebook. [newName] may be a bare name (kept in the
