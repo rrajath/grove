@@ -131,198 +131,6 @@ re-uploads the APKs to the existing release instead of failing.
   re-index ~560 files each time, and the benchmarks' "wait for the list" step is
   a hard assertion with a longer timeout. No release impact.
 
-## [1.5.0] - 2026-09-09
-
-- Fixed: the CI `macrobenchmark` job's `ScrollBenchmark` tests crashed with a
-  `NullPointerException` (`setGestureMargin` on null) because the seeded vault
-  had not finished indexing when the scroll gesture ran. The scroll tests
-  launch cold 10 times each and the debug/benchmark test-vault hook re-wrote
-  all ~560 files every launch, forcing a full re-index that outran the wait on
-  CI's shared emulator. Seeding is now idempotent (a signature marker file), so
-  only the first launch pays the cost, and the "wait for the list" step is a
-  hard assertion with a longer timeout instead of a silent fall-through. No
-  release impact.
-
-## [1.5.0] - 2026-09-08
-
-- Fixed: the CI `macrobenchmark` job failed every run with "ERRORS (not
-  suppressed): EMULATOR" because `androidx.benchmark` refuses to run on an
-  emulator. The job now passes `androidx.benchmark.suppressErrors=EMULATOR`
-  so it works as the intended smoke test. No release impact.
-- Internal: cleared Kotlin compiler warnings in test and settings code. The
-  Compose UI tests now use the `createComposeRule` / `createAndroidComposeRule`
-  v2 factories, and `SettingsExport` opts in to the experimental
-  `@EncodeDefault` serialization annotation explicitly. No release impact.
-
-## [1.5.0] - 2026-09-08
-
-- Fixed: capturing a note in the debug/benchmark direct-directory test vault
-  (Maestro, `:macrobenchmark`) failed with "No sync folder configured" because
-  that vault feeds `fileStore` without setting `vaultTreeUri`. `CaptureViewModel`
-  now also accepts `TestVaultHook.root` as a configured vault. No release impact.
-
-## [1.5.0] - 2026-09-08
-
-### Fixed
-- CI: the `ui-tests` job failed with "exit code null" even when every test
-  passed. Its cleanup step ran `pkill -f "adb logcat"`, whose pattern also
-  matched the `sh -c` command line running the script (it contains the string
-  "adb logcat"), so pkill signal-killed its own shell before the exit-status
-  line. It now records the logcat PID and kills that.
-
-## [1.5.0] - 2026-09-08
-
-### Fixed
-- CI: `OnboardingScreenTest.tappingChooseFolderOpensThePickerWithoutFiringCallbacks`
-  launched the real SAF picker (DocumentsUI) cross-process. On CI's slow emulator
-  the host activity never came back to RESUMED, so the test failed with
-  `NoActivityResumedException` (and dismiss/back-press didn't reliably recover it).
-  It now stubs the intent with Espresso-Intents (`espresso-intents` added as an
-  `androidTestImplementation` dep) so DocumentsUI never launches; the test asserts
-  the CTA fires `ACTION_OPEN_DOCUMENT_TREE` and that a canceled result fires
-  neither callback.
-
-## [1.5.0] - 2026-09-08
-
-### Fixed
-- CI: `OnboardingScreenTest.tappingChooseFolderOpensThePickerWithoutFiringCallbacks`
-  left the real SAF picker activity open; torn down while the next test's
-  process was forking, it got that process SIGKILLed by ActivityManager, which
-  surfaced as a bogus "Test instrumentation process crashed" on
-  `OutlineScreenTest` (API 35 only, by luck of ordering). The test now dismisses
-  the picker, with an `@After` safety net.
-- CI: the `ui-tests` job's logcat/tombstone capture is now a single compound
-  `script:` command — `reactivecircus/android-emulator-runner` runs each line
-  separately, so the earlier multi-line form failed before any test ran.
-
-## [1.5.0] - 2026-09-08
-
-### Fixed
-- CI: the nightly Compose UI test job flaked on the short default emulator AVD.
-  `OnboardingScreenTest` now scrolls its action buttons into view before
-  asserting/clicking them (the screen is one scroll container), and the
-  `ui-tests` job streams logcat and pulls native tombstones so a "test
-  instrumentation process crashed" can actually be diagnosed from the artifact.
-- Read mode: checkbox/bullet markers in a list sat slightly below the center
-  of their item text. The marker box is now sized to the exact first-line box
-  and the item text uses a centered, untrimmed line height, so the glyph and
-  the first line of text line up.
-- Capture: saving a note while no sync folder is configured used to briefly
-  report success and fire a spurious sync request; it now fails cleanly with
-  "No sync folder configured" and touches nothing. Only reachable through code
-  paths (a share-sheet capture on a fresh install); no user-visible change in
-  normal use.
-- Maestro E2E flows (M5) used a `timeout:` property on `assertVisible` /
-  `assertNotVisible`, which Maestro rejects with "Unknown property: timeout".
-  The waits are now `extendedWaitUntil` with `visible:` / `notVisible:` blocks.
-- Maestro E2E flows: added `hideKeyboard` after each `inputText` that is
-  followed by a tap or `back`, so a visible soft keyboard no longer hides the
-  next target or gets absorbed by the first `back`. Flow 04 now re-opens the
-  edited note with a single `back` to Search plus a row tap instead of an
-  unstable `back` chain. CI pins the emulator to the AOSP image (`target:
-  default`, no Gboard). All three flows verified on a Pixel_9a AVD.
-
-### Added
-- Maestro E2E flow 05 (`follow-links`): opens a "Link Hub" note and follows one
-  of every org link form from Read mode — 27 cases across heading/`#custom-id`/
-  `id:`/`file:` targets (same file and cross-file), file-level `:ID:`, path
-  spellings, `::*Heading` / `::#custom-id` search options, the outline fallback
-  when a named heading is gone, external `https:` / `mailto:`, and unresolved
-  forms. New fixtures `links-hub.org` / `links-far.org`; `grove_toast` and
-  `outline_file_label` test tags. Verified on a Pixel_9a AVD.
-
-### Changed
-- Test-suite milestone M1 (infra): shared `testFixtures` source set with
-  `FakeFileStore`, `FakeSettingsRepository`, `OrgFixtures`, `TestVaultSeeder`,
-  and an in-memory Room helper; `AppDispatchers` holder for dispatcher
-  injection; `SettingsSource` read interface; Robolectric + Turbine on the
-  per-push JVM suite. No app behavior change. See
-  `internal/test-suite-00-overview.md`.
-- Test-suite milestone M2 (ViewModel refactor): every ViewModel now takes its
-  collaborators as explicit constructor parameters instead of the whole
-  `GroveApplication`, with the production wiring moved into each `Factory`
-  companion. New `SyncTrigger` interface over the sync side-effects VMs call
-  (`SyncManager` implements it). No app behavior change.
-- Test-suite milestone M3, first tranche: Robolectric + Turbine integration
-  tests for the Editor, Capture, Agenda, and Search ViewModels, running in the
-  existing per-push `testDebugUnitTest` job. `GroveDatabase.inMemory` /
-  `RoomNoteIndex` now work under Robolectric via the desktop `sqlite-bundled`
-  natives on the test classpath, and take an optional query `CoroutineContext`
-  so DAO queries run in a test's virtual time. New `FakeSyncTrigger` fixture,
-  `MainDispatcherRule`, and a `TestVaultSeeder.index` helper. No app behavior
-  change. Remaining VMs (App, Notebooks, Conflict/SyncLog) and the sync
-  round-trip test are a follow-up.
-- Test-suite milestone M3, second tranche: ~34 more Robolectric integration
-  tests. Editor (scoped INTRO / FILE_PROPERTIES / HEADING_LOGBOOK regions,
-  `changeKeyword` to a done state, external-rewrite counter, `deleteSubtree`,
-  metadata mutations), Capture (the no-sync-folder failure above, insert under a
-  heading by `CUSTOM_ID` and by title, autosave-replaces-in-place, discard
-  draft), Search (debounce timing, facet narrowing, `applyQuickQuery`, `setState`
-  write-back), Agenda (Today / Upcoming buckets, `loadMoreDays`,
-  `moveOverdueToToday`, `setPlanningDates`, undo), and a new `AppViewModel`
-  class plus a `SyncManagerRoundTripTest` covering the wired
-  `SyncManager.requestSync` path (disk → index, deletion → rows removed,
-  unchanged revision → no-op, `clearAndResync` rebuild). `GroveApplication` is
-  now `open` so a Robolectric test can subclass it with a no-op `onCreate`.
-- Test-suite milestone M3, third tranche: 48 Robolectric integration tests for
-  the last four ViewModels — `NotebooksViewModel` (folder tree from the index;
-  create / rename / move / delete of notebooks and folders → vault + index-row
-  effects), `DocumentViewModel` (load/error; org-link resolution across every
-  target form; the outline mutations `moveUp` / `moveDown` / `promote` /
-  `demote` / `deleteNote` and their undo; note creation; the metadata edits;
-  the heading-less-intro promote; favorites and the `:CUSTOM_ID:` they force;
-  the open-editor pending-buffer splice; cross-file refile), `ConflictViewModel`
-  (copy-name + texts + label pairing, the reload-not-success path), and
-  `SyncLogViewModel` (newest-first stream, page cap + `loadMore`). Each test
-  cancels its ViewModel scope in teardown so a leaked Settings/Favorites
-  DataStore collector can't wedge the shared unit-suite JVM. No app behavior
-  change. `AppViewModel.consumeSharedContent` stays deferred pending a
-  collaborators-explicit refactor of `ShareIntake.consumeShare`.
-- Test-suite milestone M4, first tranche: `androidTest/` Compose UI tests for
-  the Search, Notebooks, Outline, and Edit-note screens — each hosted directly
-  under `GroveTheme` with a fake-wired ViewModel and asserted through the
-  semantics tree. Shared `ScreenTestEnv` wiring; a minimal `testTag` inventory
-  added to those screens; `EditNoteScreen` gained an injectable
-  `refileViewModel` parameter. New nightly / manual `ui-tests` CI job runs them
-  on an emulator (API 34 + 35); they never run on the per-push net. No app
-  behavior change.
-- Test-suite milestone M4, second tranche: `androidTest/` Compose UI tests for
-  the remaining screens — `OnboardingScreen`, `ReadNoteScreen` (heading + body,
-  inline markup and `#+BEGIN_SRC`, org-table grid, large-subtree scroll), the
-  capture flow (`CapturePickerSheet` + `CaptureEditorScreen`), and
-  `SettingsAppearanceScreen` — plus backfilled scenarios on the first four
-  (far-heading scroll, raw org-table source in Edit mode, the Notebooks dock
-  affordances). `ScreenTestEnv` gained a `CaptureViewModel` off the DataStore
-  `TemplatesRepository`; new `org_table` / `read_note_scroll` tags. A
-  stateless-screen slice also runs under Robolectric `@GraphicsMode.NATIVE` in
-  the per-push JVM job. The suite now runs under AndroidX Test Orchestrator
-  (each test in its own process, app data wiped) — without it the ~30 test
-  activities intermittently crashed on a leaked `Choreographer` looper. No app
-  behavior change.
-- Test-suite milestone M5, first tranche: three Maestro end-to-end journeys
-  (`.maestro/flows/` — capture → confirm, search → open, edit → save) plus the
-  debug-only test-vault hook they need. `MainActivity` reads
-  `--ez grove_test_direct_vault true` / `--ez grove_test_seed true` launch
-  extras via `DebugTestVault` (no-op unless `BuildConfig.DEBUG`) to run against
-  a seeded app-owned directory vault with no SAF picker or onboarding. Fixture
-  `.org` bodies moved to `app/src/testFixtures/resources/fixtures/` (read by
-  `OrgFixtures` and copied into the debug APK's assets by `copyDebugTestFixtures`).
-  New manual `e2e-maestro` CI job. Release builds carry none of the hook or
-  fixtures. The onboarding + SAF-picker journey is deferred. No app behavior
-  change.
-- Test-suite milestone M6, first tranche: new `:macrobenchmark` module with
-  startup (cold / warm, three compilation modes), scroll-jank (Notebooks and
-  Outline lists), and baseline-profile-generator benchmarks. The
-  `androidx.baselineprofile` plugin on `:app` derives the `benchmarkRelease` /
-  `nonMinifiedRelease` build types the benchmarks measure. The M5 test-vault
-  hook was generalised (`BuildConfig.DEBUG` → `BuildConfig.TEST_HOOKS`, on for
-  `debug` + the two benchmark variants) and can now seed a large synthetic vault
-  via a `grove_test_vault_size` extra. `NotebooksScreen` calls `reportFullyDrawn`
-  once the notebook list is on screen so `timeToFullDisplayMs` is meaningful.
-  New manual `macrobenchmark` CI job. Release builds are unchanged and carry
-  none of the hook. Benchmarks not yet run on a device; no baseline profile
-  committed yet.
-
 ## [1.5.0] - 2026-09-07
 
 ### Added
@@ -361,6 +169,15 @@ re-uploads the APKs to the existing release instead of failing.
   edit) back into them, and asks to save or discard when you leave the note.
 
 ### Fixed
+- Read mode: checkbox/bullet markers in a list sat slightly below the center
+  of their item text. The marker box is now sized to the exact first-line box
+  and the item text uses a centered, untrimmed line height, so the glyph and
+  the first line of text line up.
+- Capture: saving a note while no sync folder is configured used to briefly
+  report success and fire a spurious sync request; it now fails cleanly with
+  "No sync folder configured" and touches nothing. Only reachable through code
+  paths (a share-sheet capture on a fresh install); no user-visible change in
+  normal use.
 - The Read/Edit toggle in the note top bar and the metadata button at the
   bottom-right now sit on the same 24dp right margin as the back arrow and the
   note body, instead of pressing against the screen edge.
