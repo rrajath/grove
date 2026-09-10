@@ -82,7 +82,7 @@ When a feature isn't in this table, grep inside the closest matching package bef
 
 ## Conventions
 - Settings pages and the Import/Export Settings workflow must be updated together — any add/change/delete in Settings needs a matching change to import/export.
-- After every commit, add a short (1-2 sentence) entry to `CHANGELOG.md` under `[Unreleased]`. A GitHub Actions release (on a `v*.*.*` tag) archives that section automatically.
+- After every commit, add a short (1-2 sentence) entry to `CHANGELOG.md` under `[Unreleased]`. The changelog description MUST NOT exceed 20 words. A GitHub Actions release (on a `v*.*.*` tag) archives that section automatically.
 - No ktlint/detekt/Spotless is configured — match surrounding style by hand.
 
 ## Key Design Decisions
