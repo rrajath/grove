@@ -59,6 +59,8 @@ re-uploads the APKs to the existing release instead of failing.
 
 ## [Unreleased]
 
+- Performance improvements.
+
 - Planning Dates: the Today/Tomorrow/weekend/next-week presets now show on
   every tab before a date is set, not only after.
 
