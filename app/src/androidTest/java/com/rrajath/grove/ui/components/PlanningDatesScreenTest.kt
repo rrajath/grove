@@ -6,6 +6,7 @@ import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.rrajath.grove.org.OrgTimestamp
 import com.rrajath.grove.org.PlanningKind
@@ -19,6 +20,11 @@ import java.time.LocalDate
 /**
  * Layer-2 UI coverage for the "Dates B — tabs" [PlanningDatesScreen]: the
  * three-way tab control and the ACTIVE tab's timestamp list + Apply path.
+ *
+ * The tab control and everything under it live inside the screen's vertical-scroll
+ * canvas, below the month calendar, so on CI's short emulator viewport they start
+ * off-screen. Every assertion/tap on that content is reached with `performScrollTo()`
+ * first; only the pinned footer ("Apply dates") is always visible.
  */
 @RunWith(AndroidJUnit4::class)
 class PlanningDatesScreenTest {
@@ -41,9 +47,9 @@ class PlanningDatesScreenTest {
                 onConfirm = { _, _, _ -> },
             )
         }
-        composeRule.onNodeWithText("◷ SCHEDULED").assertIsDisplayed()
-        composeRule.onNodeWithText("⚑ DEADLINE").assertIsDisplayed()
-        composeRule.onNodeWithText("● ACTIVE").assertIsDisplayed()
+        composeRule.onNodeWithText("SCHEDULED").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("DEADLINE").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("ACTIVE").performScrollTo().assertIsDisplayed()
     }
 
     @Test
@@ -62,7 +68,7 @@ class PlanningDatesScreenTest {
         }
 
         // The ACTIVE tab opens focused: its count line and the stamp chip show.
-        composeRule.onNodeWithText("1 timestamp", substring = true).assertIsDisplayed()
+        composeRule.onNodeWithText("1 timestamp", substring = true).performScrollTo().assertIsDisplayed()
         composeRule.waitUntil(timeoutMillis = 3_000) {
             composeRule.onAllNodesWithText("Apply dates").fetchSemanticsNodes().isNotEmpty()
         }
@@ -86,9 +92,9 @@ class PlanningDatesScreenTest {
             )
         }
 
-        // No date set yet, but the presets are visible immediately.
-        composeRule.onNodeWithText("Today ·", substring = true).assertIsDisplayed()
-        composeRule.onNodeWithText("Today ·", substring = true).performClick()
+        // No date set yet, but the presets are visible once scrolled into view.
+        composeRule.onNodeWithText("Today ·", substring = true).performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Today ·", substring = true).performScrollTo().performClick()
 
         composeRule.onNodeWithText("Apply dates").performClick()
         assertEquals(LocalDate.now(), applied?.date)
@@ -108,9 +114,9 @@ class PlanningDatesScreenTest {
             )
         }
         // SCHEDULED starts focused: its hint is shown.
-        composeRule.onNodeWithText("One day only", substring = true).assertIsDisplayed()
+        composeRule.onNodeWithText("One day only", substring = true).performScrollTo().assertIsDisplayed()
 
-        composeRule.onNodeWithText("● ACTIVE").performClick()
+        composeRule.onNodeWithText("ACTIVE").performScrollTo().performClick()
 
         // The ACTIVE hint replaces the single-day one.
         composeRule.waitUntil(timeoutMillis = 3_000) {
