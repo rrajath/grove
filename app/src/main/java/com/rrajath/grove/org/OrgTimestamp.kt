@@ -50,12 +50,15 @@ data class OrgTimestamp(
 ) {
     fun format(): String {
         val sb = StringBuilder()
+        // A cross-day range with times writes them split across the two brackets
+        // (`<a 09:00>--<b 12:00>`, org's canonical form), not both on the opener.
+        val splitTimes = rangeEnd != null && endTime != null
         sb.append(if (active) '<' else '[')
         sb.append(date)
         sb.append(' ').append(dayAbbrev(date))
         if (time != null) {
             sb.append(' ').append(formatTime(time))
-            if (endTime != null) sb.append('-').append(formatTime(endTime))
+            if (endTime != null && !splitTimes) sb.append('-').append(formatTime(endTime))
         }
         if (repeater != null) sb.append(' ').append(repeater)
         if (warning != null) sb.append(' ').append(warning)
@@ -65,6 +68,7 @@ data class OrgTimestamp(
             sb.append(if (active) '<' else '[')
             sb.append(rangeEnd)
             sb.append(' ').append(dayAbbrev(rangeEnd))
+            if (splitTimes) sb.append(' ').append(formatTime(endTime))
             sb.append(if (active) '>' else ']')
         }
         return sb.toString()
@@ -85,13 +89,16 @@ data class OrgTimestamp(
         val sb = StringBuilder()
         sb.append(HUMAN_DATE.format(date))
         if (date.year != today.year) sb.append(", ").append(date.year)
+        if (time != null) {
+            sb.append(' ').append(formatTime(time))
+            // A same-day time range stays joined (`09:00-12:00`); a cross-day
+            // range carries its end time on the last date instead (below).
+            if (endTime != null && rangeEnd == null) sb.append('-').append(formatTime(endTime))
+        }
         if (rangeEnd != null) {
             sb.append(" – ").append(HUMAN_DATE.format(rangeEnd))
             if (rangeEnd.year != today.year) sb.append(", ").append(rangeEnd.year)
-        }
-        if (time != null) {
-            sb.append(' ').append(formatTime(time))
-            if (endTime != null) sb.append('-').append(formatTime(endTime))
+            if (endTime != null) sb.append(' ').append(formatTime(endTime))
         }
         if (repeater != null) sb.append(' ').append(repeater)
         if (warning != null) sb.append(' ').append(warning)
@@ -190,7 +197,15 @@ data class OrgTimestamp(
                 if (ts.active && ts.rangeEnd == null && after.startsWith("--")) {
                     val endMatch = parseWithRange(after.substring(2))
                     if (endMatch != null && endMatch.second.first == 0 && endMatch.first.active) {
-                        result.add(ts.copy(rangeEnd = endMatch.first.date))
+                        result.add(
+                            ts.copy(
+                                rangeEnd = endMatch.first.date,
+                                // Org's canonical timed range puts the end time on
+                                // the closing bracket; fall back to any the opener
+                                // carried (older `<a 09:00-12:00>--<b>` form).
+                                endTime = endMatch.first.time ?: ts.endTime,
+                            ),
+                        )
                         offset = absEnd + 2 + endMatch.second.last + 1
                         continue
                     }

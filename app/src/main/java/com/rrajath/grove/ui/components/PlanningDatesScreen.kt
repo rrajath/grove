@@ -1128,7 +1128,7 @@ private fun ShorthandBox(
         Box(Modifier.weight(1f)) {
             if (value.isEmpty()) {
                 Text(
-                    "a: fri  ·  d: aug 5 ++1m",
+                    "d: aug 5 ++1m",
                     fontFamily = PlexMono, fontSize = 14.sp, color = c.ink3,
                     modifier = Modifier.padding(vertical = 11.dp),
                 )

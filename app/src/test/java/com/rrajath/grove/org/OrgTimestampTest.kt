@@ -214,6 +214,40 @@ class OrgTimestampTest {
     }
 
     @Test
+    fun `format splits a timed cross-day range across the two brackets`() {
+        val ts = OrgTimestamp(
+            date = LocalDate.of(2026, 9, 11),
+            time = LocalTime.of(9, 0),
+            endTime = LocalTime.of(12, 0),
+            rangeEnd = LocalDate.of(2026, 9, 12),
+        )
+        assertEquals("<2026-09-11 Fri 09:00>--<2026-09-12 Sat 12:00>", ts.format())
+    }
+
+    @Test
+    fun `parseAll reads the end time off the closing bracket of a range`() {
+        val ts = OrgTimestamp.parseAll("<2026-09-11 Fri 09:00>--<2026-09-12 Sat 12:00>").single()
+        assertEquals(LocalTime.of(9, 0), ts.time)
+        assertEquals(LocalTime.of(12, 0), ts.endTime)
+        assertEquals(LocalDate.of(2026, 9, 12), ts.rangeEnd)
+    }
+
+    @Test
+    fun `parseAll still reads a legacy joined end time on the opening bracket`() {
+        val ts = OrgTimestamp.parseAll("<2026-09-11 Fri 09:00-12:00>--<2026-09-12 Sat>").single()
+        assertEquals(LocalTime.of(12, 0), ts.endTime)
+        assertEquals(LocalDate.of(2026, 9, 12), ts.rangeEnd)
+        // …and re-emits it in the canonical split form.
+        assertEquals("<2026-09-11 Fri 09:00>--<2026-09-12 Sat 12:00>", ts.format())
+    }
+
+    @Test
+    fun `formatHuman puts the end time on the last date of a cross-day range`() {
+        val ts = OrgTimestamp.parseAll("<2026-09-11 Fri 09:00>--<2026-09-12 Sat 12:00>").single()
+        assertEquals("Sep 11 09:00 – Sep 12 12:00", ts.formatHuman(today = LocalDate.of(2026, 1, 1)))
+    }
+
+    @Test
     fun `advanceRepeater shifts the range end by the same delta`() {
         val ts = OrgTimestamp.parseAll("<2026-09-08 Mon>--<2026-09-10 Wed>").single()
             .copy(repeater = Repeater(RepeaterType.CUMULATIVE, 1, 'w'))
