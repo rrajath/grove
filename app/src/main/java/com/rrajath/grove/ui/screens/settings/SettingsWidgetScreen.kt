@@ -14,6 +14,7 @@ import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -59,7 +60,7 @@ fun SettingsWidgetScreen(
         // updates this in-memory value (smooth, and the preview tracks it live);
         // onValueChangeFinished commits it to disk once, when the drag ends.
         var localTransparency by remember(settings.agendaWidgetTransparency) {
-            mutableStateOf(settings.agendaWidgetTransparency)
+            mutableFloatStateOf(settings.agendaWidgetTransparency)
         }
         SettingsGroup {
             Column(Modifier.padding(horizontal = 15.dp, vertical = 10.dp)) {

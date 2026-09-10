@@ -1,7 +1,7 @@
 package com.rrajath.grove
 
 import android.app.Application
-import android.net.Uri
+import androidx.core.net.toUri
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
@@ -131,7 +131,7 @@ open class GroveApplication : Application() {
         ) { uriString, testRoot ->
             when {
                 testRoot != null -> JvmFileStore(testRoot)
-                uriString != null -> SafFileStore(this, Uri.parse(uriString))
+                uriString != null -> SafFileStore(this, uriString.toUri())
                 else -> null
             }
         }.stateIn(appScope, SharingStarted.Eagerly, null)

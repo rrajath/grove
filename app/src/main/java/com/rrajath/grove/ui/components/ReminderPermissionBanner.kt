@@ -2,7 +2,6 @@ package com.rrajath.grove.ui.components
 
 import android.Manifest
 import android.content.Intent
-import android.net.Uri
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -24,6 +23,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.net.toUri
 import com.rrajath.grove.GroveApplication
 import com.rrajath.grove.reminders.AlarmScheduler
 import com.rrajath.grove.ui.theme.PlexSans
@@ -88,7 +88,7 @@ fun ReminderPermissionBanner(pendingCount: Int, modifier: Modifier = Modifier) {
                             exactAlarmSettings.launch(
                                 Intent(
                                     Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
-                                    Uri.parse("package:${context.packageName}"),
+                                    "package:${context.packageName}".toUri(),
                                 )
                             )
 

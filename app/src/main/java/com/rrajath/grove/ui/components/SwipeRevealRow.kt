@@ -180,11 +180,11 @@ fun SwipeCommitRow(
     leftAction: SwipeAction?,
     rightAction: SwipeAction?,
     onTap: () -> Unit,
+    modifier: Modifier = Modifier,
     leftSecondaryAction: SwipeAction? = null,
     rightSecondaryAction: SwipeAction? = null,
     forceClose: Boolean = false,
     onOpenChanged: (Boolean) -> Unit = {},
-    modifier: Modifier = Modifier,
     /** Clip applied to the foreground card (e.g. a rounded ripple boundary). */
     shape: Shape = RectangleShape,
     content: @Composable () -> Unit,

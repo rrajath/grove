@@ -228,6 +228,18 @@ android {
         // leaked Choreographer looper once ~30 test activities share one process.
         execution = "ANDROIDX_TEST_ORCHESTRATOR"
     }
+
+    lint {
+        // Version-availability nags, not defects: informational only, depend on a
+        // network lookup, and go stale on their own. Bumping AGP/Kotlin/Compose/
+        // libraries is a deliberate, separately-tested change, not a lint fix.
+        disable += setOf(
+            "GradleDependency",
+            "NewerVersionAvailable",
+            "AndroidGradlePluginVersion",
+            "OldTargetApi",
+        )
+    }
 }
 
 composeCompiler {

@@ -59,6 +59,9 @@ re-uploads the APKs to the existing release instead of failing.
 
 ## [Unreleased]
 
+- Cleared all Android lint warnings: KTX URI/bitmap helpers, a non-restricted
+  back-stack check, capture-shortcut usage reporting, and other small fixes.
+
 - Added a What's New screen in Settings › About: recent releases as cards, with
   an unseen-release dot on the row.
 

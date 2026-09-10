@@ -5,11 +5,12 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
-import android.net.Uri
 import androidx.compose.ui.graphics.toArgb
 import androidx.core.content.pm.ShortcutInfoCompat
 import androidx.core.content.pm.ShortcutManagerCompat
+import androidx.core.graphics.createBitmap
 import androidx.core.graphics.drawable.IconCompat
+import androidx.core.net.toUri
 import com.rrajath.grove.icon.AppIconManager
 import com.rrajath.grove.settings.ThemePreference
 import com.rrajath.grove.ui.components.monogramLetter
@@ -50,6 +51,15 @@ object ShortcutSyncer {
     }
 
     /**
+     * Tells the launcher that [templateId]'s capture shortcut was just
+     * invoked, so it can rank frequently-used capture shortcuts higher.
+     * Called from the grove://capture/{id} deep-link handler.
+     */
+    fun reportShortcutUsed(context: Context, templateId: String) {
+        ShortcutManagerCompat.reportShortcutUsed(context, templateId)
+    }
+
+    /**
      * Pins a single template's capture shortcut to the homescreen, via
      * whichever system picker/confirmation the launcher shows for
      * requestPinShortcut. Returns false if the current launcher doesn't
@@ -73,7 +83,7 @@ object ShortcutSyncer {
         fg: Int,
         ownerAlias: android.content.ComponentName,
     ): ShortcutInfoCompat {
-        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("grove://capture/${template.id}"))
+        val intent = Intent(Intent.ACTION_VIEW, "grove://capture/${template.id}".toUri())
             .setClassName(context.packageName, "com.rrajath.grove.MainActivity")
         return ShortcutInfoCompat.Builder(context, template.id)
             .setShortLabel(template.name)
@@ -85,7 +95,7 @@ object ShortcutSyncer {
     }
 
     private fun glyphBitmap(glyph: String, bg: Int, fg: Int): Bitmap {
-        val bitmap = Bitmap.createBitmap(ICON_SIZE_PX, ICON_SIZE_PX, Bitmap.Config.ARGB_8888)
+        val bitmap = createBitmap(ICON_SIZE_PX, ICON_SIZE_PX)
         val canvas = Canvas(bitmap)
         val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = bg }
         canvas.drawCircle(ICON_SIZE_PX / 2f, ICON_SIZE_PX / 2f, ICON_SIZE_PX / 2f, bgPaint)

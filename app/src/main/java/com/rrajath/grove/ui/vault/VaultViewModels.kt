@@ -1,8 +1,8 @@
 package com.rrajath.grove.ui.vault
 
 import android.content.Intent
-import android.net.Uri
 import android.provider.DocumentsContract
+import androidx.core.net.toUri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -76,7 +76,7 @@ import java.time.format.DateTimeFormatter
 private fun vaultDisplayName(treeUri: String?): String {
     if (treeUri.isNullOrEmpty()) return "Notebooks"
     return runCatching {
-        DocumentsContract.getTreeDocumentId(Uri.parse(treeUri))
+        DocumentsContract.getTreeDocumentId(treeUri.toUri())
             .substringAfterLast('/')
             .substringAfterLast(':')
             .ifEmpty { "Notebooks" }
@@ -793,7 +793,7 @@ class DocumentViewModel(
                 is LinkResolution.Outline -> onOpenOutline(resolution.fileName)
                 is LinkResolution.External -> runCatching {
                     app.startActivity(
-                        Intent(Intent.ACTION_VIEW, Uri.parse(resolution.uri))
+                        Intent(Intent.ACTION_VIEW, resolution.uri.toUri())
                             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     )
                 }.onFailure { showToast("Couldn't open $rawTarget") }

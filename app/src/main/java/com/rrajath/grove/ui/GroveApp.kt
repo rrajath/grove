@@ -23,6 +23,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -179,7 +180,7 @@ private fun externalOrgFileName(context: android.content.Context, uri: android.n
 private fun vaultDisplayPath(treeUri: String?): String {
     if (treeUri == null) return "no folder selected"
     val docId = runCatching {
-        android.provider.DocumentsContract.getTreeDocumentId(android.net.Uri.parse(treeUri))
+        android.provider.DocumentsContract.getTreeDocumentId(treeUri.toUri())
     }.getOrNull() ?: return treeUri
     val path = docId.substringAfter(':', docId).ifEmpty { "(storage root)" }
     return if (docId.startsWith("primary:")) "~/$path" else path
@@ -193,7 +194,7 @@ private fun GroveNavigation(
     onDeepLinkConsumed: (android.content.Intent) -> Unit = {},
 ) {
     val navController = rememberNavController()
-    val activity = androidx.compose.ui.platform.LocalContext.current as? android.app.Activity
+    val activity = androidx.activity.compose.LocalActivity.current
     // Set when a grove://capture or grove://note deep link (widget, notification,
     // shortcut) arrives with no real prior navigation on the back stack -- see
     // the "hasNoRealBackStack" check below. CAPTURE's onDismiss, CAPTURE_TEMPLATE's
@@ -246,9 +247,14 @@ private fun GroveNavigation(
                 // sitting idle on Notebooks; either way there's nothing the user
                 // actually visited to return to, so leaving should exit to
                 // wherever the tap came from instead of surfacing Notebooks.
-                val hasNoRealBackStack = navController.currentBackStack.value.size <= 1
+                val hasNoRealBackStack = navController.previousBackStackEntry == null
                 if (hasNoRealBackStack && (uri.host == "capture" || uri.host == "note")) {
                     closeActivityOnExit = true
+                }
+                // A grove://capture/{templateId} arrival is a launcher shortcut
+                // tap; tell the system so it can rank that shortcut by usage.
+                if (uri.host == "capture") {
+                    uri.pathSegments.firstOrNull()?.let { ShortcutSyncer.reportShortcutUsed(app, it) }
                 }
                 navController.handleDeepLink(intent)
                 return@LaunchedEffect
