@@ -20,8 +20,10 @@ import com.rrajath.grove.vault.Vault
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -98,6 +100,14 @@ class AppViewModelIntegrationTest {
      * before a settings write (and the VM code sequenced after it) has landed.
      * Interleave real-time yields with scheduler drains until [condition] holds.
      */
+    /**
+     * The UI-facing StateFlows use SharingStarted.WhileSubscribed, so they sit on
+     * their seed value until something collects. Park a collector on the test's
+     * backgroundScope (auto-cancelled at test end) to make them live.
+     */
+    private fun TestScope.keepHot(vararg flows: Flow<*>) =
+        flows.forEach { f -> backgroundScope.launch { f.collect {} } }
+
     private suspend fun TestScope.settleUntil(timeoutMs: Long = 5_000, condition: suspend () -> Boolean) {
         val deadline = System.currentTimeMillis() + timeoutMs
         while (System.currentTimeMillis() < deadline) {
@@ -171,6 +181,7 @@ class AppViewModelIntegrationTest {
     fun `deleteSavedSearch removes it from the exposed flow`() = runTest {
         searchRepository.saveSearch("Temporary", "i.TODO")
         val vm = appVm()
+        keepHot(vm.savedSearches)
         settleUntil { vm.savedSearches.value.any { it.name == "Temporary" } }
         val id = vm.savedSearches.value.single { it.name == "Temporary" }.id
 
@@ -183,6 +194,7 @@ class AppViewModelIntegrationTest {
     @Test
     fun `addFavorite then removeFavorite round-trips through the favorites flow`() = runTest {
         val vm = appVm()
+        keepHot(vm.favorites)
         advanceUntilIdle()
 
         vm.addFavorite("projects.org", lineIndex = 2, title = "Ship v2 release", customId = null)

@@ -6,6 +6,7 @@ import com.rrajath.grove.data.SyncLogEntity
 import com.rrajath.grove.testing.InMemoryGroveDatabase
 import com.rrajath.grove.testing.support.MainDispatcherRule
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -52,6 +53,9 @@ class SyncLogViewModelIntegrationTest {
         log(3)
 
         val vm = SyncLogViewModel(db)
+        // entries/total are SharingStarted.WhileSubscribed — collect to make live.
+        backgroundScope.launch { vm.entries.collect {} }
+        backgroundScope.launch { vm.total.collect {} }
         advanceUntilIdle()
 
         assertEquals(listOf("entry 2", "entry 1", "entry 0"), vm.entries.value.map { it.message })
@@ -64,6 +68,8 @@ class SyncLogViewModelIntegrationTest {
         log(overflow)
 
         val vm = SyncLogViewModel(db)
+        backgroundScope.launch { vm.entries.collect {} }
+        backgroundScope.launch { vm.total.collect {} }
         advanceUntilIdle()
 
         assertEquals(SyncLogViewModel.PAGE_SIZE, vm.entries.value.size)

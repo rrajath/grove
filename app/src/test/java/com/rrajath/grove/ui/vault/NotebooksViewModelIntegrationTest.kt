@@ -16,6 +16,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -99,7 +100,11 @@ class NotebooksViewModelIntegrationTest {
     private suspend fun TestScope.seededVm(): NotebooksViewModel {
         TestVaultSeeder.index(db, store)
         advanceUntilIdle()
-        return notebooksVm()
+        return notebooksVm().also {
+            // state is SharingStarted.WhileSubscribed now — park a collector so it
+            // leaves the NoVault seed and builds the real tree.
+            backgroundScope.launch { it.state.collect {} }
+        }
     }
 
     @After
