@@ -4,7 +4,10 @@ import android.content.Context
 import android.net.Uri
 import android.provider.DocumentsContract
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Storage Access Framework implementation over a persisted tree URI
@@ -28,11 +31,22 @@ class SafFileStore(
     private val resolver get() = context.contentResolver
     private val rootDocId get() = DocumentsContract.getTreeDocumentId(treeUri)
 
+    // ConcurrentHashMap, not plain maps: Vault (and therefore this store) is a
+    // process-wide singleton reached concurrently by SyncEngine on appScope and
+    // by ViewModels on viewModelScope. list() swaps these wholesale while
+    // create/rename/delete mutate them and pruneEmptyDirs iterates their keys —
+    // a CME (or silent corruption) window with a LinkedHashMap.
+
     /** relative file path -> document id */
-    private var docIds = mutableMapOf<String, String>()
+    @Volatile
+    private var docIds: MutableMap<String, String> = ConcurrentHashMap()
 
     /** relative directory path ("" == vault root) -> document id */
-    private var dirDocIds = mutableMapOf<String, String>()
+    @Volatile
+    private var dirDocIds: MutableMap<String, String> = ConcurrentHashMap()
+
+    /** Serializes tree walks so concurrent cache misses don't each rebuild the maps. */
+    private val listMutex = Mutex()
 
     /**
      * True once [list] has walked the whole tree at least once. A lookup that
@@ -54,6 +68,10 @@ class SafFileStore(
     )
 
     override suspend fun list(): List<FileEntry> = withContext(Dispatchers.IO) {
+        listMutex.withLock { listTree() }
+    }
+
+    private fun listTree(): List<FileEntry> {
         val files = mutableMapOf<String, String>()
         val dirs = mutableMapOf("" to rootDocId)
         val entries = mutableListOf<FileEntry>()
@@ -80,10 +98,10 @@ class SafFileStore(
                 }
             }
         }
-        docIds = files
-        dirDocIds = dirs
+        docIds = ConcurrentHashMap(files)
+        dirDocIds = ConcurrentHashMap(dirs)
         listed = true
-        entries.sortedBy { it.name }
+        return entries.sortedBy { it.name }
     }
 
     override suspend fun stat(name: String): FileEntry? = withContext(Dispatchers.IO) {

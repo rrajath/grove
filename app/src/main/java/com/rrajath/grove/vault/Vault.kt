@@ -3,6 +3,8 @@ package com.rrajath.grove.vault
 import com.rrajath.grove.org.OrgDocument
 import com.rrajath.grove.org.OrgKeywords
 import com.rrajath.grove.org.OrgParser
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * A notebook = one .org file in the vault. [fileName] is the identity: a
@@ -60,7 +62,12 @@ class Vault(
 
     // accessOrder = true → iteration starts at the least-recently-used entry,
     // so the size-cap eviction in document() drops the LRU parse, not the oldest.
+    // accessOrder also means a *read* structurally mutates the list, so every
+    // touch of this map goes through [cacheMutex]: Vault is a process-wide
+    // singleton reached concurrently by SyncEngine and any number of ViewModels,
+    // and a racing LinkedHashMap.get can loop forever rather than throw.
     private val cache = LinkedHashMap<CacheKey, OrgDocument>(16, 0.75f, true)
+    private val cacheMutex = Mutex()
 
     suspend fun notebooks(): List<Notebook> {
         val entries = store.list()
@@ -125,7 +132,7 @@ class Vault(
         // case-only self-rename (Work.org -> work.org).
         if (!target.equals(oldName, ignoreCase = true) && pathTaken(target)) return false
         val ok = store.rename(oldName, target)
-        if (ok) cache.keys.removeAll { it.name == oldName }
+        if (ok) evictParse(oldName)
         return ok
     }
 
@@ -139,7 +146,7 @@ class Vault(
         val target = vaultPath(newDir, leaf)
         if (target == path) return null
         val ok = store.rename(path, target)
-        if (ok) cache.keys.removeAll { it.name == path }
+        if (ok) evictParse(path)
         return if (ok) target else null
     }
 
@@ -152,7 +159,7 @@ class Vault(
     suspend fun deleteNotebook(name: String): Boolean {
         val ok = store.delete(name)
         if (ok) {
-            cache.keys.removeAll { it.name == name }
+            evictParse(name)
             store.pruneEmptyDirs(name.substringBeforeLast('/', ""))
         }
         return ok
@@ -190,7 +197,7 @@ class Vault(
         var movedAny = false
         for ((from, to) in moves) {
             if (store.rename(from, to)) {
-                cache.keys.removeAll { it.name == from }
+                evictParse(from)
                 movedAny = true
             }
         }
@@ -210,7 +217,7 @@ class Vault(
             .filter { it.fileName.startsWith(prefix) }
             .count {
                 val ok = store.delete(it.fileName)
-                if (ok) cache.keys.removeAll { c -> c.name == it.fileName }
+                if (ok) evictParse(it.fileName)
                 ok
             }
         if (deleted > 0) store.pruneEmptyDirs(trimmed)
@@ -219,17 +226,22 @@ class Vault(
 
     suspend fun save(fileName: String, content: String) {
         store.write(fileName, content)
+        evictParse(fileName)
+    }
+
+    /** Drop every cached parse of [fileName] (any revision). */
+    private suspend fun evictParse(fileName: String) = cacheMutex.withLock {
         cache.keys.removeAll { it.name == fileName }
     }
 
-    private suspend fun document(entry: FileEntry): OrgDocument {
+    private suspend fun document(entry: FileEntry): OrgDocument = cacheMutex.withLock {
         val key = CacheKey(entry.name, entry.lastModified, entry.size)
-        cache[key]?.let { return it }
+        cache[key]?.let { return@withLock it }
         val doc = OrgParser.parse(store.read(entry.name), keywords)
         // Drop stale parses of the same file, cap total cache size.
         cache.keys.removeAll { it.name == entry.name }
         if (cache.size > 64) cache.remove(cache.keys.first())
         cache[key] = doc
-        return doc
+        doc
     }
 }
