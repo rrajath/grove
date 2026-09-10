@@ -89,7 +89,7 @@ class AgendaViewModelRowTest {
     }
 
     @Test
-    fun `an event row renders a violet dot day chip and its own time range`() {
+    fun `an event row renders its own time range and no overdue styling`() {
         val meta = note(title = "Team offsite", tags = emptyList(), inheritedTags = emptyList())
         val ts = OrgTimestamp.parse("<2025-06-13 Fri 09:00-17:00>")!!
 
@@ -99,7 +99,6 @@ class AgendaViewModelRowTest {
         )
 
         assertEquals(ts, row.activeTs)
-        assertEquals("● Friday", row.meta.single { it.tone == AgendaMetaTone.EVENT }.text)
         assertTrue(row.meta.any { it.text == "09:00–17:00" })
         // Events never carry overdue / deadline styling.
         assertTrue(row.meta.none { it.tone == AgendaMetaTone.DANGER })
@@ -107,7 +106,24 @@ class AgendaViewModelRowTest {
     }
 
     @Test
-    fun `isBareEvent is true only for a keyword-less active-timestamp row`() {
+    fun `the event day chip shows only when the row is not under a day section`() {
+        val meta = note(title = "Team offsite", tags = emptyList(), inheritedTags = emptyList())
+        val ts = OrgTimestamp.parse("<2025-06-13 Fri>")!!
+
+        // Under a day section (eventDay set): the header names the day, so no chip.
+        val grouped = AgendaViewModel.row(
+            meta, today, showDate = false, p = GroveSettings(),
+            activeTs = ts, eventDay = LocalDate.of(2025, 6, 13),
+        )
+        assertTrue(grouped.meta.none { it.tone == AgendaMetaTone.EVENT })
+
+        // No day section (eventDay null): the row carries the day itself.
+        val loose = AgendaViewModel.row(meta, today, showDate = false, p = GroveSettings(), activeTs = ts)
+        assertEquals("● Friday", loose.meta.single { it.tone == AgendaMetaTone.EVENT }.text)
+    }
+
+    @Test
+    fun `isEvent is true for any keyword-less agenda heading`() {
         val ts = OrgTimestamp.parse("<2025-06-13 Fri>")!!
         val eventDay = LocalDate.of(2025, 6, 13)
 
@@ -115,20 +131,20 @@ class AgendaViewModelRowTest {
             note("Team offsite", emptyList(), emptyList(), keyword = null),
             today, showDate = false, p = GroveSettings(), activeTs = ts, eventDay = eventDay,
         )
-        assertTrue(event.isBareEvent)
+        assertTrue(event.isEvent)
 
         // Same heading, but it carries a keyword: still a task.
         val keyworded = AgendaViewModel.row(
             note("Review PR", emptyList(), emptyList(), keyword = "NEXT"),
             today, showDate = false, p = GroveSettings(), activeTs = ts, eventDay = eventDay,
         )
-        assertEquals(false, keyworded.isBareEvent)
+        assertEquals(false, keyworded.isEvent)
 
-        // A plain scheduled heading with no keyword is not an event either.
+        // A scheduled heading with no keyword is also an event: nothing to complete.
         val scheduled = AgendaViewModel.row(
             note("Just scheduled", emptyList(), emptyList(), scheduled = "<2025-06-11 Wed>", keyword = null),
             today, showDate = false, p = GroveSettings(),
         )
-        assertEquals(false, scheduled.isBareEvent)
+        assertTrue(scheduled.isEvent)
     }
 }

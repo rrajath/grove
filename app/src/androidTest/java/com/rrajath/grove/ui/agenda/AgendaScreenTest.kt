@@ -21,9 +21,9 @@ import java.time.LocalDate
 /**
  * Layer-2 UI coverage for [AgendaScreen] (see internal/test-suite-02-ui-compose.md).
  *
- * A heading with a bare active timestamp and no TODO keyword is an event, not a
- * task: the agenda renders it with no "mark done" checkbox, while a real task on
- * the same day keeps its checkbox.
+ * A heading with no TODO keyword is an event, not a task, whether it is placed
+ * on the day by a bare active timestamp or by SCHEDULED: the agenda renders it
+ * with no "mark done" checkbox, while a real TODO task on the same day keeps one.
  */
 @RunWith(AndroidJUnit4::class)
 class AgendaScreenTest {
@@ -46,6 +46,8 @@ class AgendaScreenTest {
         SCHEDULED: ${orgDate(today)}
         * Team offsite
         ${orgDate(today)}
+        * Dentist appointment
+        SCHEDULED: ${orgDate(today)}
     """.trimIndent() + "\n"
 
     @Before
@@ -65,7 +67,7 @@ class AgendaScreenTest {
     }
 
     @Test
-    fun eventRowHasNoCheckboxWhileTheTaskRowDoes() {
+    fun onlyKeywordedTasksGetACheckbox() {
         content()
 
         composeRule.waitUntil(timeoutMillis = 10_000) {
@@ -73,8 +75,10 @@ class AgendaScreenTest {
         }
         composeRule.onNodeWithText("Ship the release").assertIsDisplayed()
         composeRule.onNodeWithText("Team offsite").assertIsDisplayed()
+        composeRule.onNodeWithText("Dentist appointment").assertIsDisplayed()
 
-        // One checkbox: the task's. The bare-timestamp event has none.
+        // One checkbox: the TODO task's. Neither the bare-timestamp event nor the
+        // keyword-less scheduled heading is a task, so neither gets one.
         assertEquals(
             1,
             composeRule.onAllNodesWithTag("agenda_checkbox", useUnmergedTree = true)

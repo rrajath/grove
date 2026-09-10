@@ -72,11 +72,13 @@ data class AgendaRow(
 )
 
 /**
- * A bare active-timestamp event with no TODO keyword: an event, not a task, so
- * there is nothing to "complete". [activeTs] is set only on rows placed on a day
- * by a bare active timestamp; a heading that also carries a keyword stays a task.
+ * A heading with no TODO keyword is an event, not a task: it appears in the
+ * agenda only because of a timestamp (a bare active date, SCHEDULED, or
+ * DEADLINE) and there is nothing to "complete" — so no checkbox, no Done swipe,
+ * and no done circle in the widget. A heading that carries a keyword stays a
+ * task even when it also has an active timestamp.
  */
-val AgendaRow.isBareEvent: Boolean get() = activeTs != null && keyword == null
+val AgendaRow.isEvent: Boolean get() = keyword == null
 
 /** One "Group by" bucket: an uppercase key, its count, and its rows. */
 @Immutable
@@ -596,11 +598,14 @@ class AgendaViewModel(
          * Builds one agenda row from a matched [NoteMeta]. Pure (no instance
          * state), so it lives here for direct unit testing.
          *
-         * When [activeTs] is set the row is an *event* placed on [eventDay] by
-         * that bare active timestamp: it renders a violet `●` day chip, its own
-         * time range and repeater, and never the overdue / `⚑` deadline
-         * styling. [scheduledTs]/[deadlineTs] on the row still carry the
-         * heading's real planning so swipe-to-schedule prefills correctly.
+         * When [activeTs] is set the row is an *event* placed on that bare
+         * active timestamp: it renders its own time range and repeater, and
+         * never the overdue / `⚑` deadline styling. It also gets a violet `●`
+         * day chip *unless* [eventDay] is set — a non-null [eventDay] means the
+         * caller is rendering the row under a day section whose header already
+         * names the day, so the chip would just repeat it.
+         * [scheduledTs]/[deadlineTs] on the row still carry the heading's real
+         * planning so swipe-to-schedule prefills correctly.
          */
         internal fun row(
             m: NoteMeta,
@@ -618,9 +623,12 @@ class AgendaViewModel(
                 .toImmutableList()
 
             if (activeTs != null) {
-                val day = eventDay ?: activeTs.date
                 val meta = buildList {
-                    add(AgendaMeta("● ${AgendaBuckets.dayLabel(day, today)}", AgendaMetaTone.EVENT))
+                    // Omitted under a day section (eventDay set): the section
+                    // header already names the day.
+                    if (eventDay == null) {
+                        add(AgendaMeta("● ${AgendaBuckets.dayLabel(activeTs.date, today)}", AgendaMetaTone.EVENT))
+                    }
                     activeTs.time?.let { start ->
                         val range = start.format(CLOCK) + (activeTs.endTime?.let { "–${it.format(CLOCK)}" } ?: "")
                         add(AgendaMeta(range, AgendaMetaTone.NORMAL))

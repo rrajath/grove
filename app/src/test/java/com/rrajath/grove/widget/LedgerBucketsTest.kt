@@ -2,6 +2,7 @@ package com.rrajath.grove.widget
 
 import com.rrajath.grove.search.NoteMeta
 import com.rrajath.grove.settings.GroveSettings
+import com.rrajath.grove.ui.agenda.AgendaMetaTone
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -114,7 +115,10 @@ class LedgerBucketsTest {
         val sections = LedgerBuckets.build(notes, today, windowDays = 14, settings = settings)
         val friday = sections.single { it.key == "Jun 13" }
         assertEquals(2, friday.count)
-        assertTrue(friday.rows.any { it.title == "Team offsite" && it.keyword == null })
+        val event = friday.rows.single { it.title == "Team offsite" }
+        assertEquals(null, event.keyword)
+        // The "Jun 13" section header already names the day: no repeated `●` chip.
+        assertTrue(event.meta.none { it.tone == AgendaMetaTone.EVENT })
     }
 
     @Test

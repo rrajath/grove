@@ -59,8 +59,11 @@ re-uploads the APKs to the existing release instead of failing.
 
 ## [Unreleased]
 
-- Bare-timestamp events lost their mark-done button in the Agenda and widget,
-  and now also appear in the ledger widget.
+- Headings with no TODO keyword lost their mark-done button in the Agenda and
+  widget, and now also appear in the ledger widget.
+
+- Event rows under a day heading no longer repeat that day (e.g. "Today") in
+  their metadata line.
 
 - Fixed deleted notebooks still firing reminder notifications; their alarms are
   now cancelled on delete, sync, and app start.

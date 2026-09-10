@@ -477,8 +477,8 @@ private fun AgendaList(
                 val rowKey = "${group.key}-${row.fileName}@${row.lineIndex}"
                 // Add-note rides along beside whichever side is configured as Mark
                 // Done: partial swipe reveals both, full swipe still marks done. On
-                // a bare-timestamp event (no keyword) the Done side is dropped and
-                // that side offers Add-note alone instead.
+                // an event (a heading with no TODO keyword) the Done side is dropped
+                // and that side offers Add-note alone instead.
                 val (leftPrimary, leftSecondary) = agendaSwipe(
                     state.swipeLeftAction, row, c, onOpenDatePicker, onToggleDone, onOpenNoteDialog,
                 )
@@ -600,9 +600,9 @@ private fun AgendaRowContent(row: AgendaRow, onToggleDone: () -> Unit) {
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.Top,
     ) {
-        // A bare-timestamp event is not a task: no checkbox, but keep the indent
-        // so its title lines up with the planned rows in the same day group.
-        if (row.isBareEvent) {
+        // An event (a heading with no TODO keyword) is not a task: no checkbox,
+        // but keep the indent so its title lines up with the tasks beside it.
+        if (row.isEvent) {
             Spacer(Modifier.width(20.dp))
         } else {
             AgendaCheckbox(isDone = row.isDone, priority = row.priority, onClick = onToggleDone)
@@ -732,9 +732,9 @@ internal fun GroveColors.metaColor(tone: AgendaMetaTone): Color = when (tone) {
  * - `SET_SCHEDULED` / `SET_DEADLINE`: a single swipe-to-commit action, no secondary.
  * - `MARK_DONE` on a task: "Done" primary with an "Add note" secondary riding
  *   alongside (partial swipe reveals both, full swipe commits Done).
- * - `MARK_DONE` on a bare-timestamp event ([AgendaRow.isBareEvent]): there is
- *   nothing to complete, so the Done cell is dropped and the side becomes a plain
- *   swipe-to-commit "Add note".
+ * - `MARK_DONE` on an event ([AgendaRow.isEvent] — a heading with no TODO
+ *   keyword): there is nothing to complete, so the Done cell is dropped and the
+ *   side becomes a plain swipe-to-commit "Add note".
  */
 @Composable
 private fun agendaSwipe(
@@ -761,7 +761,7 @@ private fun agendaSwipe(
                 onOpenDatePicker(row, PlanningKind.DEADLINE)
             } to null
         AgendaSwipeAction.MARK_DONE ->
-            if (row.isBareEvent) {
+            if (row.isEvent) {
                 note to null
             } else {
                 SwipeAction(label = "Done", fg = c.green, bg = c.greenSoft, icon = Icons.Default.Check) {

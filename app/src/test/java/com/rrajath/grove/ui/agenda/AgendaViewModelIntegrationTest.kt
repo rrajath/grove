@@ -161,6 +161,29 @@ class AgendaViewModelIntegrationTest {
     }
 
     @Test
+    fun `markDone is a no-op on a keyword-less scheduled heading`() = runTest {
+        val eventVault = """
+            #+TITLE: Events
+
+            * Dentist appointment
+            SCHEDULED: ${orgDate(today)}
+        """.trimIndent() + "\n"
+        store.write("events.org", eventVault)
+        TestVaultSeeder.index(db, store)
+        advanceUntilIdle()
+        val vm = agenda()
+        advanceUntilIdle()
+
+        val before = store.read("events.org")
+        val line = headlineLine("events.org", "Dentist appointment")
+        vm.markDone("events.org", line)
+        advanceUntilIdle()
+
+        assertEquals("no keyword means nothing to complete", before, store.read("events.org"))
+        assertFalse(sync.syncRequests.contains("agenda toggle done"))
+    }
+
+    @Test
     fun `a note scheduled today lands in the Today tab`() = runTest {
         store.write("buckets.org", bucketsVault)
         TestVaultSeeder.index(db, store)
