@@ -59,6 +59,8 @@ re-uploads the APKs to the existing release instead of failing.
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-09-10
+
 - Headings with no TODO keyword lost their mark-done button in the Agenda and
   widget, and now also appear in the ledger widget.
 
