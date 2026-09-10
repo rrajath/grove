@@ -18,6 +18,12 @@ import androidx.sqlite.execSQL
  * The index is a candidate *narrower* only: `QueryMatcher` still decides every
  * final match, so an FTS hit that the Kotlin matcher rejects costs nothing but a
  * row. That also means the table is entirely optional (see [create]).
+ *
+ * Per-file deletes go through the Room-owned `notes_fts_map` side table
+ * ([com.rrajath.grove.data.FtsMapEntity]), which records the rowid SQLite
+ * assigned each mirror row, so a delete targets rowids instead of scanning the
+ * UNINDEXED `fileName` column. A schema bump rebuilds both this table and the
+ * map destructively, keeping them in step.
  */
 object NotesFts {
 

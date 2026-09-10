@@ -112,6 +112,27 @@ data class NoteEntity(
     val lastModified: Long,
 )
 
+/**
+ * Maps a `notes` row (fileName + lineIndex) to the rowid SQLite assigned its
+ * mirror row in the [NotesFts] virtual table. `notes_fts` declares `fileName`
+ * UNINDEXED, so `DELETE FROM notes_fts WHERE fileName = ?` is a full scan of the
+ * FTS content table — run once per changed file on every sync, and once per file
+ * on a full resync (O(files x notes)). With this side table the per-file delete
+ * targets specific rowids, which FTS5 removes in roughly O(1). Room-owned (a
+ * plain B-tree table, no FTS), so a schema bump rebuilds it destructively
+ * alongside `notes`.
+ */
+@Entity(
+    tableName = "notes_fts_map",
+    primaryKeys = ["fileName", "lineIndex"],
+    indices = [Index("fileName")],
+)
+data class FtsMapEntity(
+    val fileName: String,
+    val lineIndex: Int,
+    val ftsRowid: Long,
+)
+
 @Entity(tableName = "sync_log")
 data class SyncLogEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -362,7 +383,14 @@ abstract class IndexDao {
         insertNotes(notes)
         if (ftsAvailable) {
             deleteFtsRows(notebook.fileName)
-            notes.forEach { insertFtsRow(it.fileName, it.lineIndex, it.title, it.body) }
+            if (notes.isNotEmpty()) {
+                val map = ArrayList<FtsMapEntity>(notes.size)
+                for (n in notes) {
+                    val rowid = insertFtsRow(n.fileName, n.lineIndex, n.title, n.body)
+                    map.add(FtsMapEntity(n.fileName, n.lineIndex, rowid))
+                }
+                insertFtsMap(map)
+            }
         }
     }
 
@@ -385,6 +413,7 @@ abstract class IndexDao {
     open suspend fun clearAll() {
         clearNotebooks()
         clearNotes()
+        clearFtsMap()
         if (ftsAvailable) clearFts()
     }
 
@@ -395,16 +424,40 @@ abstract class IndexDao {
     // at runtime by GroveDatabase's bootstrap callback; when creating it failed,
     // GroveDatabase.ftsAvailable is false and none of these run.
 
-    @SkipQueryVerification
-    @Query("DELETE FROM notes_fts WHERE fileName = :fileName")
-    abstract suspend fun deleteFtsRows(fileName: String)
+    /**
+     * Deletes one file's FTS mirror rows by rowid (via [FtsMapEntity]) instead of
+     * `WHERE fileName = ?`, which is a full scan because `notes_fts.fileName` is
+     * UNINDEXED. Also clears the file's map rows.
+     */
+    @Transaction
+    open suspend fun deleteFtsRows(fileName: String) {
+        deleteFtsRowsByMap(fileName)
+        deleteFtsMapRows(fileName)
+    }
 
+    @SkipQueryVerification
+    @Query(
+        "DELETE FROM notes_fts WHERE rowid IN " +
+            "(SELECT ftsRowid FROM notes_fts_map WHERE fileName = :fileName)"
+    )
+    abstract suspend fun deleteFtsRowsByMap(fileName: String)
+
+    @Query("DELETE FROM notes_fts_map WHERE fileName = :fileName")
+    abstract suspend fun deleteFtsMapRows(fileName: String)
+
+    @Insert
+    abstract suspend fun insertFtsMap(rows: List<FtsMapEntity>)
+
+    @Query("DELETE FROM notes_fts_map")
+    abstract suspend fun clearFtsMap()
+
+    /** Returns the rowid SQLite assigned the inserted FTS row. */
     @SkipQueryVerification
     @Query(
         "INSERT INTO notes_fts(fileName, lineIndex, title, body) " +
             "VALUES (:fileName, :lineIndex, :title, :body)"
     )
-    abstract suspend fun insertFtsRow(fileName: String, lineIndex: Int, title: String, body: String)
+    abstract suspend fun insertFtsRow(fileName: String, lineIndex: Int, title: String, body: String): Long
 
     @SkipQueryVerification
     @Query("DELETE FROM notes_fts")
@@ -413,6 +466,9 @@ abstract class IndexDao {
     @SkipQueryVerification
     @Query("SELECT COUNT(*) FROM notes_fts")
     abstract suspend fun ftsRowCount(): Int
+
+    @Query("SELECT COUNT(*) FROM notes_fts_map")
+    abstract suspend fun ftsMapRowCount(): Int
 }
 
 @Dao
@@ -466,7 +522,15 @@ interface ReminderDao {
 }
 
 @Database(
-    entities = [NotebookEntity::class, NoteEntity::class, SyncLogEntity::class, ReminderEntity::class],
+    entities = [
+        NotebookEntity::class, NoteEntity::class, FtsMapEntity::class,
+        SyncLogEntity::class, ReminderEntity::class,
+    ],
+    // v15: added notes_fts_map (fileName+lineIndex -> notes_fts rowid) so the
+    // per-file FTS delete targets rowids instead of scanning the UNINDEXED
+    // fileName column. Destructive migration drops every table (dropAllTables),
+    // the FTS bootstrap recreates notes_fts empty, and the next sync repopulates
+    // both from the .org files — no file data touched.
     // v14: added a secondary index on reminders.fileName (ReminderDao.forFile
     // runs `WHERE fileName = ?` once per file on every sync). Destructive
     // migration drops the rebuildable reminders table; the next reconcile
@@ -499,7 +563,7 @@ interface ReminderDao {
     // v5: added NotebookEntity.isIndexed (stub vs fully-parsed notebook rows);
     // v4: added NotebookEntity.title (cached #+TITLE: preamble value). Destructive
     // migration drops the index so the next sync rebuilds it from the .org files.
-    version = 14,
+    version = 15,
     exportSchema = false,
 )
 abstract class GroveDatabase : RoomDatabase() {
