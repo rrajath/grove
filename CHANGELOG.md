@@ -59,6 +59,12 @@ re-uploads the APKs to the existing release instead of failing.
 
 ## [Unreleased]
 
+- Planning Dates: the Today/Tomorrow/weekend/next-week presets now show on
+  every tab before a date is set, not only after.
+
+- Planning Dates: evened out the SCHEDULED tab glyph size and removed the
+  redundant "Not set" line.
+
 - Cleared all Android lint warnings: KTX URI/bitmap helpers, a non-restricted
   back-stack check, capture-shortcut usage reporting, and other small fixes.
 

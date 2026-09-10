@@ -72,6 +72,29 @@ class PlanningDatesScreenTest {
     }
 
     @Test
+    fun presetChipsShowOnLoadWithNothingSetAndApply() {
+        var applied: OrgTimestamp? = null
+        composeRule.setGroveContent {
+            PlanningDatesScreen(
+                title = "Pay rent",
+                scheduled = null,
+                deadline = null,
+                active = emptyList(),
+                focus = PlanningKind.SCHEDULED,
+                onDismiss = {},
+                onConfirm = { scheduled, _, _ -> applied = scheduled },
+            )
+        }
+
+        // No date set yet, but the presets are visible immediately.
+        composeRule.onNodeWithText("Today ·", substring = true).assertIsDisplayed()
+        composeRule.onNodeWithText("Today ·", substring = true).performClick()
+
+        composeRule.onNodeWithText("Apply dates").performClick()
+        assertEquals(LocalDate.now(), applied?.date)
+    }
+
+    @Test
     fun switchingTabsMovesTheAccent() {
         composeRule.setGroveContent {
             PlanningDatesScreen(

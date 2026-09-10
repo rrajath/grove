@@ -74,6 +74,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -476,7 +477,10 @@ fun PlanningDatesScreen(
                         Modifier.fillMaxWidth().padding(top = 14.dp),
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
-                        TabButton("◷", "SCHEDULED", 0, tab == PlanningKind.SCHEDULED, c.blue, c.blueSoft) {
+                        TabButton(
+                            "◷", "SCHEDULED", 0, tab == PlanningKind.SCHEDULED, c.blue, c.blueSoft,
+                            glyphSize = 16.sp,
+                        ) {
                             selectTab(PlanningKind.SCHEDULED)
                         }
                         TabButton("⚑", "DEADLINE", 0, tab == PlanningKind.DEADLINE, c.red, c.redSoft) {
@@ -499,27 +503,31 @@ fun PlanningDatesScreen(
                         modifier = Modifier.padding(horizontal = 3.dp).padding(top = 10.dp),
                     )
 
-                    Text(
-                        when {
-                            count == 0 -> "Not set"
-                            isActiveTab -> "$count timestamp${plural(count)}"
-                            else -> "1 timestamp"
-                        },
-                        fontFamily = PlexMono, fontWeight = FontWeight.Bold,
-                        fontSize = 11.sp, letterSpacing = 0.7.sp,
-                        color = if (count > 0) accent else c.ink3,
-                        modifier = Modifier.padding(horizontal = 3.dp).padding(top = 14.dp),
-                    )
+                    if (count > 0) {
+                        Text(
+                            if (isActiveTab) "$count timestamp${plural(count)}" else "1 timestamp",
+                            fontFamily = PlexMono, fontWeight = FontWeight.Bold,
+                            fontSize = 11.sp, letterSpacing = 0.7.sp,
+                            color = accent,
+                            modifier = Modifier.padding(horizontal = 3.dp).padding(top = 14.dp),
+                        )
+                    }
 
                     if (count == 0) {
-                        Text(
-                            if (isActiveTab)
-                                "No active date yet. Tap a day above, or long-press and drag across a few for a range."
-                            else
-                                "Nothing set. Tap a day above.",
-                            fontFamily = PlexSans, fontSize = 11.5.sp, color = c.ink2, lineHeight = 16.sp,
-                            modifier = Modifier.padding(horizontal = 3.dp).padding(top = 4.dp),
-                        )
+                        FlowRow(
+                            Modifier.fillMaxWidth().padding(horizontal = 2.dp).padding(top = 14.dp),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            datePresets(today).forEach { (name, date) ->
+                                Chip(
+                                    label = "$name · ${date.format(ShortDate)}",
+                                    selected = false,
+                                    accent = accent,
+                                    onClick = { tapDay(date) },
+                                )
+                            }
+                        }
                     } else {
                         FlowRow(
                             Modifier.fillMaxWidth().padding(top = 10.dp),
@@ -911,23 +919,29 @@ private fun RowScope.TabButton(
     accent: Color,
     accentSoft: Color,
     badgeAnchor: String? = null,
+    glyphSize: TextUnit = 11.sp,
     onClick: () -> Unit,
 ) {
     val c = MaterialTheme.grove
+    // Fixed height so the tabs stay identical even though the thin `◷` glyph is
+    // rendered a few sp larger than `⚑` / `●` to optically match their weight.
     Box(
         Modifier
             .weight(1f)
+            .height(38.dp)
             .clip(RoundedCornerShape(12.dp))
             .background(if (selected) accentSoft else c.surface2)
             .border(1.dp, if (selected) accent else c.line, RoundedCornerShape(12.dp))
             .clickable(onClick = onClick)
-            .padding(vertical = 9.dp, horizontal = 5.dp),
+            .padding(horizontal = 5.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
-            buildString {
-                append(glyph).append(' ').append(label)
-                if (count > 1) append(' ').append(count)
+            buildAnnotatedString {
+                withStyle(SpanStyle(fontSize = glyphSize)) { append(glyph) }
+                append(' ')
+                append(label)
+                if (count > 1) append(" $count")
             },
             fontFamily = PlexMono, fontWeight = FontWeight.Bold,
             fontSize = 11.sp, letterSpacing = 0.6.sp,
