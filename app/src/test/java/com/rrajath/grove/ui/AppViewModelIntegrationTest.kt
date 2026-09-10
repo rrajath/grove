@@ -1,5 +1,6 @@
 package com.rrajath.grove.ui
 
+import androidx.lifecycle.viewModelScope
 import androidx.test.core.app.ApplicationProvider
 import com.rrajath.grove.GroveApplication
 import com.rrajath.grove.capture.SharedPayload
@@ -18,6 +19,7 @@ import com.rrajath.grove.testing.support.MainDispatcherRule
 import com.rrajath.grove.vault.Vault
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.TestScope
@@ -59,12 +61,14 @@ class AppViewModelIntegrationTest {
     private val sync = FakeSyncTrigger()
     private val db: GroveDatabase =
         InMemoryGroveDatabase.create(queryCoroutineContext = mainDispatcherRule.dispatcher)
-    private val settingsRepository =
-        SettingsRepository(app, CoroutineScope(mainDispatcherRule.dispatcher))
+    private val repoScope = CoroutineScope(mainDispatcherRule.dispatcher)
+    private val settingsRepository = SettingsRepository(app, repoScope)
     private val searchRepository = SearchRepository(app)
     private val favoritesRepository = FavoritesRepository(app)
     private val pendingShare = MutableStateFlow<SharedPayload?>(null)
     private val vaultFlow = MutableStateFlow<Vault?>(Vault(FakeFileStore(OrgFixtures.all)))
+
+    private val liveVms = mutableListOf<AppViewModel>()
 
     private fun appVm() = AppViewModel(
         settingsRepository = settingsRepository,
@@ -76,10 +80,15 @@ class AppViewModelIntegrationTest {
         pendingShare = pendingShare,
         dispatchers = mainDispatcherRule.appDispatchers,
         app = app,
-    )
+    ).also { liveVms += it }
 
     @After
     fun tearDown() {
+        // See internal/LEARNINGS.md 2026-09-07: an uncancelled viewModelScope
+        // leaves eager DataStore collectors parked on a dead test scheduler,
+        // backing up the process-wide DataStore actor and flaking a later test.
+        liveVms.forEach { it.viewModelScope.cancel() }
+        repoScope.cancel()
         db.close()
     }
 

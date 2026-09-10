@@ -1,6 +1,7 @@
 package com.rrajath.grove.ui.search
 
 import android.app.Application
+import androidx.lifecycle.viewModelScope
 import androidx.test.core.app.ApplicationProvider
 import com.rrajath.grove.data.GroveDatabase
 import com.rrajath.grove.org.OrgKeywords
@@ -15,6 +16,7 @@ import com.rrajath.grove.testing.TestVaultSeeder
 import com.rrajath.grove.testing.support.MainDispatcherRule
 import com.rrajath.grove.vault.Vault
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -54,6 +56,8 @@ class SearchViewModelIntegrationTest {
     private val searchRepository =
         SearchRepository(ApplicationProvider.getApplicationContext<Application>())
 
+    private val liveVms = mutableListOf<SearchViewModel>()
+
     private fun search() = SearchViewModel(
         vaultFlow = vaultFlow,
         sync = sync,
@@ -62,10 +66,16 @@ class SearchViewModelIntegrationTest {
         keywordsFlow = keywords,
         settings = settings,
         dispatchers = mainDispatcherRule.appDispatchers,
-    )
+    ).also { liveVms += it }
 
     @After
     fun tearDown() {
+        // The unit suite runs in one JVM; a VM whose viewModelScope is never
+        // cancelled leaves eager collectors on SearchRepository's process-wide
+        // "search" DataStore parked on a dead test scheduler, which backs up the
+        // DataStore actor and flakes a later test (often one in this class).
+        // See internal/LEARNINGS.md 2026-09-07 "leaked viewModelScope wedges…".
+        liveVms.forEach { it.viewModelScope.cancel() }
         db.close()
     }
 
