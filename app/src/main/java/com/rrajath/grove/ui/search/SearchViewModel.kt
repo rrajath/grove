@@ -241,7 +241,7 @@ class SearchViewModel(
     }
 
     val savedSearches: StateFlow<List<SavedSearch>> = searchRepository.savedSearches
-        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     /** Configured TODO keywords, for the swipe-to-cycle state sheet. */
     val keywords: StateFlow<OrgKeywords> = keywordsFlow

@@ -265,7 +265,13 @@ class NotebooksViewModel(
             remindersPendingPermission = remindersPending,
             drillThreshold = drillThreshold,
         ) ?: NotebooksUiState.NoVault
-    }.stateIn(viewModelScope, SharingStarted.Eagerly, NotebooksUiState.NoVault)
+        // WhileSubscribed, not Eagerly: this is the nav start destination, so its
+        // NavBackStackEntry (and this ViewModel) outlives every screen the user
+        // opens on top. Eagerly kept the whole tree pipeline — the deep
+        // distinctUntilChanged over TreeInputs, buildLoaded — recomputing per
+        // pulled file during background syncs the user never sees. The 5s stop
+        // timeout still covers rotation and quick navigation.
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), NotebooksUiState.NoVault)
 
     /**
      * Group, sort and flatten one [TreeInputs] snapshot into the screen's state.

@@ -64,7 +64,7 @@ class AppViewModel(
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     val savedSearches: StateFlow<List<SavedSearch>> = searchRepository.savedSearches
-        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     fun deleteSavedSearch(id: String) =
         viewModelScope.launch { searchRepository.deleteSearch(id) }
@@ -76,7 +76,7 @@ class AppViewModel(
         viewModelScope.launch { searchRepository.moveSearch(id, delta) }
 
     val favorites: StateFlow<List<FavoriteNote>> = favoritesRepository.favorites
-        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     /**
      * @param customId the heading's existing or newly-written stable id — see
@@ -205,7 +205,7 @@ class AppViewModel(
     /** Which "NEW" feature badges are live (see `ui/newbadge`). */
     val newBadgeState: StateFlow<NewBadgeState> = settingsRepository.settings
         .map { NewBadgeState.from(it) }
-        .stateIn(viewModelScope, SharingStarted.Eagerly, NewBadgeState.EMPTY)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), NewBadgeState.EMPTY)
 
     /** Record the "was I here before this feature?" baseline on first run; a no-op after that. */
     fun ensureNewBadgeBaseline() = viewModelScope.launch {
@@ -381,7 +381,7 @@ class AppViewModel(
 
     /** Count of reminders waiting on POST_NOTIFICATIONS/exact-alarm access (Settings › Reminders banner). */
     val reminderPendingCount: StateFlow<Int> = database.reminderDao().pendingCountFlow(System.currentTimeMillis())
-        .stateIn(viewModelScope, SharingStarted.Eagerly, 0)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
 
     /** Write the current preferences as a JSON document to the user-picked [uri]. */
     fun exportSettings(uri: android.net.Uri) = viewModelScope.launch {

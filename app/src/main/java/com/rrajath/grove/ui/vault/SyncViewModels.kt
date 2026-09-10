@@ -81,10 +81,10 @@ class SyncLogViewModel(database: GroveDatabase) : ViewModel() {
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     val entries: StateFlow<List<SyncLogEntity>> = limit
         .flatMapLatest { database.syncLogDao().recent(it) }
-        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     val total: StateFlow<Int> = database.syncLogDao().count()
-        .stateIn(viewModelScope, SharingStarted.Eagerly, 0)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
 
     fun loadMore() {
         limit.value += PAGE_SIZE

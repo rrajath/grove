@@ -45,7 +45,7 @@ class CaptureViewModel(
 ) : ViewModel() {
 
     val templates: StateFlow<List<CaptureTemplate>> = templatesRepository.templates
-        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private val _saveState = MutableStateFlow<SaveState>(SaveState.Idle)
     val saveState: StateFlow<SaveState> = _saveState
@@ -203,12 +203,12 @@ class TemplatesViewModel(
 ) : ViewModel() {
 
     val templates: StateFlow<List<CaptureTemplate>> = templatesRepository.templates
-        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     /** Existing vault notebook file names, for the target-file picker dropdown. */
     val notebooks: StateFlow<List<String>> = database.indexDao().notebooksFlow()
         .map { list -> list.map { it.fileName }.sorted() }
-        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     fun upsert(template: CaptureTemplate) =
         viewModelScope.launch { templatesRepository.upsert(template) }
