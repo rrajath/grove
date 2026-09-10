@@ -71,6 +71,13 @@ data class AgendaRow(
     val activeTimestamps: ImmutableList<OrgTimestamp> = persistentListOf(),
 )
 
+/**
+ * A bare active-timestamp event with no TODO keyword: an event, not a task, so
+ * there is nothing to "complete". [activeTs] is set only on rows placed on a day
+ * by a bare active timestamp; a heading that also carries a keyword stays a task.
+ */
+val AgendaRow.isBareEvent: Boolean get() = activeTs != null && keyword == null
+
 /** One "Group by" bucket: an uppercase key, its count, and its rows. */
 @Immutable
 data class AgendaGroup(val key: String, val count: Int, val rows: ImmutableList<AgendaRow>)
@@ -435,6 +442,9 @@ class AgendaViewModel(
             val vault = vaultFlow.value ?: return@launch
             val doc = vault.open(fileName) ?: return@launch
             val headline = doc.headlineAtLine(lineIndex) ?: return@launch
+            // A keyword-less heading is a bare-timestamp event: nothing to complete,
+            // and marking it done would fabricate a DONE keyword it never had.
+            if (headline.keyword == null) return@launch
             if (headline.keyword in doc.keywords.done) {
                 val newText = withContext(dispatchers.default) {
                     OrgMutations.reopen(doc, headline, doc.keywords.active.firstOrNull())

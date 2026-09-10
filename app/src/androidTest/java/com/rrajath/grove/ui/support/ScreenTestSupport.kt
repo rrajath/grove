@@ -115,6 +115,15 @@ class ScreenTestEnv(
         dispatchers = dispatchers,
     )
 
+    fun agendaViewModel() = com.rrajath.grove.ui.agenda.AgendaViewModel(
+        settingsRepository = settingsRepository,
+        keywordsFlow = keywords,
+        database = database,
+        vaultFlow = vaultFlow,
+        sync = sync,
+        dispatchers = dispatchers,
+    )
+
     fun captureViewModel() = CaptureViewModel(
         templatesRepository = templatesRepository,
         database = database,

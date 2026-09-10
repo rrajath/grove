@@ -27,11 +27,12 @@ class AgendaViewModelRowTest {
         tags: List<String>,
         inheritedTags: List<String>,
         scheduled: String? = null,
+        keyword: String? = "TODO",
     ) = NoteMeta(
         fileName = "notes.org",
         lineIndex = 0,
         title = title,
-        keyword = "TODO",
+        keyword = keyword,
         isDoneKeyword = false,
         priority = null,
         tags = tags,
@@ -103,5 +104,31 @@ class AgendaViewModelRowTest {
         // Events never carry overdue / deadline styling.
         assertTrue(row.meta.none { it.tone == AgendaMetaTone.DANGER })
         assertNull(row.scheduledTs)
+    }
+
+    @Test
+    fun `isBareEvent is true only for a keyword-less active-timestamp row`() {
+        val ts = OrgTimestamp.parse("<2025-06-13 Fri>")!!
+        val eventDay = LocalDate.of(2025, 6, 13)
+
+        val event = AgendaViewModel.row(
+            note("Team offsite", emptyList(), emptyList(), keyword = null),
+            today, showDate = false, p = GroveSettings(), activeTs = ts, eventDay = eventDay,
+        )
+        assertTrue(event.isBareEvent)
+
+        // Same heading, but it carries a keyword: still a task.
+        val keyworded = AgendaViewModel.row(
+            note("Review PR", emptyList(), emptyList(), keyword = "NEXT"),
+            today, showDate = false, p = GroveSettings(), activeTs = ts, eventDay = eventDay,
+        )
+        assertEquals(false, keyworded.isBareEvent)
+
+        // A plain scheduled heading with no keyword is not an event either.
+        val scheduled = AgendaViewModel.row(
+            note("Just scheduled", emptyList(), emptyList(), scheduled = "<2025-06-11 Wed>", keyword = null),
+            today, showDate = false, p = GroveSettings(),
+        )
+        assertEquals(false, scheduled.isBareEvent)
     }
 }

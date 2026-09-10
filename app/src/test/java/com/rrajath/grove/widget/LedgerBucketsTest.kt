@@ -106,6 +106,59 @@ class LedgerBucketsTest {
     }
 
     @Test
+    fun `a bare-timestamp event is woven into its day section`() {
+        val notes = listOf(
+            note("Ship it", scheduled = "<2025-06-13 Fri>"),
+            note("Team offsite", keyword = null, active = "<2025-06-13 Fri>"),
+        )
+        val sections = LedgerBuckets.build(notes, today, windowDays = 14, settings = settings)
+        val friday = sections.single { it.key == "Jun 13" }
+        assertEquals(2, friday.count)
+        assertTrue(friday.rows.any { it.title == "Team offsite" && it.keyword == null })
+    }
+
+    @Test
+    fun `a day with only an event still renders`() {
+        val notes = listOf(note("Team offsite", keyword = null, active = "<2025-06-13 Fri>"))
+        val sections = LedgerBuckets.build(notes, today, windowDays = 14, settings = settings)
+        assertEquals(listOf("Jun 13"), sections.map { it.key })
+        assertEquals(1, sections.single().count)
+    }
+
+    @Test
+    fun `a multi-day event shows once per covered day`() {
+        val notes = listOf(note("Conference", keyword = null, active = "<2025-06-12 Thu>--<2025-06-14 Sat>"))
+        val sections = LedgerBuckets.build(notes, today, windowDays = 14, settings = settings)
+        assertEquals(
+            listOf("Tomorrow · Jun 12", "Jun 13", "Jun 14"),
+            sections.filter { it.rows.any { r -> r.title == "Conference" } }.map { it.key },
+        )
+    }
+
+    @Test
+    fun `an event never appears in the Overdue section`() {
+        val notes = listOf(
+            note("Ancient task", scheduled = "<2025-01-01 Wed>"),
+            note("Past party", keyword = null, active = "<2025-01-01 Wed>"),
+        )
+        val sections = LedgerBuckets.build(notes, today, windowDays = 14, settings = settings)
+        assertEquals("Overdue", sections.first().key)
+        assertEquals(listOf("Ancient task"), sections.first().rows.map { it.title })
+    }
+
+    @Test
+    fun `within a day a timed event sorts by its time among the no-priority rows`() {
+        val notes = listOf(
+            note("Priority task", scheduled = "<2025-06-13 Fri 15:00>", priority = "A"),
+            note("Early event", keyword = null, active = "<2025-06-13 Fri 09:00>"),
+            note("Late event", keyword = null, active = "<2025-06-13 Fri 18:00>"),
+        )
+        val rows = LedgerBuckets.build(notes, today, windowDays = 14, settings = settings)
+            .single { it.key == "Jun 13" }.rows
+        assertEquals(listOf("Priority task", "Early event", "Late event"), rows.map { it.title })
+    }
+
+    @Test
     fun `truncate keeps everything and reports zero hidden when under the cap`() {
         val notes = listOf(note("Ancient", scheduled = "<2025-01-01 Wed>"))
         val rows = LedgerBuckets.build(notes, today, windowDays = 14, settings = settings).first().rows

@@ -46,6 +46,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
@@ -474,13 +475,21 @@ private fun AgendaList(
             item("head-${group.key}") { GroupHeader(group) }
             items(group.rows, key = { "${group.key}-${it.fileName}@${it.lineIndex}" }) { row ->
                 val rowKey = "${group.key}-${row.fileName}@${row.lineIndex}"
+                // Add-note rides along beside whichever side is configured as Mark
+                // Done: partial swipe reveals both, full swipe still marks done. On
+                // a bare-timestamp event (no keyword) the Done side is dropped and
+                // that side offers Add-note alone instead.
+                val (leftPrimary, leftSecondary) = agendaSwipe(
+                    state.swipeLeftAction, row, c, onOpenDatePicker, onToggleDone, onOpenNoteDialog,
+                )
+                val (rightPrimary, rightSecondary) = agendaSwipe(
+                    state.swipeRightAction, row, c, onOpenDatePicker, onToggleDone, onOpenNoteDialog,
+                )
                 SwipeCommitRow(
-                    leftAction = swipeActionFor(state.swipeLeftAction, row, c, onOpenDatePicker, onToggleDone),
-                    rightAction = swipeActionFor(state.swipeRightAction, row, c, onOpenDatePicker, onToggleDone),
-                    // Add-note rides along beside whichever side is configured as
-                    // Mark Done: partial swipe reveals both, full swipe still marks done.
-                    leftSecondaryAction = addNoteAction(state.swipeLeftAction, row, c, onOpenNoteDialog),
-                    rightSecondaryAction = addNoteAction(state.swipeRightAction, row, c, onOpenNoteDialog),
+                    leftAction = leftPrimary,
+                    rightAction = rightPrimary,
+                    leftSecondaryAction = leftSecondary,
+                    rightSecondaryAction = rightSecondary,
                     forceClose = openRowKey != rowKey,
                     onOpenChanged = { open ->
                         if (open) openRowKey = rowKey
@@ -591,7 +600,13 @@ private fun AgendaRowContent(row: AgendaRow, onToggleDone: () -> Unit) {
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.Top,
     ) {
-        AgendaCheckbox(isDone = row.isDone, priority = row.priority, onClick = onToggleDone)
+        // A bare-timestamp event is not a task: no checkbox, but keep the indent
+        // so its title lines up with the planned rows in the same day group.
+        if (row.isBareEvent) {
+            Spacer(Modifier.width(20.dp))
+        } else {
+            AgendaCheckbox(isDone = row.isDone, priority = row.priority, onClick = onToggleDone)
+        }
         Spacer(Modifier.width(10.dp))
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.Top) {
@@ -646,6 +661,7 @@ private fun AgendaCheckbox(isDone: Boolean, priority: String?, onClick: () -> Un
     }
     Box(
         Modifier
+            .testTag("agenda_checkbox")
             .padding(top = 1.dp)
             .size(20.dp)
             .clip(CircleShape)
@@ -709,47 +725,48 @@ internal fun GroveColors.metaColor(tone: AgendaMetaTone): Color = when (tone) {
     AgendaMetaTone.EVENT -> violet
 }
 
-/** Maps a configured [AgendaSwipeAction] to the glyph/label/color and effect for one swipe direction. */
-private fun swipeActionFor(
+/**
+ * The (primary, secondary) swipe actions for one direction, given its configured
+ * [AgendaSwipeAction].
+ *
+ * - `SET_SCHEDULED` / `SET_DEADLINE`: a single swipe-to-commit action, no secondary.
+ * - `MARK_DONE` on a task: "Done" primary with an "Add note" secondary riding
+ *   alongside (partial swipe reveals both, full swipe commits Done).
+ * - `MARK_DONE` on a bare-timestamp event ([AgendaRow.isBareEvent]): there is
+ *   nothing to complete, so the Done cell is dropped and the side becomes a plain
+ *   swipe-to-commit "Add note".
+ */
+@Composable
+private fun agendaSwipe(
     kind: AgendaSwipeAction,
     row: AgendaRow,
     c: GroveColors,
     onOpenDatePicker: (AgendaRow, PlanningKind) -> Unit,
     onToggleDone: (AgendaRow) -> Unit,
-): SwipeAction = when (kind) {
-    AgendaSwipeAction.SET_SCHEDULED ->
-        SwipeAction(label = "Sched", fg = c.blue, bg = c.blueSoft, icon = Icons.Outlined.CalendarMonth) {
-            onOpenDatePicker(row, PlanningKind.SCHEDULED)
-        }
-    AgendaSwipeAction.SET_DEADLINE ->
-        SwipeAction(label = "Deadl", fg = c.red, bg = c.redSoft, icon = Icons.Filled.Flag) {
-            onOpenDatePicker(row, PlanningKind.DEADLINE)
-        }
-    AgendaSwipeAction.MARK_DONE ->
-        SwipeAction(label = "Done", fg = c.green, bg = c.greenSoft, icon = Icons.Default.Check) { onToggleDone(row) }
-}
-
-/**
- * Rides alongside whichever side is configured as [AgendaSwipeAction.MARK_DONE]:
- * a partial swipe reveals this "Note" cell next to Done for a tap, while a full
- * swipe still commits Done directly. Any other configured action gets no
- * secondary (null), so its side keeps the plain swipe-to-commit behavior.
- */
-@Composable
-private fun addNoteAction(
-    kind: AgendaSwipeAction,
-    row: AgendaRow,
-    c: GroveColors,
     onOpenNoteDialog: (AgendaRow) -> Unit,
-): SwipeAction? = when (kind) {
-    AgendaSwipeAction.MARK_DONE ->
-        SwipeAction(
-            label = "Note",
-            fg = c.blue,
-            bg = c.blueSoft,
-            icon = ImageVector.vectorResource(id = R.drawable.ic_note),
-        ) {
-            onOpenNoteDialog(row)
-        }
-    else -> null
+): Pair<SwipeAction?, SwipeAction?> {
+    val note = SwipeAction(
+        label = "Note",
+        fg = c.blue,
+        bg = c.blueSoft,
+        icon = ImageVector.vectorResource(id = R.drawable.ic_note),
+    ) { onOpenNoteDialog(row) }
+    return when (kind) {
+        AgendaSwipeAction.SET_SCHEDULED ->
+            SwipeAction(label = "Sched", fg = c.blue, bg = c.blueSoft, icon = Icons.Outlined.CalendarMonth) {
+                onOpenDatePicker(row, PlanningKind.SCHEDULED)
+            } to null
+        AgendaSwipeAction.SET_DEADLINE ->
+            SwipeAction(label = "Deadl", fg = c.red, bg = c.redSoft, icon = Icons.Filled.Flag) {
+                onOpenDatePicker(row, PlanningKind.DEADLINE)
+            } to null
+        AgendaSwipeAction.MARK_DONE ->
+            if (row.isBareEvent) {
+                note to null
+            } else {
+                SwipeAction(label = "Done", fg = c.green, bg = c.greenSoft, icon = Icons.Default.Check) {
+                    onToggleDone(row)
+                } to note
+            }
+    }
 }

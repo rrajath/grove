@@ -59,6 +59,9 @@ re-uploads the APKs to the existing release instead of failing.
 
 ## [Unreleased]
 
+- Bare-timestamp events lost their mark-done button in the Agenda and widget,
+  and now also appear in the ledger widget.
+
 - Fixed deleted notebooks still firing reminder notifications; their alarms are
   now cancelled on delete, sync, and app start.
 
