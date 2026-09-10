@@ -59,6 +59,9 @@ re-uploads the APKs to the existing release instead of failing.
 
 ## [Unreleased]
 
+- The navigation drawer's item list now scrolls when it overflows; the header
+  stays pinned.
+
 - Performance improvements.
 
 - Planning Dates: the Today/Tomorrow/weekend/next-week presets now show on

@@ -7,11 +7,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
@@ -77,8 +80,8 @@ fun GroveDrawerContent(
     var favMenuTarget by remember { mutableStateOf<FavoriteNote?>(null) }
     var renameFavoriteTarget by remember { mutableStateOf<FavoriteNote?>(null) }
 
-    Column(Modifier.fillMaxWidth()) {
-        // Header
+    Column(Modifier.fillMaxWidth().fillMaxHeight()) {
+        // Header (pinned)
         Column(Modifier.padding(22.dp)) {
             if (logoFollowsTheme) {
                 BrandMark(tileSize = 42.dp)
@@ -94,61 +97,71 @@ fun GroveDrawerContent(
             Text(vaultPath, fontFamily = PlexMono, fontSize = 12.sp, color = c.ink2)
         }
         HorizontalDivider(color = c.line)
-        Spacer(Modifier.height(8.dp))
 
-        DrawerItem(icon = searchIcon(), label = "Search", active = false) { onNavigate(Routes.search()) }
-        DrawerItem(icon = notebookIcon(), label = "Notebooks", active = currentRoute == Routes.NOTEBOOKS) { onNavigate(Routes.NOTEBOOKS) }
+        // Nav items scroll when they overflow the drawer height.
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .verticalScroll(rememberScrollState()),
+        ) {
+            Spacer(Modifier.height(8.dp))
 
-        SectionLabel("SEARCHES")
-        savedSearches.forEachIndexed { index, search ->
-            Box {
-                DrawerItem(
-                    icon = savedSearchIcon(), label = search.name, active = false,
-                    onLongClick = { searchMenuTarget = search },
-                ) { onNavigate(Routes.search(search.query)) }
-                DrawerActionMenu(
-                    expanded = searchMenuTarget?.id == search.id,
-                    onDismissRequest = { searchMenuTarget = null },
-                    canMoveUp = index > 0,
-                    canMoveDown = index < savedSearches.lastIndex,
-                    onMoveUp = { onMoveSavedSearch(search.id, -1) },
-                    onMoveDown = { onMoveSavedSearch(search.id, 1) },
-                    onRename = { renameSearchTarget = search },
-                    onDelete = { onDeleteSavedSearch(search) },
-                )
-            }
-        }
+            DrawerItem(icon = searchIcon(), label = "Search", active = false) { onNavigate(Routes.search()) }
+            DrawerItem(icon = notebookIcon(), label = "Notebooks", active = currentRoute == Routes.NOTEBOOKS) { onNavigate(Routes.NOTEBOOKS) }
 
-        if (favorites.isNotEmpty()) {
-            SectionLabel("FAVORITES")
-            favorites.forEachIndexed { index, fav ->
+            SectionLabel("SEARCHES")
+            savedSearches.forEachIndexed { index, search ->
                 Box {
                     DrawerItem(
-                        icon = favoriteIcon(), label = fav.title, active = false,
-                        onLongClick = { favMenuTarget = fav },
-                    ) { onNavigate(Routes.note(NoteRef(fav.fileName, fav.lineIndex, fav.customId).encode())) }
+                        icon = savedSearchIcon(), label = search.name, active = false,
+                        onLongClick = { searchMenuTarget = search },
+                    ) { onNavigate(Routes.search(search.query)) }
                     DrawerActionMenu(
-                        expanded = favMenuTarget == fav,
-                        onDismissRequest = { favMenuTarget = null },
+                        expanded = searchMenuTarget?.id == search.id,
+                        onDismissRequest = { searchMenuTarget = null },
                         canMoveUp = index > 0,
-                        canMoveDown = index < favorites.lastIndex,
-                        onMoveUp = { onMoveFavorite(fav, -1) },
-                        onMoveDown = { onMoveFavorite(fav, 1) },
-                        onRename = { renameFavoriteTarget = fav },
-                        onDelete = { onDeleteFavorite(fav) },
+                        canMoveDown = index < savedSearches.lastIndex,
+                        onMoveUp = { onMoveSavedSearch(search.id, -1) },
+                        onMoveDown = { onMoveSavedSearch(search.id, 1) },
+                        onRename = { renameSearchTarget = search },
+                        onDelete = { onDeleteSavedSearch(search) },
                     )
                 }
             }
-        }
 
-        HorizontalDivider(color = c.line, modifier = Modifier.padding(vertical = 8.dp))
-        DrawerItem(icon = agendaIcon(), label = "Agenda", active = false) { onNavigate(Routes.AGENDA) }
-        DrawerItem(
-            icon = settingsIcon(),
-            label = "Settings",
-            active = false,
-            badge = { NewDot(NewAnchors.DRAWER_SETTINGS) },
-        ) { onNavigate(Routes.SETTINGS) }
+            if (favorites.isNotEmpty()) {
+                SectionLabel("FAVORITES")
+                favorites.forEachIndexed { index, fav ->
+                    Box {
+                        DrawerItem(
+                            icon = favoriteIcon(), label = fav.title, active = false,
+                            onLongClick = { favMenuTarget = fav },
+                        ) { onNavigate(Routes.note(NoteRef(fav.fileName, fav.lineIndex, fav.customId).encode())) }
+                        DrawerActionMenu(
+                            expanded = favMenuTarget == fav,
+                            onDismissRequest = { favMenuTarget = null },
+                            canMoveUp = index > 0,
+                            canMoveDown = index < favorites.lastIndex,
+                            onMoveUp = { onMoveFavorite(fav, -1) },
+                            onMoveDown = { onMoveFavorite(fav, 1) },
+                            onRename = { renameFavoriteTarget = fav },
+                            onDelete = { onDeleteFavorite(fav) },
+                        )
+                    }
+                }
+            }
+
+            HorizontalDivider(color = c.line, modifier = Modifier.padding(vertical = 8.dp))
+            DrawerItem(icon = agendaIcon(), label = "Agenda", active = false) { onNavigate(Routes.AGENDA) }
+            DrawerItem(
+                icon = settingsIcon(),
+                label = "Settings",
+                active = false,
+                badge = { NewDot(NewAnchors.DRAWER_SETTINGS) },
+            ) { onNavigate(Routes.SETTINGS) }
+            Spacer(Modifier.height(8.dp))
+        }
     }
 
     renameSearchTarget?.let { target ->
