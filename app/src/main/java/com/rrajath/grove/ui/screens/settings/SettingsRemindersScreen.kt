@@ -44,6 +44,10 @@ fun SettingsRemindersScreen(
     val c = MaterialTheme.grove
     var showReminderTimePicker by remember { mutableStateOf(false) }
 
+    // Unconditional: visiting this screen retires the badge even when "Enable reminders" is
+    // off and the toggle row below never composes (otherwise the dot could never clear).
+    MarkNewFeatureSeen(NewAnchors.SETTINGS_REMINDERS_UNTIMED)
+
     SettingsPageScaffold(title = "Reminders", onBack = onBack) {
         ReminderPermissionBanner(pendingCount = reminderPendingCount, modifier = Modifier.padding(bottom = 10.dp))
         SettingsGroup {
@@ -75,7 +79,6 @@ fun SettingsRemindersScreen(
                     )
                 }
                 RowDivider()
-                MarkNewFeatureSeen(NewAnchors.SETTINGS_REMINDERS_UNTIMED)
                 ToggleRow(
                     label = "Notify for tasks without a time",
                     description = "A separate notification for each SCHEDULED, DEADLINE, or active timestamp on a day with no time of day",

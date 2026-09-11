@@ -59,6 +59,12 @@ re-uploads the APKs to the existing release instead of failing.
 
 ## [Unreleased]
 
+- Fixed the "Notify for tasks without a time" NEW badge never clearing when
+  reminders were disabled; visiting Settings › Reminders now always retires it.
+
+- Fixed the v1.6.0 release shipping without its own What's New entry: the
+  version was tagged before its CHANGELOG.md entry was committed.
+
 ## [1.6.0] - 2026-09-10
 
 - Headings with no TODO keyword lost their mark-done button in the Agenda and
