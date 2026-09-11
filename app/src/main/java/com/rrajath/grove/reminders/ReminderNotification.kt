@@ -43,14 +43,15 @@ object ReminderNotification {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
 
-        // A bare active timestamp is normally an event, not a task: it reads as
-        // "starting now" rather than "due", so it carries no Complete/Reschedule
-        // actions (nothing to mark done). The exception is a repeater cookie
-        // (`+1w` etc.) on the stamp itself -- that reads as a recurring task even
-        // with no todo keyword, so it gets the same actions: Complete advances
-        // the stamp's date (see ReminderActionReceiver), Reschedule opens the
-        // planning dates screen same as any other reminder.
-        val isEvent = reminder.planningType == PlanningType.ACTIVE.storageKey && !reminder.hasRepeater
+        // A bare active timestamp is always an event, not a task, no matter what
+        // it carries -- there's no todo keyword to read it as "due" against, so
+        // it always says "starting"/"starts", never "due". A repeater cookie
+        // (`+1w` etc.) on the stamp is the exception to *actions*, not wording:
+        // it still reads as recurring, so it gets Complete/Reschedule same as a
+        // task would -- Complete advances the stamp's date (see
+        // ReminderActionReceiver), Reschedule opens the planning dates screen.
+        val isEvent = reminder.planningType == PlanningType.ACTIVE.storageKey
+        val showActions = !isEvent || reminder.hasRepeater
 
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
@@ -64,7 +65,7 @@ object ReminderNotification {
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setContentIntent(contentIntent)
             .setAutoCancel(true)
-        if (!isEvent) {
+        if (showActions) {
             builder
                 .addAction(0, "Complete", completeAction(context, reminder))
                 .addAction(0, "Reschedule", rescheduleAction(context, reminder))
@@ -110,7 +111,7 @@ object ReminderNotification {
 
     /** Event phrasing for an ACTIVE reminder, honouring the lead time it was armed with. */
     private fun eventMessage(leadTime: ReminderLeadTime): String =
-        if (leadTime == ReminderLeadTime.AT_TIME) "This event is starting now"
+        if (leadTime == ReminderLeadTime.AT_TIME) "Your event is starting now"
         else "This event starts in ${leadTime.label.substringBefore(" before the event")}"
 
     private fun completeAction(context: Context, reminder: ReminderEntity): PendingIntent {

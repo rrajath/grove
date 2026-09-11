@@ -59,72 +59,29 @@ re-uploads the APKs to the existing release instead of failing.
 
 ## [Unreleased]
 
+### Fixed
 - Fixed reminders for repeating bare timestamps missing Complete/Reschedule
   actions; Complete now advances the date instead of no-opping.
-
 - Fixed `ad.N` search filter not excluding undated tasks (e.g. `ad.7 i.todo`).
 
 ## [1.6.1] - 2026-09-11
 
+### Fixed
 - Fixed the "Notify for tasks without a time" NEW badge never clearing when
   reminders were disabled; visiting Settings › Reminders now always retires it.
-
 - Fixed the v1.6.0 release shipping without its own What's New entry: the
   version was tagged before its CHANGELOG.md entry was committed.
 
 ## [1.6.0] - 2026-09-10
 
-- Headings with no TODO keyword lost their mark-done button in the Agenda and
-  widget, and now also appear in the ledger widget.
-
-- Event rows under a day heading no longer repeat that day (e.g. "Today") in
-  their metadata line.
-
-- Fixed deleted notebooks still firing reminder notifications; their alarms are
-  now cancelled on delete, sync, and app start.
-
-- The navigation drawer's item list now scrolls when it overflows; the header
-  stays pinned.
-
-- Performance improvements.
-
-- Planning Dates: the Today/Tomorrow/weekend/next-week presets now show on
-  every tab before a date is set, not only after.
-
-- Planning Dates: evened out the SCHEDULED tab glyph size and removed the
-  redundant "Not set" line.
-
-- Cleared all Android lint warnings: KTX URI/bitmap helpers, a non-restricted
-  back-stack check, capture-shortcut usage reporting, and other small fixes.
-
+### Added
 - Added a What's New screen in Settings › About: recent releases as cards, with
   an unseen-release dot on the row.
-
-- Fixed the What's New popup showing nothing for releases whose changelog
-  bullets have no `### Added`/`### Fixed` heading.
-
-- Settings toggles now animate smoothly. The switch thumb follows the tap
-  immediately instead of snapping a few frames later once the setting had
-  round-tripped through disk, and a group of settings rows now animates its
-  height when a toggle reveals or hides a follow-up row.
-
-- The Notebooks list lines its trailing icons up on one right edge: the top
-  bar's sync-status icon and each folder row's expand or collapse chevron now
-  sit in line with the notebook rows' pin icon instead of a few dp outside it.
-
-- The time picker's clock dial now renders in the app's sans font instead of
-  the read-mode serif, matching the rest of the app chrome.
-
-- In the planning-dates editor, tapping a start or end time field now opens the
-  clock dial instead of a text field; the end field's dialog gains a "Clear"
-  button. Free-text time entry stays available in the shorthand box.
-
 - Added a "Notify for tasks without a time" toggle to Settings › Reminders (off
   by default). When on, every SCHEDULED, DEADLINE, or active timestamp that
   falls on a day with no time of day fires its own notification at the reminder
   time, instead of only being counted in the daily digest. The digest keeps
   working alongside it, and a date that has already passed stays silent.
-
 - Added support for bare active timestamps: a heading can now carry plain
   `<date>` event stamps (single or a `<a>--<b>` range) alongside SCHEDULED and
   DEADLINE, edited on a new ACTIVE tab in the tabbed planning-dates editor with
@@ -134,31 +91,13 @@ re-uploads the APKs to the existing release instead of failing.
   reminders like the planning dates do (a timed event pings, a date-only one
   joins the daily digest).
 
-- Fixed the tabbed planning-dates editor collapsing this heading's own dates
-  for the tabs you are not on into the same small dot it uses for other notes'
-  planned days. SCHEDULED, DEADLINE and ACTIVE dates you set this session now
-  stay on the calendar as an outlined cell in their own colour when you switch
-  to another tab.
-
-- Fixed a bare `<date>` event stamp showing twice in read mode and the outline
-  — once as plain text, once as the violet chip. The dedicated event line after
-  a heading now renders only as the chip. Stamps written inline in a sentence
-  are unchanged.
-
-- Fixed the note editor's floating menu button covering the last lines of text.
-  The editor now keeps a clear band at the bottom so text always scrolls above
-  the button.
-
-- Fixed a search result showing only the earliest bare active timestamp. Every
-  active stamp on a heading now gets its own violet pill, each carrying its
-  time of day (and range) when it has one, instead of just the first all-day
-  one.
-
-- Fixed the planning-dates editor crashing when you paged the calendar to
-  another month and back. The day grid now renders as a fixed six-row shape, so
-  changing months no longer reshapes the view tree in a way the UI framework
-  could not apply.
-
+### Changed
+- Performance improvements.
+- Cleared all Android lint warnings: KTX URI/bitmap helpers, a non-restricted
+  back-stack check, capture-shortcut usage reporting, and other small fixes.
+- In the planning-dates editor, tapping a start or end time field now opens the
+  clock dial instead of a text field; the end field's dialog gains a "Clear"
+  button. Free-text time entry stays available in the shorthand box.
 - Removed the CI `macrobenchmark` job. Benchmark numbers off a shared-runner
   emulator are noise, and keeping the suite green there was a recurring
   maintenance cost (cold-start re-seed/re-index flakiness, the androidx EMULATOR
@@ -168,6 +107,51 @@ re-uploads the APKs to the existing release instead of failing.
   idempotent (a `.grove-seed` marker file) so repeated cold launches don't
   re-index ~560 files each time, and the benchmarks' "wait for the list" step is
   a hard assertion with a longer timeout. No release impact.
+
+### Fixed
+- Headings with no TODO keyword lost their mark-done button in the Agenda and
+  widget, and now also appear in the ledger widget.
+- Event rows under a day heading no longer repeat that day (e.g. "Today") in
+  their metadata line.
+- Fixed deleted notebooks still firing reminder notifications; their alarms are
+  now cancelled on delete, sync, and app start.
+- The navigation drawer's item list now scrolls when it overflows; the header
+  stays pinned.
+- Planning Dates: the Today/Tomorrow/weekend/next-week presets now show on
+  every tab before a date is set, not only after.
+- Planning Dates: evened out the SCHEDULED tab glyph size and removed the
+  redundant "Not set" line.
+- Fixed the What's New popup showing nothing for releases whose changelog
+  bullets have no `### Added`/`### Fixed` heading.
+- Settings toggles now animate smoothly. The switch thumb follows the tap
+  immediately instead of snapping a few frames later once the setting had
+  round-tripped through disk, and a group of settings rows now animates its
+  height when a toggle reveals or hides a follow-up row.
+- The Notebooks list lines its trailing icons up on one right edge: the top
+  bar's sync-status icon and each folder row's expand or collapse chevron now
+  sit in line with the notebook rows' pin icon instead of a few dp outside it.
+- The time picker's clock dial now renders in the app's sans font instead of
+  the read-mode serif, matching the rest of the app chrome.
+- Fixed the tabbed planning-dates editor collapsing this heading's own dates
+  for the tabs you are not on into the same small dot it uses for other notes'
+  planned days. SCHEDULED, DEADLINE and ACTIVE dates you set this session now
+  stay on the calendar as an outlined cell in their own colour when you switch
+  to another tab.
+- Fixed a bare `<date>` event stamp showing twice in read mode and the outline
+  — once as plain text, once as the violet chip. The dedicated event line after
+  a heading now renders only as the chip. Stamps written inline in a sentence
+  are unchanged.
+- Fixed the note editor's floating menu button covering the last lines of text.
+  The editor now keeps a clear band at the bottom so text always scrolls above
+  the button.
+- Fixed a search result showing only the earliest bare active timestamp. Every
+  active stamp on a heading now gets its own violet pill, each carrying its
+  time of day (and range) when it has one, instead of just the first all-day
+  one.
+- Fixed the planning-dates editor crashing when you paged the calendar to
+  another month and back. The day grid now renders as a fixed six-row shape, so
+  changing months no longer reshapes the view tree in a way the UI framework
+  could not apply.
 
 ## [1.5.0] - 2026-09-07
 

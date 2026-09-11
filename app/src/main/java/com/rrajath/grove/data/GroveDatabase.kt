@@ -185,8 +185,9 @@ data class ReminderEntity(
     val leadTime: String = "at_time",
     /** True when the timestamp this row tracks carries a repeater cookie (`+1w`
      *  etc.). For a [com.rrajath.grove.reminders.PlanningType.ACTIVE] row this
-     *  makes the heading a task, not an event, even with no todo keyword: the
-     *  notification gets Complete/Reschedule actions, and Complete advances the
+     *  doesn't change the notification's wording -- it still reads as an event,
+     *  since there's no todo keyword -- but it does give the notification
+     *  Complete/Reschedule actions same as a task would: Complete advances the
      *  stamp's date instead of touching a keyword that isn't there. Always false
      *  for a bare active timestamp that only lives inline in prose, not on the
      *  heading's managed timestamp line -- that line is all
