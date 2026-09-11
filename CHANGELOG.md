@@ -59,6 +59,8 @@ re-uploads the APKs to the existing release instead of failing.
 
 ## [Unreleased]
 
+## [1.6.1] - 2026-09-11
+
 - Fixed the "Notify for tasks without a time" NEW badge never clearing when
   reminders were disabled; visiting Settings › Reminders now always retires it.
 
