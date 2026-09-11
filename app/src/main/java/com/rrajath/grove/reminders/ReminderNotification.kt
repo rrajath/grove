@@ -43,11 +43,14 @@ object ReminderNotification {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
 
-        // A bare active timestamp is an event, not a task: it reads as "starting
-        // now" rather than "due", and carries no Complete/Reschedule actions
-        // (nothing to mark done, and its date lives inline in the body, not on a
-        // planning line the reschedule flow knows how to rewrite).
-        val isEvent = reminder.planningType == PlanningType.ACTIVE.storageKey
+        // A bare active timestamp is normally an event, not a task: it reads as
+        // "starting now" rather than "due", so it carries no Complete/Reschedule
+        // actions (nothing to mark done). The exception is a repeater cookie
+        // (`+1w` etc.) on the stamp itself -- that reads as a recurring task even
+        // with no todo keyword, so it gets the same actions: Complete advances
+        // the stamp's date (see ReminderActionReceiver), Reschedule opens the
+        // planning dates screen same as any other reminder.
+        val isEvent = reminder.planningType == PlanningType.ACTIVE.storageKey && !reminder.hasRepeater
 
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)

@@ -9,16 +9,21 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import java.time.LocalDate
 import java.time.LocalDateTime
 
 /**
  * Handles the notification's "Complete" action headlessly (no open ViewModel):
  * loads the file's current text from the vault, re-locates the heading by its
- * stored composite key, and applies [OrgMutations.changeKeyword] with the first
- * done-type keyword -- same entry point the metadata sheet uses, so a repeating
- * SCHEDULED/DEADLINE advances its date and stays TODO rather than being marked
- * DONE outright -- saves, and triggers a sync, then cleans up the
- * notification/alarm/row.
+ * stored composite key, and applies a mutation, saves, and triggers a sync,
+ * then cleans up the notification/alarm/row. Two mutations, chosen by whether
+ * the reminder tracks a repeating bare active timestamp
+ * ([ReminderEntity.activeTimestampDate] set) or a keyword:
+ *  - a bare timestamp has no keyword to change, so [OrgMutations.advanceActiveTimestamp]
+ *    advances just that stamp's date;
+ *  - otherwise [OrgMutations.changeKeyword] with the first done-type keyword --
+ *    same entry point the metadata sheet uses, so a repeating SCHEDULED/DEADLINE
+ *    advances its date and stays TODO rather than being marked DONE outright.
  */
 class ReminderActionReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -37,7 +42,6 @@ class ReminderActionReceiver : BroadcastReceiver() {
 
     private suspend fun complete(app: GroveApplication, context: Context, key: String) {
         val reminder = app.database.reminderDao().get(key) ?: return
-        val doneKeyword = app.keywords.value.done.firstOrNull()
         // The broadcast itself may have cold-started the process, in which case
         // `vault` (Eagerly-shared over an async combine) is very likely still null
         // at this instant. Wait briefly for it to become non-null rather than
@@ -45,13 +49,22 @@ class ReminderActionReceiver : BroadcastReceiver() {
         // budget, so bound the wait.
         val vault = withTimeoutOrNull(VAULT_WAIT_MILLIS) { app.vault.filterNotNull().first() }
 
-        val completed = if (doneKeyword != null && vault != null) {
+        val completed = if (vault != null) {
             val doc = vault.open(reminder.fileName)
             val headline = doc?.let { ReminderKeys.findHeadline(it, reminder.headingPath, reminder.headingLevel) }
-            if (doc != null && headline != null) {
-                val newText = OrgMutations.changeKeyword(
-                    doc, headline, doneKeyword, doc.keywords, LocalDateTime.now()
-                )
+            val newText = if (doc == null || headline == null) {
+                null
+            } else {
+                val activeDate = reminder.activeTimestampDate?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
+                if (activeDate != null) {
+                    OrgMutations.advanceActiveTimestamp(doc, headline, activeDate, LocalDateTime.now())
+                } else {
+                    app.keywords.value.done.firstOrNull()?.let { doneKeyword ->
+                        OrgMutations.changeKeyword(doc, headline, doneKeyword, doc.keywords, LocalDateTime.now())
+                    }
+                }
+            }
+            if (newText != null) {
                 vault.save(reminder.fileName, newText)
                 app.syncManager.requestSync("reminder completed")
                 true

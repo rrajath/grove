@@ -104,6 +104,28 @@ class QueryMatcherTest {
 
 
     @Test
+    fun `ad N narrows to scheduled or deadline within the window, dropping undated notes`() {
+        val withinScheduled = note("Within scheduled", scheduled = "<2025-06-15 Sun>")
+        val withinDeadline = note("Within deadline", deadline = "<2025-06-16 Mon>")
+        val overdue = note("Overdue", scheduled = "<2025-06-01 Sun>")
+        val tooFar = note("Too far", scheduled = "<2025-06-30 Mon>")
+        val undated = note("Undated", keyword = "TODO")
+        assertEquals(
+            listOf("Within scheduled", "Within deadline", "Overdue"),
+            run("ad.7", withinScheduled, withinDeadline, overdue, tooFar, undated),
+        )
+    }
+
+    @Test
+    fun `ad N combines with other criteria as AND`() {
+        val dueTodo = note("Due todo", keyword = "TODO", scheduled = "<2025-06-12 Thu>")
+        val dueDone = note("Due done", keyword = "DONE", done = true, scheduled = "<2025-06-12 Thu>")
+        val undatedTodo = note("Undated todo", keyword = "TODO")
+        // Regression: "ad.7 i.todo" must not show tasks with no date set at all.
+        assertEquals(listOf("Due todo"), run("ad.7 i.todo", dueTodo, dueDone, undatedTodo))
+    }
+
+    @Test
     fun `closed within past window`() {
         val recent = note("Recent", closed = "[2025-06-10 Tue]")
         val old = note("Old", closed = "[2025-05-01 Thu]")

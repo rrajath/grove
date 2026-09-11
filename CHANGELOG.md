@@ -59,6 +59,11 @@ re-uploads the APKs to the existing release instead of failing.
 
 ## [Unreleased]
 
+- Fixed reminders for repeating bare timestamps missing Complete/Reschedule
+  actions; Complete now advances the date instead of no-opping.
+
+- Fixed `ad.N` search filter not excluding undated tasks (e.g. `ad.7 i.todo`).
+
 ## [1.6.1] - 2026-09-11
 
 - Fixed the "Notify for tasks without a time" NEW badge never clearing when

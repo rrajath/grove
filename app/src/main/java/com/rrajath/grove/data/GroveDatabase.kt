@@ -183,6 +183,22 @@ data class ReminderEntity(
      *  was computed with, baked in at scheduling time so the "due in N minutes" notification
      *  text can't drift out of sync with a lead-time setting change made after this was armed. */
     val leadTime: String = "at_time",
+    /** True when the timestamp this row tracks carries a repeater cookie (`+1w`
+     *  etc.). For a [com.rrajath.grove.reminders.PlanningType.ACTIVE] row this
+     *  makes the heading a task, not an event, even with no todo keyword: the
+     *  notification gets Complete/Reschedule actions, and Complete advances the
+     *  stamp's date instead of touching a keyword that isn't there. Always false
+     *  for a bare active timestamp that only lives inline in prose, not on the
+     *  heading's managed timestamp line -- that line is all
+     *  [com.rrajath.grove.org.OrgMutations.setActiveTimestamps] knows how to
+     *  rewrite. */
+    val hasRepeater: Boolean = false,
+    /** ISO date of the specific active timestamp this row tracks, set only for
+     *  [com.rrajath.grove.reminders.PlanningType.ACTIVE] rows (a heading can
+     *  carry several). Complete uses it to re-locate that one stamp among the
+     *  heading's active timestamps and advance just it, leaving any others on
+     *  the same line untouched. */
+    val activeTimestampDate: String? = null,
 )
 
 /** Projection of the notebook columns the sync engine diffs against disk. */
@@ -526,6 +542,12 @@ interface ReminderDao {
         NotebookEntity::class, NoteEntity::class, FtsMapEntity::class,
         SyncLogEntity::class, ReminderEntity::class,
     ],
+    // v16: added ReminderEntity.hasRepeater/activeTimestampDate (an ACTIVE-type
+    // reminder whose bare timestamp carries a repeater cookie is now a task, not
+    // an event: its notification gets Complete/Reschedule actions, and Complete
+    // needs the stamp's own date to re-locate and advance it). Destructive
+    // migration drops the rebuildable reminders table; the next reconcile
+    // repopulates it from disk.
     // v15: added notes_fts_map (fileName+lineIndex -> notes_fts rowid) so the
     // per-file FTS delete targets rowids instead of scanning the UNINDEXED
     // fileName column. Destructive migration drops every table (dropAllTables),
@@ -563,7 +585,7 @@ interface ReminderDao {
     // v5: added NotebookEntity.isIndexed (stub vs fully-parsed notebook rows);
     // v4: added NotebookEntity.title (cached #+TITLE: preamble value). Destructive
     // migration drops the index so the next sync rebuilds it from the .org files.
-    version = 15,
+    version = 16,
     exportSchema = false,
 )
 abstract class GroveDatabase : RoomDatabase() {

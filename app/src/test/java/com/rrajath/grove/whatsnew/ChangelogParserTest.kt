@@ -151,7 +151,7 @@ class ChangelogParserTest {
         assertTrue("each release keeps at least one non-empty category", releases.all { r ->
             r.subsections.any { it.items.isNotEmpty() }
         })
-        assertEquals("1.6.0", releases.first().title)
+        assertEquals("1.6.1", releases.first().title)
     }
 
     @Test

@@ -108,6 +108,32 @@ object OrgMutations {
     }
 
     /**
+     * Complete on a repeating bare active timestamp: among [h]'s dedicated
+     * active timestamps (the managed line [setActiveTimestamps] rewrites, not
+     * timestamps typed inline in prose), the one dated [date] gets
+     * [OrgTimestamp.advanceRepeater] applied to it; every other stamp on that
+     * line is left untouched. There is no keyword to preserve or transition
+     * here (a bare timestamp reminder is keyword-less by definition), so unlike
+     * [markDone] this never touches the heading line or logs a state change.
+     * Returns null when [date] doesn't match a dedicated stamp with a repeater
+     * -- nothing to advance.
+     */
+    fun advanceActiveTimestamp(
+        doc: OrgDocument,
+        h: OrgHeadline,
+        date: LocalDate,
+        now: LocalDateTime,
+    ): String? {
+        val today = now.toLocalDate()
+        val stamps = h.dedicatedActiveTimestamps
+        val idx = stamps.indexOfFirst { it.date == date && it.repeater != null }
+        if (idx == -1) return null
+        val advanced = stamps.toMutableList()
+        advanced[idx] = advanced[idx].advanceRepeater(today)
+        return setActiveTimestamps(doc, h, advanced)
+    }
+
+    /**
      * Mark done per org rules: a repeating SCHEDULED/DEADLINE advances its date
      * and the keyword stays active; otherwise the keyword becomes [doneKeyword]
      * and a CLOSED stamp is added.

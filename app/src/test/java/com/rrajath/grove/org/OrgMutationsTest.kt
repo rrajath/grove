@@ -128,6 +128,46 @@ class OrgMutationsTest {
     }
 
     @Test
+    fun `advanceActiveTimestamp advances only the matching dedicated stamp`() {
+        val doc = OrgParser.parse(
+            "* Standup\n<2025-06-09 Mon +1w> <2025-06-10 Tue>\n"
+        )
+        val h = doc.findByTitle("Standup")!!
+        val result = OrgParser.parse(
+            OrgMutations.advanceActiveTimestamp(
+                doc, h, java.time.LocalDate.of(2025, 6, 9), LocalDateTime.of(2025, 6, 11, 9, 0),
+            )!!
+        )
+        val stamps = result.findByTitle("Standup")!!.dedicatedActiveTimestamps
+        assertEquals("<2025-06-16 Mon +1w>", stamps[0].format())
+        // The non-repeating sibling stamp on the same line is untouched.
+        assertEquals("<2025-06-10 Tue>", stamps[1].format())
+    }
+
+    @Test
+    fun `advanceActiveTimestamp returns null when the date has no repeater`() {
+        val doc = OrgParser.parse("* Holiday\n<2025-06-09 Mon>\n")
+        val h = doc.findByTitle("Holiday")!!
+        assertNull(
+            OrgMutations.advanceActiveTimestamp(
+                doc, h, java.time.LocalDate.of(2025, 6, 9), LocalDateTime.of(2025, 6, 11, 9, 0),
+            )
+        )
+    }
+
+    @Test
+    fun `advanceActiveTimestamp ignores a repeater typed inline in prose`() {
+        // Not on the dedicated first line, so there's no managed line to rewrite.
+        val doc = OrgParser.parse("* Standup\nSee you at <2025-06-09 Mon +1w>.\n")
+        val h = doc.findByTitle("Standup")!!
+        assertNull(
+            OrgMutations.advanceActiveTimestamp(
+                doc, h, java.time.LocalDate.of(2025, 6, 9), LocalDateTime.of(2025, 6, 11, 9, 0),
+            )
+        )
+    }
+
+    @Test
     fun `markDone without repeater sets keyword and CLOSED`() {
         val result = OrgParser.parse(
             OrgMutations.markDone(doc, h("Last"), "DONE", LocalDateTime.of(2025, 6, 11, 14, 30))

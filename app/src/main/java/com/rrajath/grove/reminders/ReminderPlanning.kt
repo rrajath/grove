@@ -68,10 +68,21 @@ object ReminderPlanning {
                 result.add(entity(fileName, path, h.title, h.level, PlanningType.DEADLINE, ts, defaultReminderTime, leadTime, notifyUntimed, zone))
             }
             h.activeTimestamps.forEach { ts ->
+                // Only a repeater on the *dedicated* timestamp line (the one
+                // com.rrajath.grove.org.OrgMutations.advanceActiveTimestamp can
+                // rewrite) makes this a task the Complete action can advance; a
+                // repeater typed inline in prose has no managed line to rewrite,
+                // so it stays an event rather than offering a button it can't
+                // honor.
+                val repeatsOnDedicatedLine = ts.repeater != null &&
+                    h.dedicatedActiveTimestamps.any { it.date == ts.date && it.repeater != null }
                 result.add(
                     entity(
                         fileName, path, h.title, h.level, PlanningType.ACTIVE, ts,
-                        defaultReminderTime, leadTime, notifyUntimed, zone, discriminator = ts.date.toString(),
+                        defaultReminderTime, leadTime, notifyUntimed, zone,
+                        discriminator = ts.date.toString(),
+                        hasRepeater = repeatsOnDedicatedLine,
+                        activeTimestampDate = ts.date.toString(),
                     )
                 )
             }
@@ -91,6 +102,8 @@ object ReminderPlanning {
         notifyUntimed: Boolean,
         zone: ZoneId,
         discriminator: String? = null,
+        hasRepeater: Boolean = false,
+        activeTimestampDate: String? = null,
     ): ReminderEntity {
         val key = ReminderKeys.reminderKey(fileName, headingPath, level, type, discriminator)
         val hasOwnTime = ts.time != null
@@ -105,6 +118,8 @@ object ReminderPlanning {
             notificationId = ReminderKeys.notificationId(key),
             firesOwnNotification = hasOwnTime || notifyUntimed,
             leadTime = (if (hasOwnTime) leadTime else ReminderLeadTime.AT_TIME).storageKey,
+            hasRepeater = hasRepeater,
+            activeTimestampDate = activeTimestampDate,
         )
     }
 }

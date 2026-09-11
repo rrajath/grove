@@ -174,6 +174,35 @@ class ReminderPlanningTest {
     }
 
     @Test
+    fun `a repeating bare active timestamp is flagged hasRepeater with its date`() {
+        val doc = OrgParser.parse("* Water plants\n<2026-07-24 Fri +1w>\n")
+        val row = ReminderPlanning.desiredReminders("a.org", doc, nineAm, remindersEnabled = true, zone = zone).single()
+        assertEquals(true, row.hasRepeater)
+        assertEquals("2026-07-24", row.activeTimestampDate)
+    }
+
+    @Test
+    fun `a non-repeating bare active timestamp is not flagged hasRepeater`() {
+        val doc = OrgParser.parse("* Holiday\n<2026-07-24 Fri>\n")
+        val row = ReminderPlanning.desiredReminders("a.org", doc, nineAm, remindersEnabled = true, zone = zone).single()
+        assertEquals(false, row.hasRepeater)
+    }
+
+    @Test
+    fun `a repeater typed inline in prose is not flagged hasRepeater`() {
+        val doc = OrgParser.parse("* Standup\nSee you at <2026-07-24 Fri +1w>.\n")
+        val row = ReminderPlanning.desiredReminders("a.org", doc, nineAm, remindersEnabled = true, zone = zone).single()
+        assertEquals(false, row.hasRepeater)
+    }
+
+    @Test
+    fun `SCHEDULED and DEADLINE rows never set activeTimestampDate`() {
+        val doc = OrgParser.parse("* TODO A\nSCHEDULED: <2026-07-24 Fri +1w>\n")
+        val row = ReminderPlanning.desiredReminders("a.org", doc, nineAm, remindersEnabled = true, zone = zone).single()
+        assertEquals(null, row.activeTimestampDate)
+    }
+
+    @Test
     fun `nested headings key by their ancestor path`() {
         val doc = OrgParser.parse("* Project\n** TODO Sub task\nSCHEDULED: <2026-07-24 Fri>\n")
         val result = ReminderPlanning.desiredReminders("a.org", doc, nineAm, remindersEnabled = true, zone = zone)

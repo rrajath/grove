@@ -62,8 +62,22 @@ data class NoteMeta(
 object QueryMatcher {
 
     fun matches(note: NoteMeta, query: SearchQuery, today: LocalDate): Boolean {
+        if (!matchesAgendaWindow(note, query, today)) return false
         if (query.groups.isEmpty()) return true
         return query.groups.any { group -> group.all { term -> matchesTerm(note, term, today) } }
+    }
+
+    /**
+     * `ad.N` (PRD §5.5): besides switching the results to a day-grouped agenda
+     * view, it narrows to notes scheduled or with deadline within the next N
+     * days (or overdue, same "on or before the pivot" rule [withinFuture] uses
+     * for `s.`/`d.`). Applied independently of [SearchQuery.groups] so it still
+     * filters when `ad.N` is the only token in the query.
+     */
+    private fun matchesAgendaWindow(note: NoteMeta, query: SearchQuery, today: LocalDate): Boolean {
+        val days = query.agendaDays ?: return true
+        val period = Period("${days}d")
+        return withinFuture(note.scheduledDate, period, today) || withinFuture(note.deadlineDate, period, today)
     }
 
     fun filter(notes: List<NoteMeta>, query: SearchQuery, today: LocalDate): List<NoteMeta> =
