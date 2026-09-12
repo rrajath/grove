@@ -183,16 +183,19 @@ data class ReminderEntity(
      *  was computed with, baked in at scheduling time so the "due in N minutes" notification
      *  text can't drift out of sync with a lead-time setting change made after this was armed. */
     val leadTime: String = "at_time",
+    /** True when the heading carries a live (non-DONE) TODO keyword -- the sole
+     *  signal for task-vs-event wording ("due now" vs "starting now") and for
+     *  whether the notification always gets a Complete action, independent of
+     *  which planning field (SCHEDULED/DEADLINE/bare active) this row tracks. */
+    val isTask: Boolean = false,
     /** True when the timestamp this row tracks carries a repeater cookie (`+1w`
-     *  etc.). For a [com.rrajath.grove.reminders.PlanningType.ACTIVE] row this
-     *  doesn't change the notification's wording -- it still reads as an event,
-     *  since there's no todo keyword -- but it does give the notification
-     *  Complete/Reschedule actions same as a task would: Complete advances the
-     *  stamp's date instead of touching a keyword that isn't there. Always false
-     *  for a bare active timestamp that only lives inline in prose, not on the
-     *  heading's managed timestamp line -- that line is all
+     *  etc.). Doesn't affect wording -- that's [isTask] alone -- but on an event
+     *  row (`isTask == false`) it's what additionally earns a Complete action
+     *  alongside Reschedule (a task row always gets Complete regardless of this
+     *  flag). Always false for a bare active timestamp that only lives inline in
+     *  prose, not on the heading's managed timestamp line -- that line is all
      *  [com.rrajath.grove.org.OrgMutations.setActiveTimestamps] knows how to
-     *  rewrite. */
+     *  rewrite, and Complete needs to rewrite it to honor the action. */
     val hasRepeater: Boolean = false,
     /** ISO date of the specific active timestamp this row tracks, set only for
      *  [com.rrajath.grove.reminders.PlanningType.ACTIVE] rows (a heading can
@@ -543,6 +546,11 @@ interface ReminderDao {
         NotebookEntity::class, NoteEntity::class, FtsMapEntity::class,
         SyncLogEntity::class, ReminderEntity::class,
     ],
+    // v17: added ReminderEntity.isTask (task vs event is now decided by whether
+    // the heading carries a live TODO keyword, not by planning type) and started
+    // computing hasRepeater for SCHEDULED/DEADLINE rows too, not just ACTIVE.
+    // Destructive migration drops the rebuildable reminders table; the next
+    // reconcile repopulates it from disk.
     // v16: added ReminderEntity.hasRepeater/activeTimestampDate (an ACTIVE-type
     // reminder whose bare timestamp carries a repeater cookie is now a task, not
     // an event: its notification gets Complete/Reschedule actions, and Complete
@@ -586,7 +594,7 @@ interface ReminderDao {
     // v5: added NotebookEntity.isIndexed (stub vs fully-parsed notebook rows);
     // v4: added NotebookEntity.title (cached #+TITLE: preamble value). Destructive
     // migration drops the index so the next sync rebuilds it from the .org files.
-    version = 16,
+    version = 17,
     exportSchema = false,
 )
 abstract class GroveDatabase : RoomDatabase() {

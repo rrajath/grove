@@ -63,6 +63,8 @@ re-uploads the APKs to the existing release instead of failing.
 - Fixed reminders for repeating bare timestamps missing Complete/Reschedule
   actions; Complete now advances the date instead of no-opping.
 - Fixed `ad.N` search filter not excluding undated tasks (e.g. `ad.7 i.todo`).
+- Fixed reminder task/event wording and buttons to follow the heading's TODO
+  keyword instead of which timestamp field (SCHEDULED/DEADLINE/active) it used.
 
 ## [1.6.1] - 2026-09-11
 

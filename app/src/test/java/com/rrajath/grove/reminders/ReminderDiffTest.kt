@@ -14,6 +14,7 @@ class ReminderDiffTest {
         pendingPermission: Boolean = false,
         firedAt: Long? = null,
         firesOwnNotification: Boolean = true,
+        isTask: Boolean = false,
         hasRepeater: Boolean = false,
     ) = ReminderEntity(
         key = key,
@@ -27,6 +28,7 @@ class ReminderDiffTest {
         pendingPermission = pendingPermission,
         firedAt = firedAt,
         firesOwnNotification = firesOwnNotification,
+        isTask = isTask,
         hasRepeater = hasRepeater,
     )
 
@@ -80,6 +82,15 @@ class ReminderDiffTest {
     fun `same trigger time but flipped hasRepeater is rescheduled`() {
         val existing = entity("a", triggerAtMillis = 500L, hasRepeater = false)
         val desired = entity("a", triggerAtMillis = 500L, hasRepeater = true)
+        val plan = ReminderDiff.diff(existing = listOf(existing), desired = listOf(desired))
+        assertEquals(listOf("a"), plan.toSchedule.map { it.key })
+        assertTrue(plan.unchanged.isEmpty())
+    }
+
+    @Test
+    fun `same trigger time but flipped isTask is rescheduled`() {
+        val existing = entity("a", triggerAtMillis = 500L, isTask = false)
+        val desired = entity("a", triggerAtMillis = 500L, isTask = true)
         val plan = ReminderDiff.diff(existing = listOf(existing), desired = listOf(desired))
         assertEquals(listOf("a"), plan.toSchedule.map { it.key })
         assertTrue(plan.unchanged.isEmpty())

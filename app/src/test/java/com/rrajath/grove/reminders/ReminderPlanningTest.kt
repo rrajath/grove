@@ -203,6 +203,44 @@ class ReminderPlanningTest {
     }
 
     @Test
+    fun `isTask is true for a heading with a live todo keyword, regardless of planning type`() {
+        val doc = OrgParser.parse(
+            "* TODO A\nSCHEDULED: <2026-07-24 Fri> DEADLINE: <2026-07-25 Sat>\n" +
+                "* TODO B\n<2026-07-24 Fri>\n"
+        )
+        val result = ReminderPlanning.desiredReminders("a.org", doc, nineAm, remindersEnabled = true, zone = zone)
+        assertTrue(result.all { it.isTask })
+    }
+
+    @Test
+    fun `isTask is false for a heading with no todo keyword, regardless of planning type`() {
+        val doc = OrgParser.parse(
+            "* A\nSCHEDULED: <2026-07-24 Fri> DEADLINE: <2026-07-25 Sat>\n" +
+                "* B\n<2026-07-24 Fri>\n"
+        )
+        val result = ReminderPlanning.desiredReminders("a.org", doc, nineAm, remindersEnabled = true, zone = zone)
+        assertTrue(result.none { it.isTask })
+    }
+
+    @Test
+    fun `a repeating SCHEDULED or DEADLINE is flagged hasRepeater even with no todo keyword`() {
+        val doc = OrgParser.parse(
+            "* A\nSCHEDULED: <2026-07-24 Fri +1w>\n" +
+                "* B\nDEADLINE: <2026-07-24 Fri +1w>\n"
+        )
+        val result = ReminderPlanning.desiredReminders("a.org", doc, nineAm, remindersEnabled = true, zone = zone)
+        assertTrue(result.all { it.hasRepeater })
+        assertTrue(result.none { it.isTask })
+    }
+
+    @Test
+    fun `a non-repeating SCHEDULED or DEADLINE is not flagged hasRepeater`() {
+        val doc = OrgParser.parse("* A\nSCHEDULED: <2026-07-24 Fri>\n")
+        val row = ReminderPlanning.desiredReminders("a.org", doc, nineAm, remindersEnabled = true, zone = zone).single()
+        assertEquals(false, row.hasRepeater)
+    }
+
+    @Test
     fun `nested headings key by their ancestor path`() {
         val doc = OrgParser.parse("* Project\n** TODO Sub task\nSCHEDULED: <2026-07-24 Fri>\n")
         val result = ReminderPlanning.desiredReminders("a.org", doc, nineAm, remindersEnabled = true, zone = zone)

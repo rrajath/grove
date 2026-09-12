@@ -61,19 +61,31 @@ object ReminderPlanning {
         doc.headlines.forEach { h ->
             if (h.keyword != null && doc.keywords.isDone(h.keyword)) return@forEach
             val path = ReminderKeys.headingPath(doc, h)
+            val isTask = h.keyword != null
             h.planning.scheduled?.let { ts ->
-                result.add(entity(fileName, path, h.title, h.level, PlanningType.SCHEDULED, ts, defaultReminderTime, leadTime, notifyUntimed, zone))
+                result.add(
+                    entity(
+                        fileName, path, h.title, h.level, PlanningType.SCHEDULED, ts,
+                        defaultReminderTime, leadTime, notifyUntimed, zone,
+                        isTask = isTask, hasRepeater = ts.repeater != null,
+                    )
+                )
             }
             h.planning.deadline?.let { ts ->
-                result.add(entity(fileName, path, h.title, h.level, PlanningType.DEADLINE, ts, defaultReminderTime, leadTime, notifyUntimed, zone))
+                result.add(
+                    entity(
+                        fileName, path, h.title, h.level, PlanningType.DEADLINE, ts,
+                        defaultReminderTime, leadTime, notifyUntimed, zone,
+                        isTask = isTask, hasRepeater = ts.repeater != null,
+                    )
+                )
             }
             h.activeTimestamps.forEach { ts ->
                 // Only a repeater on the *dedicated* timestamp line (the one
                 // com.rrajath.grove.org.OrgMutations.advanceActiveTimestamp can
-                // rewrite) makes this a task the Complete action can advance; a
-                // repeater typed inline in prose has no managed line to rewrite,
-                // so it stays an event rather than offering a button it can't
-                // honor.
+                // rewrite) earns the Complete action; a repeater typed inline in
+                // prose has no managed line to rewrite, so it doesn't offer a
+                // button it can't honor.
                 val repeatsOnDedicatedLine = ts.repeater != null &&
                     h.dedicatedActiveTimestamps.any { it.date == ts.date && it.repeater != null }
                 result.add(
@@ -81,6 +93,7 @@ object ReminderPlanning {
                         fileName, path, h.title, h.level, PlanningType.ACTIVE, ts,
                         defaultReminderTime, leadTime, notifyUntimed, zone,
                         discriminator = ts.date.toString(),
+                        isTask = isTask,
                         hasRepeater = repeatsOnDedicatedLine,
                         activeTimestampDate = ts.date.toString(),
                     )
@@ -102,6 +115,7 @@ object ReminderPlanning {
         notifyUntimed: Boolean,
         zone: ZoneId,
         discriminator: String? = null,
+        isTask: Boolean = false,
         hasRepeater: Boolean = false,
         activeTimestampDate: String? = null,
     ): ReminderEntity {
@@ -118,6 +132,7 @@ object ReminderPlanning {
             notificationId = ReminderKeys.notificationId(key),
             firesOwnNotification = hasOwnTime || notifyUntimed,
             leadTime = (if (hasOwnTime) leadTime else ReminderLeadTime.AT_TIME).storageKey,
+            isTask = isTask,
             hasRepeater = hasRepeater,
             activeTimestampDate = activeTimestampDate,
         )

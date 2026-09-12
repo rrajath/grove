@@ -43,33 +43,32 @@ object ReminderNotification {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
 
-        // A bare active timestamp is always an event, not a task, no matter what
-        // it carries -- there's no todo keyword to read it as "due" against, so
-        // it always says "starting"/"starts", never "due". A repeater cookie
-        // (`+1w` etc.) on the stamp is the exception to *actions*, not wording:
-        // it still reads as recurring, so it gets Complete/Reschedule same as a
-        // task would -- Complete advances the stamp's date (see
-        // ReminderActionReceiver), Reschedule opens the planning dates screen.
-        val isEvent = reminder.planningType == PlanningType.ACTIVE.storageKey
-        val showActions = !isEvent || reminder.hasRepeater
+        // Task vs event is decided purely by whether the heading carries a live
+        // todo keyword (ReminderEntity.isTask), independent of which planning
+        // field (SCHEDULED/DEADLINE/bare active) this row tracks. A task always
+        // reads as "due" and always gets Complete. An event reads as "starting"
+        // and only earns Complete alongside Reschedule when its own timestamp
+        // carries a repeater cookie (`+1w` etc.) -- Complete then advances that
+        // stamp/date (see ReminderActionReceiver) rather than touching a keyword
+        // that isn't there; with no repeater an event gets Reschedule alone.
+        val isTask = reminder.isTask
 
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
             .setColor(NotificationAppearance.markColor(context))
             .setContentTitle(orgInlinePlainText(reminder.headingTitle))
             .setContentText(
-                if (isEvent) eventMessage(ReminderLeadTime.fromStorage(reminder.leadTime))
-                else ReminderLeadTime.fromStorage(reminder.leadTime).dueMessage
+                if (isTask) ReminderLeadTime.fromStorage(reminder.leadTime).dueMessage
+                else eventMessage(ReminderLeadTime.fromStorage(reminder.leadTime))
             )
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setContentIntent(contentIntent)
             .setAutoCancel(true)
-        if (showActions) {
-            builder
-                .addAction(0, "Complete", completeAction(context, reminder))
-                .addAction(0, "Reschedule", rescheduleAction(context, reminder))
+        if (isTask || reminder.hasRepeater) {
+            builder.addAction(0, "Complete", completeAction(context, reminder))
         }
+        builder.addAction(0, "Reschedule", rescheduleAction(context, reminder))
         nm.notify(reminder.notificationId, builder.build())
     }
 
@@ -109,7 +108,7 @@ object ReminderNotification {
         nm.notify(DIGEST_NOTIFICATION_ID, notification)
     }
 
-    /** Event phrasing for an ACTIVE reminder, honouring the lead time it was armed with. */
+    /** Event phrasing for a non-task reminder, honouring the lead time it was armed with. */
     private fun eventMessage(leadTime: ReminderLeadTime): String =
         if (leadTime == ReminderLeadTime.AT_TIME) "Your event is starting now"
         else "This event starts in ${leadTime.label.substringBefore(" before the event")}"

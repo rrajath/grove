@@ -27,14 +27,16 @@ object ReminderDiff {
         val unchanged = mutableListOf<ReminderEntity>()
         desired.forEach { d ->
             val e = existingByKey[d.key]
-            // firesOwnNotification/hasRepeater can flip without the trigger time
-            // moving (the "Notify for tasks without a time" toggle; a repeater
-            // cookie added to or removed from an existing bare timestamp): re-arm
-            // so the stored row picks up the new notification behaviour -- the
-            // Complete/Reschedule actions [hasRepeater] gates are read straight
-            // off the row at notification time, not recomputed on tap.
+            // firesOwnNotification/isTask/hasRepeater can flip without the trigger
+            // time moving (the "Notify for tasks without a time" toggle; a todo
+            // keyword added to or removed from the heading; a repeater cookie
+            // added to or removed from an existing timestamp): re-arm so the
+            // stored row picks up the new notification behaviour -- the
+            // task/event wording and Complete/Reschedule action gates are read
+            // straight off the row at notification time, not recomputed on tap.
             if (e == null || e.triggerAtMillis != d.triggerAtMillis ||
-                e.firesOwnNotification != d.firesOwnNotification || e.hasRepeater != d.hasRepeater
+                e.firesOwnNotification != d.firesOwnNotification ||
+                e.isTask != d.isTask || e.hasRepeater != d.hasRepeater
             ) {
                 toSchedule.add(d)
             } else {

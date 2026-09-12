@@ -19,16 +19,20 @@ Grove can notify you when a heading's SCHEDULED or DEADLINE timestamp arrives, w
 
 ## Reminder notifications
 
-When a heading's planning date arrives, Grove fires a system notification with two actions:
+When a heading's planning date arrives, Grove fires a system notification. Whether it reads as a task or an event, and which actions it carries, depends only on whether the heading carries a TODO keyword — not on which timestamp field (SCHEDULED, DEADLINE, or a bare active `<date>`) triggered it.
+
+### Task reminders
+
+A heading with a TODO keyword is a task: the notification reads "Your task is due now" and always carries both actions:
 
 - **Complete**: marks the heading DONE directly from the notification
 - **Reschedule**: opens [Planning Dates](/features/planning-dates) to set a new date
 
-Tapping the notification body itself deep-links into the note in Read mode.
-
 ### Event reminders
 
-A bare active `<date>` timestamp with a time-of-day also fires a notification, worded as an event ("Your event is starting now") rather than a task. Because it isn't a task, it carries no Complete or Reschedule action — unless the timestamp itself carries a repeater cookie (`<2026-09-11 Fri +1w>`), in which case it behaves like a recurring task even with no TODO keyword: it gets both actions, and Complete advances the timestamp's own date rather than marking anything DONE. A date-only event doesn't fire its own notification by default; it is folded into the daily digest for its day (turn on "Notify for tasks without a time" below to get a separate notification instead). A date range reminds you once, on its start date.
+A heading with no TODO keyword is an event: the notification reads "Your event is starting now" (or "starts in ..." for a lead time) and carries only **Reschedule** — unless the timestamp itself carries a repeater cookie (`<2026-09-11 Fri +1w>`), in which case it also gets **Complete**, which advances the timestamp's own date rather than marking anything DONE. A date-only event doesn't fire its own notification by default; it is folded into the daily digest for its day (turn on "Notify for tasks without a time" below to get a separate notification instead). A date range reminds you once, on its start date.
+
+Tapping the notification body itself deep-links into the note in Read mode.
 
 ## Reschedule without opening the app
 
