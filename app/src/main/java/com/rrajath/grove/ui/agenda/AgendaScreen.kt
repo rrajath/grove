@@ -27,6 +27,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Circle
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material3.Icon
@@ -149,6 +150,7 @@ fun AgendaScreen(
                     onStateFilter = viewModel::setStateFilter,
                     onShowTags = viewModel::setShowTags,
                     onShowFile = viewModel::setShowFile,
+                    onShowTimestamps = viewModel::setShowTimestamps,
                     modifier = Modifier.padding(start = 14.dp, top = 10.dp, end = 14.dp),
                 )
             }
@@ -320,6 +322,7 @@ private fun LeversPanel(
     onStateFilter: (AgendaStateFilter) -> Unit,
     onShowTags: (Boolean) -> Unit,
     onShowFile: (Boolean) -> Unit,
+    onShowTimestamps: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val c = MaterialTheme.grove
@@ -361,6 +364,9 @@ private fun LeversPanel(
 
         LeverToggle("Tags on rows", state.showTags, Modifier.padding(top = 14.dp)) { onShowTags(!state.showTags) }
         LeverToggle("Source file on rows", state.showFile, Modifier.padding(top = 11.dp)) { onShowFile(!state.showFile) }
+        LeverToggle("Timestamp chips on rows", state.showTimestamps, Modifier.padding(top = 11.dp)) {
+            onShowTimestamps(!state.showTimestamps)
+        }
     }
 }
 
@@ -473,8 +479,8 @@ private fun AgendaList(
 
         state.groups.forEach { group ->
             item("head-${group.key}") { GroupHeader(group) }
-            items(group.rows, key = { "${group.key}-${it.fileName}@${it.lineIndex}" }) { row ->
-                val rowKey = "${group.key}-${row.fileName}@${row.lineIndex}"
+            items(group.rows, key = { "${group.key}-${it.fileName}@${it.lineIndex}-${it.activeTs}" }) { row ->
+                val rowKey = "${group.key}-${row.fileName}@${row.lineIndex}-${row.activeTs}"
                 // Add-note rides along beside whichever side is configured as Mark
                 // Done: partial swipe reveals both, full swipe still marks done. On
                 // an event (a heading with no TODO keyword) the Done side is dropped
@@ -629,7 +635,11 @@ private fun AgendaRowContent(row: AgendaRow, onToggleDone: () -> Unit) {
                     verticalArrangement = Arrangement.spacedBy(2.dp),
                 ) {
                     row.meta.forEach { meta ->
-                        Text(meta.text, fontFamily = PlexMono, fontSize = 11.5.sp, color = c.metaColor(meta.tone))
+                        if (meta.icon == AgendaMetaIcon.NONE) {
+                            Text(meta.text, fontFamily = PlexMono, fontSize = 11.5.sp, color = c.metaColor(meta.tone))
+                        } else {
+                            MetaIconChip(meta)
+                        }
                     }
                 }
             }
@@ -647,6 +657,31 @@ private fun AgendaRowContent(row: AgendaRow, onToggleDone: () -> Unit) {
                 )
             }
         }
+    }
+}
+
+/**
+ * A meta entry that carries an [AgendaMetaIcon]: the same icon + colored-text
+ * pairing as Read mode's `PlanningChip` (`ReadNoteScreen`), minus its pill
+ * background — blue calendar for a scheduled date, violet dot for a bare
+ * active-timestamp day.
+ */
+@Composable
+private fun MetaIconChip(meta: AgendaMeta) {
+    val c = MaterialTheme.grove
+    val tint = when (meta.icon) {
+        AgendaMetaIcon.CALENDAR -> c.blue
+        AgendaMetaIcon.EVENT_DOT -> c.violet
+        AgendaMetaIcon.NONE -> c.metaColor(meta.tone)
+    }
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+        Icon(
+            if (meta.icon == AgendaMetaIcon.EVENT_DOT) Icons.Filled.Circle else Icons.Outlined.CalendarMonth,
+            contentDescription = null,
+            tint = tint,
+            modifier = Modifier.size(if (meta.icon == AgendaMetaIcon.EVENT_DOT) 7.dp else 11.5.dp),
+        )
+        Text(meta.text, fontFamily = PlexMono, fontSize = 11.5.sp, color = tint)
     }
 }
 

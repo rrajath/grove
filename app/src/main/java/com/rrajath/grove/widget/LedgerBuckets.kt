@@ -100,8 +100,9 @@ object LedgerBuckets {
 
     /**
      * Builds one widget row from [AgendaViewModel.row], then overrides its
-     * tags/file/priority display with the widget's own settings — deliberately
-     * independent of [GroveSettings.agendaShowTags] / [GroveSettings.agendaShowFile],
+     * tags/file/timestamps/priority display with the widget's own settings —
+     * deliberately independent of [GroveSettings.agendaShowTags] /
+     * [GroveSettings.agendaShowFile] / [GroveSettings.agendaShowTimestamps],
      * which govern the in-app Agenda screen instead (Settings § Agenda › Widget).
      *
      * [activeTs]/[eventDay] mark the row as a bare-timestamp event placed on that
@@ -115,7 +116,11 @@ object LedgerBuckets {
         activeTs: OrgTimestamp? = null,
         eventDay: LocalDate? = null,
     ): AgendaRow {
-        val rowSettings = settings.copy(agendaShowTags = settings.agendaWidgetShowTags, agendaShowFile = false)
+        val rowSettings = settings.copy(
+            agendaShowTags = settings.agendaWidgetShowTags,
+            agendaShowFile = false,
+            agendaShowTimestamps = false,
+        )
         val row = AgendaViewModel.row(m, today, showDate, p = rowSettings, activeTs = activeTs, eventDay = eventDay)
         val meta = if (settings.agendaWidgetShowFileName) {
             (row.meta + AgendaMeta(contractFileName(m.fileName), AgendaMetaTone.MUTED)).toImmutableList()

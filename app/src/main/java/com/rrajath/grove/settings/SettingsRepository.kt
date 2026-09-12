@@ -182,6 +182,11 @@ data class GroveSettings(
     val agendaStateFilterUpcoming: AgendaStateFilter = AgendaStateFilter.Open,
     val agendaShowTags: Boolean = true,
     val agendaShowFile: Boolean = false,
+    /**
+     * Adds the SCHEDULED date chip and the bare-active-timestamp `●` chip
+     * alongside whatever DEADLINE indicators a row already always shows.
+     */
+    val agendaShowTimestamps: Boolean = false,
     /** Agenda ledger home-screen widget background transparency: 0 = opaque, 1 = fully transparent. */
     val agendaWidgetTransparency: Float = 0f,
     /** How many days ahead the Agenda ledger widget shows, beyond Overdue/Today. */
@@ -301,6 +306,7 @@ class SettingsRepository(
         val agendaStateFilterUpcoming = stringPreferencesKey("agenda_state_filter_upcoming")
         val agendaShowTags = booleanPreferencesKey("agenda_show_tags")
         val agendaShowFile = booleanPreferencesKey("agenda_show_file")
+        val agendaShowTimestamps = booleanPreferencesKey("agenda_show_timestamps")
         val agendaWidgetTransparency = floatPreferencesKey("agenda_widget_transparency")
         val agendaWidgetDaysAhead = intPreferencesKey("agenda_widget_days_ahead")
         val agendaWidgetShowFileName = booleanPreferencesKey("agenda_widget_show_file_name")
@@ -380,6 +386,7 @@ class SettingsRepository(
             agendaStateFilterUpcoming = AgendaStateFilter.fromStorage(prefs[Keys.agendaStateFilterUpcoming]),
             agendaShowTags = prefs[Keys.agendaShowTags] ?: true,
             agendaShowFile = prefs[Keys.agendaShowFile] ?: false,
+            agendaShowTimestamps = prefs[Keys.agendaShowTimestamps] ?: false,
             agendaWidgetTransparency = prefs[Keys.agendaWidgetTransparency] ?: 0f,
             agendaWidgetDaysAhead = prefs[Keys.agendaWidgetDaysAhead] ?: GroveSettings.DEFAULT_AGENDA_WIDGET_DAYS_AHEAD,
             agendaWidgetShowFileName = prefs[Keys.agendaWidgetShowFileName] ?: false,
@@ -498,6 +505,7 @@ class SettingsRepository(
             p[Keys.agendaStateFilterUpcoming] = s.agendaStateFilterUpcoming.storageKey
             p[Keys.agendaShowTags] = s.agendaShowTags
             p[Keys.agendaShowFile] = s.agendaShowFile
+            p[Keys.agendaShowTimestamps] = s.agendaShowTimestamps
             p[Keys.agendaWidgetTransparency] = s.agendaWidgetTransparency
             p[Keys.agendaWidgetDaysAhead] = s.agendaWidgetDaysAhead
             p[Keys.agendaWidgetShowFileName] = s.agendaWidgetShowFileName
@@ -728,6 +736,10 @@ class SettingsRepository(
 
     suspend fun setAgendaShowFile(show: Boolean) {
         context.settingsDataStore.edit { it[Keys.agendaShowFile] = show }
+    }
+
+    suspend fun setAgendaShowTimestamps(show: Boolean) {
+        context.settingsDataStore.edit { it[Keys.agendaShowTimestamps] = show }
     }
 
     suspend fun setAgendaWidgetTransparency(transparency: Float) {

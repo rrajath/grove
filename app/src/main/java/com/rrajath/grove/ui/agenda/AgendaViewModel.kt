@@ -49,9 +49,16 @@ import kotlin.math.abs
 /** Which theme color one meta chip on an agenda row renders in. */
 enum class AgendaMetaTone { NORMAL, MUTED, DANGER, TAG, EVENT }
 
-/** One entry in a row's mono meta strip: the date, a `⚑` deadline, a `●` event day, a time range, `↻` repeater, tags, or the file. */
+/**
+ * Renders like Read mode's planning chip (`PlanningChip` in `ReadNoteScreen`),
+ * minus its pill background: an icon plus colored text instead of plain text.
+ * [AgendaMetaIcon.NONE] keeps a meta entry as plain mono text.
+ */
+enum class AgendaMetaIcon { NONE, CALENDAR, EVENT_DOT }
+
+/** One entry in a row's mono meta strip: the date, a `⚑` deadline, an event day, a time range, `↻` repeater, tags, or the file. */
 @Immutable
-data class AgendaMeta(val text: String, val tone: AgendaMetaTone)
+data class AgendaMeta(val text: String, val tone: AgendaMetaTone, val icon: AgendaMetaIcon = AgendaMetaIcon.NONE)
 
 @Immutable
 data class AgendaRow(
@@ -104,6 +111,7 @@ data class AgendaUiState(
     val activeKeywords: ImmutableList<String> = persistentListOf(),
     val showTags: Boolean = true,
     val showFile: Boolean = false,
+    val showTimestamps: Boolean = false,
     val swipeLeftAction: AgendaSwipeAction = AgendaSwipeAction.MARK_DONE,
     val swipeRightAction: AgendaSwipeAction = AgendaSwipeAction.SET_SCHEDULED,
 ) {
@@ -123,6 +131,7 @@ private data class AgendaPrefs(
     val stateFilterUpcoming: AgendaStateFilter,
     val showTags: Boolean,
     val showFile: Boolean,
+    val showTimestamps: Boolean,
     val swipeLeft: AgendaSwipeAction,
     val swipeRight: AgendaSwipeAction,
 ) {
@@ -133,6 +142,7 @@ private data class AgendaPrefs(
         s.agendaStateFilterUpcoming,
         s.agendaShowTags,
         s.agendaShowFile,
+        s.agendaShowTimestamps,
         s.agendaSwipeLeftAction,
         s.agendaSwipeRightAction,
     )
@@ -257,6 +267,8 @@ class AgendaViewModel(
 
     fun setShowFile(show: Boolean) = persist { it.setAgendaShowFile(show) }
 
+    fun setShowTimestamps(show: Boolean) = persist { it.setAgendaShowTimestamps(show) }
+
     private fun persist(block: suspend (com.rrajath.grove.settings.SettingsRepository) -> Unit) {
         viewModelScope.launch { block(settingsRepository) }
     }
@@ -332,6 +344,7 @@ class AgendaViewModel(
             activeKeywords = active.toImmutableList(),
             showTags = p.agendaShowTags,
             showFile = p.agendaShowFile,
+            showTimestamps = p.agendaShowTimestamps,
             swipeLeftAction = p.agendaSwipeLeftAction,
             swipeRightAction = p.agendaSwipeRightAction,
         )
@@ -614,7 +627,10 @@ class AgendaViewModel(
          * never the overdue / `⚑` deadline styling. It also gets a violet `●`
          * day chip *unless* [eventDay] is set — a non-null [eventDay] means the
          * caller is rendering the row under a day section whose header already
-         * names the day, so the chip would just repeat it.
+         * names the day, so the chip would just repeat it. `p.agendaShowTimestamps`
+         * overrides that suppression, and separately adds the SCHEDULED date chip
+         * on non-event rows even when the day is already implied — both stay
+         * alongside the DEADLINE indicators, which always show regardless.
          * [scheduledTs]/[deadlineTs] on the row still carry the heading's real
          * planning so swipe-to-schedule prefills correctly.
          */
@@ -636,9 +652,18 @@ class AgendaViewModel(
             if (activeTs != null) {
                 val meta = buildList {
                     // Omitted under a day section (eventDay set): the section
-                    // header already names the day.
-                    if (eventDay == null) {
-                        add(AgendaMeta("● ${AgendaBuckets.dayLabel(activeTs.date, today)}", AgendaMetaTone.EVENT))
+                    // header already names the day. agendaShowTimestamps
+                    // overrides that suppression, per-row.
+                    if (eventDay == null || p.agendaShowTimestamps) {
+                        add(
+                            AgendaMeta(
+                                // eventDay is the day this occurrence is shown under, which for a
+                                // ranged timestamp differs from activeTs.date (the range's start).
+                                AgendaBuckets.dayLabel(eventDay ?: activeTs.date, today),
+                                AgendaMetaTone.EVENT,
+                                icon = AgendaMetaIcon.EVENT_DOT,
+                            ),
+                        )
                     }
                     activeTs.time?.let { start ->
                         val range = start.format(CLOCK) + (activeTs.endTime?.let { "–${it.format(CLOCK)}" } ?: "")
@@ -674,12 +699,24 @@ class AgendaViewModel(
             val deadlineOnly = deadlineTs != null && scheduledTs == null
 
             val meta = buildList {
-                if (showDate && anchorDate != null) {
+                // agendaShowTimestamps adds the SCHEDULED date chip even under
+                // Date grouping (where the day section already names the day) —
+                // but never for a deadline-only row, whose "⚑ due" already covers it.
+                if ((showDate || (p.agendaShowTimestamps && scheduledTs != null)) && anchorDate != null) {
                     val late = ChronoUnit.DAYS.between(anchorDate, today)
                     val text = (if (deadlineOnly) "⚑ " else "") +
                         if (overdue) "${anchorDate.format(AgendaBuckets.SHORT_DATE)} · ${late}d late"
                         else AgendaBuckets.dayLabel(anchorDate, today)
-                    add(AgendaMeta(text, if (overdue || deadlineOnly) AgendaMetaTone.DANGER else AgendaMetaTone.NORMAL))
+                    // Only a plain scheduled date (not overdue, not deadline-only)
+                    // gets the calendar-icon treatment; overdue/deadline chips stay
+                    // plain red text, unchanged.
+                    add(
+                        AgendaMeta(
+                            text,
+                            if (overdue || deadlineOnly) AgendaMetaTone.DANGER else AgendaMetaTone.NORMAL,
+                            icon = if (overdue || deadlineOnly) AgendaMetaIcon.NONE else AgendaMetaIcon.CALENDAR,
+                        ),
+                    )
                 } else if (deadlineOnly) {
                     add(AgendaMeta("⚑ due", AgendaMetaTone.DANGER))
                 }

@@ -27,6 +27,7 @@ class AgendaViewModelRowTest {
         tags: List<String>,
         inheritedTags: List<String>,
         scheduled: String? = null,
+        deadline: String? = null,
         keyword: String? = "TODO",
     ) = NoteMeta(
         fileName = "notes.org",
@@ -38,7 +39,7 @@ class AgendaViewModelRowTest {
         tags = tags,
         inheritedTags = inheritedTags,
         scheduled = scheduled,
-        deadline = null,
+        deadline = deadline,
         closed = null,
         createdAt = null,
         lastModified = 0L,
@@ -119,7 +120,23 @@ class AgendaViewModelRowTest {
 
         // No day section (eventDay null): the row carries the day itself.
         val loose = AgendaViewModel.row(meta, today, showDate = false, p = GroveSettings(), activeTs = ts)
-        assertEquals("● Friday", loose.meta.single { it.tone == AgendaMetaTone.EVENT }.text)
+        assertEquals("Friday", loose.meta.single { it.tone == AgendaMetaTone.EVENT }.text)
+    }
+
+    @Test
+    fun `a ranged active timestamp's day chip names the occurrence day, not the range start`() {
+        val meta = note(title = "Learning elisp", tags = emptyList(), inheritedTags = emptyList())
+        // Range spans Jun 10-12; today (Jun 12) falls inside it, so the chip
+        // must read "Today", not dayLabel of the range's start (Jun 10).
+        val ts = OrgTimestamp(date = LocalDate.of(2025, 6, 10), rangeEnd = LocalDate.of(2025, 6, 12))
+        val todayInRange = LocalDate.of(2025, 6, 12)
+
+        val row = AgendaViewModel.row(
+            meta, todayInRange, showDate = false, p = GroveSettings(agendaShowTimestamps = true),
+            activeTs = ts, eventDay = todayInRange,
+        )
+
+        assertEquals("Today", row.meta.single { it.tone == AgendaMetaTone.EVENT }.text)
     }
 
     @Test
@@ -146,5 +163,78 @@ class AgendaViewModelRowTest {
             today, showDate = false, p = GroveSettings(),
         )
         assertTrue(scheduled.isEvent)
+    }
+
+    @Test
+    fun `agendaShowTimestamps is off by default, so a scheduled row under a day section shows no date chip`() {
+        val meta = note(title = "Standalone task", tags = emptyList(), inheritedTags = emptyList(), scheduled = "<2025-06-11 Wed>")
+
+        val row = AgendaViewModel.row(meta, today, showDate = false, p = GroveSettings())
+
+        assertTrue(row.meta.none { it.tone == AgendaMetaTone.NORMAL || it.tone == AgendaMetaTone.DANGER })
+    }
+
+    @Test
+    fun `agendaShowTimestamps adds the scheduled date chip even under a day section`() {
+        val meta = note(title = "Standalone task", tags = emptyList(), inheritedTags = emptyList(), scheduled = "<2025-06-11 Wed>")
+
+        val row = AgendaViewModel.row(meta, today, showDate = false, p = GroveSettings(agendaShowTimestamps = true))
+
+        val chip = row.meta.single { it.tone == AgendaMetaTone.NORMAL }
+        assertEquals("Today", chip.text)
+        assertEquals(AgendaMetaIcon.CALENDAR, chip.icon)
+    }
+
+    @Test
+    fun `agendaShowTimestamps adds the scheduled chip alongside the existing deadline chip, not instead of it`() {
+        val meta = note(
+            title = "Both dates", tags = emptyList(), inheritedTags = emptyList(),
+            scheduled = "<2025-06-11 Wed>", deadline = "<2025-06-13 Fri>",
+        )
+
+        val row = AgendaViewModel.row(meta, today, showDate = false, p = GroveSettings(agendaShowTimestamps = true))
+
+        val scheduledChip = row.meta.single { it.tone == AgendaMetaTone.NORMAL }
+        assertEquals("Today", scheduledChip.text)
+        assertEquals(AgendaMetaIcon.CALENDAR, scheduledChip.icon)
+        val deadlineChip = row.meta.single { it.tone == AgendaMetaTone.DANGER }
+        assertTrue(deadlineChip.text.startsWith("⚑"))
+        assertEquals(AgendaMetaIcon.NONE, deadlineChip.icon)
+    }
+
+    @Test
+    fun `agendaShowTimestamps leaves a deadline-only row's chip untouched, with no icon`() {
+        val meta = note(title = "Deadline only", tags = emptyList(), inheritedTags = emptyList(), deadline = "<2025-06-20 Fri>")
+
+        val row = AgendaViewModel.row(meta, today, showDate = false, p = GroveSettings(agendaShowTimestamps = true))
+
+        val chip = row.meta.single { it.tone == AgendaMetaTone.DANGER }
+        assertEquals("⚑ due", chip.text)
+        assertEquals(AgendaMetaIcon.NONE, chip.icon)
+    }
+
+    @Test
+    fun `agendaShowTimestamps shows the event day chip even under a day section, with the event-dot icon`() {
+        val meta = note(title = "Team offsite", tags = emptyList(), inheritedTags = emptyList())
+        val ts = OrgTimestamp.parse("<2025-06-13 Fri>")!!
+
+        val row = AgendaViewModel.row(
+            meta, today, showDate = false, p = GroveSettings(agendaShowTimestamps = true),
+            activeTs = ts, eventDay = LocalDate.of(2025, 6, 13),
+        )
+
+        val chip = row.meta.single { it.tone == AgendaMetaTone.EVENT }
+        assertEquals("Friday", chip.text)
+        assertEquals(AgendaMetaIcon.EVENT_DOT, chip.icon)
+    }
+
+    @Test
+    fun `an overdue scheduled chip stays plain danger text with no calendar icon`() {
+        val meta = note(title = "Late task", tags = emptyList(), inheritedTags = emptyList(), scheduled = "<2025-06-09 Mon>")
+
+        val row = AgendaViewModel.row(meta, today, showDate = true, p = GroveSettings())
+
+        val chip = row.meta.single { it.tone == AgendaMetaTone.DANGER }
+        assertEquals(AgendaMetaIcon.NONE, chip.icon)
     }
 }

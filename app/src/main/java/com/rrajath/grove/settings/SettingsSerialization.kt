@@ -96,6 +96,7 @@ data class SettingsExport(
     val agendaStateFilterUpcoming: String = AgendaStateFilter.Open.storageKey,
     val agendaShowTags: Boolean = true,
     val agendaShowFile: Boolean = false,
+    val agendaShowTimestamps: Boolean = false,
     val agendaWidgetTransparency: Float = 0f,
     val agendaWidgetDaysAhead: Int = GroveSettings.DEFAULT_AGENDA_WIDGET_DAYS_AHEAD,
     val agendaWidgetShowFileName: Boolean = false,
@@ -159,6 +160,7 @@ data class SettingsExport(
         agendaStateFilterUpcoming = AgendaStateFilter.fromStorage(agendaStateFilterUpcoming),
         agendaShowTags = agendaShowTags,
         agendaShowFile = agendaShowFile,
+        agendaShowTimestamps = agendaShowTimestamps,
         agendaWidgetTransparency = agendaWidgetTransparency.coerceIn(0f, 1f),
         agendaWidgetDaysAhead = agendaWidgetDaysAhead.coerceAtLeast(2),
         agendaWidgetShowFileName = agendaWidgetShowFileName,
@@ -180,7 +182,9 @@ data class SettingsExport(
         // v4: added the widget-only agendaWidgetShow*/agendaWidgetFontSize levers.
         // Additive — older exports omit them and import at their defaults
         // (mirroring today's widget behavior).
-        const val CURRENT_VERSION = 4
+        // v5: added agendaShowTimestamps. Additive — older exports omit it and
+        // import at its default (off), matching today's behavior.
+        const val CURRENT_VERSION = 5
 
         fun fromSettings(s: GroveSettings): SettingsExport = SettingsExport(
             theme = s.theme.storageKey,
@@ -228,6 +232,7 @@ data class SettingsExport(
             agendaStateFilterUpcoming = s.agendaStateFilterUpcoming.storageKey,
             agendaShowTags = s.agendaShowTags,
             agendaShowFile = s.agendaShowFile,
+            agendaShowTimestamps = s.agendaShowTimestamps,
             agendaWidgetTransparency = s.agendaWidgetTransparency,
             agendaWidgetDaysAhead = s.agendaWidgetDaysAhead,
             agendaWidgetShowFileName = s.agendaWidgetShowFileName,

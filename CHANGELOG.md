@@ -59,6 +59,9 @@ re-uploads the APKs to the existing release instead of failing.
 
 ## [Unreleased]
 
+### Added
+- Added an agenda lever (off by default) showing icon-styled scheduled/active-timestamp chips next to deadline chips on rows.
+
 ### Changed
 - Bare active timestamps are now written right below the heading, above its
   properties drawer, instead of below it; older notes still parse either way.
@@ -69,6 +72,8 @@ re-uploads the APKs to the existing release instead of failing.
 - Fixed `ad.N` search filter not excluding undated tasks (e.g. `ad.7 i.todo`).
 - Fixed reminder task/event wording and buttons to follow the heading's TODO
   keyword instead of which timestamp field (SCHEDULED/DEADLINE/active) it used.
+- Fixed a crash and duplicate row when a heading was both scheduled/deadlined
+  and carried a bare active timestamp for the same day in the agenda.
 
 ## [1.6.1] - 2026-09-11
 
