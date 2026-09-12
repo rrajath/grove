@@ -355,7 +355,9 @@ class AgendaViewModel(
      * The "Group by · Date" buckets with bare-timestamp events woven in. Planned
      * headings keep their one-day-each rule; each event contributes one row per
      * day it covers, sorted into that day's bucket by time. A heading that is
-     * both scheduled and carries an active date shows twice, once per occurrence.
+     * both scheduled/deadlined and carries an active date lands twice only when
+     * those dates differ — on the same day it is one plan, not a plan plus an
+     * event, so the active-timestamp occurrence for that day is dropped.
      */
     private fun dateGroups(
         visible: List<NoteMeta>,
@@ -378,9 +380,18 @@ class AgendaViewModel(
             return AgendaGroup(key, rows.size, rows.toImmutableList())
         }
 
+        /** Drops event occurrences whose heading is already planned for this same day. */
+        fun eventsNotAlreadyPlanned(
+            events: List<Pair<NoteMeta, OrgTimestamp>>,
+            dayPlanned: List<NoteMeta>,
+        ): List<Pair<NoteMeta, OrgTimestamp>> {
+            val plannedKeys = dayPlanned.map { it.fileName to it.lineIndex }.toSet()
+            return events.filter { (m, _) -> (m.fileName to m.lineIndex) !in plannedKeys }
+        }
+
         if (isTodayTab) {
-            val entries = planned.map { DayEntry.Planned(it) } +
-                AgendaBuckets.activeEventsOn(visible, today).map { DayEntry.Event(it.first, it.second) }
+            val events = eventsNotAlreadyPlanned(AgendaBuckets.activeEventsOn(visible, today), planned)
+            val entries = planned.map { DayEntry.Planned(it) } + events.map { DayEntry.Event(it.first, it.second) }
             return if (entries.isEmpty()) emptyList() else listOf(bucket("Scheduled today", today, entries))
         }
 
@@ -388,7 +399,7 @@ class AgendaViewModel(
         val plannedByDay = planned.groupBy { AgendaBuckets.whenDate(it)!! }
         val eventsByDay = generateSequence(today.plusDays(1)) { it.plusDays(1) }
             .takeWhile { !it.isAfter(horizon) }
-            .associateWith { AgendaBuckets.activeEventsOn(visible, it) }
+            .associateWith { day -> eventsNotAlreadyPlanned(AgendaBuckets.activeEventsOn(visible, day), plannedByDay[day].orEmpty()) }
             .filterValues { it.isNotEmpty() }
         return (plannedByDay.keys + eventsByDay.keys).toSortedSet().map { day ->
             val entries = plannedByDay[day].orEmpty().map { DayEntry.Planned(it) } +

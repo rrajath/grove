@@ -235,6 +235,62 @@ class AgendaViewModelIntegrationTest {
     }
 
     @Test
+    fun `a heading scheduled and active on the same day shows once, not twice`() = runTest {
+        val sameDayVault = """
+            #+TITLE: Same day
+
+            * TODO Standup
+            SCHEDULED: ${orgDate(today)}
+            ${orgDate(today)}
+        """.trimIndent() + "\n"
+        store.write("sameday.org", sameDayVault)
+        TestVaultSeeder.index(db, store)
+        advanceUntilIdle()
+        val vm = agenda()
+        advanceUntilIdle()
+
+        val todayTitles = vm.state.value.groups.flatMap { it.rows }.map { it.title }
+        assertEquals(
+            "expected exactly one 'Standup' row, was $todayTitles",
+            1,
+            todayTitles.count { it == "Standup" },
+        )
+    }
+
+    @Test
+    fun `a heading scheduled today with an active date days later shows in both`() = runTest {
+        val differentDaysVault = """
+            #+TITLE: Different days
+
+            * TODO Meeting
+            SCHEDULED: ${orgDate(today)}
+            ${orgDate(inThreeDays)}
+        """.trimIndent() + "\n"
+        store.write("differentdays.org", differentDaysVault)
+        TestVaultSeeder.index(db, store)
+        advanceUntilIdle()
+        val vm = agenda()
+        advanceUntilIdle()
+
+        val todayTitles = vm.state.value.groups.flatMap { it.rows }.map { it.title }
+        assertEquals(
+            "expected exactly one 'Meeting' row in Today, was $todayTitles",
+            1,
+            todayTitles.count { it == "Meeting" },
+        )
+
+        vm.setTab(AgendaTab.UPCOMING)
+        advanceUntilIdle()
+
+        val upcomingTitles = vm.state.value.groups.flatMap { it.rows }.map { it.title }
+        assertEquals(
+            "expected exactly one 'Meeting' row in Upcoming (its active-date occurrence), was $upcomingTitles",
+            1,
+            upcomingTitles.count { it == "Meeting" },
+        )
+    }
+
+    @Test
     fun `moveOverdueToToday rewrites the overdue SCHEDULED date and requests a sync`() = runTest {
         TestVaultSeeder.index(db, store)
         advanceUntilIdle()
