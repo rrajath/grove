@@ -54,25 +54,35 @@ object OrgMutations {
     ): String = writePlanning(doc, h, h.planning.copy(scheduled = scheduled, deadline = deadline))
 
     /**
-     * Write [h]'s bare active timestamps as one dedicated line at [h.bodyStart]
-     * (right after any planning line and drawers). If a "pure active-timestamp
-     * line" (only `<…>` stamps + whitespace) is already there it is replaced;
+     * Write [h]'s bare active timestamps as one dedicated line right after any
+     * planning line, above its drawers. If a "pure active-timestamp line"
+     * (only `<…>` stamps + whitespace) is already there it is replaced;
      * otherwise one is inserted. An empty [stamps] removes the dedicated line.
+     * A pre-flip file that still has the line below the drawers (this app's
+     * old convention) gets it migrated up to the canonical slot on any edit.
      * Active timestamps typed inline in prose are left untouched — only this
      * one managed line is edited, mirroring [writePlanning].
      */
     fun setActiveTimestamps(doc: OrgDocument, h: OrgHeadline, stamps: List<OrgTimestamp>): String {
         val lines = doc.lines.toMutableList()
-        val at = h.bodyStart
-        val hadLine = at < h.contentEnd && at < lines.size && isPureActiveTimestampLine(lines[at])
+        val newSlot = planningAdjacentStart(doc, h)
+        val hasNewSlotLine = newSlot < h.contentEnd && newSlot < lines.size &&
+                isPureActiveTimestampLine(lines[newSlot])
+        // Pre-flip position: the body's own first line, below the drawers —
+        // only possible when the canonical slot doesn't already have one.
+        val oldSlot = h.bodyStart
+        val hasOldSlotLine = !hasNewSlotLine && oldSlot < h.contentEnd && oldSlot < lines.size &&
+                isPureActiveTimestampLine(lines[oldSlot])
         val newLine = stamps
             .filter { it.active }
             .takeIf { it.isNotEmpty() }
             ?.joinToString(" ") { it.format() }
+        // oldSlot sits after newSlot, so removing it first doesn't shift newSlot's index.
+        if (hasOldSlotLine) lines.removeAt(oldSlot)
         when {
-            hadLine && newLine != null -> lines[at] = newLine
-            hadLine -> lines.removeAt(at)
-            newLine != null -> lines.add(at, newLine)
+            hasNewSlotLine && newLine != null -> lines[newSlot] = newLine
+            hasNewSlotLine -> lines.removeAt(newSlot)
+            newLine != null -> lines.add(newSlot, newLine)
         }
         return lines.joinToString("\n")
     }
@@ -96,9 +106,6 @@ object OrgMutations {
         val again = redoc.headlines.first { it.lineIndex == h.lineIndex }
         return setActiveTimestamps(redoc, again, active)
     }
-
-    private val PURE_ACTIVE_TS_LINE =
-        Regex("""^\s*(?:<[^<>\n]+>(?:--<[^<>\n]+>)?\s*)+$""")
 
     /** True when [line] holds only active `<…>` timestamps (and whitespace). */
     private fun isPureActiveTimestampLine(line: String): Boolean {
@@ -720,12 +727,27 @@ object OrgMutations {
         return "- State ${pad(newState)} from ${pad(oldState)} ${at.format()}"
     }
 
-    /** First line right after any planning line: where the drawer run (if any) starts. */
-    private fun drawerScanStart(doc: OrgDocument, h: OrgHeadline): Int {
+    /**
+     * First line right after any planning line: the dedicated active-timestamp
+     * line's canonical slot ([setActiveTimestamps]), and where the drawer run
+     * starts when there's no such line there.
+     */
+    private fun planningAdjacentStart(doc: OrgDocument, h: OrgHeadline): Int {
         val planningLineIndex = h.lineIndex + 1
         val hasPlanning = planningLineIndex < doc.subtreeEndLine(h) &&
                 planningLineIndex < doc.lines.size && isPlanningLine(doc.lines[planningLineIndex])
         return if (hasPlanning) planningLineIndex + 1 else h.lineIndex + 1
+    }
+
+    /**
+     * First line right after any planning line AND a dedicated active-timestamp
+     * line in its canonical slot there: where the drawer run (if any) starts.
+     */
+    private fun drawerScanStart(doc: OrgDocument, h: OrgHeadline): Int {
+        val start = planningAdjacentStart(doc, h)
+        val hasDedicatedLine = start < doc.subtreeEndLine(h) &&
+                start < doc.lines.size && isPureActiveTimestampLine(doc.lines[start])
+        return if (hasDedicatedLine) start + 1 else start
     }
 
     /**

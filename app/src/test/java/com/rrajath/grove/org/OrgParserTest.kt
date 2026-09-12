@@ -341,11 +341,31 @@ class OrgParserTest {
     }
 
     @Test
-    fun `bodyWithoutDedicatedTimestamp drops the leading bare stamp line and shifts bodyStart`() {
+    fun `bodyWithoutDedicatedTimestamp is a no-op when the dedicated line is in its canonical slot`() {
+        // Canonical slot (right after the heading, before any drawer): the
+        // parser already excludes it from bodyOf, so there's nothing to drop.
         val doc = OrgParser.parse(
             "* Trip\n<2026-09-08 Mon>--<2026-09-10 Wed>\nPack the bags.\nBook the train.\n"
         )
         val trip = doc.findByTitle("Trip")!!
+        assertEquals(listOf("Pack the bags.", "Book the train.", ""), doc.bodyOf(trip))
+        assertEquals(doc.bodyOf(trip), doc.bodyWithoutDedicatedTimestamp(trip))
+        assertEquals(trip.bodyStart, doc.bodyStartWithoutDedicatedTimestamp(trip))
+    }
+
+    @Test
+    fun `bodyWithoutDedicatedTimestamp drops the leading bare stamp line for a pre-flip file`() {
+        // Pre-flip position (below the drawer, as the body's own first line):
+        // still recognized as dedicated, so it needs stripping out of the body.
+        val doc = OrgParser.parse(
+            "* Trip\n:PROPERTIES:\n:ID: t1\n:END:\n<2026-09-08 Mon>--<2026-09-10 Wed>\n" +
+                "Pack the bags.\nBook the train.\n"
+        )
+        val trip = doc.findByTitle("Trip")!!
+        assertEquals(
+            listOf(java.time.LocalDate.of(2026, 9, 8)),
+            trip.dedicatedActiveTimestamps.map { it.date },
+        )
         assertEquals(listOf("Pack the bags.", "Book the train.", ""), doc.bodyWithoutDedicatedTimestamp(trip))
         assertEquals(trip.bodyStart + 1, doc.bodyStartWithoutDedicatedTimestamp(trip))
     }

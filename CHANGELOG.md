@@ -59,6 +59,10 @@ re-uploads the APKs to the existing release instead of failing.
 
 ## [Unreleased]
 
+### Changed
+- Bare active timestamps are now written right below the heading, above its
+  properties drawer, instead of below it; older notes still parse either way.
+
 ### Fixed
 - Fixed reminders for repeating bare timestamps missing Complete/Reschedule
   actions; Complete now advances the date instead of no-opping.

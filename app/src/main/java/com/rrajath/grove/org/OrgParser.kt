@@ -10,6 +10,13 @@ package com.rrajath.grove.org
  */
 const val INTRO_LINE_INDEX = -1
 
+/**
+ * A line that is nothing but active `<…>` timestamps (and whitespace): the
+ * dedicated bare-timestamp line [OrgMutations.setActiveTimestamps] manages.
+ * Shared with [OrgMutations], which writes/detects that line.
+ */
+internal val PURE_ACTIVE_TS_LINE = Regex("""^\s*(?:<[^<>\n]+>(?:--<[^<>\n]+>)?\s*)+$""")
+
 /** SCHEDULED / DEADLINE / CLOSED metadata from a headline's planning line. */
 data class Planning(
     val scheduled: OrgTimestamp? = null,
@@ -46,14 +53,22 @@ data class OrgHeadline(
      */
     val activeTimestamps: List<OrgTimestamp> = emptyList(),
     /**
-     * The active timestamps on the *dedicated* first body line only — a line
-     * that is nothing but `<…>` stamps (and whitespace). This is the subset the
+     * The active timestamps on the headline's dedicated timestamp line — a
+     * line that is nothing but `<…>` stamps (and whitespace), living right
+     * after the planning line and before any drawers. This is the subset the
      * tabbed Dates editor manages; [activeTimestamps] additionally includes any
      * stamp the note carries inline in its prose, which the editor leaves alone.
-     * Empty when the first body line is prose.
+     * Also recognized in the pre-flip position (below the drawers, as the
+     * body's own first line) for files written before that line moved above
+     * the drawers — see [OrgMutations.setActiveTimestamps]. Empty when neither
+     * position holds one.
      */
     val dedicatedActiveTimestamps: List<OrgTimestamp> = emptyList(),
-    /** First line of body content (after planning line, properties and logbook drawers). */
+    /**
+     * First line of body content: after the planning line, the dedicated
+     * active-timestamp line (only when it's in its canonical position above
+     * the drawers), and any properties/logbook drawers.
+     */
     val bodyStart: Int,
     /** Exclusive end: line index of the next headline (any level) or EOF. */
     val contentEnd: Int,
@@ -240,20 +255,27 @@ class OrgDocument(
     }
 
     /**
-     * [bodyOf] without the leading bare active-timestamp line (org's event-date
-     * convention). Read mode and the Outline preview show [OrgHeadline.dedicatedActiveTimestamps]
+     * [bodyOf] without the leading bare active-timestamp line, when [h] still
+     * carries one in the pre-flip position (below its drawers, as the body's
+     * own first line — see [OrgMutations.setActiveTimestamps]). The current,
+     * canonical position (right after the planning line, before any drawers)
+     * already sits outside [bodyOf], so there is nothing to strip there. Read
+     * mode and the Outline preview show [OrgHeadline.dedicatedActiveTimestamps]
      * as a chip, so that line would otherwise appear twice: once as the chip, once
      * as plain body text. Inline `<…>` stamps inside prose are left alone.
      */
     fun bodyWithoutDedicatedTimestamp(h: OrgHeadline): List<String> {
         val body = bodyOf(h)
-        return if (h.dedicatedActiveTimestamps.isNotEmpty() && body.isNotEmpty()) body.drop(1) else body
+        val firstLineIsDedicated = body.firstOrNull()?.let { PURE_ACTIVE_TS_LINE.matches(it) } == true
+        return if (firstLineIsDedicated) body.drop(1) else body
     }
 
     /** [OrgHeadline.bodyStart] shifted past the line [bodyWithoutDedicatedTimestamp] drops, so
      *  body-relative block line numbers still resolve to absolute document lines. */
-    fun bodyStartWithoutDedicatedTimestamp(h: OrgHeadline): Int =
-        if (h.dedicatedActiveTimestamps.isNotEmpty()) h.bodyStart + 1 else h.bodyStart
+    fun bodyStartWithoutDedicatedTimestamp(h: OrgHeadline): Int {
+        val firstLineIsDedicated = bodyOf(h).firstOrNull()?.let { PURE_ACTIVE_TS_LINE.matches(it) } == true
+        return if (firstLineIsDedicated) h.bodyStart + 1 else h.bodyStart
+    }
 
     /** Exclusive end line of [h]'s entire subtree (own content + descendants). */
     fun subtreeEndLine(h: OrgHeadline): Int =
@@ -275,8 +297,6 @@ object OrgParser {
     internal val PROPERTY_LINE = Regex("""^\s*:([^:\s]+):\s*(.*)$""")
     private val PLANNING_PART = Regex("""(SCHEDULED|DEADLINE|CLOSED):\s*""")
 
-    /** A body line that is nothing but active `<…>` timestamps (and whitespace). */
-    private val PURE_ACTIVE_TS_LINE = Regex("""^\s*(?:<[^<>\n]+>(?:--<[^<>\n]+>)?\s*)+$""")
     internal val PREAMBLE_KEYWORD = Regex("""^#\+([A-Za-z][A-Za-z0-9_-]*):(.*)$""")
 
     fun parse(text: String, keywords: OrgKeywords = OrgKeywords.DEFAULT): OrgDocument {
@@ -350,9 +370,23 @@ object OrgParser {
             cursor++
         }
 
+        // Dedicated active-timestamp line, in its canonical slot right after
+        // the planning line and before any drawers. A pre-flip file with the
+        // line below the drawers instead is picked up further down, once the
+        // drawer run has been scanned.
+        var dedicatedActiveTimestamps = emptyList<OrgTimestamp>()
+        if (cursor < contentEnd && PURE_ACTIVE_TS_LINE.matches(lines[cursor])) {
+            val stamps = OrgTimestamp.parseAll(lines[cursor].trim()).filter { it.active }
+            if (stamps.isNotEmpty()) {
+                dedicatedActiveTimestamps = stamps
+                cursor++
+            }
+        }
+
         // Drawers (:PROPERTIES: and/or :LOGBOOK:), immediately after the planning
-        // line, in either order: org-mode allows both orderings depending on
-        // whether log notes are configured to insert above or below properties.
+        // line/dedicated timestamp, in either order: org-mode allows both
+        // orderings depending on whether log notes are configured to insert
+        // above or below properties.
         val properties = linkedMapOf<String, String>()
         val logbook = mutableListOf<String>()
         var scanningDrawers = true
@@ -407,13 +441,17 @@ object OrgParser {
         }
 
         val body = if (cursor < contentEnd) lines.subList(cursor, contentEnd) else emptyList()
-        val activeTimestamps = OrgTimestamp.parseAll(body.joinToString("\n"))
+        val bodyActiveTimestamps = OrgTimestamp.parseAll(body.joinToString("\n"))
             .filter { it.active }
-        val dedicatedActiveTimestamps = body.firstOrNull()
-            ?.takeIf { PURE_ACTIVE_TS_LINE.matches(it) }
-            ?.let { OrgTimestamp.parseAll(it.trim()).filter { ts -> ts.active } }
-            ?.takeIf { it.isNotEmpty() }
-            .orEmpty()
+        // Pre-flip layout: the dedicated line sits below the drawers, as the
+        // body's own first line, so it's still part of [body] above.
+        val dedicatedLineInBody = body.firstOrNull()?.let { PURE_ACTIVE_TS_LINE.matches(it) } == true
+        if (dedicatedActiveTimestamps.isEmpty() && dedicatedLineInBody) {
+            dedicatedActiveTimestamps = OrgTimestamp.parseAll(body.first().trim()).filter { it.active }
+        }
+        // Avoid double-counting: a pre-flip dedicated line is already folded
+        // into bodyActiveTimestamps via the body text itself.
+        val activeTimestamps = if (dedicatedLineInBody) bodyActiveTimestamps else bodyActiveTimestamps + dedicatedActiveTimestamps
 
         return OrgHeadline(
             index = index,

@@ -1102,13 +1102,14 @@ class OrgMutationsTest {
     )
 
     @Test
-    fun `setActiveTimestamps inserts a dedicated line after the drawer`() {
+    fun `setActiveTimestamps inserts a dedicated line above the drawer`() {
         val ts = OrgTimestamp.parse("<2026-09-12 Fri>")!!
         val result = OrgMutations.setActiveTimestamps(activeDoc, h2("Event"), listOf(ts))
         val redoc = OrgParser.parse(result)
         val ev = redoc.findByTitle("Event")!!
         assertEquals(listOf(java.time.LocalDate.of(2026, 9, 12)), ev.activeTimestamps.map { it.date })
-        assertEquals("<2026-09-12 Sat>", redoc.lines[ev.bodyStart])
+        assertEquals("<2026-09-12 Sat>", redoc.lines[ev.lineIndex + 1])
+        assertEquals(":PROPERTIES:", redoc.lines[ev.lineIndex + 2])
         assertTrue(result.contains("the body"))
     }
 
@@ -1123,16 +1124,47 @@ class OrgMutationsTest {
             listOf(OrgTimestamp.parseAll("<2026-09-08 Mon>--<2026-09-10 Wed>").single()),
         )
         val doc2 = OrgParser.parse(edited)
+        val ev2 = doc2.findByTitle("Event")!!
         assertEquals(
             "<2026-09-08 Tue>--<2026-09-10 Thu>",
-            doc2.lines[doc2.findByTitle("Event")!!.bodyStart],
+            doc2.lines[ev2.lineIndex + 1],
         )
         // Re-applying the same list changes nothing.
         val again = OrgMutations.setActiveTimestamps(
-            doc2, doc2.findByTitle("Event")!!,
+            doc2, ev2,
             listOf(OrgTimestamp.parseAll("<2026-09-08 Mon>--<2026-09-10 Wed>").single()),
         )
         assertEquals(edited, again)
+    }
+
+    @Test
+    fun `setActiveTimestamps migrates a pre-flip line below the drawer to above it`() {
+        val preFlip = OrgParser.parse(
+            """
+            * Event
+            :PROPERTIES:
+            :ID: e1
+            :END:
+            <2026-09-08 Tue>
+            the body
+
+            * Other
+            """.trimIndent() + "\n"
+        )
+        val h = preFlip.findByTitle("Event")!!
+        // The old-position stamp still parses as dedicated.
+        assertEquals(listOf(java.time.LocalDate.of(2026, 9, 8)), h.dedicatedActiveTimestamps.map { it.date })
+
+        val result = OrgMutations.setActiveTimestamps(
+            preFlip, h, listOf(OrgTimestamp.parse("<2026-09-12 Fri>")!!)
+        )
+        val redoc = OrgParser.parse(result)
+        val ev = redoc.findByTitle("Event")!!
+        assertEquals("<2026-09-12 Sat>", redoc.lines[ev.lineIndex + 1])
+        assertEquals(":PROPERTIES:", redoc.lines[ev.lineIndex + 2])
+        // The stale below-the-drawer line is gone, not left behind.
+        assertTrue(!result.contains("2026-09-08"))
+        assertTrue(result.contains("the body"))
     }
 
     @Test
