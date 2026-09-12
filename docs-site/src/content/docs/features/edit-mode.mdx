@@ -41,7 +41,7 @@ A toolbar pinned above the keyboard gives one-tap access to common org markup:
 | `</>` | `=code=` |
 | ☑ | `- [ ]` checkbox item |
 | `[[ ]]` | link at the cursor (tap); **long-press** for the file/heading picker, below |
-| 🕐 | timestamp: tap for a date, long-press for date+time |
+| 🕐 | timestamp: tap for a date, long-press to open a date/time picker |
 | `*` | new heading |
 | `«` `»` | list indent/outdent |
 
@@ -59,6 +59,12 @@ A toolbar pinned above the keyboard gives one-tap access to common org markup:
 - If the picked file has a file-level `ID`, or the picked heading has an `ID` or `CUSTOM_ID`, Grove asks whether to use that instead — an id link keeps working after the target is renamed or moved.
 
 Text you have selected when you long-press is kept as the link's description. With nothing selected, the link is named after its target — the heading title, or the file's `#+TITLE:` (falling back to its file name).
+
+### Inserting a timestamp
+
+**Tapping** 🕐 inserts an inactive date-only stamp (`[2026-01-15 Thu]`) at the cursor.
+
+**Long-pressing** 🕐 opens a single-day date/time picker, pre-selected to right now: a calendar plus Today/Tomorrow/This weekend/Next week chips and an optional time. **Apply date** inserts the resulting inactive stamp (`[2026-01-15 Thu 14:30]`) at the cursor; a plain logged moment, not a SCHEDULED/DEADLINE/ACTIVE planning line, so it never shows up on the agenda.
 
 ## Instant Read ↔ Edit switching
 

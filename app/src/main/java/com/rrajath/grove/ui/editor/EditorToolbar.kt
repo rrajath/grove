@@ -54,6 +54,12 @@ fun EditorToolbar(
      * then tap-only).
      */
     onLinkLongPress: (() -> Unit)? = null,
+    /**
+     * Long-press on the clock button. Supplied only by the main note editor,
+     * where it opens the Insert Timestamp picker instead of inserting directly;
+     * null elsewhere (the button falls back to inserting a date+time stamp).
+     */
+    onTimestampLongPress: (() -> Unit)? = null,
 ) {
     val c = MaterialTheme.grove
     // Each button gets equal width (RowScope.weight) so the row always fits
@@ -80,7 +86,7 @@ fun EditorToolbar(
         // rather than scheduling an active org agenda entry.
         ToolButton(
             "◷", c.synTs, Modifier.weight(1f), fontSize = 27.sp,
-            onLongClick = {
+            onLongClick = onTimestampLongPress ?: {
                 val now = LocalDateTime.now()
                 onInsert(
                     OrgTimestamp(

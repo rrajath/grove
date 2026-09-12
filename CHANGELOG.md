@@ -63,6 +63,7 @@ re-uploads the APKs to the existing release instead of failing.
 - Added an agenda lever (off by default) showing icon-styled scheduled/active-timestamp chips next to deadline chips on rows.
 
 ### Changed
+- Long-pressing the editor toolbar's clock icon now opens a date/time picker instead of inserting immediately.
 - Bare active timestamps are now written right below the heading, above its
   properties drawer, instead of below it; older notes still parse either way.
 

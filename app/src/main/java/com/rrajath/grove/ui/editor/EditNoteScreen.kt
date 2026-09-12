@@ -60,11 +60,13 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rrajath.grove.org.LineEditing
+import com.rrajath.grove.org.OrgTimestamp
 import com.rrajath.grove.settings.FontSizePreference
 import com.rrajath.grove.settings.NewNoteCursor
 import com.rrajath.grove.ui.components.EditorMenuFab
 import com.rrajath.grove.ui.components.GroveTopBar
 import com.rrajath.grove.ui.components.GroveUndoSnackbar
+import com.rrajath.grove.ui.components.InsertTimestampScreen
 import com.rrajath.grove.ui.components.ScrollJumpButtons
 import com.rrajath.grove.ui.components.SegmentedControl
 import com.rrajath.grove.ui.screens.IconGlyph
@@ -78,6 +80,7 @@ import com.rrajath.grove.ui.vault.DocumentViewModel
 import com.rrajath.grove.ui.vault.NoteRef
 import com.rrajath.grove.ui.vault.RefileUiState
 import com.rrajath.grove.ui.vault.headlineAtLine
+import java.time.LocalDateTime
 import kotlinx.coroutines.delay
 import java.time.LocalTime
 
@@ -121,6 +124,7 @@ fun EditNoteScreen(
     val snack by viewModel.snack.collectAsStateWithLifecycle()
     val textState = rememberTextFieldState()
     var metadataOpen by remember { mutableStateOf(false) }
+    var timestampPickerOpen by remember { mutableStateOf(false) }
     var confirmLeave by remember { mutableStateOf(false) }
     var confirmDiscardBlankHeading by remember { mutableStateOf(false) }
     var showEmptyHeadingAlert by remember { mutableStateOf(false) }
@@ -541,6 +545,7 @@ fun EditNoteScreen(
                     captureLinkSelection()
                     viewModel.startLinkPicker()
                 },
+                onTimestampLongPress = { timestampPickerOpen = true },
             )
         }
     }
@@ -617,6 +622,22 @@ fun EditNoteScreen(
                 confirmRefile = true
             },
             onDismiss = { metadataOpen = false },
+        )
+    }
+
+    if (timestampPickerOpen) {
+        val headline = remember(state.buffer, state.keywords) { viewModel.currentHeadline }
+        InsertTimestampScreen(
+            title = headline?.title.orEmpty(),
+            initial = remember {
+                val now = LocalDateTime.now()
+                OrgTimestamp(now.toLocalDate(), time = now.toLocalTime().withSecond(0).withNano(0), active = false)
+            },
+            onDismiss = { timestampPickerOpen = false },
+            onConfirm = { ts ->
+                textState.applyEdit { insertAtCursor(it, ts.format()) }
+                timestampPickerOpen = false
+            },
         )
     }
 

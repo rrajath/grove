@@ -623,6 +623,176 @@ fun PlanningDatesScreen(
     }
 }
 
+/**
+ * Single-day, no-tabs picker for inserting one bare *inactive* timestamp at the
+ * editor cursor (`ic_...` clock button's long-press in [com.rrajath.grove.ui.editor.EditorToolbar])
+ * a plain logged moment, not a SCHEDULED/DEADLINE/ACTIVE planning line, so it
+ * doesn't reuse [PlanningDatesScreen]'s tri-kind state or `onConfirm` shape. It
+ * still shares that screen's calendar, day-preset chips and time editor via the
+ * private helpers below.
+ */
+@Composable
+fun InsertTimestampScreen(
+    title: String,
+    initial: OrgTimestamp,
+    onDismiss: () -> Unit,
+    onConfirm: (OrgTimestamp) -> Unit,
+) {
+    val c = MaterialTheme.grove
+    val today = remember { LocalDate.now() }
+    val accent = c.synTs
+    // Soft accents elsewhere in this file are just the accent colour at ~0.16
+    // alpha for a given theme (e.g. blueSoft's hex matches blue's), so this
+    // mirrors that instead of needing a synTsSoft token per theme.
+    val accentSoft = remember(accent) { accent.copy(alpha = 0.16f) }
+
+    var ts by remember { mutableStateOf(initial) }
+    var month by remember { mutableStateOf(YearMonth.from(initial.date)) }
+
+    val app = LocalContext.current.applicationContext as GroveApplication
+    val plannedDatesFlow = remember(app) {
+        combine(
+            app.database.indexDao().plannedTimestamps(),
+            app.database.indexDao().plannedActiveTimestamps(),
+        ) { planned, activeRows ->
+            val days = planned.mapNotNullTo(mutableSetOf()) { OrgTimestamp.parse(it)?.date }
+            activeRows.forEach { row ->
+                OrgTimestamp.parseAll(row).forEach { stamp ->
+                    var d = stamp.date
+                    val end = stamp.rangeEnd ?: stamp.date
+                    while (!d.isAfter(end)) {
+                        days.add(d)
+                        d = d.plusDays(1)
+                    }
+                }
+            }
+            days
+        }.flowOn(Dispatchers.Default)
+    }
+    val plannedDates by plannedDatesFlow.collectAsState(initial = emptySet())
+
+    fun tapDay(day: LocalDate) {
+        ts = ts.copy(date = day, rangeEnd = null)
+        month = YearMonth.from(day)
+    }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false,
+        ),
+    ) {
+        val dialogView = LocalView.current
+        if (!dialogView.isInEditMode) {
+            SideEffect {
+                val window = (dialogView.parent as? DialogWindowProvider)?.window ?: return@SideEffect
+                val controller = WindowCompat.getInsetsController(window, dialogView)
+                controller.isAppearanceLightStatusBars = !c.isDark
+                controller.isAppearanceLightNavigationBars = !c.isDark
+            }
+        }
+        Surface(Modifier.fillMaxSize(), color = c.bg) {
+            Column(Modifier.fillMaxSize().safeDrawingPadding().imePadding()) {
+
+                // ---- header ----------------------------------------------------
+                Row(
+                    Modifier.fillMaxWidth().padding(start = 10.dp, end = 10.dp, top = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Box(
+                        Modifier.size(40.dp).clip(CircleShape).clickable(onClick = onDismiss),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Close",
+                            tint = c.ink,
+                            modifier = Modifier.size(21.dp),
+                        )
+                    }
+                    Text(
+                        title,
+                        fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
+                        fontSize = 15.5.sp, color = c.ink,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+
+                // ---- scrolling canvas ----------------------------------------
+                Column(
+                    Modifier
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState())
+                        .padding(start = 14.dp, end = 14.dp, top = 8.dp, bottom = 14.dp),
+                ) {
+                    AccentCalendar(
+                        month = month,
+                        today = today,
+                        entries = listOf(ts),
+                        selectedIndex = 0,
+                        perEntrySelection = false,
+                        accent = accent,
+                        accentSoft = accentSoft,
+                        secondaryMarks = emptyMap(),
+                        plannedDates = plannedDates,
+                        rangeEnabled = false,
+                        onPrev = { month = month.minusMonths(1) },
+                        onNext = { month = month.plusMonths(1) },
+                        onTapDay = ::tapDay,
+                        onRange = { _, _ -> },
+                    )
+
+                    Text(
+                        "Inserts an inactive timestamp at the cursor; a plain logged date/time that won't show up on the agenda.",
+                        fontFamily = PlexSans, fontSize = 11.5.sp, color = c.ink2, lineHeight = 16.sp,
+                        modifier = Modifier.padding(horizontal = 3.dp).padding(top = 10.dp),
+                    )
+
+                    StampEditor(
+                        value = ts,
+                        today = today,
+                        accent = accent,
+                        accentSoft = accentSoft,
+                        onChange = { next -> ts = next },
+                    )
+                }
+
+                // ---- footer --------------------------------------------------
+                HorizontalDivider(color = c.line)
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .background(c.surface)
+                        .padding(start = 14.dp, end = 14.dp, top = 10.dp, bottom = 14.dp),
+                ) {
+                    Column(Modifier.padding(horizontal = 2.dp).padding(top = 1.dp, bottom = 10.dp)) {
+                        Text(
+                            ts.format(),
+                            fontFamily = PlexMono, fontSize = 12.sp, lineHeight = 20.sp,
+                            color = c.synTs,
+                        )
+                    }
+                    Text(
+                        "Apply date",
+                        fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
+                        fontSize = 14.5.sp, color = c.accentInk,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(13.dp))
+                            .background(c.accent)
+                            .clickable { onConfirm(ts) }
+                            .padding(vertical = 13.dp),
+                    )
+                }
+            }
+        }
+    }
+}
+
 private val ShorthandHints = listOf("fri", "+2w", "aug 3", "10-11am", "++1w", "a: sat")
 
 /** `covers` — is [day] within this stamp's span (a range end, or the single day)? */
