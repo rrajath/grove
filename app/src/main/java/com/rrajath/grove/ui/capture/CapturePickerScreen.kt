@@ -44,14 +44,29 @@ fun CapturePickerSheet(
     onManage: () -> Unit,
     viewModel: CaptureViewModel = viewModel(factory = CaptureViewModel.Factory),
 ) {
-    val c = MaterialTheme.grove
     val templates by viewModel.templates.collectAsStateWithLifecycle()
-    val sheetState = rememberModalBottomSheetState()
+
+    // `templates` starts as emptyList() until TemplatesRepository's DataStore
+    // flow delivers its first emission (async, via stateIn/WhileSubscribed) —
+    // cold every time in a freshly-launched app. Composing ModalBottomSheet
+    // before that arrives means it calculates its swipe anchors against a
+    // near-empty first frame (just the header row); Compose Material3 does not
+    // reliably re-anchor once the real rows grow the content a frame later, so
+    // the sheet gets stuck at its empty-state height. Waiting here means the
+    // sheet is never composed until it can open already sized for its real
+    // content.
+    if (templates.isEmpty()) return
 
     // PRD §7.2: with a single template the picker is skipped entirely.
-    androidx.compose.runtime.LaunchedEffect(templates) {
-        if (templates.size == 1) onPickTemplate(templates.first())
+    if (templates.size == 1) {
+        androidx.compose.runtime.LaunchedEffect(templates) {
+            onPickTemplate(templates.first())
+        }
+        return
     }
+
+    val c = MaterialTheme.grove
+    val sheetState = rememberModalBottomSheetState()
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,

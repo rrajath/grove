@@ -1,5 +1,7 @@
 package com.rrajath.grove.ui.components
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -75,6 +77,7 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
@@ -99,6 +102,7 @@ import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOn
 import java.time.LocalDate
@@ -107,6 +111,7 @@ import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import kotlin.math.abs
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * SCHEDULED, DEADLINE and bare active timestamps on one canvas ("Dates B — tabs"
@@ -624,12 +629,14 @@ fun PlanningDatesScreen(
 }
 
 /**
- * Single-day, no-tabs picker for inserting one bare *inactive* timestamp at the
- * editor cursor (`ic_...` clock button's long-press in [com.rrajath.grove.ui.editor.EditorToolbar])
- * a plain logged moment, not a SCHEDULED/DEADLINE/ACTIVE planning line, so it
- * doesn't reuse [PlanningDatesScreen]'s tri-kind state or `onConfirm` shape. It
- * still shares that screen's calendar, day-preset chips and time editor via the
- * private helpers below.
+ * Single-day, no-tabs picker for inserting one bare timestamp at the editor
+ * cursor (`ic_...` clock button's long-press in
+ * [com.rrajath.grove.ui.editor.EditorToolbar]) -- inactive by default (a plain
+ * logged moment), with a link under the calendar to flip it active. Not a
+ * SCHEDULED/DEADLINE/ACTIVE planning line, so it doesn't reuse
+ * [PlanningDatesScreen]'s tri-kind state or `onConfirm` shape. It still shares
+ * that screen's calendar, day-preset chips and time editor via the private
+ * helpers below.
  */
 @Composable
 fun InsertTimestampScreen(
@@ -648,6 +655,29 @@ fun InsertTimestampScreen(
 
     var ts by remember { mutableStateOf(initial) }
     var month by remember { mutableStateOf(YearMonth.from(initial.date)) }
+
+    // Flash the preview once per toggle: pop in a background chip behind it,
+    // then fade it back out, as confirmation that the tap registered. `tapId`
+    // keys the revert effect, so a fresh tap restarts (not stacks) the timer
+    // and the chip only ever cycles on-then-off once.
+    var flashOn by remember { mutableStateOf(false) }
+    var tapId by remember { mutableIntStateOf(0) }
+    val previewFlashBg by animateColorAsState(
+        targetValue = if (flashOn) c.surface3 else Color.Transparent,
+        animationSpec = tween(180),
+        label = "timestampPreviewFlash",
+    )
+    LaunchedEffect(tapId) {
+        if (tapId > 0) {
+            delay(260.milliseconds)
+            flashOn = false
+        }
+    }
+    fun toggleActive() {
+        ts = ts.copy(active = !ts.active)
+        flashOn = true
+        tapId++
+    }
 
     val app = LocalContext.current.applicationContext as GroveApplication
     val plannedDatesFlow = remember(app) {
@@ -746,9 +776,23 @@ fun InsertTimestampScreen(
                     )
 
                     Text(
-                        "Inserts an inactive timestamp at the cursor; a plain logged date/time that won't show up on the agenda.",
+                        if (ts.active) {
+                            "Inserts an active timestamp at the cursor; it may show up on the agenda."
+                        } else {
+                            "Inserts an inactive timestamp at the cursor; a plain logged date/time that won't show up on the agenda."
+                        },
                         fontFamily = PlexSans, fontSize = 11.5.sp, color = c.ink2, lineHeight = 16.sp,
                         modifier = Modifier.padding(horizontal = 3.dp).padding(top = 10.dp),
+                    )
+                    Text(
+                        if (ts.active) "Make it an inactive timestamp?" else "Make it an active timestamp?",
+                        fontFamily = PlexSans, fontWeight = FontWeight.Bold,
+                        fontSize = 11.5.sp, color = c.synLink,
+                        textDecoration = TextDecoration.Underline,
+                        modifier = Modifier
+                            .padding(horizontal = 3.dp)
+                            .padding(top = 4.dp)
+                            .clickable { toggleActive() },
                     )
 
                     StampEditor(
@@ -773,6 +817,10 @@ fun InsertTimestampScreen(
                             ts.format(),
                             fontFamily = PlexMono, fontSize = 12.sp, lineHeight = 20.sp,
                             color = c.synTs,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(previewFlashBg)
+                                .padding(horizontal = 6.dp, vertical = 2.dp),
                         )
                     }
                     Text(
