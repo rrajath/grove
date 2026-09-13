@@ -1346,7 +1346,7 @@ private fun RepeaterCard(
             .padding(12.dp),
     ) {
         val sentence = remember(repeater.value, repeater.unit, repeater.type, accent) {
-            buildRepeaterSentence(intervalLabel(repeater), kindWords(repeater.type).lowercase(), accent)
+            buildRepeaterSentence(intervalLabel(repeater), kindWords(repeater.type), accent)
         }
         var layoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
         Text(
@@ -1653,9 +1653,9 @@ private fun intervalLabel(rep: Repeater): String =
     if (rep.value == 1) unitName(rep.unit, 1) else "${rep.value} ${unitName(rep.unit, rep.value)}"
 
 private fun kindWords(type: RepeaterType): String = when (type) {
-    RepeaterType.CUMULATIVE -> "Keep the original rhythm"
-    RepeaterType.CATCH_UP -> "Skip the ones I missed"
-    RepeaterType.FUTURE -> "Count from when I finish"
+    RepeaterType.CUMULATIVE -> "keep the original rhythm"
+    RepeaterType.CATCH_UP -> "skip the ones I missed"
+    RepeaterType.FUTURE -> "count from when I finish"
 }
 
 private fun kindHint(rep: Repeater): String {
