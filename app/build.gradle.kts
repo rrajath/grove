@@ -141,7 +141,7 @@ android {
 
     defaultConfig {
         applicationId = "com.rrajath.grove"
-        minSdk = 34
+        minSdk = 33
         targetSdk = 36
         versionCode = derivedVersionCode
         versionName = manualVersionName
