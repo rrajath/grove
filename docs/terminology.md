@@ -17,6 +17,7 @@ Terms used throughout the code, the UI, and these docs. Org-mode terms keep thei
 | **Properties drawer** | A `:PROPERTIES:` … `:END:` block under a headline holding key–value pairs. Grove reads `ID`, `CUSTOM_ID`, and `CREATED` in particular. |
 | **Timestamp** | `<2026-06-12 Fri>` (active) or `[2026-06-12 Fri]` (inactive), optionally with a time and a repeater (`OrgTimestamp`). |
 | **Repeater** | A `+1w` / `++1w` / `.+1w` suffix on a timestamp. Completing a repeating task advances the date instead of closing it; the three forms differ in how they catch up past-due dates. |
+| **Task / event** | A heading with a TODO keyword is a task; one with no keyword is an event, regardless of which timestamp fields it carries. See [tasks-and-events.md](tasks-and-events.md) for how each is completed and which surfaces offer a Complete/Done button. |
 | **Datetree** | A `year → month → day` heading hierarchy (`* 2026` / `** 2026-06 June` / `*** 2026-06-12 Friday`) used for journals. Capture creates missing nodes on demand, in chronological position. |
 | **Capture** | Org's quick-entry workflow: a template says *what* to insert and *where*; the user supplies only the content. |
 | **Narrowing** | Restricting the view to one subtree (org's `org-narrow-to-subtree`). In Grove: swipe left on an outline row or "Show in context". |

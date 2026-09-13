@@ -103,7 +103,7 @@ The "Show" lever is `Open` · one chip per configured todo-type keyword · `Ever
 
 The levers (grouping, state filter, tags/source-file on rows) persist in `SettingsRepository` so they survive a cold start; the Today/Upcoming tab is navigational and resets each visit.
 
-Agenda is also a mutation surface, not just a view: the row checkbox toggles done (`OrgMutations.markDone` / `reopen`), swipe gestures write planning dates, and the overdue card's "Move to today" rewrites every overdue heading at once. That last one edits several files, so the undo snapshot is a *list* of pre-mutation file texts rather than a single one. Within a file, headings are rewritten highest-line-first and the document re-parsed between edits, since adding a planning line shifts every line index below it.
+Agenda is also a mutation surface, not just a view: the row checkbox toggles done for a task (`OrgMutations.markDone` / `reopen`) or advances the date for a keyword-less repeating event (`OrgMutations.advanceRepeatingPlanning` / `advanceActiveTimestamp`, via `AgendaViewModel.advanceRepeater`), swipe gestures write planning dates, and the overdue card's "Move to today" rewrites every overdue heading at once. That last one edits several files, so the undo snapshot is a *list* of pre-mutation file texts rather than a single one. Within a file, headings are rewritten highest-line-first and the document re-parsed between edits, since adding a planning line shifts every line index below it. See [tasks-and-events.md](tasks-and-events.md) for the full matrix of which headings get this affordance and what it does.
 
 ## Home-screen widgets (`widget/`)
 
