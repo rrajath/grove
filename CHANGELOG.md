@@ -75,6 +75,8 @@ re-uploads the APKs to the existing release instead of failing.
   keyword instead of which timestamp field (SCHEDULED/DEADLINE/active) it used.
 - Fixed a crash and duplicate row when a heading was both scheduled/deadlined
   and carried a bare active timestamp for the same day in the agenda.
+- Fixed sync conflict notifications covering non-.org files and re-firing
+  every sync pass; now scoped to .org and updated in place.
 
 ## [1.6.1] - 2026-09-11
 

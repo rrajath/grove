@@ -101,7 +101,7 @@ class SyncManager(
         if (result != null) {
             _lastResult.value = result
             log("sync done: ${result.pulled.size} pulled, ${result.conflicts.size} conflicts")
-            if (result.conflicts.isNotEmpty()) notifyConflicts(result.conflicts.keys)
+            notifyConflicts(result.conflicts.keys)
         }
         database.syncLogDao().trim()
         onSyncCompleted(result)
@@ -155,7 +155,7 @@ class SyncManager(
                 if (result != null) {
                     _lastResult.value = result
                     log("sync done: ${result.pulled.size} pulled, ${result.conflicts.size} conflicts")
-                    if (result.conflicts.isNotEmpty()) notifyConflicts(result.conflicts.keys)
+                    notifyConflicts(result.conflicts.keys)
                 }
                 database.syncLogDao().trim()
                 onSyncCompleted(result)
@@ -273,11 +273,30 @@ class SyncManager(
         }
     }
 
+    /**
+     * [names] is the full current set of notebooks with an unresolved conflict
+     * (already .org-only — see [SyncEngine.sync]). Reflects that set in a
+     * single, stable notification: cancels it once no conflicts remain, leaves
+     * it untouched if the set hasn't changed since it was last shown (so an
+     * unresolved conflict doesn't re-alert on every sync pass), and otherwise
+     * posts/updates it with the current names. Which case applies is read off
+     * the live notification's text rather than kept in memory, so it survives
+     * the process dying between sync passes (e.g. periodic WorkManager runs).
+     */
     private fun notifyConflicts(names: Set<String>) {
+        val nm = context.getSystemService(NotificationManager::class.java)
+        if (names.isEmpty()) {
+            nm.cancel(NOTIFICATION_ID)
+            return
+        }
+        val text = "${names.sorted().joinToString()} changed on two devices"
+        val existing = nm.activeNotifications.firstOrNull { it.id == NOTIFICATION_ID }
+        if (existing?.notification?.extras?.getCharSequence(android.app.Notification.EXTRA_TEXT) == text) {
+            return
+        }
         if (context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
             != PackageManager.PERMISSION_GRANTED
         ) return
-        val nm = context.getSystemService(NotificationManager::class.java)
         nm.createNotificationChannel(
             NotificationChannel(CHANNEL_ID, "Sync conflicts", NotificationManager.IMPORTANCE_DEFAULT)
         )
@@ -289,9 +308,10 @@ class SyncManager(
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.stat_notify_sync_noanim)
             .setContentTitle("Sync conflict")
-            .setContentText("${names.joinToString()} changed on two devices")
+            .setContentText(text)
             .setContentIntent(pending)
             .setAutoCancel(true)
+            .setOnlyAlertOnce(true)
             .build()
         nm.notify(NOTIFICATION_ID, notification)
     }
