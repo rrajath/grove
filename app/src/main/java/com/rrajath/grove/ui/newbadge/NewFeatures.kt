@@ -75,6 +75,9 @@ object NewAnchors {
 
     /** A Tips & Tricks section, keyed by its [TipGroup] id. */
     fun tipsGroup(id: String) = "tips.group.$id"
+
+    /** A single Tips & Tricks row, keyed by its [TipGroup] id and the tip's own id. */
+    fun tipsItem(groupId: String, tipId: String) = "tips.item.$groupId.$tipId"
 }
 
 /**
@@ -220,5 +223,22 @@ val NEW_FEATURES: List<NewFeature> = listOf(
             NewAnchors.SETTINGS_REMINDERS_UNTIMED,
         ),
         destination = NewAnchors.SETTINGS_REMINDERS_UNTIMED,
+    ),
+    NewFeature(
+        // Long-pressing the toolbar's clock button now opens the full date/time
+        // picker (prefilled with right now) instead of just adding a time to
+        // today's date.
+        // `since` is the versionCode of the release that ships it — bump it to
+        // match `gradle.properties` versionName when cutting the release.
+        id = "timestamp-longpress-picker",
+        since = 10601,
+        anchors = setOf(
+            NewAnchors.TOPBAR_MENU,
+            NewAnchors.DRAWER_SETTINGS,
+            NewAnchors.SETTINGS_TIPS,
+            NewAnchors.tipsGroup("writing"),
+            NewAnchors.tipsItem("writing", "date"),
+        ),
+        destination = NewAnchors.tipsItem("writing", "date"),
     ),
 )

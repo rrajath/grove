@@ -153,6 +153,9 @@ fun SettingsTipsScreen(onBack: () -> Unit) {
                 SettingsGroup {
                     group.tips.forEachIndexed { i, tip ->
                         if (i > 0) RowDivider()
+                        // Same "clears on exit" treatment as the group dot, but scoped
+                        // to this one row so it doesn't retire until this tip is seen.
+                        tip.newAnchor?.let { MarkNewFeatureSeen(it) }
                         TipRow(
                             tip = tip,
                             open = tip.id in openIds,
@@ -196,6 +199,10 @@ private fun TipRow(tip: Tip, open: Boolean, onToggle: () -> Unit) {
                 fontSize = 14.5.sp, lineHeight = 1.35.em, color = c.ink,
                 modifier = Modifier.weight(1f),
             )
+            tip.newAnchor?.let {
+                Spacer(Modifier.width(8.dp))
+                NewDot(it)
+            }
             Spacer(Modifier.width(12.dp))
             Text(
                 "▾",
@@ -371,6 +378,7 @@ private data class Tip(
     val title: String,
     val body: String,
     val steps: List<String> = emptyList(),
+    val newAnchor: String? = null,
 )
 
 private data class TipGroup(val id: String, val label: String, val tips: List<Tip>)
@@ -408,7 +416,8 @@ private fun tipGroups(): List<TipGroup> = listOf(
             Tip(
                 "date", Icons.Default.EditCalendar, "Insert today's date or time",
                 "The {{clock}} button on the formatting toolbar drops an inactive timestamp for today at the cursor. " +
-                    "Long-press it to include the time as well.",
+                    "Long-press it to open the date and time picker, prefilled with right now.",
+                newAnchor = NewAnchors.tipsItem("writing", "date"),
             ),
             Tip(
                 "stars", Icons.Default.FormatSize, "Cycle heading levels with the asterisk",
