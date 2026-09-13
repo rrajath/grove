@@ -48,11 +48,15 @@ import com.rrajath.grove.GroveApplication
 import com.rrajath.grove.MainActivity
 import com.rrajath.grove.data.toNoteMeta
 import com.rrajath.grove.icon.AppIconManager
+import com.rrajath.grove.org.OrgMutations
+import com.rrajath.grove.org.PlanningKind
 import com.rrajath.grove.ui.agenda.AgendaMeta
 import com.rrajath.grove.ui.agenda.AgendaMetaTone
 import com.rrajath.grove.ui.agenda.AgendaRow
 import com.rrajath.grove.ui.agenda.agendaPriorityColor
+import com.rrajath.grove.ui.agenda.hasDoneAffordance
 import com.rrajath.grove.ui.agenda.metaColor
+import com.rrajath.grove.ui.agenda.repeaterKind
 import com.rrajath.grove.ui.nav.Routes
 import com.rrajath.grove.ui.theme.GroveColors
 import com.rrajath.grove.ui.theme.groveColorsFor
@@ -334,7 +338,7 @@ private fun LedgerRow(context: Context, colors: GroveColors, row: AgendaRow, fon
             modifier = GlanceModifier.height(LEDGER_LINE_HEIGHT).width(14.dp),
             contentAlignment = Alignment.Center,
         ) {
-            if (row.keyword != null) {
+            if (row.hasDoneAffordance) {
                 // No border() modifier in Glance 1.1.1: the "hollow ring" is faked
                 // by centering a smaller surface-colored circle over a light-grey one.
                 // The clickable + cornerRadius(7dp) live on this 14dp square so the
@@ -350,6 +354,10 @@ private fun LedgerRow(context: Context, colors: GroveColors, row: AgendaRow, fon
                                 actionParametersOf(
                                     FILE_NAME_KEY to row.fileName,
                                     LINE_INDEX_KEY to row.lineIndex,
+                                    // Only meaningful for a keyword-less row; empty string
+                                    // sentinels "not set" (ActionParameters has no nullable put).
+                                    PLANNING_KIND_KEY to (row.repeaterKind?.name ?: ""),
+                                    ACTIVE_DATE_KEY to (row.activeTs?.date?.toString() ?: ""),
                                 ),
                             ),
                         ),
@@ -462,12 +470,19 @@ private fun noteUri(row: AgendaRow) = run {
 
 private val FILE_NAME_KEY = ActionParameters.Key<String>("fileName")
 private val LINE_INDEX_KEY = ActionParameters.Key<Int>("lineIndex")
+/** [PlanningKind] name, set only for a keyword-less row with a SCHEDULED/DEADLINE repeater. */
+private val PLANNING_KIND_KEY = ActionParameters.Key<String>("planningKind")
+/** ISO date, set only for a keyword-less row placed by a repeating bare active timestamp. */
+private val ACTIVE_DATE_KEY = ActionParameters.Key<String>("activeDate")
 
 /**
- * The widget's circle tap: same "mark done" semantics as [com.rrajath.grove.ui.agenda.AgendaViewModel.toggleDone]
- * (recurring headings advance their repeater instead of gaining a done keyword, so they
- * are never auto-archived; a non-recurring done item is auto-archived when Settings has
- * it enabled) but with no undo — the row simply drops out of the widget's next render.
+ * The widget's circle tap. For a keyword-less row ([AgendaRow.repeaterKind] set) this
+ * is [com.rrajath.grove.ui.agenda.AgendaViewModel.advanceRepeater]'s clean path: just
+ * advance [PLANNING_KIND_KEY]/[ACTIVE_DATE_KEY]'s timestamp, no keyword/LOGBOOK/archive
+ * involved. Otherwise it's [com.rrajath.grove.ui.agenda.AgendaViewModel.toggleDone]'s
+ * semantics (a repeating TODO advances its repeater instead of gaining a done keyword,
+ * so it's never auto-archived; a non-recurring done item is auto-archived when Settings
+ * has it enabled) but with no undo — the row simply drops out of the widget's next render.
  */
 class MarkDoneAction : ActionCallback {
     override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
@@ -491,7 +506,24 @@ class MarkDoneAction : ActionCallback {
                 )
             }
         val keyword = headline.keyword
-            ?: return run { Log.w(TAG, "headline at $fileName:$lineIndex has no keyword") }
+        if (keyword == null) {
+            val kindParam = parameters[PLANNING_KIND_KEY]?.takeIf { it.isNotEmpty() }
+            val activeDateParam = parameters[ACTIVE_DATE_KEY]?.takeIf { it.isNotEmpty() }
+            val newText = when {
+                activeDateParam != null ->
+                    runCatching { LocalDate.parse(activeDateParam) }.getOrNull()
+                        ?.let { OrgMutations.advanceActiveTimestamp(doc, headline, it, LocalDateTime.now()) }
+                kindParam != null ->
+                    runCatching { PlanningKind.valueOf(kindParam) }.getOrNull()
+                        ?.let { OrgMutations.advanceRepeatingPlanning(doc, headline, it, LocalDateTime.now()) }
+                else -> null
+            } ?: return run { Log.w(TAG, "headline at $fileName:$lineIndex has no keyword and nothing to advance") }
+            vault.save(fileName, newText)
+            app.reindexNow(fileName, newText)
+            app.syncManager.requestSync("ledger widget advance repeater")
+            LedgerWidget().updateAll(context)
+            return
+        }
         if (doc.keywords.isDone(keyword)) {
             return run { Log.i(TAG, "headline at $fileName:$lineIndex is already done ($keyword)") }
         }

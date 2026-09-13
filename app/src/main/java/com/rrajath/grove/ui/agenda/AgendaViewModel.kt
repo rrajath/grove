@@ -11,6 +11,7 @@ import com.rrajath.grove.org.OrgKeywords
 import com.rrajath.grove.org.OrgMutations
 import com.rrajath.grove.org.OrgParser
 import com.rrajath.grove.org.OrgTimestamp
+import com.rrajath.grove.org.PlanningKind
 import com.rrajath.grove.search.NoteMeta
 import com.rrajath.grove.settings.AgendaGrouping
 import com.rrajath.grove.settings.AgendaStateFilter
@@ -86,6 +87,30 @@ data class AgendaRow(
  * task even when it also has an active timestamp.
  */
 val AgendaRow.isEvent: Boolean get() = keyword == null
+
+/**
+ * A keyword-less row's own advanceable repeater, if it has one: SCHEDULED or
+ * DEADLINE's repeater when that's what placed the row on this day, or the
+ * bare active timestamp's when [AgendaRow.activeTs] is what did (see its own
+ * doc). Null for a heading with a keyword (that row's done affordance is the
+ * ordinary task checkbox instead) and for a plain event with no repeater at
+ * all, which has nothing to advance.
+ */
+val AgendaRow.repeaterKind: PlanningKind?
+    get() = when {
+        keyword != null -> null
+        activeTs?.repeater != null -> PlanningKind.ACTIVE
+        scheduledTs?.repeater != null -> PlanningKind.SCHEDULED
+        deadlineTs?.repeater != null -> PlanningKind.DEADLINE
+        else -> null
+    }
+
+/**
+ * Whether this row gets a done affordance at all (checkbox + swipe): a real
+ * task, or a keyword-less row with a repeater to advance. A plain event
+ * ([isEvent] true, [repeaterKind] null) gets neither.
+ */
+val AgendaRow.hasDoneAffordance: Boolean get() = keyword != null || repeaterKind != null
 
 /** One "Group by" bucket: an uppercase key, its count, and its rows. */
 @Immutable
@@ -504,6 +529,35 @@ class AgendaViewModel(
                     showSnack("Marked done. Refiled to ${result.label}")
                 }
             }
+        }
+    }
+
+    /**
+     * The done affordance on a keyword-less row with a repeater ([AgendaRow.repeaterKind]
+     * non-null): advances only that row's own timestamp to its next occurrence, the
+     * same clean mutation the notification's Complete action uses for this case --
+     * no keyword, LOGBOOK, or LAST_REPEAT is touched, and [AutoArchive] never runs
+     * since there's no keyword to archive on.
+     */
+    fun advanceRepeater(row: AgendaRow) {
+        viewModelScope.launch {
+            val vault = vaultFlow.value ?: return@launch
+            val doc = vault.open(row.fileName) ?: return@launch
+            val headline = doc.headlineAtLine(row.lineIndex) ?: return@launch
+            val kind = row.repeaterKind
+            val newText = withContext(dispatchers.default) {
+                when (kind) {
+                    PlanningKind.SCHEDULED, PlanningKind.DEADLINE ->
+                        OrgMutations.advanceRepeatingPlanning(doc, headline, kind, LocalDateTime.now())
+                    PlanningKind.ACTIVE ->
+                        row.activeTs?.date?.let { OrgMutations.advanceActiveTimestamp(doc, headline, it, LocalDateTime.now()) }
+                    null -> null
+                }
+            } ?: return@launch
+            undoSnapshot = listOf(FileSnapshot(row.fileName, doc.text))
+            vault.save(row.fileName, newText)
+            sync.requestSync("agenda advance repeater")
+            showSnack("Advanced to next occurrence")
         }
     }
 

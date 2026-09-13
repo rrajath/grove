@@ -141,6 +141,37 @@ object OrgMutations {
     }
 
     /**
+     * Complete on a repeating SCHEDULED/DEADLINE for a keyword-less heading: only
+     * [kind]'s timestamp gets [OrgTimestamp.advanceRepeater] applied to it, the
+     * other planning field (if any) is left untouched. Mirrors
+     * [advanceActiveTimestamp]'s cleanliness -- no keyword, LOGBOOK entry, or
+     * LAST_REPEAT property is touched, unlike [markDone]'s repeating branch,
+     * which does all of that for an actual TODO-keyword task. Returns null when
+     * [kind]'s timestamp is absent or has no repeater -- nothing to advance.
+     */
+    fun advanceRepeatingPlanning(
+        doc: OrgDocument,
+        h: OrgHeadline,
+        kind: PlanningKind,
+        now: LocalDateTime,
+    ): String? {
+        val today = now.toLocalDate()
+        val ts = when (kind) {
+            PlanningKind.SCHEDULED -> h.planning.scheduled
+            PlanningKind.DEADLINE -> h.planning.deadline
+            PlanningKind.ACTIVE -> null
+        }?.takeIf { it.repeater != null } ?: return null
+        return writePlanning(
+            doc, h,
+            when (kind) {
+                PlanningKind.SCHEDULED -> h.planning.copy(scheduled = ts.advanceRepeater(today))
+                PlanningKind.DEADLINE -> h.planning.copy(deadline = ts.advanceRepeater(today))
+                PlanningKind.ACTIVE -> return null
+            },
+        )
+    }
+
+    /**
      * Mark done per org rules: a repeating SCHEDULED/DEADLINE advances its date
      * and the keyword stays active; otherwise the keyword becomes [doneKeyword]
      * and a CLOSED stamp is added.

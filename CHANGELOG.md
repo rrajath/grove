@@ -61,6 +61,7 @@ re-uploads the APKs to the existing release instead of failing.
 
 ### Added
 - Added an agenda lever (off by default) showing icon-styled scheduled/active-timestamp chips next to deadline chips on rows.
+- Agenda and the widget now show a done button on keyword-less repeating headings, advancing the date like notifications already did.
 
 ### Changed
 - Long-pressing the editor toolbar's clock icon now opens a date/time picker instead of inserting immediately.
@@ -77,6 +78,7 @@ re-uploads the APKs to the existing release instead of failing.
   and carried a bare active timestamp for the same day in the agenda.
 - Fixed sync conflict notifications covering non-.org files and re-firing
   every sync pass; now scoped to .org and updated in place.
+- Fixed keyword-less repeating reminders leaving a spurious DONE logbook entry and LAST_REPEAT property when completed.
 
 ## [1.6.1] - 2026-09-11
 

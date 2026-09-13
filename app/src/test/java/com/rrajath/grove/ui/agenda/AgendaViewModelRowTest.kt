@@ -2,6 +2,7 @@ package com.rrajath.grove.ui.agenda
 
 import com.rrajath.grove.org.OrgParser
 import com.rrajath.grove.org.OrgTimestamp
+import com.rrajath.grove.org.PlanningKind
 import com.rrajath.grove.search.NoteMeta
 import com.rrajath.grove.settings.GroveSettings
 import org.junit.Assert.assertEquals
@@ -163,6 +164,62 @@ class AgendaViewModelRowTest {
             today, showDate = false, p = GroveSettings(),
         )
         assertTrue(scheduled.isEvent)
+    }
+
+    @Test
+    fun `repeaterKind and hasDoneAffordance for a keyword-less repeating SCHEDULED row`() {
+        val row = AgendaViewModel.row(
+            note("Take out compost", emptyList(), emptyList(), scheduled = "<2025-06-09 Mon +1w>", keyword = null),
+            today, showDate = false, p = GroveSettings(),
+        )
+        assertTrue(row.isEvent)
+        assertEquals(PlanningKind.SCHEDULED, row.repeaterKind)
+        assertTrue(row.hasDoneAffordance)
+    }
+
+    @Test
+    fun `repeaterKind and hasDoneAffordance for a keyword-less repeating DEADLINE row`() {
+        val row = AgendaViewModel.row(
+            note("Renew passport", emptyList(), emptyList(), deadline = "<2025-06-20 Fri +1y>", keyword = null),
+            today, showDate = false, p = GroveSettings(),
+        )
+        assertEquals(PlanningKind.DEADLINE, row.repeaterKind)
+        assertTrue(row.hasDoneAffordance)
+    }
+
+    @Test
+    fun `repeaterKind and hasDoneAffordance for a keyword-less repeating bare active row`() {
+        val ts = OrgTimestamp.parse("<2025-06-13 Fri +1w>")!!
+        val row = AgendaViewModel.row(
+            note("Standup", emptyList(), emptyList(), keyword = null),
+            today, showDate = false, p = GroveSettings(),
+            activeTs = ts, eventDay = LocalDate.of(2025, 6, 13),
+        )
+        assertEquals(PlanningKind.ACTIVE, row.repeaterKind)
+        assertTrue(row.hasDoneAffordance)
+    }
+
+    @Test
+    fun `repeaterKind is null and hasDoneAffordance is false for a plain keyword-less event`() {
+        val ts = OrgTimestamp.parse("<2025-06-13 Fri>")!!
+        val row = AgendaViewModel.row(
+            note("Team offsite", emptyList(), emptyList(), keyword = null),
+            today, showDate = false, p = GroveSettings(),
+            activeTs = ts, eventDay = LocalDate.of(2025, 6, 13),
+        )
+        assertNull(row.repeaterKind)
+        assertTrue(!row.hasDoneAffordance)
+    }
+
+    @Test
+    fun `repeaterKind is null for a keyworded task even when its SCHEDULED repeats`() {
+        val row = AgendaViewModel.row(
+            note("Water plants", emptyList(), emptyList(), scheduled = "<2025-06-09 Mon +1w>", keyword = "TODO"),
+            today, showDate = false, p = GroveSettings(),
+        )
+        // A real task's done affordance is the ordinary checkbox, not advanceRepeater.
+        assertNull(row.repeaterKind)
+        assertTrue(row.hasDoneAffordance)
     }
 
     @Test

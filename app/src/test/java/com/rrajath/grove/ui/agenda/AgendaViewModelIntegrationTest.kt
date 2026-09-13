@@ -5,6 +5,7 @@ import androidx.test.core.app.ApplicationProvider
 import com.rrajath.grove.data.GroveDatabase
 import com.rrajath.grove.org.OrgKeywords
 import com.rrajath.grove.org.OrgTimestamp
+import com.rrajath.grove.org.PlanningKind
 import com.rrajath.grove.settings.SettingsRepository
 import com.rrajath.grove.testing.FakeFileStore
 import com.rrajath.grove.testing.FakeSyncTrigger
@@ -48,6 +49,10 @@ class AgendaViewModelIntegrationTest {
 
     private fun orgDate(d: LocalDate): String =
         "<$d ${d.dayOfWeek.name.take(3).lowercase().replaceFirstChar { it.uppercase() }}>"
+
+    /** A repeater goes *inside* the timestamp's brackets, e.g. `<2025-06-09 Mon +1w>`. */
+    private fun orgDate(d: LocalDate, repeater: String): String =
+        "<$d ${d.dayOfWeek.name.take(3).lowercase().replaceFirstChar { it.uppercase() }} $repeater>"
 
     private val vaultText = """
         #+TITLE: Agenda fixture
@@ -181,6 +186,59 @@ class AgendaViewModelIntegrationTest {
 
         assertEquals("no keyword means nothing to complete", before, store.read("events.org"))
         assertFalse(sync.syncRequests.contains("agenda toggle done"))
+    }
+
+    @Test
+    fun `advanceRepeater advances a keyword-less SCHEDULED repeater and requests a sync`() = runTest {
+        val recurringVault = """
+            #+TITLE: Recurring
+
+            * Take out compost
+            SCHEDULED: ${orgDate(today, "+1w")}
+        """.trimIndent() + "\n"
+        store.write("recurring.org", recurringVault)
+        TestVaultSeeder.index(db, store)
+        advanceUntilIdle()
+        val vm = agenda()
+        advanceUntilIdle()
+
+        val row = vm.state.value.groups.flatMap { it.rows }.single { it.title == "Take out compost" }
+        assertEquals(PlanningKind.SCHEDULED, row.repeaterKind)
+
+        vm.advanceRepeater(row)
+        advanceUntilIdle()
+
+        val updated = store.read("recurring.org")
+        assertTrue("SCHEDULED should have advanced a week and kept no keyword:\n$updated",
+            updated.contains("SCHEDULED: ${orgDate(today.plusDays(7), "+1w")}") && !updated.contains("* TODO"))
+        assertTrue(sync.syncRequests.isNotEmpty())
+    }
+
+    @Test
+    fun `advanceRepeater advances a keyword-less repeating DEADLINE, leaving a non-repeating SCHEDULED on the same heading untouched`() = runTest {
+        val recurringVault = """
+            #+TITLE: Recurring
+
+            * Renew passport
+            SCHEDULED: ${orgDate(today)} DEADLINE: ${orgDate(today.plusDays(5), "+1y")}
+        """.trimIndent() + "\n"
+        store.write("recurring.org", recurringVault)
+        TestVaultSeeder.index(db, store)
+        advanceUntilIdle()
+        val vm = agenda()
+        advanceUntilIdle()
+
+        val row = vm.state.value.groups.flatMap { it.rows }.single { it.title == "Renew passport" }
+        assertEquals(PlanningKind.DEADLINE, row.repeaterKind)
+
+        vm.advanceRepeater(row)
+        advanceUntilIdle()
+
+        val updated = store.read("recurring.org")
+        assertTrue("DEADLINE should advance a year:\n$updated",
+            updated.contains("DEADLINE: ${orgDate(today.plusDays(5).plusYears(1), "+1y")}"))
+        assertTrue("non-repeating SCHEDULED must stay untouched:\n$updated",
+            updated.contains("SCHEDULED: ${orgDate(today)}"))
     }
 
     @Test

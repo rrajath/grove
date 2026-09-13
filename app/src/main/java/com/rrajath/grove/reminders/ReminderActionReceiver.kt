@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import com.rrajath.grove.GroveApplication
 import com.rrajath.grove.org.OrgMutations
+import com.rrajath.grove.org.PlanningKind
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -16,14 +17,21 @@ import java.time.LocalDateTime
  * Handles the notification's "Complete" action headlessly (no open ViewModel):
  * loads the file's current text from the vault, re-locates the heading by its
  * stored composite key, and applies a mutation, saves, and triggers a sync,
- * then cleans up the notification/alarm/row. Two mutations, chosen by whether
- * the reminder tracks a repeating bare active timestamp
- * ([ReminderEntity.activeTimestampDate] set) or a keyword:
- *  - a bare timestamp has no keyword to change, so [OrgMutations.advanceActiveTimestamp]
- *    advances just that stamp's date;
- *  - otherwise [OrgMutations.changeKeyword] with the first done-type keyword --
- *    same entry point the metadata sheet uses, so a repeating SCHEDULED/DEADLINE
- *    advances its date and stays TODO rather than being marked DONE outright.
+ * then cleans up the notification/alarm/row. Three mutations, chosen by the
+ * reminder's shape:
+ *  - a bare active timestamp ([ReminderEntity.activeTimestampDate] set) has no
+ *    keyword to change, so [OrgMutations.advanceActiveTimestamp] advances just
+ *    that stamp's date;
+ *  - a keyword-less SCHEDULED/DEADLINE repeater ([ReminderEntity.isTask] false,
+ *    [ReminderEntity.hasRepeater] true) has no keyword either, so
+ *    [OrgMutations.advanceRepeatingPlanning] advances just that one planning
+ *    field, the same clean path as the bare-active case -- unlike routing it
+ *    through [OrgMutations.changeKeyword], which would fabricate a DONE
+ *    keyword/LOGBOOK/LAST_REPEAT on a heading that never had a keyword;
+ *  - otherwise (an actual TODO-keyword task) [OrgMutations.changeKeyword] with
+ *    the first done-type keyword -- same entry point the metadata sheet uses,
+ *    so a repeating SCHEDULED/DEADLINE advances its date and stays TODO rather
+ *    than being marked DONE outright.
  */
 class ReminderActionReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -56,10 +64,14 @@ class ReminderActionReceiver : BroadcastReceiver() {
                 null
             } else {
                 val activeDate = reminder.activeTimestampDate?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
-                if (activeDate != null) {
-                    OrgMutations.advanceActiveTimestamp(doc, headline, activeDate, LocalDateTime.now())
-                } else {
-                    app.keywords.value.done.firstOrNull()?.let { doneKeyword ->
+                when {
+                    activeDate != null ->
+                        OrgMutations.advanceActiveTimestamp(doc, headline, activeDate, LocalDateTime.now())
+                    !reminder.isTask && reminder.hasRepeater -> {
+                        val kind = runCatching { PlanningKind.valueOf(reminder.planningType) }.getOrNull()
+                        kind?.let { OrgMutations.advanceRepeatingPlanning(doc, headline, it, LocalDateTime.now()) }
+                    }
+                    else -> app.keywords.value.done.firstOrNull()?.let { doneKeyword ->
                         OrgMutations.changeKeyword(doc, headline, doneKeyword, doc.keywords, LocalDateTime.now())
                     }
                 }

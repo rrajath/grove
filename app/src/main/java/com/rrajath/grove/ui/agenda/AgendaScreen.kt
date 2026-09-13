@@ -160,7 +160,10 @@ fun AgendaScreen(
                     listState = listState,
                     state = state,
                     onOpenNote = onOpenNote,
-                    onToggleDone = { viewModel.toggleDone(it.fileName, it.lineIndex) },
+                    onToggleDone = { row ->
+                        if (row.keyword != null) viewModel.toggleDone(row.fileName, row.lineIndex)
+                        else viewModel.advanceRepeater(row)
+                    },
                     onToggleOverdue = viewModel::toggleOverdue,
                     onMoveOverdue = viewModel::moveOverdueToToday,
                     onOpenDatePicker = openDatePicker,
@@ -606,9 +609,12 @@ private fun AgendaRowContent(row: AgendaRow, onToggleDone: () -> Unit) {
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.Top,
     ) {
-        // An event (a heading with no TODO keyword) is not a task: no checkbox,
-        // but keep the indent so its title lines up with the tasks beside it.
-        if (row.isEvent) {
+        // A plain event (a heading with no TODO keyword and no repeater to
+        // advance) is not a task: no checkbox, but keep the indent so its
+        // title lines up with the tasks beside it. A keyword-less row with a
+        // repeater ([AgendaRow.repeaterKind] set) still gets the checkbox --
+        // it just advances the date instead of setting a DONE keyword.
+        if (!row.hasDoneAffordance) {
             Spacer(Modifier.width(20.dp))
         } else {
             AgendaCheckbox(isDone = row.isDone, priority = row.priority, onClick = onToggleDone)
@@ -767,9 +773,13 @@ internal fun GroveColors.metaColor(tone: AgendaMetaTone): Color = when (tone) {
  * - `SET_SCHEDULED` / `SET_DEADLINE`: a single swipe-to-commit action, no secondary.
  * - `MARK_DONE` on a task: "Done" primary with an "Add note" secondary riding
  *   alongside (partial swipe reveals both, full swipe commits Done).
- * - `MARK_DONE` on an event ([AgendaRow.isEvent] — a heading with no TODO
- *   keyword): there is nothing to complete, so the Done cell is dropped and the
- *   side becomes a plain swipe-to-commit "Add note".
+ * - `MARK_DONE` on a keyword-less row with a repeater ([AgendaRow.repeaterKind]
+ *   set): same "Done" cell as a task, but it advances the date instead of
+ *   setting a DONE keyword (see [AgendaViewModel.advanceRepeater]).
+ * - `MARK_DONE` on a plain event ([AgendaRow.hasDoneAffordance] false — a
+ *   heading with no TODO keyword and no repeater to advance): there is
+ *   nothing to complete, so the Done cell is dropped and the side becomes a
+ *   plain swipe-to-commit "Add note".
  */
 @Composable
 private fun agendaSwipe(
@@ -796,7 +806,7 @@ private fun agendaSwipe(
                 onOpenDatePicker(row, PlanningKind.DEADLINE)
             } to null
         AgendaSwipeAction.MARK_DONE ->
-            if (row.isEvent) {
+            if (!row.hasDoneAffordance) {
                 note to null
             } else {
                 SwipeAction(label = "Done", fg = c.green, bg = c.greenSoft, icon = Icons.Default.Check) {

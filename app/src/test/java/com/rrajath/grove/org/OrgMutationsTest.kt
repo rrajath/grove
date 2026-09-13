@@ -168,6 +168,62 @@ class OrgMutationsTest {
     }
 
     @Test
+    fun `advanceRepeatingPlanning advances a keyword-less SCHEDULED repeater with no keyword or logbook side effects`() {
+        val doc = OrgParser.parse("* Take out compost\nSCHEDULED: <2025-06-09 Mon +1w>\n")
+        val h = doc.findByTitle("Take out compost")!!
+        val result = OrgParser.parse(
+            OrgMutations.advanceRepeatingPlanning(
+                doc, h, PlanningKind.SCHEDULED, LocalDateTime.of(2025, 6, 11, 9, 0),
+            )!!
+        )
+        val after = result.findByTitle("Take out compost")!!
+        assertEquals("<2025-06-16 Mon +1w>", after.planning.scheduled!!.format())
+        assertNull(after.keyword)
+        assertTrue(after.logbook.isEmpty())
+        assertNull(after.properties["LAST_REPEAT"])
+    }
+
+    @Test
+    fun `advanceRepeatingPlanning advances only DEADLINE, leaving a co-existing SCHEDULED untouched`() {
+        val doc = OrgParser.parse(
+            "* Renew passport\nSCHEDULED: <2025-06-09 Mon +1w> DEADLINE: <2025-06-20 Fri +1y>\n"
+        )
+        val h = doc.findByTitle("Renew passport")!!
+        val result = OrgParser.parse(
+            OrgMutations.advanceRepeatingPlanning(
+                doc, h, PlanningKind.DEADLINE, LocalDateTime.of(2025, 6, 11, 9, 0),
+            )!!
+        )
+        val after = result.findByTitle("Renew passport")!!
+        assertEquals("<2026-06-20 Sat +1y>", after.planning.deadline!!.format())
+        // The row's own scoping (per-row advance, not "advance everything repeating
+        // on this heading") leaves the sibling SCHEDULED stamp exactly as it was.
+        assertEquals("<2025-06-09 Mon +1w>", after.planning.scheduled!!.format())
+    }
+
+    @Test
+    fun `advanceRepeatingPlanning returns null when that planning field has no repeater`() {
+        val doc = OrgParser.parse("* One-off errand\nSCHEDULED: <2025-06-09 Mon>\n")
+        val h = doc.findByTitle("One-off errand")!!
+        assertNull(
+            OrgMutations.advanceRepeatingPlanning(
+                doc, h, PlanningKind.SCHEDULED, LocalDateTime.of(2025, 6, 11, 9, 0),
+            )
+        )
+    }
+
+    @Test
+    fun `advanceRepeatingPlanning returns null when that planning field is absent`() {
+        val doc = OrgParser.parse("* No deadline here\nSCHEDULED: <2025-06-09 Mon +1w>\n")
+        val h = doc.findByTitle("No deadline here")!!
+        assertNull(
+            OrgMutations.advanceRepeatingPlanning(
+                doc, h, PlanningKind.DEADLINE, LocalDateTime.of(2025, 6, 11, 9, 0),
+            )
+        )
+    }
+
+    @Test
     fun `markDone without repeater sets keyword and CLOSED`() {
         val result = OrgParser.parse(
             OrgMutations.markDone(doc, h("Last"), "DONE", LocalDateTime.of(2025, 6, 11, 14, 30))
