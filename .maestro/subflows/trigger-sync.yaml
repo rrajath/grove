@@ -1,0 +1,10 @@
+# Pull-to-refresh on the Notebooks list — the only UI-driven way to force a
+# synchronous SyncEngine.sync() pass (PullToRefreshBox.onRefresh ->
+# viewModel.requestSync(), see NotebooksScreen.kt). Used by the sync-conflict
+# notification scenarios (flow 06) between vault-directory mutations.
+appId: com.rrajath.grove.debug
+---
+- swipe:
+    start: "50%, 25%"
+    end: "50%, 70%"
+- waitForAnimationToEnd

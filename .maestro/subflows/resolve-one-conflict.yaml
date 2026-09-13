@@ -1,0 +1,11 @@
+# Taps the first visible "Conflict" pill in the Notebooks list, opens
+# ConflictScreen, and picks "Keep current". Used once per conflicted notebook
+# by flow 06 to drain the conflict set back to empty.
+appId: com.rrajath.grove.debug
+---
+- tapOn: "Conflict"
+- tapOn: "Keep current"
+- extendedWaitUntil:
+    visible:
+      id: "notebooks_capture"
+    timeout: 10000

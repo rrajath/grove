@@ -11,6 +11,7 @@ flows verified against a Pixel_9a AVD (API 35, AOSP keyboard) on 2026-09-07.
 | `flows/03-search-open-note.yaml` | Search `photosynthesis`, open the result in Read mode |
 | `flows/04-edit-note-save.yaml` | Open a note, edit it, reopen, confirm the edit persisted |
 | `flows/05-follow-links.yaml` | Follow every org link form from Read mode (27 cases, ~2.5 min) — see below |
+| `scripts/sync-conflict-notifications.sh` | Simulate Syncthing conflict copies and verify notification behavior — see below |
 
 Journey 01 (onboarding + the SAF system folder picker) is **deferred** — see the
 design doc. Flows 02–05 skip onboarding entirely via the debug hook.
@@ -36,6 +37,36 @@ Covered: `*Heading` / bare-fuzzy / `#custom-id` / `id:` heading (same file);
 `::#missing` (file resolves, heading gone → outline fallback); `https:` labelled
 / bare / in prose, `mailto:`; and five unresolved forms (`id:`, `#`, `*`,
 `file:`, cross-file fuzzy).
+
+### Flow 06: sync-conflict notifications
+
+Not a plain Maestro YAML flow — `scripts/sync-conflict-notifications.sh`. It
+simulates Syncthing dropping `*.sync-conflict-<ts>-<device>.org` copies
+directly into the debug test vault (`adb shell` writes into
+`/storage/emulated/0/Android/data/com.rrajath.grove.debug/files/testvault`,
+which `adb shell` can read/write without root), triggers a sync pass via a
+small Maestro flow (pull-to-refresh on the Notebooks list), and asserts
+`SyncManager`'s posted notification via `adb shell dumpsys notification`.
+Maestro's YAML has no filesystem-injection or NotificationManager-inspection
+primitive, so this can't be a pure `.yaml` flow the way 02-05 are.
+
+Run: `./gradlew :app:installDebug && .maestro/scripts/sync-conflict-notifications.sh`
+(needs exactly one connected device/emulator — an AVD, never the physical
+device with the real vault).
+
+Covers (verified against Pixel_9a, API 35, 2026-09-12):
+- a conflict copy of a non-`.org` file posts no notification and shows no
+  in-app indication (`SyncEngine` filters conflicts to `.org` basenames);
+- two `.org` conflicts landing in the same sync pass post exactly one
+  notification listing both names;
+- a new conflicting file while one notification is already posted updates
+  that same notification (still one `NotificationRecord`, text grows,
+  `when` changes) instead of posting a second one;
+- an unchanged conflict set across repeated sync passes does not re-post —
+  `when` stays byte-for-byte identical, proven via `dumpsys notification`
+  rather than the (identical either way) visible text;
+- resolving every conflicted notebook through ConflictScreen ("Keep
+  current") cancels the notification.
 
 ## The debug test-vault hook
 
