@@ -1,0 +1,109 @@
+# Journey 7: auto-archive a task the moment it's marked done.
+#
+# Seeded vault -> Settings > Notes -> turn on "Auto-archive done items?" -> set
+# the archive location to reading-list.org (top level) -> open projects.org ->
+# swipe a TODO row to State -> DONE -> the row disappears from projects.org and
+# the undo snack confirms the refile -> reading-list.org now contains it.
+#
+# UNVERIFIED ON-DEVICE: this flow was written from source (AutoArchive.kt,
+# SettingsNotesScreen.kt, RefileSheet.kt, StatePickerSheet.kt, OutlineScreen.kt)
+# but has not yet been run against a real emulator/device the way flows 02-05
+# were. In particular the element-anchored `swipe` step (there is no existing
+# precedent for it in this repo -- see README "Known fragile points") may need
+# adjustment.
+appId: com.rrajath.grove.debug
+tags:
+  - e2e
+---
+- runFlow: ../subflows/launch-seeded.yaml
+
+# Notebooks -> drawer -> Settings -> Notes.
+- tapOn:
+    text: "☰"
+- extendedWaitUntil:
+    visible:
+      text: "Settings"
+    timeout: 10000
+- tapOn:
+    text: "Settings"
+- scrollUntilVisible:
+    element:
+      text: "Notes"
+    direction: DOWN
+- tapOn:
+    text: "Notes"
+
+# Turn on auto-archive; this reveals the "Archive location" row.
+- scrollUntilVisible:
+    element:
+      text: 'Auto-archive done items\?'
+    direction: DOWN
+- tapOn:
+    text: 'Auto-archive done items\?'
+- extendedWaitUntil:
+    visible:
+      text: "Archive location"
+    timeout: 5000
+- tapOn:
+    text: "Archive location"
+
+# "Set archive location" picker (a repurposed RefileSheet) -> pick reading-list.org
+# at its top level, no drill-down needed.
+- extendedWaitUntil:
+    visible:
+      text: "Set archive location"
+    timeout: 5000
+- tapOn:
+    text: "reading-list"
+- tapOn:
+    text: "Set as archive location"
+
+# Back out of Settings to the Notebooks screen, then into projects.org.
+- back
+- back
+- runFlow: ../subflows/open-outline-projects.yaml
+
+# Mark "Tag the release" (a leaf TODO, no children) as DONE via the outline's
+# right-swipe panel (State / Schedule / Note / Fav).
+- extendedWaitUntil:
+    visible:
+      text: "Tag the release"
+    timeout: 10000
+- swipe:
+    direction: RIGHT
+    from:
+      text: "Tag the release"
+- tapOn:
+    text: "State"
+- extendedWaitUntil:
+    visible:
+      text: "DONE"
+    timeout: 5000
+- tapOn:
+    text: "DONE"
+
+# Auto-archive fires: the undo snack names the destination, and the row leaves
+# this outline.
+- extendedWaitUntil:
+    visible:
+      text: "Marked done. Refiled to reading-list"
+    timeout: 8000
+- assertNotVisible:
+    text: "Tag the release"
+
+# Confirm it landed in reading-list.org.
+- back
+- extendedWaitUntil:
+    visible:
+      id: "notebooks_capture"
+    timeout: 10000
+- tapOn:
+    text: "reading-list"
+- extendedWaitUntil:
+    visible:
+      id: "outline_list"
+    timeout: 10000
+- extendedWaitUntil:
+    visible:
+      text: "Tag the release"
+    timeout: 15000

@@ -1,0 +1,73 @@
+# Journey 10: log a free-text note against a heading (a LOGBOOK entry), from
+# both entry points.
+#
+# Part A -- Outline right-swipe panel: "Tag the release" -> Note -> type ->
+#   Add -> toast.
+# Part B -- Read mode's metadata bottom sheet: "Backlog" -> "☰" -> "+ Add
+#   note" -> type -> Add -> toast. Same dialog (NoteDialog), same
+#   DocumentViewModel.addNote() under both entry points.
+#
+# UNVERIFIED ON-DEVICE -- see 07-auto-archive-done.yaml's header note on the
+# element-anchored `swipe` step.
+appId: com.rrajath.grove.debug
+tags:
+  - e2e
+---
+- runFlow: ../subflows/launch-seeded.yaml
+- runFlow: ../subflows/open-outline-projects.yaml
+
+# Part A: swipe-reveal "Note".
+- extendedWaitUntil:
+    visible:
+      text: "Tag the release"
+    timeout: 10000
+- swipe:
+    direction: RIGHT
+    from:
+      text: "Tag the release"
+- tapOn:
+    text: "Note"
+- extendedWaitUntil:
+    visible:
+      text: "Add note"
+    timeout: 5000
+- tapOn:
+    text: "Note contents"
+- inputText: "MAESTRO-SWIPE-LOGBOOK-NOTE"
+- hideKeyboard
+- tapOn:
+    text: "Add"
+- extendedWaitUntil:
+    visible:
+      text: "Note added"
+    timeout: 5000
+
+# Part B: metadata sheet's "+ Add note".
+- tapOn:
+    text: "Backlog"
+- extendedWaitUntil:
+    visible:
+      id: "read_note_screen"
+    timeout: 10000
+- tapOn:
+    text: "☰"
+- extendedWaitUntil:
+    visible:
+      text: "+ Add note"
+    timeout: 5000
+- tapOn:
+    text: "+ Add note"
+- extendedWaitUntil:
+    visible:
+      text: "Add note"
+    timeout: 5000
+- tapOn:
+    text: "Note contents"
+- inputText: "MAESTRO-METADATA-LOGBOOK-NOTE"
+- hideKeyboard
+- tapOn:
+    text: "Add"
+- extendedWaitUntil:
+    visible:
+      text: "Note added"
+    timeout: 5000

@@ -1,0 +1,13 @@
+# From the (already-seeded) Notebooks screen, open projects.org's Outline.
+appId: com.rrajath.grove.debug
+---
+- extendedWaitUntil:
+    visible:
+      id: "notebooks_capture"
+    timeout: 15000
+- tapOn:
+    text: "projects"
+- extendedWaitUntil:
+    visible:
+      id: "outline_list"
+    timeout: 10000

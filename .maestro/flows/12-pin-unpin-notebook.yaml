@@ -1,0 +1,45 @@
+# Journey 12: pin and unpin a notebook.
+#
+# Grove has no per-heading "pin" distinct from Favorite (see
+# 09-favorite-unfavorite.yaml) -- pinning is a notebook/folder-level feature
+# on the Notebooks screen (long-press a row -> "Pin to top" / "Unpin").
+#
+# Seeded vault -> long-press "inbox" -> "Pin to top" -> long-press it again,
+# the menu now offers "Unpin" (proves the pin stuck) -> Unpin -> long-press
+# once more, the menu is back to "Pin to top" (proves the unpin stuck) ->
+# dismiss without re-pinning.
+appId: com.rrajath.grove.debug
+tags:
+  - e2e
+---
+- runFlow: ../subflows/launch-seeded.yaml
+
+- extendedWaitUntil:
+    visible:
+      text: "inbox"
+    timeout: 10000
+- longPressOn:
+    text: "inbox"
+- extendedWaitUntil:
+    visible:
+      text: "Pin to top"
+    timeout: 5000
+- tapOn:
+    text: "Pin to top"
+
+- longPressOn:
+    text: "inbox"
+- extendedWaitUntil:
+    visible:
+      text: "Unpin"
+    timeout: 5000
+- tapOn:
+    text: "Unpin"
+
+- longPressOn:
+    text: "inbox"
+- extendedWaitUntil:
+    visible:
+      text: "Pin to top"
+    timeout: 5000
+- back

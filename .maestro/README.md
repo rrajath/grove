@@ -12,6 +12,12 @@ flows verified against a Pixel_9a AVD (API 35, AOSP keyboard) on 2026-09-07.
 | `flows/04-edit-note-save.yaml` | Open a note, edit it, reopen, confirm the edit persisted |
 | `flows/05-follow-links.yaml` | Follow every org link form from Read mode (27 cases, ~2.5 min) — see below |
 | `scripts/sync-conflict-notifications.sh` | Simulate Syncthing conflict copies and verify notification behavior — see below |
+| `flows/07-auto-archive-done.yaml` | Turn on auto-archive in Settings, mark a task DONE, confirm it's refiled to the configured location |
+| `flows/08-refile-note.yaml` | Left-swipe "Refile" on a heading with a child, move it (as a subtree) into another notebook |
+| `flows/09-favorite-unfavorite.yaml` | Favorite/unfavorite a note from the outline's right-swipe panel and from the Read-mode metadata sheet |
+| `flows/10-add-note-to-heading.yaml` | Log a free-text LOGBOOK note against a heading from the outline's right-swipe panel and from the metadata sheet |
+| `flows/11-add-note-position.yaml` | Create a new note above, below, and as a child of an existing note via the outline's left-swipe panel |
+| `flows/12-pin-unpin-notebook.yaml` | Pin/unpin a notebook from its long-press context menu on the Notebooks screen |
 
 Journey 01 (onboarding + the SAF system folder picker) is **deferred** — see the
 design doc. Flows 02–05 skip onboarding entirely via the debug hook.
@@ -146,5 +152,26 @@ there.
   `scrollUntilVisible` steps run at the default speed on purpose — `speed: 100`
   overshoots and intermittently misses a mid-list link.
 - **Verified** against a Pixel_9a AVD (API 35, AOSP keyboard) on 2026-09-07:
-  all flows pass. Re-check selectors if the Search, editor, or Read screens
+  flows 02-05 pass. Re-check selectors if the Search, editor, or Read screens
   change.
+- **Flows 07-12 are unverified on-device.** They're written directly from the
+  production source (`SwipeRevealRow.kt`, `OutlineScreen.kt`, `MetadataSheet.kt`,
+  `RefileSheet.kt`, `StatePickerSheet.kt`, `AutoArchive.kt`, `NotebooksScreen.kt`)
+  but haven't been run yet. Two things worth checking first on a real run:
+  - **None of `SwipeRevealRow`, `SwipeAction`, `MetadataSheet`, `RefileSheet`,
+    `StatePickerSheet`, or `NoteDialog` carry a `testTag`** — every interaction
+    in flows 07-12 is a `text:` selector against the exact label string in the
+    source (e.g. `"Fav"`/`"Unfav"`, `"→ Refile"`, `"★ Favorite"`/`"★ Favorited"`,
+    `"+ Add note"`, swipe-panel labels `"State"`/`"Schedule"`/`"Note"`/
+    `"Above"`/`"Below"`/`"Sub"`). If any of that copy changes, the flow breaks
+    silently rather than through a stable id — consider adding testTags to
+    those composables if these flows turn out to be worth keeping long-term.
+  - **The element-anchored `swipe: {direction, from: {text: ...}}` step has no
+    precedent in this repo** (the only existing swipe, in
+    `subflows/trigger-sync.yaml`, is a plain pull-to-refresh with no `from`).
+    `SwipeRevealRow` swipes **right** to reveal its `leftActions` panel
+    (State/Schedule/Note/Fav) and **left** to reveal `rightActions`
+    (Above/Below/Sub/Refile) — flows 07/09/10 swipe right, 08/11 swipe left.
+    If the `from`-anchored form doesn't fire the gesture, fall back to a
+    percent-coordinate `swipe` like `trigger-sync.yaml` uses.
+  - Flow 12 (pin/unpin) is text-only, no swipe — lower risk than the other five.

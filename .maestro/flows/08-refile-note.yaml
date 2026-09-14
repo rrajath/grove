@@ -1,0 +1,63 @@
+# Journey 8: refile a note (with a child heading) into another notebook.
+#
+# Seeded vault -> projects.org -> left-swipe "Dark mode polish" (has a child,
+# "Audit contrast ratios", so this also exercises a subtree move) -> Refile ->
+# pick inbox.org at its top level -> the undo snack confirms -> inbox.org now
+# contains the moved subtree, projects.org no longer does.
+#
+# UNVERIFIED ON-DEVICE -- see 07-auto-archive-done.yaml's header note on the
+# element-anchored `swipe` step.
+appId: com.rrajath.grove.debug
+tags:
+  - e2e
+---
+- runFlow: ../subflows/launch-seeded.yaml
+- runFlow: ../subflows/open-outline-projects.yaml
+
+- extendedWaitUntil:
+    visible:
+      text: "Dark mode polish"
+    timeout: 10000
+- swipe:
+    direction: LEFT
+    from:
+      text: "Dark mode polish"
+- tapOn:
+    text: "Refile"
+
+- extendedWaitUntil:
+    visible:
+      text: "Refile 1 note"
+    timeout: 5000
+- tapOn:
+    text: "inbox"
+- tapOn:
+    text: "Refile here"
+
+- extendedWaitUntil:
+    visible:
+      text: "Refiled to inbox › top level"
+    timeout: 8000
+- assertNotVisible:
+    text: "Dark mode polish"
+
+# Confirm it (and its child) landed in inbox.org.
+- back
+- extendedWaitUntil:
+    visible:
+      id: "notebooks_capture"
+    timeout: 10000
+- tapOn:
+    text: "inbox"
+- extendedWaitUntil:
+    visible:
+      id: "outline_list"
+    timeout: 10000
+- extendedWaitUntil:
+    visible:
+      text: "Dark mode polish"
+    timeout: 15000
+- extendedWaitUntil:
+    visible:
+      text: "Audit contrast ratios"
+    timeout: 10000

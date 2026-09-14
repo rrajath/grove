@@ -1,0 +1,75 @@
+# Journey 9: favorite and unfavorite a note, from both entry points.
+#
+# Part A -- Outline right-swipe panel (State / Schedule / Note / Fav):
+#   "Write the store listing" -> Fav -> toast -> swipe again, the panel now
+#   reads "Unfav" -> Unfav -> toast.
+# Part B -- Read mode's metadata bottom sheet:
+#   open "Backlog" in Read mode -> the "☰" menu -> "★ Favorite" -> the sheet's
+#   own label flips in place to "★ Favorited" -> tap again to unfavorite, label
+#   flips back.
+#
+# UNVERIFIED ON-DEVICE -- see 07-auto-archive-done.yaml's header note on the
+# element-anchored `swipe` step.
+appId: com.rrajath.grove.debug
+tags:
+  - e2e
+---
+- runFlow: ../subflows/launch-seeded.yaml
+- runFlow: ../subflows/open-outline-projects.yaml
+
+# Part A: swipe-reveal favorite / unfavorite.
+- extendedWaitUntil:
+    visible:
+      text: "Write the store listing"
+    timeout: 10000
+- swipe:
+    direction: RIGHT
+    from:
+      text: "Write the store listing"
+- tapOn:
+    text: "Fav"
+- extendedWaitUntil:
+    visible:
+      text: "★ Added to favorites"
+    timeout: 5000
+
+- swipe:
+    direction: RIGHT
+    from:
+      text: "Write the store listing"
+- extendedWaitUntil:
+    visible:
+      text: "Unfav"
+    timeout: 5000
+- tapOn:
+    text: "Unfav"
+- extendedWaitUntil:
+    visible:
+      text: "Removed favorite"
+    timeout: 5000
+
+# Part B: the metadata bottom sheet's own Favorite toggle, in Read mode.
+- tapOn:
+    text: "Backlog"
+- extendedWaitUntil:
+    visible:
+      id: "read_note_screen"
+    timeout: 10000
+- tapOn:
+    text: "☰"
+- extendedWaitUntil:
+    visible:
+      text: "★ Favorite"
+    timeout: 5000
+- tapOn:
+    text: "★ Favorite"
+- extendedWaitUntil:
+    visible:
+      text: "★ Favorited"
+    timeout: 5000
+- tapOn:
+    text: "★ Favorited"
+- extendedWaitUntil:
+    visible:
+      text: "★ Favorite"
+    timeout: 5000
