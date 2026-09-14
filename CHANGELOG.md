@@ -59,6 +59,8 @@ re-uploads the APKs to the existing release instead of failing.
 
 ## [Unreleased]
 
+## [1.6.2] - 2026-09-13
+
 ### Added
 - Added an agenda lever (off by default) showing icon-styled scheduled/active-timestamp chips next to deadline chips on rows.
 - Agenda and the widget now show a done button on keyword-less repeating headings, advancing the date like notifications already did.

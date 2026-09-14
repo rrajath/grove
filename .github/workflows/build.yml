@@ -149,6 +149,75 @@ jobs:
           echo "SHOULD_RELEASE=$SHOULD_RELEASE" >> "$GITHUB_ENV"
           echo "BUILD_RELEASE=$BUILD_RELEASE" >> "$GITHUB_ENV"
 
+      # Nothing to release if nobody added anything under Unreleased since the
+      # last cut, that's the signal for "this run doesn't need a release,"
+      # not the mere act of dispatching the workflow. Pulls the section
+      # content (not the header) into GITHUB_ENV via the multiline heredoc
+      # form so later steps can reuse it verbatim as release notes.
+      #
+      # A pushed release tag skips the emptiness gate: pushing v1.2.0 is
+      # already an explicit "release this now," so an empty Unreleased
+      # section just means "no changelog notes," not "skip the release."
+      #
+      # Runs before the build steps below (not just before Publish) so its
+      # HAS_RELEASE result can gate the CHANGELOG.md heading rewrite that
+      # needs to land before assembleRelease/bundleRelease run — see "Update
+      # CHANGELOG.md heading for this release" next.
+      - name: Read Unreleased section from CHANGELOG.md
+        if: env.SHOULD_RELEASE == 'true'
+        run: |
+          set -euo pipefail
+          NOTES="$(awk '
+            /^## \[Unreleased\]$/ { found=1; next }
+            found && /^## \[/ { exit }
+            found { print }
+          ' CHANGELOG.md | awk 'NF{p=1} p')"
+          if [ -z "$NOTES" ] && [ "$IS_TAG_RELEASE" != "true" ]; then
+            echo "HAS_RELEASE=false" >> "$GITHUB_ENV"
+            echo "No content under '## [Unreleased]' in CHANGELOG.md — skipping release for this push."
+          else
+            echo "HAS_RELEASE=true" >> "$GITHUB_ENV"
+            if [ -z "$NOTES" ]; then
+              NOTES="(no changelog entry)"
+            fi
+            {
+              echo "RELEASE_NOTES<<CHANGELOG_EOF"
+              echo "$NOTES"
+              echo "CHANGELOG_EOF"
+            } >> "$GITHUB_ENV"
+          fi
+
+      # Rewrites CHANGELOG.md's "## [Unreleased]" heading to
+      # "## [$CHANGELOG_VERSION] - <date>" *before* the release APK/AAB are
+      # built below, since assembleRelease/bundleRelease copy this file into
+      # the APK as a bundled asset (app/build.gradle.kts) — read at runtime
+      # by ChangelogParser for the in-app What's New screen. Renaming the
+      # heading only in the later archive-commit step (as this used to work)
+      # meant the just-published build still had "Unreleased" baked in and
+      # never got its own What's New card.
+      #
+      # Only the file edit happens here; committing it back to the default
+      # branch still happens later, after the GitHub Release is published
+      # (see "Commit archived CHANGELOG.md" below) — a build failure after
+      # this step leaves the rewrite sitting uncommitted on the runner, not
+      # pushed to the repo.
+      - name: Update CHANGELOG.md heading for this release
+        if: env.SHOULD_RELEASE == 'true' && env.HAS_RELEASE == 'true'
+        run: |
+          set -euo pipefail
+          DATE="$(date -u +%Y-%m-%d)"
+          awk -v ver="$CHANGELOG_VERSION" -v date="$DATE" '
+            /^## \[Unreleased\]$/ && !done {
+              print
+              print ""
+              print "## [" ver "] - " date
+              done=1
+              next
+            }
+            { print }
+          ' CHANGELOG.md > CHANGELOG.md.tmp
+          mv CHANGELOG.md.tmp CHANGELOG.md
+
       - name: Decode release keystore
         if: env.HAS_SIGNING == 'true' && env.BUILD_RELEASE == 'true'
         env:
@@ -217,39 +286,6 @@ jobs:
         if: github.event_name == 'workflow_dispatch' && github.ref != format('refs/heads/{0}', github.event.repository.default_branch)
         run: echo "::warning::Manually run from '${{ github.ref_name }}', not the default branch. Building and testing only, no release will be published."
 
-      # Nothing to release if nobody added anything under Unreleased since the
-      # last cut, that's the signal for "this run doesn't need a release,"
-      # not the mere act of dispatching the workflow. Pulls the section
-      # content (not the header) into GITHUB_ENV via the multiline heredoc
-      # form so later steps can reuse it verbatim as release notes.
-      #
-      # A pushed release tag skips the emptiness gate: pushing v1.2.0 is
-      # already an explicit "release this now," so an empty Unreleased
-      # section just means "no changelog notes," not "skip the release."
-      - name: Read Unreleased section from CHANGELOG.md
-        if: env.SHOULD_RELEASE == 'true'
-        run: |
-          set -euo pipefail
-          NOTES="$(awk '
-            /^## \[Unreleased\]$/ { found=1; next }
-            found && /^## \[/ { exit }
-            found { print }
-          ' CHANGELOG.md | awk 'NF{p=1} p')"
-          if [ -z "$NOTES" ] && [ "$IS_TAG_RELEASE" != "true" ]; then
-            echo "HAS_RELEASE=false" >> "$GITHUB_ENV"
-            echo "No content under '## [Unreleased]' in CHANGELOG.md — skipping release for this push."
-          else
-            echo "HAS_RELEASE=true" >> "$GITHUB_ENV"
-            if [ -z "$NOTES" ]; then
-              NOTES="(no changelog entry)"
-            fi
-            {
-              echo "RELEASE_NOTES<<CHANGELOG_EOF"
-              echo "$NOTES"
-              echo "CHANGELOG_EOF"
-            } >> "$GITHUB_ENV"
-          fi
-
       # Publish a GitHub Release with both APKs and the AAB, but only when there
       # was something under Unreleased to publish (or a release tag was pushed —
       # see the Read Unreleased step above). RELEASE_TAG is the tag you pushed
@@ -280,12 +316,13 @@ jobs:
               --notes "$NOTES"
           fi
 
-      # Moves what was just released out of Unreleased and into its own
-      # "## [$CHANGELOG_VERSION] - <date>" heading, then pushes that as a
-      # follow-up commit — this is the step that removes the manual
-      # `./gradlew -q printVersionName` + hand-editing CHANGELOG.md
-      # previously required before every release-worthy push. [skip ci] stops
-      # this bot commit from triggering (and re-releasing on) itself.
+      # Commits the CHANGELOG.md heading already rewritten by "Update
+      # CHANGELOG.md heading for this release" (above, before the build) and
+      # pushes that as a follow-up commit — this is the step that removes
+      # the manual `./gradlew -q printVersionName` + hand-editing
+      # CHANGELOG.md previously required before every release-worthy push.
+      # [skip ci] stops this bot commit from triggering (and re-releasing
+      # on) itself.
       #
       # A pushed release tag can point anywhere, not just at the default
       # branch's tip — `git push origin HEAD:<default>` would silently rewind
@@ -297,7 +334,7 @@ jobs:
       # the commit+push with a warning otherwise. workflow_dispatch already
       # required running on that tip via its own condition above, so it never
       # needs this check.
-      - name: Archive released version in CHANGELOG.md
+      - name: Commit archived CHANGELOG.md
         if: env.SHOULD_RELEASE == 'true' && env.HAS_RELEASE == 'true'
         run: |
           set -euo pipefail
@@ -308,18 +345,6 @@ jobs:
               exit 0
             fi
           fi
-          DATE="$(date -u +%Y-%m-%d)"
-          awk -v ver="$CHANGELOG_VERSION" -v date="$DATE" '
-            /^## \[Unreleased\]$/ && !done {
-              print
-              print ""
-              print "## [" ver "] - " date
-              done=1
-              next
-            }
-            { print }
-          ' CHANGELOG.md > CHANGELOG.md.tmp
-          mv CHANGELOG.md.tmp CHANGELOG.md
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add CHANGELOG.md
