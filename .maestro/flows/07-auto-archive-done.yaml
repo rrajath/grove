@@ -8,9 +8,12 @@
 # UNVERIFIED ON-DEVICE: this flow was written from source (AutoArchive.kt,
 # SettingsNotesScreen.kt, RefileSheet.kt, StatePickerSheet.kt, OutlineScreen.kt)
 # but has not yet been run against a real emulator/device the way flows 02-05
-# were. In particular the element-anchored `swipe` step (there is no existing
-# precedent for it in this repo -- see README "Known fragile points") may need
-# adjustment.
+# were. The element-anchored `swipe` step is confirmed working (see flow 08).
+#
+# Fixed 2026-09-15: a freshly opened outline starts fully collapsed, so
+# "Tag the release" (nested under "Ship v2 release") needs that parent
+# expanded first; and notebook rows on the Notebooks screen now show the
+# full filename (reading-list.org), not the bare name RefileSheet uses.
 appId: com.rrajath.grove.debug
 tags:
   - e2e
@@ -64,7 +67,17 @@ tags:
 - runFlow: ../subflows/open-outline-projects.yaml
 
 # Mark "Tag the release" (a leaf TODO, no children) as DONE via the outline's
-# right-swipe panel (State / Schedule / Note / Fav).
+# right-swipe panel (State / Schedule / Note / Fav). A freshly opened outline
+# starts fully collapsed, and "Tag the release" is nested under the top-level
+# "Ship v2 release", so expand that first (index 0, the first foldable
+# top-level heading).
+- extendedWaitUntil:
+    visible:
+      text: "Ship v2 release"
+    timeout: 10000
+- tapOn:
+    id: "outline_toggle"
+    index: 0
 - extendedWaitUntil:
     visible:
       text: "Tag the release"
@@ -98,7 +111,7 @@ tags:
       id: "notebooks_capture"
     timeout: 10000
 - tapOn:
-    text: "reading-list"
+    text: "reading-list.org"
 - extendedWaitUntil:
     visible:
       id: "outline_list"

@@ -8,8 +8,12 @@
 #   own label flips in place to "★ Favorited" -> tap again to unfavorite, label
 #   flips back.
 #
-# UNVERIFIED ON-DEVICE -- see 07-auto-archive-done.yaml's header note on the
-# element-anchored `swipe` step.
+# UNVERIFIED ON-DEVICE -- the element-anchored `swipe` step is confirmed
+# working (see flow 08).
+#
+# Fixed 2026-09-15: a freshly opened outline starts fully collapsed, so
+# "Write the store listing" (nested under "Ship v2 release") needs that
+# parent expanded first.
 appId: com.rrajath.grove.debug
 tags:
   - e2e
@@ -17,7 +21,17 @@ tags:
 - runFlow: ../subflows/launch-seeded.yaml
 - runFlow: ../subflows/open-outline-projects.yaml
 
-# Part A: swipe-reveal favorite / unfavorite.
+# Part A: swipe-reveal favorite / unfavorite. A freshly opened outline starts
+# fully collapsed, and "Write the store listing" is nested under the
+# top-level "Ship v2 release", so expand that first (index 0, the first
+# foldable top-level heading).
+- extendedWaitUntil:
+    visible:
+      text: "Ship v2 release"
+    timeout: 10000
+- tapOn:
+    id: "outline_toggle"
+    index: 0
 - extendedWaitUntil:
     visible:
       text: "Write the store listing"
