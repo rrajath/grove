@@ -16,10 +16,10 @@ tags:
 
 - extendedWaitUntil:
     visible:
-      text: "inbox"
+      text: "inbox.org"
     timeout: 10000
 - longPressOn:
-    text: "inbox"
+    text: "inbox.org"
 - extendedWaitUntil:
     visible:
       text: "Pin to top"
@@ -28,7 +28,7 @@ tags:
     text: "Pin to top"
 
 - longPressOn:
-    text: "inbox"
+    text: "inbox.org"
 - extendedWaitUntil:
     visible:
       text: "Unpin"
@@ -37,7 +37,7 @@ tags:
     text: "Unpin"
 
 - longPressOn:
-    text: "inbox"
+    text: "inbox.org"
 - extendedWaitUntil:
     visible:
       text: "Pin to top"
