@@ -57,6 +57,7 @@ import com.rrajath.grove.ui.agenda.agendaPriorityColor
 import com.rrajath.grove.ui.agenda.hasDoneAffordance
 import com.rrajath.grove.ui.agenda.metaColor
 import com.rrajath.grove.ui.agenda.repeaterKind
+import com.rrajath.grove.ui.components.orgInlinePlainText
 import com.rrajath.grove.ui.nav.Routes
 import com.rrajath.grove.ui.theme.GroveColors
 import com.rrajath.grove.ui.theme.groveColorsFor
@@ -394,7 +395,7 @@ private fun LedgerRow(context: Context, colors: GroveColors, row: AgendaRow, fon
                     Spacer(modifier = GlanceModifier.width(6.dp))
                 }
                 Text(
-                    row.title,
+                    orgInlinePlainText(row.title),
                     maxLines = 2,
                     style = TextStyle(color = ColorProvider(colors.ink), fontSize = sp(13f, fontScale), fontWeight = FontWeight.Medium),
                 )
