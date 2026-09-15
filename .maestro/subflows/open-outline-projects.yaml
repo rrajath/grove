@@ -6,7 +6,7 @@ appId: com.rrajath.grove.debug
       id: "notebooks_capture"
     timeout: 15000
 - tapOn:
-    text: "projects"
+    text: "projects.org"
 - extendedWaitUntil:
     visible:
       id: "outline_list"

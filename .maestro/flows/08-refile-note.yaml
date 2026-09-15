@@ -1,18 +1,32 @@
 # Journey 8: refile a note (with a child heading) into another notebook.
 #
-# Seeded vault -> projects.org -> left-swipe "Dark mode polish" (has a child,
-# "Audit contrast ratios", so this also exercises a subtree move) -> Refile ->
-# pick inbox.org at its top level -> the undo snack confirms -> inbox.org now
-# contains the moved subtree, projects.org no longer does.
+# Seeded vault -> projects.org -> a freshly opened outline starts fully
+# collapsed, so "Dark mode polish" (nested under the top-level "Backlog")
+# isn't visible until "Backlog" is expanded -> left-swipe "Dark mode polish"
+# (has a child, "Audit contrast ratios", so this also exercises a subtree
+# move, refiled while still collapsed) -> Refile -> pick inbox.org at its top
+# level -> the undo snack confirms -> inbox.org now contains the moved
+# subtree, projects.org no longer does.
 #
-# UNVERIFIED ON-DEVICE -- see 07-auto-archive-done.yaml's header note on the
-# element-anchored `swipe` step.
+# Device-verified 2026-09-15 (Pixel emulator).
 appId: com.rrajath.grove.debug
 tags:
   - e2e
 ---
 - runFlow: ../subflows/launch-seeded.yaml
 - runFlow: ../subflows/open-outline-projects.yaml
+
+# Expand "Backlog" (the outline starts fully collapsed) to reveal its child
+# "Dark mode polish". The disclosure triangle's testTag repeats per row, so
+# index 1 picks "Backlog" -- the second foldable top-level heading after
+# "Ship v2 release".
+- extendedWaitUntil:
+    visible:
+      text: "Backlog"
+    timeout: 10000
+- tapOn:
+    id: "outline_toggle"
+    index: 1
 
 - extendedWaitUntil:
     visible:
@@ -48,7 +62,7 @@ tags:
       id: "notebooks_capture"
     timeout: 10000
 - tapOn:
-    text: "inbox"
+    text: "inbox.org"
 - extendedWaitUntil:
     visible:
       id: "outline_list"
@@ -57,6 +71,12 @@ tags:
     visible:
       text: "Dark mode polish"
     timeout: 15000
+
+# inbox.org also opens fully collapsed; expand "Dark mode polish" (index 1,
+# after the "Captured" heading) to confirm its child moved along with it.
+- tapOn:
+    id: "outline_toggle"
+    index: 1
 - extendedWaitUntil:
     visible:
       text: "Audit contrast ratios"
