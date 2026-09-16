@@ -62,6 +62,9 @@ re-uploads the APKs to the existing release instead of failing.
 ### Added
 - Added a "Generate org-id" action to the metadata sheet, writing a UUID into the heading's :ID: property.
 
+### Fixed
+- Fixed the metadata sheet showing "Favorited" instead of "Unfavorite" as the toggle-off label.
+
 ## [1.6.2] - 2026-09-13
 
 ### Added
