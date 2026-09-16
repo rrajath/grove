@@ -10,6 +10,7 @@ import com.rrajath.grove.org.OrgKeywords
 import com.rrajath.grove.org.OrgMutations
 import com.rrajath.grove.org.OrgParser
 import com.rrajath.grove.org.OrgTimestamp
+import com.rrajath.grove.org.newOrgId
 import com.rrajath.grove.settings.SettingsSource
 import com.rrajath.grove.sync.SyncTrigger
 import com.rrajath.grove.vault.Vault
@@ -418,6 +419,9 @@ class EditorViewModel(
         val stamp = OrgTimestamp(now.toLocalDate(), time = now.toLocalTime().withSecond(0).withNano(0), active = false)
         mutateBuffer { d, h -> OrgMutations.appendLogbookNote(d, h, note.trim(), stamp) }
     }
+
+    /** Metadata sheet's "Generate org-id": writes a fresh `:ID:` into the heading's PROPERTIES drawer. */
+    fun generateId() = mutateBuffer { d, h -> OrgMutations.upsertProperty(d, h, "ID", newOrgId()) }
 
     /**
      * Write the buffer back into the file. Refuses (sets [EditorUiState.staleFile])

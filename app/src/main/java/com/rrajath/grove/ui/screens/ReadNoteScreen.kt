@@ -93,6 +93,7 @@ import com.rrajath.grove.org.OrgDocument
 import com.rrajath.grove.org.OrgHeadline
 import com.rrajath.grove.org.OrgMutations
 import com.rrajath.grove.org.OrgTimestamp
+import com.rrajath.grove.org.newOrgId
 import com.rrajath.grove.settings.FontSizePreference
 import com.rrajath.grove.ui.components.CollapsibleBlockSection
 import com.rrajath.grove.ui.components.CollapsibleKvSection
@@ -479,6 +480,12 @@ fun ReadNoteScreen(
                         )
                     }
                 },
+                onGenerateId = {
+                    metadataOpen = false
+                    viewModel.withIntroHeading("org-id generated") { d, h ->
+                        OrgMutations.upsertProperty(d, h, "ID", newOrgId())
+                    }
+                },
                 onRefile = {},
                 showRefile = false,
                 showFavorite = true,
@@ -496,6 +503,7 @@ fun ReadNoteScreen(
                 onSetTags = { tags -> viewModel.setTags(headline, tags) },
                 onSetPlanningDates = { sched, dead, active -> viewModel.setPlanningDates(headline, sched, dead, active) },
                 onAddNote = { note -> viewModel.addNote(headline, note) },
+                onGenerateId = { viewModel.generateId(headline) },
                 onRefile = { metadataOpen = false; viewModel.startRefile(headline) },
                 showFavorite = true,
                 isFavorite = favorites.any { it.matches(headline) },

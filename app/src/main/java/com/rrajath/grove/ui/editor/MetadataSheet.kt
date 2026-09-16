@@ -72,6 +72,7 @@ fun MetadataSheet(
     onSetTags: (List<String>) -> Unit,
     onSetPlanningDates: (OrgTimestamp?, OrgTimestamp?, List<OrgTimestamp>) -> Unit,
     onAddNote: (String) -> Unit,
+    onGenerateId: () -> Unit,
     onRefile: () -> Unit,
     onDismiss: () -> Unit,
     /** Hidden for an unsaved capture draft: nothing exists on disk yet to refile. */
@@ -262,6 +263,17 @@ fun MetadataSheet(
                         .clickable { noteDialogOpen = true }
                         .padding(vertical = 6.dp),
                 )
+                if (headline?.id == null) {
+                    Text(
+                        "+ Generate org-id",
+                        fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
+                        fontSize = 13.sp, color = c.accent,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable(onClick = onGenerateId)
+                            .padding(vertical = 6.dp),
+                    )
+                }
                 if (showRefile) {
                     Text(
                         "→ Refile",

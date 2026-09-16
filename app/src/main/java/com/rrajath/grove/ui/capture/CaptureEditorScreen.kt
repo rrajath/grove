@@ -72,6 +72,7 @@ import com.rrajath.grove.org.OrgHeadline
 import com.rrajath.grove.org.OrgMutations
 import com.rrajath.grove.org.OrgParser
 import com.rrajath.grove.org.OrgTimestamp
+import com.rrajath.grove.org.newOrgId
 import com.rrajath.grove.ui.components.GroveTopBar
 import com.rrajath.grove.ui.components.Pill
 import com.rrajath.grove.ui.components.SegmentedControl
@@ -512,6 +513,9 @@ fun CaptureEditorScreen(
                     OrgTimestamp(it.toLocalDate(), time = it.toLocalTime().withSecond(0).withNano(0), active = false)
                 }
                 mutateDraft { d, h -> OrgMutations.appendLogbookNote(d, h, note.trim(), stamp) }
+            },
+            onGenerateId = {
+                mutateDraft { d, h -> OrgMutations.upsertProperty(d, h, "ID", newOrgId()) }
             },
             onRefile = {},
             showRefile = false,

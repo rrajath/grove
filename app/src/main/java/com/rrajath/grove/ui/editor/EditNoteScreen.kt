@@ -617,6 +617,7 @@ fun EditNoteScreen(
             onSetTags = viewModel::setTags,
             onSetPlanningDates = viewModel::setPlanningDates,
             onAddNote = viewModel::addNote,
+            onGenerateId = viewModel::generateId,
             onRefile = {
                 metadataOpen = false
                 confirmRefile = true

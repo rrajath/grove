@@ -1326,6 +1326,21 @@ class DocumentViewModel(
         }
     }
 
+    /** Metadata sheet's "Generate org-id": writes a fresh `:ID:` into the heading's PROPERTIES drawer. */
+    fun generateId(headline: OrgHeadline) {
+        val loaded = _state.value as? DocumentUiState.Loaded ?: return
+        val vault = vaultFlow.value ?: return
+        viewModelScope.launch {
+            val (newText, newDoc) = withContext(dispatchers.default) {
+                val text = OrgMutations.upsertProperty(loaded.document, headline, "ID", newOrgId())
+                text to OrgParser.parse(text, loaded.document.keywords)
+            }
+            _state.value = DocumentUiState.Loaded(loaded.fileName, newDoc)
+            saveDoc(loaded.fileName, newText, "org-id generated")
+            showToast("org-id generated")
+        }
+    }
+
     /** Outline swipe "Note" action: org's C-c C-z, logged into the LOGBOOK drawer. */
     fun addNote(headline: OrgHeadline, note: String) {
         val loaded = _state.value as? DocumentUiState.Loaded ?: return
