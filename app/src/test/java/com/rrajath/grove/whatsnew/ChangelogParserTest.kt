@@ -151,7 +151,11 @@ class ChangelogParserTest {
         assertTrue("each release keeps at least one non-empty category", releases.all { r ->
             r.subsections.any { it.items.isNotEmpty() }
         })
-        assertEquals("1.6.1", releases.first().title)
+        // The newest shipped entry must match gradle.properties' versionName, since CI archives
+        // "## [Unreleased]" under that exact string when cutting a release.
+        val versionName = File("../gradle.properties").let { if (it.exists()) it else File("gradle.properties") }
+            .readLines().first { it.startsWith("versionName=") }.substringAfter("=")
+        assertEquals(versionName, releases.first().title)
     }
 
     @Test
