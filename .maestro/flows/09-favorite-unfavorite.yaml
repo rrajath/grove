@@ -79,10 +79,10 @@ tags:
     text: "★ Favorite"
 - extendedWaitUntil:
     visible:
-      text: "★ Favorited"
+      text: "★ Unfavorite"
     timeout: 5000
 - tapOn:
-    text: "★ Favorited"
+    text: "★ Unfavorite"
 - extendedWaitUntil:
     visible:
       text: "★ Favorite"

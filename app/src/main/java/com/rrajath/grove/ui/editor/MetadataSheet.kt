@@ -263,17 +263,6 @@ fun MetadataSheet(
                         .clickable { noteDialogOpen = true }
                         .padding(vertical = 6.dp),
                 )
-                if (headline?.id == null) {
-                    Text(
-                        "+ Generate org-id",
-                        fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
-                        fontSize = 13.sp, color = c.accent,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .clickable(onClick = onGenerateId)
-                            .padding(vertical = 6.dp),
-                    )
-                }
                 if (showRefile) {
                     Text(
                         "→ Refile",
@@ -287,12 +276,23 @@ fun MetadataSheet(
                 }
                 if (showFavorite) {
                     Text(
-                        if (isFavorite) "★ Favorited" else "★ Favorite",
+                        if (isFavorite) "★ Unfavorite" else "★ Favorite",
                         fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
                         fontSize = 13.sp, color = c.accent,
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
                             .clickable(onClick = onToggleFavorite)
+                            .padding(vertical = 6.dp),
+                    )
+                }
+                if (headline?.id == null) {
+                    Text(
+                        "+ Generate org-id",
+                        fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
+                        fontSize = 13.sp, color = c.accent,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable(onClick = onGenerateId)
                             .padding(vertical = 6.dp),
                     )
                 }
