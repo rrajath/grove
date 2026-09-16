@@ -60,19 +60,28 @@ Run: `./gradlew :app:installDebug && .maestro/scripts/sync-conflict-notification
 (needs exactly one connected device/emulator — an AVD, never the physical
 device with the real vault).
 
-Covers (verified against Pixel_9a, API 35, 2026-09-12):
+`SyncManager.notifyConflicts` is edge-triggered: it posts only on the
+0 -> 1+ conflict transition, count-only text ("N sync conflict(s) found"), and
+stays silent while the conflict set persists or grows/shrinks-but-nonzero —
+even across a user dismiss — until it empties and a fresh conflict starts a
+new episode.
+
+Covers (verified against Pixel_9a, API 35, 2026-09-12; re-verify after the
+edge-trigger rewrite):
 - a conflict copy of a non-`.org` file posts no notification and shows no
   in-app indication (`SyncEngine` filters conflicts to `.org` basenames);
 - two `.org` conflicts landing in the same sync pass post exactly one
-  notification listing both names;
-- a new conflicting file while one notification is already posted updates
-  that same notification (still one `NotificationRecord`, text grows,
-  `when` changes) instead of posting a second one;
+  notification with count-only pluralized text ("2 sync conflicts found");
+- a 3rd conflicting file landing while one notification is already posted
+  does **not** re-post or update it — text and `when` stay byte-for-byte
+  identical;
 - an unchanged conflict set across repeated sync passes does not re-post —
   `when` stays byte-for-byte identical, proven via `dumpsys notification`
   rather than the (identical either way) visible text;
 - resolving every conflicted notebook through ConflictScreen ("Keep
-  current") cancels the notification.
+  current") cancels the notification;
+- once all conflicts clear, a fresh conflict re-notifies with a new `when`
+  ("1 sync conflict found").
 
 ## The debug test-vault hook
 

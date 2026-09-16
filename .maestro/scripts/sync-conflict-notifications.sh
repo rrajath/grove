@@ -72,27 +72,21 @@ write_conflict "photo.png" "png"
 run_maestro "$ROOT/subflows/trigger-sync.yaml"
 check "non-.org conflict: no notification" "$(notif_count)" "0"
 
-# --- Scenario 2: two .org conflicts land in one sync -> a single notification ---
+# --- Scenario 2: two .org conflicts land in one sync -> a single, edge-triggered notification ---
 write_conflict "events" "org"
 write_conflict "projects" "org"
 run_maestro "$ROOT/subflows/trigger-sync.yaml"
 check "two conflicts in one sync: exactly one notification" "$(notif_count)" "1"
-check "notification lists both files" "$(notif_text)" "events.org, projects.org changed on two devices"
+check "notification is count-only, pluralized" "$(notif_text)" "2 sync conflicts found"
 
-# --- Scenario 3: a new conflict while one is posted updates it in place ---
+# --- Scenario 3: a 3rd conflict landing while one is already posted must NOT re-post or update it ---
 before_when="$(notif_when)"
+before_text="$(notif_text)"
 write_conflict "inbox" "org"
 run_maestro "$ROOT/subflows/trigger-sync.yaml"
-after_when="$(notif_when)"
 check "still exactly one notification after a 3rd conflict" "$(notif_count)" "1"
-check "notification text now lists all three" "$(notif_text)" "events.org, inbox.org, projects.org changed on two devices"
-if [ "$before_when" != "$after_when" ]; then
-  echo "PASS: notification was updated (when changed: $before_when -> $after_when)"
-  pass=$((pass + 1))
-else
-  echo "FAIL: notification 'when' did not change even though the conflict set grew"
-  fail=$((fail + 1))
-fi
+check "notification text unchanged (edge-triggered, not re-posted)" "$(notif_text)" "$before_text"
+check "notification 'when' unchanged (edge-triggered, not re-posted)" "$(notif_when)" "$before_when"
 
 # --- Scenario 4: unchanged conflict set across repeated syncs must not re-post ---
 stable_when="$(notif_when)"
@@ -106,6 +100,21 @@ run_maestro "$ROOT/subflows/resolve-one-conflict.yaml"
 run_maestro "$ROOT/subflows/resolve-one-conflict.yaml"
 run_maestro "$ROOT/subflows/resolve-one-conflict.yaml"
 check "notification cancelled once all conflicts are resolved" "$(notif_count)" "0"
+
+# --- Scenario 6: all-clear resets the episode flag, so a fresh conflict re-notifies ---
+pre_resolve_when="$stable_when"
+write_conflict "notes" "org"
+run_maestro "$ROOT/subflows/trigger-sync.yaml"
+check "fresh conflict after all-clear: exactly one notification" "$(notif_count)" "1"
+check "fresh conflict notification is singular" "$(notif_text)" "1 sync conflict found"
+new_when="$(notif_when)"
+if [ "$new_when" != "$pre_resolve_when" ]; then
+  echo "PASS: fresh episode re-notified (when: $pre_resolve_when -> $new_when)"
+  pass=$((pass + 1))
+else
+  echo "FAIL: fresh conflict after all-clear did not re-notify (when unchanged: $new_when)"
+  fail=$((fail + 1))
+fi
 
 echo
 echo "== $pass passed, $fail failed =="

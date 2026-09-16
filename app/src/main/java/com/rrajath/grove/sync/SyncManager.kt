@@ -58,6 +58,7 @@ class SyncManager(
     private val mutex = Mutex()
     private var engine: SyncEngine? = null
     private var store: FileStore? = null
+    private val conflictAlertState = SyncConflictAlertState(context)
 
     // All full-sync triggers funnel through here so overlapping ones coalesce
     // into a single pass instead of running back to back (PERFORMANCE_AUDIT
@@ -275,23 +276,24 @@ class SyncManager(
 
     /**
      * [names] is the full current set of notebooks with an unresolved conflict
-     * (already .org-only — see [SyncEngine.sync]). Reflects that set in a
-     * single, stable notification: cancels it once no conflicts remain, leaves
-     * it untouched if the set hasn't changed since it was last shown (so an
-     * unresolved conflict doesn't re-alert on every sync pass), and otherwise
-     * posts/updates it with the current names. Which case applies is read off
-     * the live notification's text rather than kept in memory, so it survives
-     * the process dying between sync passes (e.g. periodic WorkManager runs).
+     * (already .org-only — see [SyncEngine.sync]). Edge-triggered: only the
+     * 0 -> 1+ transition posts a notification. While the set stays nonzero
+     * (growing, shrinking, or unchanged) nothing is posted or updated, even if
+     * the user dismissed it — it stays suppressed for the rest of this
+     * conflict episode. Once the set empties, the notification is cancelled
+     * and the episode flag clears, so the next new conflict re-notifies.
+     * [conflictAlertState] (not the live [NotificationManager] state) is the
+     * source of truth for which case applies, so this survives the process
+     * dying between sync passes (e.g. periodic WorkManager runs).
      */
     private fun notifyConflicts(names: Set<String>) {
         val nm = context.getSystemService(NotificationManager::class.java)
         if (names.isEmpty()) {
             nm.cancel(NOTIFICATION_ID)
+            conflictAlertState.setActive(false)
             return
         }
-        val text = "${names.sorted().joinToString()} changed on two devices"
-        val existing = nm.activeNotifications.firstOrNull { it.id == NOTIFICATION_ID }
-        if (existing?.notification?.extras?.getCharSequence(android.app.Notification.EXTRA_TEXT) == text) {
+        if (conflictAlertState.isActive()) {
             return
         }
         if (context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
@@ -305,6 +307,8 @@ class SyncManager(
             context, 0, launch ?: Intent(),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
+        val n = names.size
+        val text = "$n sync conflict${if (n == 1) "" else "s"} found"
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.stat_notify_sync_noanim)
             .setContentTitle("Sync conflict")
@@ -314,6 +318,7 @@ class SyncManager(
             .setOnlyAlertOnce(true)
             .build()
         nm.notify(NOTIFICATION_ID, notification)
+        conflictAlertState.setActive(true)
     }
 
     companion object {

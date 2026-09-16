@@ -64,6 +64,7 @@ re-uploads the APKs to the existing release instead of failing.
 
 ### Fixed
 - Fixed the metadata sheet showing "Favorited" instead of "Unfavorite" as the toggle-off label.
+- Sync-conflict notifications now fire only when conflicts first appear, not on every subsequent sync.
 
 ## [1.6.2] - 2026-09-13
 
