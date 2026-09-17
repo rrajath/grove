@@ -241,4 +241,21 @@ val NEW_FEATURES: List<NewFeature> = listOf(
         ),
         destination = NewAnchors.tipsItem("writing", "date"),
     ),
+    NewFeature(
+        // Long-pressing the toolbar's link button now opens a full-height picker
+        // with live search across the whole vault (files + headings), instead of
+        // the old drill-down-only browser starting from the current file.
+        // `since` is the versionCode of the release that ships it — bump it to
+        // match `gradle.properties` versionName when cutting the release.
+        id = "link-picker-live-search",
+        since = 10700,
+        anchors = setOf(
+            NewAnchors.TOPBAR_MENU,
+            NewAnchors.DRAWER_SETTINGS,
+            NewAnchors.SETTINGS_TIPS,
+            NewAnchors.tipsGroup("links"),
+            NewAnchors.tipsItem("links", "link-picker"),
+        ),
+        destination = NewAnchors.tipsItem("links", "link-picker"),
+    ),
 )

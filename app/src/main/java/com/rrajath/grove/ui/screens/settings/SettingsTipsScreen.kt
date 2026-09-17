@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.FormatSize
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.Tag
@@ -468,8 +469,16 @@ private fun tipGroups(): List<TipGroup> = listOf(
                     "Copy a link first, then select some text and tap {{link}}: the copied link becomes the target and your text becomes the label, nothing to type",
                     "No link copied? Select text and tap {{link}} for a https:// scaffold, then just paste your URL over it, https:// and all",
                     "Tap with nothing selected to drop in an empty [[link][description]] template",
-                    "Long-press {{link}} to browse your vault and link straight to a file or a heading",
+                    "Long-press {{link}} to search the whole vault live and link straight to a file or a heading",
                 ),
+            ),
+            Tip(
+                "link-picker", Icons.Default.Search, "Search the vault to build a link",
+                "Long-pressing {{link}} opens a full-height picker with the search box already focused, starting at your " +
+                        "notebook list. Type to filter files and headings live across the whole vault, or browse without " +
+                        "typing by tapping a notebook to drill into its headings. Tapping a heading with no sub-headings " +
+                        "links it right away; only a heading with sub-headings drills in further.",
+                newAnchor = NewAnchors.tipsItem("links", "link-picker"),
             ),
             Tip(
                 "link-id", Icons.Default.Tag, "Link by ID so it survives moves",
