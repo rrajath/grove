@@ -340,6 +340,18 @@ abstract class IndexDao {
     @Query("SELECT fileName, lineIndex FROM notes WHERE customId = :customId LIMIT 1")
     abstract suspend fun noteLocationByCustomId(customId: String): NoteKey?
 
+    /**
+     * Every note whose own body text contains [needle] as a literal substring
+     * (case-insensitive) -- the candidate set the Linked References sheet
+     * scans for `[[id:…]]` backlinks and plain-text title mentions. LIKE
+     * rather than an FTS `MATCH`: a needle like `id:AB12` or a short title
+     * isn't a safe FTS token, and the `notes` table is small enough (a
+     * personal vault, not a corpus) for the scan to be cheap. [needle] must
+     * already have `%`/`_`/`\` escaped by the caller (see `escapeLikeNeedle`).
+     */
+    @Query("SELECT * FROM notes WHERE body LIKE '%' || :needle || '%' ESCAPE '\\'")
+    abstract suspend fun notesWithBodyContaining(needle: String): List<NoteEntity>
+
     @Query(
         "SELECT fileName, keyword, isDone, inheritedTags, scheduled, deadline, " +
             "activeTimestamps, lastModified FROM notes"

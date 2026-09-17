@@ -14,9 +14,13 @@ import com.rrajath.grove.org.newOrgId
 import com.rrajath.grove.settings.SettingsSource
 import com.rrajath.grove.sync.SyncTrigger
 import com.rrajath.grove.vault.Vault
+import com.rrajath.grove.ui.vault.LinkedReferencesResult
 import com.rrajath.grove.ui.vault.NoteRef
 import com.rrajath.grove.ui.vault.OutlineSnack
 import com.rrajath.grove.ui.vault.RefileNotebook
+import com.rrajath.grove.ui.vault.buildOwnPathCrumbs
+import com.rrajath.grove.ui.vault.computeLinkedReferences
+import com.rrajath.grove.ui.vault.escapeLikeNeedle
 import com.rrajath.grove.ui.vault.factory
 import com.rrajath.grove.ui.vault.headlineAtLine
 import com.rrajath.grove.ui.vault.headlineFor
@@ -111,6 +115,29 @@ class EditorViewModel(
     private val _snack = MutableStateFlow<OutlineSnack?>(null)
     val snack: StateFlow<OutlineSnack?> = _snack
     private var eventId = 0L
+
+    /** Backlinks/mentions for the Linked References bar+sheet; refreshed by [loadLinkedReferences]. */
+    private val _linkedReferences = MutableStateFlow(LinkedReferencesResult.EMPTY)
+    val linkedReferences: StateFlow<LinkedReferencesResult> = _linkedReferences
+
+    /** See `DocumentViewModel.loadLinkedReferences` -- identical computation, own copy of the state. */
+    fun loadLinkedReferences(fileName: String, lineIndex: Int, targetId: String?, title: String) {
+        viewModelScope.launch {
+            _linkedReferences.value = withContext(dispatchers.default) {
+                val dao = database.indexDao()
+                val selfKey = fileName to lineIndex
+                val linkCandidates = targetId
+                    ?.let { dao.notesWithBodyContaining(escapeLikeNeedle("id:$it")) }
+                    .orEmpty()
+                val mentionCandidates = title
+                    .takeIf { it.isNotBlank() }
+                    ?.let { dao.notesWithBodyContaining(escapeLikeNeedle(it)) }
+                    .orEmpty()
+                val crumbs = buildOwnPathCrumbs(dao.allHeadingOutlines())
+                computeLinkedReferences(targetId, title, selfKey, linkCandidates, mentionCandidates, crumbs)
+            }
+        }
+    }
 
     /** Everything needed to put the buffer back where [changeKeyword]'s auto-archive found it. */
     private data class ArchiveUndo(
@@ -212,6 +239,7 @@ class EditorViewModel(
                 keywords = keywords.value,
                 allTags = tags,
             )
+            loadLinkedReferences(ref.fileName, headline.lineIndex, headline.id, headline.title)
         }
     }
 

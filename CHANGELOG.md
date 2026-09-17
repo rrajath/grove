@@ -59,6 +59,9 @@ re-uploads the APKs to the existing release instead of failing.
 
 ## [Unreleased]
 
+### Added
+- Added a Linked References bar and sheet to Read and Edit mode, showing ID-linked backlinks and unlinked title mentions.
+
 ### Changed
 - The link picker now supports live search, opens full height, and links leaf headings on tap.
 - Tips & Tricks now describes the link picker's live search instead of the old drill-down browser.

@@ -615,6 +615,7 @@ private fun GroveNavigation(
                             newNoteCursor = settings.newNoteCursor,
                             onBack = leaveNote,
                             onSwitchToRead = { editTargetLine = null; mode = "read" },
+                            onOpenNote = { target -> navController.navigate(Routes.note(target.encode())) },
                             viewModel = editorViewModel,
                         )
                     } else {
