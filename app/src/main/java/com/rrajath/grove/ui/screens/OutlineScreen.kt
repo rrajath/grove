@@ -75,6 +75,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rrajath.grove.R
+import com.rrajath.grove.org.INTRO_LINE_INDEX
 import com.rrajath.grove.org.OrgDocument
 import com.rrajath.grove.org.OrgHeadline
 import com.rrajath.grove.org.OrgTimestamp
@@ -86,6 +87,8 @@ import com.rrajath.grove.ui.components.FavoriteStar
 import com.rrajath.grove.ui.components.GroveTopBar
 import com.rrajath.grove.ui.components.GroveToast
 import com.rrajath.grove.ui.components.GroveUndoSnackbar
+import com.rrajath.grove.ui.components.LinkedReferencesBar
+import com.rrajath.grove.ui.components.LinkedReferencesSheet
 import com.rrajath.grove.ui.components.PlanningDatesScreen
 import com.rrajath.grove.ui.components.ScrollJumpButtons
 import com.rrajath.grove.ui.components.StatePickerSheet
@@ -166,6 +169,17 @@ fun OutlineScreen(
     LaunchedEffect(notebookId) { viewModel.load(notebookId) }
 
     val loadedDoc = (state as? DocumentUiState.Loaded)?.document
+
+    // Whole-file linked references, independent of any narrow -- narrowing to a
+    // subtree doesn't change which file's backlinks/mentions are being shown.
+    val linkedReferences by viewModel.linkedReferences.collectAsStateWithLifecycle()
+    var linkedRefsOpen by remember { mutableStateOf(false) }
+    LaunchedEffect(notebookId, loadedDoc) {
+        val doc = loadedDoc ?: return@LaunchedEffect
+        val fileTitle = doc.preambleKeywords.firstOrNull { it.first.equals("#+TITLE:", ignoreCase = true) }
+            ?.second ?: notebookId.removeSuffix(".org")
+        viewModel.loadLinkedReferences(notebookId, INTRO_LINE_INDEX, doc.fileId, fileTitle)
+    }
     // Resolved once here (not separately in the top bar and the body) so both
     // stay in sync. Falls back to the full outline if the target heading no
     // longer exists (e.g. it was deleted since the breadcrumb was shown).
@@ -366,6 +380,15 @@ fun OutlineScreen(
                             }
                         }
                     },
+                )
+            }
+        },
+        bottomBar = {
+            if (state is DocumentUiState.Loaded && focusedLine == null) {
+                LinkedReferencesBar(
+                    linkedCount = linkedReferences.linkedCount,
+                    unlinkedCount = linkedReferences.unlinkedCount,
+                    onClick = { linkedRefsOpen = true },
                 )
             }
         },
@@ -687,6 +710,20 @@ fun OutlineScreen(
                         onConfirm = viewModel::refileConfirm,
                         onArchive = viewModel::refileToArchive,
                         onPickLastUsed = viewModel::refileToLastUsed,
+                    )
+                }
+
+                if (linkedRefsOpen) {
+                    val title = doc.preambleKeywords.firstOrNull { it.first.equals("#+TITLE:", ignoreCase = true) }
+                        ?.second ?: notebookId.removeSuffix(".org")
+                    LinkedReferencesSheet(
+                        title = title,
+                        result = linkedReferences,
+                        onOpenReference = { fileName, lineIndex, id ->
+                            linkedRefsOpen = false
+                            onOpenNote(NoteRef(fileName, lineIndex, id))
+                        },
+                        onDismiss = { linkedRefsOpen = false },
                     )
                 }
             }

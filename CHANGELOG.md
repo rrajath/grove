@@ -65,6 +65,7 @@ re-uploads the APKs to the existing release instead of failing.
 ### Changed
 - The link picker now supports live search, opens full height, and links leaf headings on tap.
 - Tips & Tricks now describes the link picker's live search instead of the old drill-down browser.
+- Linked References bar now also appears in Outline view, is taller collapsed, and shows a centered top chevron.
 
 ## [1.6.3] - 2026-09-17
 

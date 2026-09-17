@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -18,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.rrajath.grove.ui.theme.PlexMono
@@ -40,38 +42,49 @@ fun LinkedReferencesBar(
     modifier: Modifier = Modifier,
 ) {
     val c = MaterialTheme.grove
-    Row(
+    Column(
         modifier
             .fillMaxWidth()
             .background(c.surface)
             .border(1.dp, c.line)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 18.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .clickable(onClick = onClick),
     ) {
-        Box(
-            Modifier
-                .size(26.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(c.accentSoft),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                "↗", fontFamily = PlexMono, fontWeight = FontWeight.SemiBold,
-                fontSize = 13.sp, color = c.accent,
-            )
-        }
-        Spacer(Modifier.width(11.dp))
+        // Centered chevron at the top edge, replacing the old trailing caret --
+        // reads as a "pull up to expand" affordance instead of a stray glyph
+        // competing with the unlinked-count pill on the right.
         Text(
-            pluralCount(linkedCount, "linked reference"),
-            fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
-            fontSize = 14.5.sp, color = c.ink,
-            modifier = Modifier.weight(1f),
+            "⌃", fontFamily = PlexMono, fontSize = 13.sp, color = c.ink3,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth().padding(top = 7.dp),
         )
-        if (unlinkedCount > 0) {
-            Pill(text = "$unlinkedCount unlinked", fg = c.ink2, bg = c.surface2)
-            Spacer(Modifier.width(8.dp))
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(start = 18.dp, end = 18.dp, top = 5.dp, bottom = 20.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                Modifier
+                    .size(26.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(c.accentSoft),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    "↗", fontFamily = PlexMono, fontWeight = FontWeight.SemiBold,
+                    fontSize = 13.sp, color = c.accent,
+                )
+            }
+            Spacer(Modifier.width(11.dp))
+            Text(
+                pluralCount(linkedCount, "linked reference"),
+                fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
+                fontSize = 14.5.sp, color = c.ink,
+                modifier = Modifier.weight(1f),
+            )
+            if (unlinkedCount > 0) {
+                Pill(text = "$unlinkedCount unlinked", fg = c.ink2, bg = c.surface2)
+            }
         }
-        Text("⌃", fontFamily = PlexMono, fontSize = 15.sp, color = c.ink3)
     }
 }
