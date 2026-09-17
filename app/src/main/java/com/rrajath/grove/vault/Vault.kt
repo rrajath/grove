@@ -79,21 +79,29 @@ class Vault(
     // read+parse. Only ever touched under [cacheMutex].
     private val inFlight = mutableMapOf<CacheKey, CompletableDeferred<OrgDocument>>()
 
-    suspend fun notebooks(): List<Notebook> {
+    suspend fun notebooks(): List<Notebook> =
+        listOrgFiles().map { entry ->
+            val doc = document(entry)
+            Notebook(entry.name, doc.headlines.count { it.level == 1 }, entry.lastModified)
+        }
+
+    /**
+     * Every `.org` file in the vault (ignore rules applied, sync-conflict copies
+     * excluded), without parsing any of them. For callers that only need file
+     * paths — [renameFolder] and [deleteFolder] used to go through [notebooks],
+     * which parses every file just to throw the parse away
+     * (PERFORMANCE_AUDIT_2026-09-16 F7).
+     */
+    private suspend fun listOrgFiles(): List<FileEntry> {
         val entries = store.list()
         val ignore = entries.firstOrNull { it.name == IgnoreRules.FILE_NAME }
             ?.let { IgnoreRules(store.read(it.name)) }
             ?: IgnoreRules("")
-        return entries
-            .filter {
-                it.name.endsWith(".org") &&
-                        !it.name.contains(".sync-conflict-") &&
-                        !ignore.isIgnored(it.name)
-            }
-            .map { entry ->
-                val doc = document(entry)
-                Notebook(entry.name, doc.headlines.count { it.level == 1 }, entry.lastModified)
-            }
+        return entries.filter {
+            it.name.endsWith(".org") &&
+                    !it.name.contains(".sync-conflict-") &&
+                    !ignore.isIgnored(it.name)
+        }
     }
 
     /** Current revision marker ("mtime:size") of a file, or null if missing. */
@@ -192,9 +200,10 @@ class Vault(
         if (newDir == trimmed) return null
 
         val prefix = "$trimmed/"
-        val moves = notebooks()
-            .filter { it.fileName.startsWith(prefix) }
-            .map { it.fileName to newDir + "/" + it.fileName.removePrefix(prefix) }
+        val moves = listOrgFiles()
+            .map { it.name }
+            .filter { it.startsWith(prefix) }
+            .map { it to newDir + "/" + it.removePrefix(prefix) }
         if (moves.isEmpty()) return null
         // Reject if the destination folder already exists (any file already sits
         // under it) or a moved file's target path is taken — both compared
@@ -223,11 +232,12 @@ class Vault(
     suspend fun deleteFolder(dir: String): Int {
         val trimmed = dir.trim('/')
         val prefix = "$trimmed/"
-        val deleted = notebooks()
-            .filter { it.fileName.startsWith(prefix) }
+        val deleted = listOrgFiles()
+            .map { it.name }
+            .filter { it.startsWith(prefix) }
             .count {
-                val ok = store.delete(it.fileName)
-                if (ok) evictParse(it.fileName)
+                val ok = store.delete(it)
+                if (ok) evictParse(it)
                 ok
             }
         if (deleted > 0) store.pruneEmptyDirs(trimmed)

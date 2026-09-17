@@ -94,16 +94,31 @@ class SyncManager(
         coalescer.request(reason)
     }
 
+    /**
+     * Runs one full sync pass right now and suspends until it (and its
+     * catch-up side effects) are done, instead of merely enqueueing it on
+     * [coalescer]. For [SyncWorker.doWork]: WorkManager considers the job done
+     * the instant `doWork` returns, and the process becomes eligible to be
+     * killed — returning before the debounced pass even started meant the
+     * periodic sync could be skipped entirely (PERFORMANCE_AUDIT_2026-09-16 F3).
+     */
+    suspend fun syncNow(reason: String) {
+        if (engine == null) return
+        mutex.withLock { runSyncPass(reason) }
+    }
+
     /** One full sync pass. Serialized by [coalescer] (and [mutex]); never run concurrently. */
     private suspend fun runSyncPass(reason: String) {
         val engine = engine ?: return
-        log("sync started ($reason)")
-        val result = engine.sync(log = { msg -> log(msg) })
+        val messages = java.util.concurrent.ConcurrentLinkedQueue<String>()
+        messages.add("sync started ($reason)")
+        val result = engine.sync(log = { msg -> messages.add(msg) })
         if (result != null) {
             _lastResult.value = result
-            log("sync done: ${result.pulled.size} pulled, ${result.conflicts.size} conflicts")
+            messages.add("sync done: ${result.pulled.size} pulled, ${result.conflicts.size} conflicts")
             notifyConflicts(result.conflicts.keys)
         }
+        logBatch(messages.toList())
         database.syncLogDao().trim()
         onSyncCompleted(result)
     }
@@ -127,13 +142,14 @@ class SyncManager(
         val engine = engine ?: return
         scope.launch {
             mutex.withLock {
-                log("reindex started ($reason): $fileName")
+                val messages = mutableListOf("reindex started ($reason): $fileName")
                 try {
                     engine.reindexOne(fileName, text, database.indexDao().conflictFileNameFor(fileName))
-                    log("reindexed $fileName")
+                    messages.add("reindexed $fileName")
                 } catch (e: Exception) {
-                    log("reindex failed for $fileName: ${e.message}")
+                    messages.add("reindex failed for $fileName: ${e.message}")
                 }
+                logBatch(messages)
                 database.syncLogDao().trim()
                 onSyncCompleted(null)
             }
@@ -151,13 +167,15 @@ class SyncManager(
         scope.launch {
             mutex.withLock {
                 database.indexDao().clearAll()
-                log("sync started ($reason)")
-                val result = engine.sync(log = { msg -> log(msg) })
+                val messages = java.util.concurrent.ConcurrentLinkedQueue<String>()
+                messages.add("sync started ($reason)")
+                val result = engine.sync(log = { msg -> messages.add(msg) })
                 if (result != null) {
                     _lastResult.value = result
-                    log("sync done: ${result.pulled.size} pulled, ${result.conflicts.size} conflicts")
+                    messages.add("sync done: ${result.pulled.size} pulled, ${result.conflicts.size} conflicts")
                     notifyConflicts(result.conflicts.keys)
                 }
+                logBatch(messages.toList())
                 database.syncLogDao().trim()
                 onSyncCompleted(result)
             }
@@ -274,6 +292,15 @@ class SyncManager(
         }
     }
 
+    /** Inserts a whole pass's log lines in one transaction (PERFORMANCE_AUDIT_2026-09-16 F4). */
+    private suspend fun logBatch(messages: List<String>) {
+        if (messages.isEmpty()) return
+        val now = System.currentTimeMillis()
+        database.syncLogDao().insertAll(
+            messages.map { SyncLogEntity(timestamp = now, level = "info", message = it) }
+        )
+    }
+
     /**
      * [names] is the full current set of notebooks with an unresolved conflict
      * (already .org-only — see [SyncEngine.sync]). Edge-triggered: only the
@@ -353,7 +380,7 @@ class SyncWorker(
 ) : CoroutineWorker(appContext, params) {
     override suspend fun doWork(): Result {
         val app = applicationContext as? com.rrajath.grove.GroveApplication ?: return Result.failure()
-        app.syncManager.requestSync("periodic work")
+        app.syncManager.syncNow("periodic work")
         return Result.success()
     }
 }

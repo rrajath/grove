@@ -3,8 +3,14 @@ package com.rrajath.grove.sync
 import com.rrajath.grove.vault.FileEntry
 import com.rrajath.grove.vault.FileStore
 import com.rrajath.grove.vault.IgnoreRules
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Sync state machine (PRD §13): Idle → Checking → Pulling → Done/Conflict/Error.
@@ -85,6 +91,10 @@ class SyncEngine(
 
     val revision: (FileEntry) -> String = { "${it.lastModified}:${it.size}" }
 
+    companion object {
+        private const val PARSE_CONCURRENCY = 3
+    }
+
     suspend fun sync(log: (String) -> Unit = {}): SyncResult? {
         _state.value = SyncState.Checking
         return try {
@@ -132,16 +142,33 @@ class SyncEngine(
                 }
             if (stubs.isNotEmpty()) index.stubNotebooks(stubs)
 
-            changed.forEachIndexed { i, entry ->
-                _state.value = SyncState.Pulling(entry.name, i + 1, changed.size)
-                index.indexNotebook(
-                    fileName = entry.name,
-                    revision = current.getValue(entry.name),
-                    text = store.read(entry.name),
-                    lastModified = entry.lastModified,
-                    conflictFileName = conflicts[entry.name],
-                )
-                log("pulled ${entry.name}")
+            // Bounded concurrency, not one file at a time: the read (I/O) and
+            // parse (CPU) for up to PARSE_CONCURRENCY files now overlap instead
+            // of serializing, and a slow per-file side effect (reminder
+            // reconcile, inside index.indexNotebook) no longer blocks the next
+            // file's read from starting (PERFORMANCE_AUDIT_2026-09-16 F1, F5).
+            // No dispatcher is forced here: this inherits whatever dispatcher
+            // the caller is already on (Dispatchers.Default in production via
+            // SyncManager's appScope), which is also what keeps this safe under
+            // a single-threaded TestDispatcher in tests.
+            coroutineScope {
+                val semaphore = Semaphore(PARSE_CONCURRENCY)
+                val completed = AtomicInteger(0)
+                changed.map { entry ->
+                    async {
+                        semaphore.withPermit {
+                            index.indexNotebook(
+                                fileName = entry.name,
+                                revision = current.getValue(entry.name),
+                                text = store.read(entry.name),
+                                lastModified = entry.lastModified,
+                                conflictFileName = conflicts[entry.name],
+                            )
+                            _state.value = SyncState.Pulling(entry.name, completed.incrementAndGet(), changed.size)
+                            log("pulled ${entry.name}")
+                        }
+                    }
+                }.awaitAll()
             }
             removed.forEach {
                 index.removeNotebook(it)

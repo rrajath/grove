@@ -85,14 +85,13 @@ import com.rrajath.grove.ui.vault.PendingEdit
 import com.rrajath.grove.ui.theme.ContentFontScale
 import com.rrajath.grove.ui.theme.GroveTheme
 import com.rrajath.grove.ui.theme.grove
+import com.rrajath.grove.vault.Notebook
 import com.rrajath.grove.vault.TestVaultHook
 import com.rrajath.grove.vault.matchOpenedFileToNotebook
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeoutOrNull
 
 @Composable
 fun GroveApp(
@@ -287,9 +286,13 @@ private fun GroveNavigation(
                 (uri.scheme == "content" || uri.scheme == "file")
             ) {
                 val requestedName = externalOrgFileName(app, uri)
-                val vault = withTimeoutOrNull(5_000) { app.vault.filterNotNull().first() }
                 val match = requestedName?.let { name ->
-                    vault?.let { matchOpenedFileToNotebook(name, it.notebooks()) }
+                    // Room index, not vault.notebooks(): this only needs file
+                    // names, and the index is already populated without parsing
+                    // every notebook (PERFORMANCE_AUDIT_2026-09-16 F7).
+                    val known = app.database.indexDao().notebooks()
+                        .map { Notebook(it.fileName, it.noteCount, it.lastModified) }
+                    matchOpenedFileToNotebook(name, known)
                 }
                 if (match != null) {
                     navController.navigate(Routes.outline(match.fileName)) { launchSingleTop = true }

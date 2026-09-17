@@ -57,6 +57,7 @@ class SafFileStore(
      * only names Grove looks up are ones a prior [list] surfaced (from the index
      * or a sync pass), so that window does not arise in practice.
      */
+    @Volatile
     private var listed = false
 
     private val projection = arrayOf(
@@ -120,7 +121,7 @@ class SafFileStore(
 
     override suspend fun read(name: String): String = withContext(Dispatchers.IO) {
         val uri = documentUri(name) ?: error("File not found in vault: $name")
-        resolver.openInputStream(uri)?.use { it.readBytes().toString(Charsets.UTF_8) }
+        resolver.openInputStream(uri)?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }
             ?: error("Cannot open $name")
     }
 

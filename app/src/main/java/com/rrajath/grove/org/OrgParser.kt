@@ -306,7 +306,7 @@ object OrgParser {
 
         val rawHeadlines = mutableListOf<Raw>()
         lines.forEachIndexed { i, line ->
-            val m = HEADLINE.matchEntire(line)
+            val m = if (line.isNotEmpty() && line[0] == '*') HEADLINE.matchEntire(line) else null
             if (m != null) {
                 rawHeadlines.add(Raw(i, m.groupValues[1].length, m.groupValues[2]))
             } else if (rawHeadlines.isEmpty()) {
@@ -391,8 +391,9 @@ object OrgParser {
         val logbook = mutableListOf<String>()
         var scanningDrawers = true
         while (scanningDrawers && cursor < contentEnd) {
-            when (lines[cursor].trim().uppercase()) {
-                ":PROPERTIES:" -> {
+            val marker = lines[cursor].trim()
+            when {
+                marker.equals(":PROPERTIES:", ignoreCase = true) -> {
                     val pending = linkedMapOf<String, String>()
                     var i = cursor + 1
                     var closed = false
@@ -415,7 +416,7 @@ object OrgParser {
                         scanningDrawers = false
                     }
                 }
-                ":LOGBOOK:" -> {
+                marker.equals(":LOGBOOK:", ignoreCase = true) -> {
                     val pending = mutableListOf<String>()
                     var i = cursor + 1
                     var closed = false

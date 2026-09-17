@@ -72,9 +72,13 @@ object BlockParser {
      */
     private val KEYWORD = Regex("""^\s*#\+(?!(?i:BEGIN_|END_))[A-Za-z][\w-]*:.*$""")
 
+    private val WHITESPACE = Regex("""\s+""")
+
+    private val KEYWORD_NAME = Regex("""^\s*#\+([A-Za-z][\w-]*):""")
+
     /** The upper-cased keyword name of a [KEYWORD] line (`#+CAPTION: x` -> `CAPTION`). */
     private fun keywordName(line: String): String =
-        Regex("""^\s*#\+([A-Za-z][\w-]*):""").find(line)?.groupValues?.get(1)?.uppercase() ?: "KEYWORD"
+        KEYWORD_NAME.find(line)?.groupValues?.get(1)?.uppercase() ?: "KEYWORD"
 
     /**
      * True if [line] is a wrapped continuation of a list item's text — e.g. a
@@ -115,7 +119,7 @@ object BlockParser {
             val kind = m.groupValues[1].uppercase()
             val trailing = m.groupValues[2].trim()
             val language = if (kind == "SRC") {
-                trailing.split(Regex("""\s+""")).firstOrNull()?.takeIf { it.isNotEmpty() }
+                trailing.split(WHITESPACE).firstOrNull()?.takeIf { it.isNotEmpty() }
             } else {
                 null
             }
@@ -189,10 +193,10 @@ object BlockParser {
                     flushParagraph()
                     val items = mutableListOf<OrgBlock.ListItem>()
                     while (i < bodyLines.size) {
-                        val m = UNORDERED.matchEntire(bodyLines[i])
-                            ?: ORDERED.matchEntire(bodyLines[i])
+                        val unorderedMatch = UNORDERED.matchEntire(bodyLines[i])
+                        val m = unorderedMatch ?: ORDERED.matchEntire(bodyLines[i])
                         if (m != null) {
-                            val ordered = ORDERED.matches(bodyLines[i])
+                            val ordered = unorderedMatch == null
                             items.add(
                                 OrgBlock.ListItem(
                                     indent = m.groupValues[1].length,

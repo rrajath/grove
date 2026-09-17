@@ -37,8 +37,7 @@ class ConflictViewModel(
 
     fun load(fileName: String) {
         viewModelScope.launch {
-            val copyName = database.indexDao().notebooks()
-                .firstOrNull { it.fileName == fileName }?.conflictFileName
+            val copyName = database.indexDao().conflictFileNameFor(fileName)
             val texts = sync.conflictTexts(fileName)
             _state.value = if (texts == null || copyName == null) {
                 ConflictUiState.NoConflict

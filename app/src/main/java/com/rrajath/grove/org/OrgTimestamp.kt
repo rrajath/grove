@@ -117,8 +117,14 @@ data class OrgTimestamp(
         private val HUMAN_DATE: DateTimeFormatter =
             DateTimeFormatter.ofPattern("MMM d", Locale.ENGLISH)
 
-        private fun formatTime(t: LocalTime): String =
-            "%02d:%02d".format(t.hour, t.minute)
+        private fun formatTime(t: LocalTime): String {
+            val sb = StringBuilder(5)
+            if (t.hour < 10) sb.append('0')
+            sb.append(t.hour).append(':')
+            if (t.minute < 10) sb.append('0')
+            sb.append(t.minute)
+            return sb.toString()
+        }
 
         fun dayAbbrev(date: LocalDate): String =
             date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.ENGLISH)
@@ -127,8 +133,11 @@ data class OrgTimestamp(
         fun parse(text: String): OrgTimestamp? = parseWithRange(text)?.first
 
         /** Parse the first timestamp in [text] returning it plus its char range. */
-        fun parseWithRange(text: String): Pair<OrgTimestamp, IntRange>? {
-            val m = PATTERN.find(text) ?: return null
+        fun parseWithRange(text: String): Pair<OrgTimestamp, IntRange>? = parseWithRange(text, 0)
+
+        /** Same as the single-arg overload, but starts scanning [text] at [startIndex] (no substring copy). */
+        private fun parseWithRange(text: String, startIndex: Int): Pair<OrgTimestamp, IntRange>? {
+            val m = PATTERN.find(text, startIndex) ?: return null
             val (open, year, month, day) = m.destructured
             val close = m.groupValues[12]
             // Reject mismatched brackets like "<2025-01-01]"
@@ -190,13 +199,11 @@ data class OrgTimestamp(
             val result = mutableListOf<OrgTimestamp>()
             var offset = 0
             while (offset < text.length) {
-                val rest = text.substring(offset)
-                val (ts, range) = parseWithRange(rest) ?: break
-                val absEnd = offset + range.last + 1
-                val after = text.substring(absEnd)
-                if (ts.active && ts.rangeEnd == null && after.startsWith("--")) {
-                    val endMatch = parseWithRange(after.substring(2))
-                    if (endMatch != null && endMatch.second.first == 0 && endMatch.first.active) {
+                val (ts, range) = parseWithRange(text, offset) ?: break
+                val absEnd = range.last + 1
+                if (ts.active && ts.rangeEnd == null && text.regionMatches(absEnd, "--", 0, 2)) {
+                    val endMatch = parseWithRange(text, absEnd + 2)
+                    if (endMatch != null && endMatch.second.first == absEnd + 2 && endMatch.first.active) {
                         result.add(
                             ts.copy(
                                 rangeEnd = endMatch.first.date,
@@ -206,7 +213,7 @@ data class OrgTimestamp(
                                 endTime = endMatch.first.time ?: ts.endTime,
                             ),
                         )
-                        offset = absEnd + 2 + endMatch.second.last + 1
+                        offset = endMatch.second.last + 1
                         continue
                     }
                 }

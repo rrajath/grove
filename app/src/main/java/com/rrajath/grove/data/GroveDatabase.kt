@@ -496,6 +496,10 @@ interface SyncLogDao {
     @Insert
     suspend fun insert(entry: SyncLogEntity)
 
+    /** One transaction for a whole pass's worth of log lines (PERFORMANCE_AUDIT_2026-09-16 F4). */
+    @Insert
+    suspend fun insertAll(entries: List<SyncLogEntity>)
+
     @Query("SELECT * FROM sync_log ORDER BY id DESC LIMIT :limit")
     fun recent(limit: Int): Flow<List<SyncLogEntity>>
 
