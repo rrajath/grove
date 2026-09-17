@@ -59,6 +59,9 @@ re-uploads the APKs to the existing release instead of failing.
 
 ## [Unreleased]
 
+### Changed
+- The link picker now supports live search, opens full height, and links leaf headings on tap.
+
 ## [1.6.3] - 2026-09-17
 
 ### Added

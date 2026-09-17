@@ -52,10 +52,11 @@ A toolbar pinned above the keyboard gives one-tap access to common org markup:
 - with **text selected**, inserts `[[https://][<your text>]]` with the cursor right after `https://`, ready to type or paste the address. If you paste a URL that already starts with `https://` or `http://`, the duplicate scheme is folded away.
 - with **nothing selected**, inserts `[[link][description]]` with `link` selected, ready to type over.
 
-**Long-pressing** `[[ ]]` opens a drill-down picker (the same one used for refiling) to link to a file or heading anywhere in the vault:
+**Long-pressing** `[[ ]]` opens a full-height picker, search box focused and keyboard up, to link to a file or heading anywhere in the vault. It always starts at the notebook list, never the file you're editing.
 
-- At a notebook's top level, **Link to this file** writes `[[file:other.org]]` (just `[[file:name.org]]` for a link into the note you're editing).
-- Drill into a heading and **Link to this heading** writes `[[*Heading]]` for a heading in the note you're editing, or `[[file:other.org::*Heading]]` for one in another file.
+- Typing filters live across every file and heading in the vault; a file icon marks a file, `✳` marks a heading, and each heading result shows its breadcrumb path.
+- Without typing, tap a notebook to drill into its headings, then its sub-headings. Tapping a heading with no sub-headings links it immediately; only a heading with sub-headings drills in further.
+- At a notebook's top level, **Link to this file** writes `[[file:other.org]]` (just `[[file:name.org]]` for a link into the note you're editing). **Link to this heading** writes `[[*Heading]]` for a heading in the note you're editing, or `[[file:other.org::*Heading]]` for one in another file.
 - If the picked file has a file-level `ID`, or the picked heading has an `ID` or `CUSTOM_ID`, Grove asks whether to use that instead — an id link keeps working after the target is renamed or moved.
 
 Text you have selected when you long-press is kept as the link's description. With nothing selected, the link is named after its target — the heading title, or the file's `#+TITLE:` (falling back to its file name).

@@ -217,6 +217,13 @@ data class NotebookSyncState(
 data class NoteKey(val fileName: String, val lineIndex: Int)
 
 /**
+ * One heading's outline position + title, for the editor's link-picker search
+ * index (see `buildLinkSearchIndex`). No body/tags/planning columns: the index
+ * only ever matches and displays a title.
+ */
+data class NoteOutlineRow(val fileName: String, val lineIndex: Int, val level: Int, val title: String)
+
+/**
  * Binds a statement built by `NoteCandidateQuery` for [IndexDao.notesMatching].
  * Every parameter that builder emits is text (match expressions, keywords,
  * tags, file names), so a single bind kind covers all of them.
@@ -299,6 +306,16 @@ abstract class IndexDao {
 
     @Query("SELECT DISTINCT tags FROM notes WHERE tags != ''")
     abstract suspend fun allTagStrings(): List<String>
+
+    /**
+     * Every heading's outline position + title across the whole vault, ordered by
+     * file then position -- exactly what `buildLinkSearchIndex` needs to build
+     * every file's breadcrumb trail in a single linear pass. Excludes the file
+     * intro row (`lineIndex < 0`): it isn't a heading and has no `[[*title]]`
+     * form to link to.
+     */
+    @Query("SELECT fileName, lineIndex, level, title FROM notes WHERE lineIndex >= 0 ORDER BY fileName, lineIndex")
+    abstract suspend fun allHeadingOutlines(): List<NoteOutlineRow>
 
     /** Where a heading with this `:ID:` lives, for resolving `[[id:…]]` links vault-wide. */
     @Query("SELECT fileName, lineIndex FROM notes WHERE orgId = :id LIMIT 1")

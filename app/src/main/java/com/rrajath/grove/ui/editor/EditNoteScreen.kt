@@ -60,6 +60,8 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rrajath.grove.org.LineEditing
+import com.rrajath.grove.org.OrgDocument
+import com.rrajath.grove.org.OrgHeadline
 import com.rrajath.grove.org.OrgTimestamp
 import com.rrajath.grove.settings.FontSizePreference
 import com.rrajath.grove.settings.NewNoteCursor
@@ -78,7 +80,6 @@ import com.rrajath.grove.ui.theme.grove
 import com.rrajath.grove.ui.vault.DocumentUiState
 import com.rrajath.grove.ui.vault.DocumentViewModel
 import com.rrajath.grove.ui.vault.NoteRef
-import com.rrajath.grove.ui.vault.RefileUiState
 import com.rrajath.grove.ui.vault.headlineAtLine
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -181,12 +182,9 @@ fun EditNoteScreen(
     }
 
     /** Turn the picked file (top level) or heading into a link, asking about an ID first when there is one. */
-    fun confirmLinkPick(r: RefileUiState) {
-        val doc = r.pickedDoc ?: return
-        val file = r.pickedFile ?: return
+    fun confirmLinkPick(doc: OrgDocument, file: String, heading: OrgHeadline?) {
         viewModel.linkPickerCancel()
 
-        val heading = r.path.lastOrNull()?.let { doc.headlineAtLine(it) }
         // With text selected the selection is the description; with nothing
         // selected the link falls back to naming its target (the heading title,
         // or the file's #+TITLE: / base name).
@@ -535,20 +533,22 @@ fun EditNoteScreen(
     }
 
     linkPicker?.let { r ->
-        RefileSheet(
+        LinkPickerSheet(
             state = r,
-            currentFileName = state.fileName,
-            currentDoc = null,
+            onQueryChange = viewModel::linkPickerQueryChange,
             onPickNotebook = viewModel::linkPickerPickNotebook,
             onDrillInto = viewModel::linkPickerDrillInto,
             onBack = viewModel::linkPickerBack,
             onCancel = viewModel::linkPickerCancel,
-            onConfirm = { confirmLinkPick(r) },
-            onArchive = {},
-            onPickLastUsed = {},
-            headerTitle = "Insert a link",
-            confirmLabel = "Link to this heading",
-            topLevelConfirmLabel = "Link to this file",
+            onConfirmFileOrHeading = {
+                val doc = r.pickedDoc
+                val file = r.pickedFile
+                if (doc != null && file != null) {
+                    confirmLinkPick(doc, file, r.path.lastOrNull()?.let { doc.headlineAtLine(it) })
+                }
+            },
+            onSelectSearchResult = viewModel::linkPickerSelectSearchResult,
+            onConfirmHeading = { doc, file, heading -> confirmLinkPick(doc, file, heading) },
         )
     }
 

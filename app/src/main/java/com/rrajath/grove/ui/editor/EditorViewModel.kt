@@ -17,7 +17,6 @@ import com.rrajath.grove.vault.Vault
 import com.rrajath.grove.ui.vault.NoteRef
 import com.rrajath.grove.ui.vault.OutlineSnack
 import com.rrajath.grove.ui.vault.RefileNotebook
-import com.rrajath.grove.ui.vault.RefileUiState
 import com.rrajath.grove.ui.vault.factory
 import com.rrajath.grove.ui.vault.headlineAtLine
 import com.rrajath.grove.ui.vault.headlineFor
@@ -76,6 +75,22 @@ data class EditorUiState(
      *  top bar's save icon. Tracked here (not per-screen `remember`) so both
      *  [EditorViewModel]'s own idle auto-save and an explicit save update it the same way. */
     val lastSavedAt: LocalDateTime? = null,
+)
+
+/**
+ * State for the toolbar's "insert a link" bottom sheet: a notebook drill-down
+ * (browse mode) plus a vault-wide live search over [searchIndex].
+ */
+data class LinkPickerUiState(
+    /** Null while the notebook list / search index is still loading. */
+    val notebooks: ImmutableList<RefileNotebook>? = null,
+    val pickedFile: String? = null,
+    val pickedDoc: OrgDocument? = null,
+    /** Drill-down trail of headline lineIndexes inside [pickedDoc]; empty = top level. */
+    val path: ImmutableList<Int> = persistentListOf(),
+    val query: String = "",
+    /** Vault-wide flat index for [query] to filter; null while still loading. */
+    val searchIndex: ImmutableList<LinkSearchItem>? = null,
 )
 
 class EditorViewModel(
@@ -581,36 +596,34 @@ class EditorViewModel(
     }
 
     // --- link picker (toolbar link flyout: "File or heading") ---
-    // A drill-down over the vault, reusing RefileUiState the way `AppViewModel`'s
-    // archive-location picker does (no source subtree, so `sourceLine = -1`).
-    // At a file's top level the picker links to the whole file; drilled into a
+    // A drill-down over the vault (browse mode) plus a vault-wide live search.
+    // Always starts at the notebook list, never the file being edited: unlike
+    // refile/archive there is no "natural" source location to pre-pick here. At
+    // a file's top level the picker links to the whole file; drilled into a
     // heading it links to that heading. EditNoteScreen decides between an id
     // link and a plain one once a target is committed.
 
-    private val _linkPicker = MutableStateFlow<RefileUiState?>(null)
-    val linkPicker: StateFlow<RefileUiState?> = _linkPicker
+    private val _linkPicker = MutableStateFlow<LinkPickerUiState?>(null)
+    val linkPicker: StateFlow<LinkPickerUiState?> = _linkPicker
 
-    /** Open the picker with the file being edited pre-picked (the common case). */
     fun startLinkPicker() {
-        val currentFile = _state.value.fileName
-        _linkPicker.value = RefileUiState(sourceLine = -1)
+        _linkPicker.value = LinkPickerUiState()
         viewModelScope.launch {
-            val vault = vaultFlow.value ?: return@launch
-            // File names + counts come from the Room index; vault.notebooks() would
-            // re-read and re-parse every .org file just for the level-1 count.
+            // File names + counts + heading titles come from the Room index; opening
+            // and re-parsing every .org file just to list/search them would be
+            // O(files) work on every picker open instead of two indexed queries.
             val notebooks = database.indexDao().notebooks()
-                .sortedBy { it.fileName }
+            val headings = database.indexDao().allHeadingOutlines()
+            val sortedNotebooks = notebooks.sortedBy { it.fileName }
                 .map { RefileNotebook(it.fileName, it.noteCount) }
                 .toImmutableList()
-            val currentDoc = currentFile.takeIf { it.isNotEmpty() }?.let { vault.open(it) }
-            _linkPicker.update { r ->
-                r?.copy(
-                    notebooks = notebooks,
-                    pickedFile = currentDoc?.let { currentFile },
-                    pickedDoc = currentDoc,
-                )
-            }
+            val searchIndex = buildLinkSearchIndex(notebooks, headings)
+            _linkPicker.update { it?.copy(notebooks = sortedNotebooks, searchIndex = searchIndex) }
         }
+    }
+
+    fun linkPickerQueryChange(query: String) {
+        _linkPicker.update { it?.copy(query = query) }
     }
 
     fun linkPickerPickNotebook(fileName: String) {
@@ -620,7 +633,7 @@ class EditorViewModel(
                 return@launch
             }
             _linkPicker.update {
-                it?.copy(pickedFile = fileName, pickedDoc = doc, path = persistentListOf())
+                it?.copy(pickedFile = fileName, pickedDoc = doc, path = persistentListOf(), query = "")
             }
         }
     }
@@ -640,6 +653,49 @@ class EditorViewModel(
 
     fun linkPickerCancel() {
         _linkPicker.value = null
+    }
+
+    /**
+     * A tap on a live-search result. A file drills into it, same as picking it
+     * from the notebook list; a heading with sub-headings drills into it too
+     * (jumping straight past whatever level the search skipped); a leaf heading
+     * (no sub-headings) comes back ready to confirm right away instead of
+     * drilling into an empty "no sub-headings" screen.
+     */
+    suspend fun linkPickerSelectSearchResult(item: LinkSearchItem): LinkPickerSearchOutcome {
+        val vault = vaultFlow.value ?: return LinkPickerSearchOutcome.Failed
+        val cur = _linkPicker.value
+        val doc = cur?.takeIf { it.pickedFile == item.fileName }?.pickedDoc ?: vault.open(item.fileName)
+        if (doc == null) {
+            showSnack("Couldn't open ${item.fileName.removeSuffix(".org")}")
+            return LinkPickerSearchOutcome.Failed
+        }
+        return when (item) {
+            is LinkFileHit -> {
+                _linkPicker.update {
+                    it?.copy(pickedFile = item.fileName, pickedDoc = doc, path = persistentListOf(), query = "")
+                }
+                LinkPickerSearchOutcome.Drilled
+            }
+            is LinkHeadingHit -> {
+                val heading = doc.headlineAtLine(item.lineIndex) ?: run {
+                    showSnack("That heading no longer exists")
+                    return LinkPickerSearchOutcome.Failed
+                }
+                if (doc.hasDescendants(heading)) {
+                    val ancestry = generateSequence(heading, doc::parent).toList().asReversed()
+                        .map { it.lineIndex }
+                        .toImmutableList()
+                    _linkPicker.update {
+                        it?.copy(pickedFile = item.fileName, pickedDoc = doc, path = ancestry, query = "")
+                    }
+                    LinkPickerSearchOutcome.Drilled
+                } else {
+                    _linkPicker.update { it?.copy(pickedFile = item.fileName, pickedDoc = doc, query = "") }
+                    LinkPickerSearchOutcome.ReadyToConfirm(doc, item.fileName, heading)
+                }
+            }
+        }
     }
 
     companion object {
