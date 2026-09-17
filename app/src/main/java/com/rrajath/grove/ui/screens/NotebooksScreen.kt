@@ -16,7 +16,6 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -291,6 +290,15 @@ fun NotebooksScreen(
                 is NotebooksUiState.Loaded -> {
                     ReminderPermissionBanner(pendingCount = s.remindersPendingPermission)
 
+                    // Read once as primitives instead of inside the row closures below: `s` is
+                    // a fresh instance on every sync-pulling tick, and a composable lambda that
+                    // captures `s` directly can't be memoized across those ticks even when
+                    // these two fields didn't change. Capturing the primitives instead lets the
+                    // compiler's automatic per-lambda remember key off values that are actually
+                    // stable across an unrelated field change.
+                    val showFileIcons = s.showFileIcons
+                    val drillThreshold = s.drillThreshold
+
                     @Composable
                     fun fileRow(
                         nb: NotebookItem,
@@ -301,7 +309,7 @@ fun NotebooksScreen(
                     ) {
                         FileRow(
                             notebook = nb,
-                            showFileIcon = s.showFileIcons,
+                            showFileIcon = showFileIcons,
                             depth = depth,
                             showPathSubtitle = showPath,
                             flat = flat,
@@ -329,7 +337,7 @@ fun NotebooksScreen(
                         FolderRow(
                             node = node,
                             expanded = expanded,
-                            chevron = !flat && node.recursiveOrgCount > s.drillThreshold,
+                            chevron = !flat && node.recursiveOrgCount > drillThreshold,
                             flat = flat,
                             pinnedStrip = pinnedStrip,
                             onClick = onClick,
@@ -776,7 +784,9 @@ fun NotebooksScreen(
 @Composable
 private fun SyncStatusIcon(state: NotebooksUiState.Loaded, context: android.content.Context) {
     val c = MaterialTheme.grove
-    val conflictCount = state.notebooks.count { it.hasConflict }
+    // Only re-scan for conflicts when the notebooks list itself changes, not on every
+    // sync-state tick (this icon is in the always-visible top bar).
+    val conflictCount = remember(state.notebooks) { state.notebooks.count { it.hasConflict } }
     when (val sync = state.syncState) {
         is SyncState.Error -> {
             IconButton(
@@ -844,17 +854,22 @@ private fun SyncStatusIcon(state: NotebooksUiState.Loaded, context: android.cont
 private fun TreeRowContainer(depth: Int, content: @Composable () -> Unit) {
     val c = MaterialTheme.grove
     val indent: Dp = (minOf(depth, 2) * 20).dp
-    Box(Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
-        if (depth > 0) {
-            Box(
-                Modifier
-                    .offset(x = indent - 2.dp)
-                    .width(1.5.dp)
-                    .fillMaxHeight()
-                    .clip(RoundedCornerShape(2.dp))
-                    .background(c.line2),
+    // drawBehind reads the box's own measured size for free; height(IntrinsicSize.Min) used
+    // to force an extra intrinsic-measurement pass on every tree row just to size a 1.5dp
+    // divider Box to match.
+    val railModifier = if (depth > 0) {
+        Modifier.drawBehind {
+            drawRoundRect(
+                color = c.line2,
+                topLeft = Offset((indent - 2.dp).toPx(), 0f),
+                size = Size(1.5.dp.toPx(), size.height),
+                cornerRadius = CornerRadius(2.dp.toPx()),
             )
         }
+    } else {
+        Modifier
+    }
+    Box(Modifier.fillMaxWidth().then(railModifier)) {
         Box(Modifier.padding(start = indent)) { content() }
     }
 }
@@ -1122,7 +1137,7 @@ private fun FileRow(
                         modifier = Modifier.padding(top = 1.dp),
                     )
                 }
-                val ago = DateUtils.getRelativeTimeSpanString(notebook.lastModified)
+                val ago = remember(notebook.lastModified) { DateUtils.getRelativeTimeSpanString(notebook.lastModified) }
                 // Stub rows show only the timestamp until the background parse
                 // fills in the count; avoids a "0 notes" flash before the jump.
                 Text(

@@ -688,6 +688,17 @@ private fun NoteContent(
     val ownBody = remember(doc, headline) { doc.bodyWithoutDedicatedTimestamp(headline) }
     val ownBodyStart = remember(doc, headline) { doc.bodyStartWithoutDedicatedTimestamp(headline) }
     val subtree = remember(doc, headline) { doc.subtree(headline) }
+    // O(1) favorite lookup per row instead of an O(favorites) `.any` scan per row per
+    // recomposition; split by whether the favorite matches on customId or raw lineIndex
+    // (see FavoriteNote.matches).
+    val favoriteCustomIds = remember(favorites) { favorites.mapNotNull { it.customId }.toSet() }
+    val favoriteLineIndices = remember(favorites) {
+        favorites.filter { it.customId == null }.map { it.lineIndex }.toSet()
+    }
+    fun isFavorite(h: OrgHeadline): Boolean {
+        val ident = h.customId ?: h.id
+        return (ident != null && ident in favoriteCustomIds) || h.lineIndex in favoriteLineIndices
+    }
 
     // A heading whose subtree is huge or very deep (e.g. a 2000-heading "note")
     // used to render every descendant heading + body eagerly in one scrolling
@@ -757,7 +768,7 @@ private fun NoteContent(
                                 ),
                                 modifier = Modifier.weight(1f).testTag("read_note_title"),
                             )
-                            if (favorites.any { it.matches(headline) }) {
+                            if (remember(headline, favoriteCustomIds, favoriteLineIndices) { isFavorite(headline) }) {
                                 Spacer(Modifier.width(8.dp))
                                 FavoriteStar(modifier = Modifier.padding(top = 6.dp), size = 24.dp)
                             }
@@ -777,17 +788,17 @@ private fun NoteContent(
                                 verticalArrangement = Arrangement.spacedBy(6.dp),
                             ) {
                                 headline.planning.scheduled?.let {
-                                    PlanningChip(it.formatHuman(), icon = Icons.Outlined.CalendarMonth, fg = c.blue, bg = c.blueSoft)
+                                    PlanningChip(remember(it) { it.formatHuman() }, icon = Icons.Outlined.CalendarMonth, fg = c.blue, bg = c.blueSoft)
                                 }
                                 headline.planning.deadline?.let {
-                                    PlanningChip(it.formatHuman(), icon = Icons.Filled.Flag, fg = c.red, bg = c.redSoft)
+                                    PlanningChip(remember(it) { it.formatHuman() }, icon = Icons.Filled.Flag, fg = c.red, bg = c.redSoft)
                                 }
                                 // Bare active timestamps (events): a filled dot in the
                                 // violet event colour. Only the dedicated line after the
                                 // heading — inline `<…>` stamps stay in the body text.
                                 headline.dedicatedActiveTimestamps.forEach {
                                     PlanningChip(
-                                        it.formatHuman(),
+                                        remember(it) { it.formatHuman() },
                                         icon = Icons.Filled.Circle,
                                         fg = c.violet,
                                         bg = c.violetSoft,
@@ -913,13 +924,14 @@ private fun NoteContent(
                                 )
                                 if (childCollapsed && foldable) {
                                     Spacer(Modifier.width(6.dp))
+                                    val directChildCount = remember(doc, child) { doc.directChildren(child).size }
                                     Text(
-                                        "… ${doc.directChildren(child).size}",
+                                        "… $directChildCount",
                                         fontFamily = PlexMono, fontSize = 12.sp, color = c.ink3,
                                         modifier = Modifier.padding(top = 3.dp),
                                     )
                                 }
-                                if (favorites.any { it.matches(child) }) {
+                                if (remember(child, favoriteCustomIds, favoriteLineIndices) { isFavorite(child) }) {
                                     Spacer(Modifier.width(8.dp))
                                     FavoriteStar(modifier = Modifier.padding(top = 2.dp))
                                 }
@@ -1059,7 +1071,10 @@ private fun OrgText(
         overflow = overflow,
         onTextLayout = { layout = it },
         modifier = modifier
-            .onGloballyPositioned { textCoords = it }
+            // Only the long-press menu reads textCoords, and only when there's a link to act
+            // on; skip the per-run positioned callback otherwise (it fires every visible run
+            // every LazyColumn scroll frame).
+            .then(if (links.isNotEmpty()) Modifier.onGloballyPositioned { textCoords = it } else Modifier)
             .doubleTapToEdit(
                 layoutResult = { layout },
                 links = links,
@@ -1144,6 +1159,29 @@ private fun BodyBlocks(
 ) {
     val c = MaterialTheme.grove
     val haptics = LocalHapticFeedback.current
+    // Hoisted so paragraph/list-item text doesn't allocate a fresh TextStyle per row per
+    // recomposition.
+    val paragraphStyle = remember(c) { TextStyle(fontFamily = PlexSerif, fontSize = 16.sp, lineHeight = 1.65.em, color = c.ink) }
+    val listItemStyleActive = remember(c) {
+        TextStyle(
+            fontFamily = PlexSerif, fontSize = 16.sp,
+            lineHeight = 1.55.em, color = c.ink,
+            lineHeightStyle = LineHeightStyle(
+                alignment = LineHeightStyle.Alignment.Center,
+                trim = LineHeightStyle.Trim.None,
+            ),
+        )
+    }
+    val listItemStyleDone = remember(c) {
+        TextStyle(
+            fontFamily = PlexSerif, fontSize = 16.sp,
+            lineHeight = 1.55.em, color = c.ink3,
+            lineHeightStyle = LineHeightStyle(
+                alignment = LineHeightStyle.Alignment.Center,
+                trim = LineHeightStyle.Trim.None,
+            ),
+        )
+    }
     val blocks = remember(bodyLines) { BlockParser.parse(bodyLines) }
     // Per-block expand state, keyed by the block's body-relative start line.
     // `#+BEGIN` blocks open expanded (unlike the collapsed-by-default metadata
@@ -1162,7 +1200,7 @@ private fun BodyBlocks(
                     block.lines.joinToString("\n") { it.trim() },
                     onOpenLink = openTarget, onLinkLongPress = onLinkLongPress,
                     onDoubleTapAt = onEditAt,
-                    style = TextStyle(fontFamily = PlexSerif, fontSize = 16.sp, lineHeight = 1.65.em, color = c.ink),
+                    style = paragraphStyle,
                 )
                 Spacer(Modifier.height(12.dp))
             }
@@ -1256,14 +1294,7 @@ private fun BodyBlocks(
                                 item.text,
                                 onOpenLink = openTarget, onLinkLongPress = onLinkLongPress,
                                 onDoubleTapAt = onEditAt,
-                                style = TextStyle(
-                                    fontFamily = PlexSerif, fontSize = 16.sp,
-                                    lineHeight = 1.55.em, color = if (done) c.ink3 else c.ink,
-                                    lineHeightStyle = LineHeightStyle(
-                                        alignment = LineHeightStyle.Alignment.Center,
-                                        trim = LineHeightStyle.Trim.None,
-                                    ),
-                                ),
+                                style = if (done) listItemStyleDone else listItemStyleActive,
                             )
                         }
                     }

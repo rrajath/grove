@@ -3,12 +3,8 @@ package com.rrajath.grove.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -23,6 +19,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
@@ -122,7 +121,7 @@ fun OrgTableView(
                         .heightIn(max = maxBodyHeight)
                         .width(gridWidth),
                 ) {
-                    itemsIndexed(model.bodyRows) { i, row ->
+                    itemsIndexed(model.bodyRows, key = { i, row -> "$i:${row.hashCode()}" }) { i, row ->
                         TableRow(
                             row, colWidths, bodyStyle, Color.Transparent, c.line,
                             divider = i < model.bodyRows.lastIndex,
@@ -146,12 +145,18 @@ private fun TableRow(
     Row(
         Modifier
             .background(background)
-            .height(IntrinsicSize.Min),
+            // Draws the per-cell dividers against the row's own measured height, instead of
+            // forcing an IntrinsicSize.Min pass (an extra full measurement of every cell) just
+            // so a sibling Box could fillMaxHeight to match.
+            .drawBehind {
+                var x = 0f
+                for (i in 1 until cells.size) {
+                    x += colWidths[i - 1].toPx()
+                    drawRect(color = dividerColor, topLeft = Offset(x, 0f), size = Size(1.dp.toPx(), size.height))
+                }
+            },
     ) {
         cells.forEachIndexed { i, cell ->
-            if (i > 0) {
-                Box(Modifier.width(1.dp).fillMaxHeight().background(dividerColor))
-            }
             Text(
                 cell,
                 style = style,

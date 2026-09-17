@@ -66,6 +66,7 @@ re-uploads the APKs to the existing release instead of failing.
 - Notebook and note opens now parse off the main thread; Outline/Read start pre-collapsed instead of expanding then collapsing.
 - Outline swipes, checkboxes, and other single-file edits now sync via a targeted reindex instead of a full vault scan.
 - Folder expand/collapse in Notebooks now responds instantly instead of waiting on a settings write.
+- Reduced scroll-time recomposition in Outline, Agenda, Notebooks, Read, and org table rows (swipe panels, favorite lookups, date formatting, row dividers).
 
 ### Fixed
 - Fixed the metadata sheet showing "Favorited" instead of "Unfavorite" as the toggle-off label.

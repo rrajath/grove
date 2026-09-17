@@ -444,6 +444,9 @@ private fun AgendaList(
     // At most one row's swipe panel stays open at a time (mirrors the Outline
     // screen's SwipeRevealRow coordination); a row's key matches its `items` key below.
     var openRowKey by remember { mutableStateOf<String?>(null) }
+    // Hoisted so every row's "Note" swipe cell shares one call instead of one per row per
+    // recomposition.
+    val icNote = ImageVector.vectorResource(id = R.drawable.ic_note)
     LazyColumn(
         state = listState,
         modifier = Modifier.fillMaxSize(),
@@ -488,18 +491,21 @@ private fun AgendaList(
                 // Done: partial swipe reveals both, full swipe still marks done. On
                 // an event (a heading with no TODO keyword) the Done side is dropped
                 // and that side offers Add-note alone instead.
-                val (leftPrimary, leftSecondary) = agendaSwipe(
-                    state.swipeLeftAction, row, c, onOpenDatePicker, onToggleDone, onOpenNoteDialog,
-                )
-                val (rightPrimary, rightSecondary) = agendaSwipe(
-                    state.swipeRightAction, row, c, onOpenDatePicker, onToggleDone, onOpenNoteDialog,
-                )
+                val (leftPrimary, leftSecondary) = remember(row, state.swipeLeftAction, c) {
+                    agendaSwipeActions(state.swipeLeftAction, row, c, icNote, onOpenDatePicker, onToggleDone, onOpenNoteDialog)
+                }
+                val (rightPrimary, rightSecondary) = remember(row, state.swipeRightAction, c) {
+                    agendaSwipeActions(state.swipeRightAction, row, c, icNote, onOpenDatePicker, onToggleDone, onOpenNoteDialog)
+                }
+                // derivedStateOf: openRowKey changes on every open/close, but only the
+                // previously- and newly-open row's forceClose value actually flips.
+                val forceCloseRow by remember(rowKey) { derivedStateOf { openRowKey != rowKey } }
                 SwipeCommitRow(
                     leftAction = leftPrimary,
                     rightAction = rightPrimary,
                     leftSecondaryAction = leftSecondary,
                     rightSecondaryAction = rightSecondary,
-                    forceClose = openRowKey != rowKey,
+                    forceClose = forceCloseRow,
                     onOpenChanged = { open ->
                         if (open) openRowKey = rowKey
                         else if (openRowKey == rowKey) openRowKey = null
@@ -781,11 +787,11 @@ internal fun GroveColors.metaColor(tone: AgendaMetaTone): Color = when (tone) {
  *   nothing to complete, so the Done cell is dropped and the side becomes a
  *   plain swipe-to-commit "Add note".
  */
-@Composable
-private fun agendaSwipe(
+private fun agendaSwipeActions(
     kind: AgendaSwipeAction,
     row: AgendaRow,
     c: GroveColors,
+    icNote: ImageVector,
     onOpenDatePicker: (AgendaRow, PlanningKind) -> Unit,
     onToggleDone: (AgendaRow) -> Unit,
     onOpenNoteDialog: (AgendaRow) -> Unit,
@@ -794,7 +800,7 @@ private fun agendaSwipe(
         label = "Note",
         fg = c.blue,
         bg = c.blueSoft,
-        icon = ImageVector.vectorResource(id = R.drawable.ic_note),
+        icon = icNote,
     ) { onOpenNoteDialog(row) }
     return when (kind) {
         AgendaSwipeAction.SET_SCHEDULED ->

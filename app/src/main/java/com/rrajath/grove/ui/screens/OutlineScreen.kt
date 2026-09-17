@@ -50,6 +50,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -207,6 +208,20 @@ fun OutlineScreen(
     var statePickerFor by remember { mutableStateOf<Int?>(null) }
     // Line index whose swipe panel "Note" action opened the note-input dialog.
     var noteDialogFor by remember { mutableStateOf<Int?>(null) }
+
+    // Hoisted to screen scope so every row's swipe panel shares one call instead of
+    // one per row per recomposition (vectorResource can't be called inside remember{}
+    // — it's itself a @Composable that memoizes on (theme, id)).
+    val icNote = ImageVector.vectorResource(id = R.drawable.ic_note)
+    val favIconOutline = favoriteIcon()
+    val favIconFilled = favoriteIconFilled()
+    // O(1) favorite lookup per row instead of an O(favorites) `.any` scan per row per
+    // recomposition; split by whether the favorite matches on customId or raw lineIndex
+    // (see FavoriteNote.matches).
+    val favoriteCustomIds = remember(favorites) { favorites.mapNotNull { it.customId }.toSet() }
+    val favoriteLineIndices = remember(favorites) {
+        favorites.filter { it.customId == null }.map { it.lineIndex }.toSet()
+    }
 
     // The command bar takes over the top bar in focus mode; back exits it.
     BackHandler(enabled = focusedLine != null) { viewModel.setFocus(null) }
@@ -486,7 +501,10 @@ fun OutlineScreen(
                             }
                         }
                         items(visible, key = { it.lineIndex }) { h ->
-                            val isFavorite = favorites.any { it.matches(h) }
+                            val isFavorite = remember(h.lineIndex, h.customId, h.id, favoriteCustomIds, favoriteLineIndices) {
+                                val ident = h.customId ?: h.id
+                                (ident != null && ident in favoriteCustomIds) || h.lineIndex in favoriteLineIndices
+                            }
                             val toggleFavorite = {
                                 if (isFavorite) {
                                     val existing = favorites.firstOrNull { it.matches(h) }
@@ -499,9 +517,9 @@ fun OutlineScreen(
                                     viewModel.showToast("★ Added to favorites")
                                 }
                             }
-                            SwipeRevealRow(
-                                // Right-swipe panel: state / schedule / note / favorite.
-                                leftActions = listOf(
+                            // Right-swipe panel: state / schedule / note / favorite.
+                            val leftActions = remember(h.lineIndex, isFavorite, c) {
+                                listOf(
                                     SwipeAction("⟳", "State", c.amber, c.amberSoft) {
                                         statePickerFor = h.lineIndex
                                     },
@@ -519,7 +537,7 @@ fun OutlineScreen(
                                         label = "Note",
                                         fg = c.green,
                                         bg = c.greenSoft,
-                                        icon = ImageVector.vectorResource(id = R.drawable.ic_note),
+                                        icon = icNote,
                                     ) {
                                         noteDialogFor = h.lineIndex
                                     },
@@ -529,12 +547,14 @@ fun OutlineScreen(
                                         label = if (isFavorite) "Unfav" else "Fav",
                                         fg = c.accent,
                                         bg = c.accentSoft,
-                                        icon = if (isFavorite) favoriteIconFilled() else favoriteIcon(),
+                                        icon = if (isFavorite) favIconFilled else favIconOutline,
                                         onClick = toggleFavorite,
                                     ),
-                                ),
-                                // Left-swipe panel: insert above / below / sub-note / refile.
-                                rightActions = listOf(
+                                )
+                            }
+                            // Left-swipe panel: insert above / below / sub-note / refile.
+                            val rightActions = remember(h.lineIndex, c) {
+                                listOf(
                                     SwipeAction("↑+", "Above", c.amber, c.amberSoft) {
                                         viewModel.insertSiblingAbove(h) { line ->
                                             onCreateNote(NoteRef(notebookId, line))
@@ -553,22 +573,31 @@ fun OutlineScreen(
                                     SwipeAction("➜", "Refile", c.accent, c.accentSoft) {
                                         viewModel.startRefile(h)
                                     },
-                                ),
+                                )
+                            }
+                            // derivedStateOf: openRowLine/focusedLine change on every open/focus
+                            // toggle, but only the previously- and newly-affected rows actually
+                            // flip these booleans, so only those two rows recompose.
+                            val forceCloseRow by remember(h.lineIndex) { derivedStateOf { openRowLine != h.lineIndex } }
+                            val isFocusedRow by remember(h.lineIndex) { derivedStateOf { focusedLine == h.lineIndex } }
+                            SwipeRevealRow(
+                                leftActions = leftActions,
+                                rightActions = rightActions,
                                 enabled = focusedLine == null,
-                                forceClose = openRowLine != h.lineIndex,
+                                forceClose = forceCloseRow,
                                 onOpenChanged = { open ->
                                     if (open) openRowLine = h.lineIndex
                                     else if (openRowLine == h.lineIndex) openRowLine = null
                                 },
                                 onTap = { onOpenNote(NoteRef(notebookId, h.lineIndex)) },
                                 onLongPress = { viewModel.setFocus(h.lineIndex) },
-                                modifier = if (focusedLine == h.lineIndex) Modifier.zIndex(1f) else Modifier,
+                                modifier = if (isFocusedRow) Modifier.zIndex(1f) else Modifier,
                             ) {
                                 OutlineNode(
                                     doc = doc,
                                     headline = h,
                                     isCollapsed = h.lineIndex in collapsed,
-                                    isFocused = focusedLine == h.lineIndex,
+                                    isFocused = isFocusedRow,
                                     onToggle = {
                                         collapsed = if (h.lineIndex in collapsed) collapsed - h.lineIndex
                                         else collapsed + h.lineIndex
@@ -1067,7 +1096,7 @@ private fun OutlineNode(
                         ) {
                             Icon(Icons.Outlined.CalendarMonth, contentDescription = null, tint = c.blue, modifier = Modifier.size(11.dp))
                             Text(
-                                ts.formatHuman(),
+                                remember(ts) { ts.formatHuman() },
                                 fontFamily = PlexMono, fontSize = 11.sp, color = c.blue,
                             )
                         }
@@ -1083,7 +1112,7 @@ private fun OutlineNode(
                         ) {
                             Icon(Icons.Filled.Flag, contentDescription = null, tint = c.red, modifier = Modifier.size(11.dp))
                             Text(
-                                ts.formatHuman(),
+                                remember(ts) { ts.formatHuman() },
                                 fontFamily = PlexMono, fontSize = 11.sp, color = c.red,
                             )
                         }
@@ -1103,7 +1132,7 @@ private fun OutlineNode(
                             ) {
                                 Icon(Icons.Filled.Circle, contentDescription = null, tint = c.violet, modifier = Modifier.size(7.dp))
                                 Text(
-                                    ts.formatHuman(),
+                                    remember(ts) { ts.formatHuman() },
                                     fontFamily = PlexMono, fontSize = 11.sp, color = c.violet,
                                 )
                             }

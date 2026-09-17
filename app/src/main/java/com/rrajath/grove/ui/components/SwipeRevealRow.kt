@@ -25,6 +25,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -97,7 +99,11 @@ fun SwipeRevealRow(
     val scope = rememberCoroutineScope()
     // Raw finger travel this gesture; the visible offset rubber-bands past the panel.
     val dragRaw = remember { mutableFloatStateOf(0f) }
-    val isOpen = offset.value != 0f
+    // derivedStateOf so reading these booleans in composition only invalidates on a sign/open
+    // flip, not on every drag-delta/settle-frame write to offset.value.
+    val isOpen by remember { derivedStateOf { offset.value != 0f } }
+    val showLeftPanel by remember { derivedStateOf { offset.value > 0f } }
+    val showRightPanel by remember { derivedStateOf { offset.value < 0f } }
 
     fun rubberBand(x: Float): Float = when {
         x > panelPx -> panelPx + (x - panelPx) * RubberBandFactor
@@ -130,10 +136,10 @@ fun SwipeRevealRow(
     }
 
     Box(modifier.clipToBounds()) {
-        if (offset.value > 0f) {
+        if (showLeftPanel) {
             ActionPanel(leftActions, anchorEnd = false, onAction = ::close)
         }
-        if (offset.value < 0f) {
+        if (showRightPanel) {
             ActionPanel(rightActions, anchorEnd = true, onAction = ::close)
         }
         Box(
@@ -199,7 +205,9 @@ fun SwipeCommitRow(
     val offset = remember { Animatable(0f) }
     val scope = rememberCoroutineScope()
     val dragRaw = remember { mutableFloatStateOf(0f) }
-    val isOpen = offset.value != 0f
+    val isOpen by remember { derivedStateOf { offset.value != 0f } }
+    val showLeftPanel by remember { derivedStateOf { offset.value > 0f && leftAction != null } }
+    val showRightPanel by remember { derivedStateOf { offset.value < 0f && rightAction != null } }
 
     fun capFor(x: Float): Float = when {
         x > 0f && leftSecondaryAction != null -> dualCapPx
@@ -258,14 +266,14 @@ fun SwipeCommitRow(
     }
 
     Box(modifier.clipToBounds()) {
-        if (offset.value > 0f && leftAction != null) {
+        if (showLeftPanel && leftAction != null) {
             if (leftSecondaryAction != null) {
                 ActionPanel(listOf(leftAction, leftSecondaryAction), anchorEnd = false, shape = shape, onAction = ::close)
             } else {
                 CommitUnderlay(leftAction, anchorEnd = false, shape = shape)
             }
         }
-        if (offset.value < 0f && rightAction != null) {
+        if (showRightPanel && rightAction != null) {
             if (rightSecondaryAction != null) {
                 ActionPanel(listOf(rightAction, rightSecondaryAction), anchorEnd = true, shape = shape, onAction = ::close)
             } else {
