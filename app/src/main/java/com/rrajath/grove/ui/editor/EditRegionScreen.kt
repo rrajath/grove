@@ -63,7 +63,6 @@ import com.rrajath.grove.ui.theme.ContentFontScale
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
-import kotlinx.coroutines.delay
 import java.time.LocalTime
 
 /**
@@ -76,11 +75,10 @@ fun EditPrefaceScreen(
     fileName: String,
     onBack: () -> Unit,
     editModeFontSize: FontSizePreference = FontSizePreference.MEDIUM,
-    autoSaveNotes: Boolean = true,
     viewModel: EditorViewModel = viewModel(factory = EditorViewModel.Factory),
 ) = EditRegionScreen(
     fileName, EditRegion.PREFACE, noteId = null, onBack = onBack,
-    editModeFontSize = editModeFontSize, autoSaveNotes = autoSaveNotes, viewModel = viewModel,
+    editModeFontSize = editModeFontSize, viewModel = viewModel,
 )
 
 /**
@@ -94,11 +92,10 @@ fun EditIntroScreen(
     fileName: String,
     onBack: () -> Unit,
     editModeFontSize: FontSizePreference = FontSizePreference.MEDIUM,
-    autoSaveNotes: Boolean = true,
     viewModel: EditorViewModel = viewModel(factory = EditorViewModel.Factory),
 ) = EditRegionScreen(
     fileName, EditRegion.INTRO, noteId = null, onBack = onBack,
-    editModeFontSize = editModeFontSize, autoSaveNotes = autoSaveNotes, viewModel = viewModel,
+    editModeFontSize = editModeFontSize, viewModel = viewModel,
 )
 
 /** One-word label for [region], used in this screen's title bar, save toast and leave dialog. */
@@ -152,9 +149,6 @@ fun EditRegionScreen(
     blockLine: Int = -1,
     /** Settings § Notes: font-size lever for the editor field. App chrome is unaffected. */
     editModeFontSize: FontSizePreference = FontSizePreference.MEDIUM,
-    /** Settings § Notes: when false the idle timer below never fires, so the region
-     *  is written only by the save icon or the leave dialog's Save. */
-    autoSaveNotes: Boolean = true,
     viewModel: EditorViewModel = viewModel(factory = EditorViewModel.Factory),
 ) {
     val c = MaterialTheme.grove
@@ -164,7 +158,9 @@ fun EditRegionScreen(
     val label = if (region == EditRegion.BLOCK) blockLabelFromBuffer(state.buffer) else regionLabel(region)
     val textState = rememberTextFieldState()
     var confirmLeave by remember { mutableStateOf(false) }
-    var lastAutoSavedAt by remember { mutableStateOf<LocalTime?>(null) }
+    // Timestamp of the most recent save (auto or manual); tracked in the
+    // ViewModel (state.lastSavedAt) since it now also owns the idle auto-save timer.
+    val lastAutoSavedAt = state.lastSavedAt?.toLocalTime()
     val focusRequester = remember { FocusRequester() }
     // False until the region has been loaded into the text field: the field's
     // pre-load contents are not the user's edits and must not be reported.
@@ -209,18 +205,8 @@ fun EditRegionScreen(
     }
     val highlight = remember(c, state.keywords) { OrgSyntaxHighlight(c, state.keywords) }
 
-    // Idle auto-save: wait for a 5s pause in typing, then save if the buffer
-    // still has unsaved changes, matching EditNoteScreen's convention. Switched
-    // off entirely by Settings § Notes → Auto-save notes.
-    LaunchedEffect(state.buffer, autoSaveNotes) {
-        if (!autoSaveNotes) return@LaunchedEffect
-        delay(5_000)
-        if (state.dirty) {
-            viewModel.save {
-                lastAutoSavedAt = LocalTime.now()
-            }
-        }
-    }
+    // Idle auto-save (Settings § Notes → Auto-save notes) runs inside
+    // EditorViewModel now, so it isn't a per-keystroke Compose effect here.
 
     val scrollState = rememberScrollState()
     val scrollButtonThresholdPx = with(LocalDensity.current) { (13.5f * 1.85f * 5).sp.toPx() }
@@ -241,7 +227,7 @@ fun EditRegionScreen(
                                 .clip(RoundedCornerShape(10.dp))
                                 .clickable {
                                     if (state.dirty) {
-                                        viewModel.save { lastAutoSavedAt = LocalTime.now() }
+                                        viewModel.save()
                                     } else {
                                         val message = lastAutoSavedAt?.let {
                                             "$label last saved at: ${AutoSaveTimestamp.format(it)}"

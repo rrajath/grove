@@ -87,8 +87,10 @@ import com.rrajath.grove.ui.theme.GroveTheme
 import com.rrajath.grove.ui.theme.grove
 import com.rrajath.grove.vault.TestVaultHook
 import com.rrajath.grove.vault.matchOpenedFileToNotebook
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
@@ -155,6 +157,21 @@ private fun favoritesFor(
     favorites: List<com.rrajath.grove.data.FavoriteNote>,
     fileName: String,
 ): List<com.rrajath.grove.data.FavoriteNote> = favorites.filter { it.fileName == fileName }
+
+/**
+ * A projection of [com.rrajath.grove.ui.editor.EditorUiState] carrying only what
+ * the NOTE route needs to decide *whether* a pending (unsaved) edit exists —
+ * deliberately without [com.rrajath.grove.ui.editor.EditorUiState.buffer], so
+ * collecting it doesn't recompose the whole route on every keystroke (see C2,
+ * PERFORMANCE_AUDIT 2026-09-16). The buffer itself is read separately, only
+ * inside the read-mode branch that actually needs the text.
+ */
+private data class PendingEditKey(
+    val dirty: Boolean,
+    val region: EditRegion?,
+    val fileName: String,
+    val lineIndex: Int,
+)
 
 /**
  * The file name of an externally-opened .org file, e.g. from tapping one in a
@@ -304,7 +321,11 @@ private fun GroveNavigation(
     }
 
     val newBadgeState by viewModel.newBadgeState.collectAsStateWithLifecycle()
-    val newBadges = NewBadges(newBadgeState) { ids -> viewModel.markNewFeaturesSeen(ids) }
+    // Memoized on newBadgeState alone: an unrelated settings write (see C1,
+    // PERFORMANCE_AUDIT 2026-09-16) must not hand every NewDot/NewDotBadge
+    // consumer a fresh NewBadges instance through LocalNewBadges.
+    val onFeaturesSeen by rememberUpdatedState(viewModel::markNewFeaturesSeen)
+    val newBadges = remember(newBadgeState) { NewBadges(newBadgeState) { ids -> onFeaturesSeen(ids) } }
 
     val whatsNewHistory by viewModel.whatsNewHistory.collectAsStateWithLifecycle()
     // A dot on Settings › About › What's New while the running build carries changes the user
@@ -405,7 +426,7 @@ private fun GroveNavigation(
                     onUnfavorite = { fileName, lineIndex, customId ->
                         viewModel.removeFavorite(fileName, lineIndex, customId)
                     },
-                    favorites = favoritesFor(favorites, notebookId),
+                    favorites = remember(favorites, notebookId) { favoritesFor(favorites, notebookId) },
                     displayFlags = OutlineDisplayFlags(
                         tags = settings.showTagsInOutline,
                         timestamps = settings.showTimestampsInOutline,
@@ -426,7 +447,6 @@ private fun GroveNavigation(
                     fileName = fileName,
                     onBack = { navController.popBackStack() },
                     editModeFontSize = settings.editModeFontSize,
-                    autoSaveNotes = settings.autoSaveNotes,
                 )
             }
             composable(Routes.DRAWER) { entry ->
@@ -443,7 +463,6 @@ private fun GroveNavigation(
                     noteId = noteId,
                     onBack = { navController.popBackStack() },
                     editModeFontSize = settings.editModeFontSize,
-                    autoSaveNotes = settings.autoSaveNotes,
                 )
             }
             composable(Routes.BLOCK) { entry ->
@@ -454,7 +473,6 @@ private fun GroveNavigation(
                     blockLine = entry.arguments?.getString("line")?.toIntOrNull() ?: -1,
                     onBack = { navController.popBackStack() },
                     editModeFontSize = settings.editModeFontSize,
-                    autoSaveNotes = settings.autoSaveNotes,
                 )
             }
             composable(
@@ -504,17 +522,20 @@ private fun GroveNavigation(
                     // Same ViewModelStore (this back-stack entry) as the one
                     // EditNoteScreen would create for itself.
                     val editorViewModel: EditorViewModel = viewModel(factory = EditorViewModel.Factory)
-                    val editorState by editorViewModel.state.collectAsStateWithLifecycle()
-                    val pendingEdit = if (
-                        editorState.dirty &&
-                        editorState.region == null &&
-                        editorState.fileName == ref.fileName &&
-                        !ref.isIntro
-                    ) {
-                        PendingEdit(editorState.fileName, editorState.lineIndex, editorState.buffer)
-                    } else {
-                        null
+                    // Only this key is collected at route scope (see PendingEditKey):
+                    // typing changes editorState.buffer on every keystroke, but not
+                    // dirty/region/fileName/lineIndex, so this route no longer
+                    // recomposes while the user types in edit mode.
+                    val pendingEditKeyFlow = remember(editorViewModel) {
+                        editorViewModel.state
+                            .map { PendingEditKey(it.dirty, it.region, it.fileName, it.lineIndex) }
+                            .distinctUntilChanged()
                     }
+                    val pendingKey by pendingEditKeyFlow.collectAsStateWithLifecycle(
+                        initialValue = PendingEditKey(dirty = false, region = null, fileName = "", lineIndex = -1),
+                    )
+                    val hasPendingEdit = pendingKey.dirty && pendingKey.region == null &&
+                        pendingKey.fileName == ref.fileName && !ref.isIntro
                     // Leaving the note entirely (not the Read/Edit toggle, which never
                     // validates or writes) mirrors EditNoteScreen's own leave(): a
                     // just-created, never-titled note offers to discard it outright;
@@ -526,20 +547,20 @@ private fun GroveNavigation(
                     val leaveRead: () -> Unit = {
                         when {
                             isNew && editorViewModel.isCurrentHeadingBlank() -> confirmDiscardBlankHeadingRead = true
-                            pendingEdit != null -> confirmLeavePending = true
+                            hasPendingEdit -> confirmLeavePending = true
                             else -> leaveNote()
                         }
                     }
                     androidx.activity.compose.BackHandler(
                         // A brand-new, still-blank note has nothing dirty (nothing was
-                        // ever typed), so pendingEdit alone would miss it and let the
+                        // ever typed), so hasPendingEdit alone would miss it and let the
                         // system back gesture skip leaveRead()'s blank-heading check.
                         // Also enabled whenever closeActivityOnExit is set: the plain
                         // case (nothing pending) would otherwise fall through to
                         // NavController's default system-back handling, which pops
                         // straight to NOTEBOOKS instead of routing through leaveNote().
                         enabled = closeActivityOnExit || (mode == "read" &&
-                            (pendingEdit != null || (isNew && editorViewModel.isCurrentHeadingBlank()))),
+                            (hasPendingEdit || (isNew && editorViewModel.isCurrentHeadingBlank()))),
                     ) { leaveRead() }
                     if (confirmLeavePending) {
                         UnsavedNoteDialog(
@@ -581,7 +602,6 @@ private fun GroveNavigation(
                             fileName = ref.fileName,
                             onBack = { mode = "read" },
                             editModeFontSize = settings.editModeFontSize,
-                            autoSaveNotes = settings.autoSaveNotes,
                         )
                     } else if (mode == "edit") {
                         EditNoteScreen(
@@ -590,12 +610,21 @@ private fun GroveNavigation(
                             initialCursorLine = editTargetLine,
                             editModeFontSize = settings.editModeFontSize,
                             newNoteCursor = settings.newNoteCursor,
-                            autoSaveNotes = settings.autoSaveNotes,
                             onBack = leaveNote,
                             onSwitchToRead = { editTargetLine = null; mode = "read" },
                             viewModel = editorViewModel,
                         )
                     } else {
+                        // The full buffer is only ever needed here, to splice the
+                        // unsaved edit into the read-mode render — collected here
+                        // rather than at route scope so typing in edit mode (where
+                        // this branch isn't composed) can't trigger it.
+                        val editorState by editorViewModel.state.collectAsStateWithLifecycle()
+                        val pendingEdit = if (hasPendingEdit) {
+                            PendingEdit(editorState.fileName, editorState.lineIndex, editorState.buffer)
+                        } else {
+                            null
+                        }
                         ReadNoteScreen(
                             noteRef = ref,
                             onBack = leaveRead,
@@ -625,7 +654,7 @@ private fun GroveNavigation(
                             },
                             showPropertyDrawers = settings.showPropertyDrawers,
                             readModeFontSize = settings.readModeFontSize,
-                            favorites = favoritesFor(favorites, ref.fileName),
+                            favorites = remember(favorites, ref.fileName) { favoritesFor(favorites, ref.fileName) },
                             // The intro just got a blank heading (a metadata action
                             // needed one); re-open the file at that heading so it
                             // continues as an ordinary note, replacing this entry.

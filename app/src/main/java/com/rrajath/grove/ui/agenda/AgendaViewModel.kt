@@ -32,9 +32,9 @@ import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -229,35 +229,30 @@ class AgendaViewModel(
     private var undoSnapshot: List<FileSnapshot> = emptyList()
 
     init {
-        viewModelScope.launch {
-            // Gate on the handful of fields the agenda actually reads. Without
-            // this, any DataStore write re-buckets the whole agenda — expanding
-            // a folder in Notebooks, pinning a notebook, a colour change, a
-            // dismissed NEW badge. Mirrors `TreeInputs` in VaultViewModels.
-            settingsRepository.settings
-                .distinctUntilChangedBy { AgendaPrefs(it) }
-                .collect { settings ->
+        // Combined into one collector so a settings write, a keywords change,
+        // and a Room `plannedNotes` emission arriving close together each
+        // update this ViewModel's fields and call buildState() exactly once,
+        // in order — not as three independently launched recompute()
+        // coroutines racing to write `_state.value` last (PERFORMANCE_AUDIT
+        // 2026-09-16 F2). Gated on the handful of settings fields the agenda
+        // actually reads: without that, any DataStore write re-buckets the
+        // whole agenda — expanding a folder in Notebooks, pinning a notebook,
+        // a colour change, a dismissed NEW badge. Mirrors `TreeInputs` in
+        // VaultViewModels. Only rows with a SCHEDULED, a DEADLINE, or a bare
+        // active timestamp: the agenda places notes purely by those dates, so
+        // a note with none of them can never surface here and there is no
+        // reason to hold one in memory.
+        viewModelScope.launch(dispatchers.default) {
+            combine(
+                settingsRepository.settings.distinctUntilChangedBy { AgendaPrefs(it) },
+                keywordsFlow,
+                database.indexDao().plannedNotes().map { rows -> rows.map { it.toNoteMeta() } },
+            ) { settings, kw, notes -> Triple(settings, kw, notes) }
+                .collect { (settings, kw, notes) ->
                     prefs = settings
-                    recompute()
-                }
-        }
-        viewModelScope.launch {
-            keywordsFlow.collect { kw ->
-                keywords = kw
-                recompute()
-            }
-        }
-        viewModelScope.launch {
-            // Only rows with a SCHEDULED, a DEADLINE, or a bare active timestamp:
-            // the agenda places notes purely by those dates, so a note with none
-            // of them can never surface here and there is no reason to hold one
-            // in memory.
-            database.indexDao().plannedNotes()
-                .map { rows -> rows.map { it.toNoteMeta() } }
-                .flowOn(dispatchers.default)
-                .collect { notes ->
+                    keywords = kw
                     matched = notes
-                    recompute()
+                    _state.value = buildState()
                 }
         }
     }

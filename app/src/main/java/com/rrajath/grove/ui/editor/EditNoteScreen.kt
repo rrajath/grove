@@ -81,7 +81,6 @@ import com.rrajath.grove.ui.vault.NoteRef
 import com.rrajath.grove.ui.vault.RefileUiState
 import com.rrajath.grove.ui.vault.headlineAtLine
 import java.time.LocalDateTime
-import kotlinx.coroutines.delay
 import java.time.LocalTime
 
 /**
@@ -106,9 +105,6 @@ fun EditNoteScreen(
     editModeFontSize: FontSizePreference = FontSizePreference.MEDIUM,
     /** Settings § Notes: caret placement for a freshly created note (only used when [isNewNote]). */
     newNoteCursor: NewNoteCursor = NewNoteCursor.BODY,
-    /** Settings § Notes: when false the idle timer below never fires, so the note is
-     *  written only by the save icon or the leave dialog's Save. */
-    autoSaveNotes: Boolean = true,
     viewModel: EditorViewModel = viewModel(factory = EditorViewModel.Factory),
     /**
      * Drives the refile / link-picker sheets (a disk-level move against a loaded
@@ -131,8 +127,9 @@ fun EditNoteScreen(
     var confirmRefile by remember { mutableStateOf(false) }
     // Timestamp of the most recent save (auto or manual), shown as a tappable
     // save (floppy) icon in the top bar: green + tap-to-save-now while dirty,
-    // grey + tap-for-last-saved-toast once clean.
-    var lastAutoSavedAt by remember { mutableStateOf<LocalTime?>(null) }
+    // grey + tap-for-last-saved-toast once clean. Tracked in the ViewModel
+    // (state.lastSavedAt) since it now also owns the idle auto-save timer.
+    val lastAutoSavedAt = state.lastSavedAt?.toLocalTime()
     val focusRequester = remember { FocusRequester() }
     // False until the note has been loaded into the text field: the field's
     // pre-load contents are not the user's edits and must not be reported.
@@ -366,21 +363,8 @@ fun EditNoteScreen(
     }
     val highlight = remember(c, state.keywords) { OrgSyntaxHighlight(c, state.keywords) }
 
-    // Idle auto-save: wait for a 5s pause in typing, then save if the buffer
-    // still has unsaved changes. Re-keying on the buffer text resets the
-    // debounce timer on every edit; an unchanged buffer (or one already saved
-    // by another path, e.g. save-on-exit) is a no-op via the `dirty` check.
-    // Switched off entirely by Settings § Notes → Auto-save notes, which leaves
-    // the save icon and the leave dialog as the only ways a note reaches disk.
-    LaunchedEffect(state.buffer, autoSaveNotes) {
-        if (!autoSaveNotes) return@LaunchedEffect
-        delay(5_000)
-        if (state.dirty) {
-            viewModel.save {
-                lastAutoSavedAt = LocalTime.now()
-            }
-        }
-    }
+    // Idle auto-save (Settings § Notes → Auto-save notes) runs inside
+    // EditorViewModel now, so it isn't a per-keystroke Compose effect here.
 
     // Five lines of editor text (13.5sp font * 1.85 line height), so the jump
     // buttons don't flash on every keystroke as typing nudges the view.
@@ -412,7 +396,7 @@ fun EditNoteScreen(
                                 .testTag("edit_note_save")
                                 .clickable {
                                     if (state.dirty) {
-                                        trySave { lastAutoSavedAt = LocalTime.now() }
+                                        trySave {}
                                     } else {
                                         val message = lastAutoSavedAt?.let {
                                             "The note was last saved at: ${AutoSaveTimestamp.format(it)}"

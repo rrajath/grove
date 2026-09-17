@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
@@ -69,6 +70,11 @@ fun groveColorsFor(theme: ThemePreference): GroveColors = when (theme) {
     ThemePreference.WISTERIA -> GroveWisteriaColors
 }
 
+// Built once, not per recomposition: groveTypography() doesn't depend on the
+// active theme (colors live in GroveColors/materialScheme, not Typography), so
+// every GroveApp recomposition (any settings write) doesn't need a fresh copy.
+private val GroveTypography = groveTypography()
+
 @Composable
 fun GroveTheme(
     theme: ThemePreference = ThemePreference.LIGHT,
@@ -96,10 +102,11 @@ fun GroveTheme(
             controller.isAppearanceLightNavigationBars = !groveColors.isDark
         }
     }
+    val colorScheme = remember(theme) { materialScheme(groveColors) }
     CompositionLocalProvider(LocalGroveColors provides groveColors) {
         MaterialTheme(
-            colorScheme = materialScheme(groveColors),
-            typography = groveTypography(),
+            colorScheme = colorScheme,
+            typography = GroveTypography,
             content = content,
         )
     }

@@ -6,6 +6,7 @@ import android.util.Log
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -50,6 +51,7 @@ import com.rrajath.grove.data.toNoteMeta
 import com.rrajath.grove.icon.AppIconManager
 import com.rrajath.grove.org.OrgMutations
 import com.rrajath.grove.org.PlanningKind
+import com.rrajath.grove.settings.GroveSettings
 import com.rrajath.grove.ui.agenda.AgendaMeta
 import com.rrajath.grove.ui.agenda.AgendaMetaTone
 import com.rrajath.grove.ui.agenda.AgendaRow
@@ -65,6 +67,7 @@ import com.rrajath.grove.ui.vault.NoteRef
 import com.rrajath.grove.ui.vault.headlineAtLine
 import com.rrajath.grove.vault.AutoArchive
 import com.rrajath.grove.vault.StateChangeResult
+import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
@@ -111,6 +114,35 @@ private const val MAX_ROWS_PER_SECTION = 20
 
 private val AGENDA_URI = "grove://agenda".toUri()
 
+/**
+ * Projection of [GroveSettings] onto just the fields this widget's composition
+ * reads, so an unrelated DataStore write (an in-app editor preference, a
+ * different theme lever than this widget shows) doesn't re-bucket and re-push
+ * RemoteViews on every tick (PERFORMANCE_AUDIT 2026-09-16 F2, mirrors
+ * `AgendaPrefs` in `AgendaViewModel`).
+ */
+private data class WidgetPrefs(
+    val theme: com.rrajath.grove.settings.ThemePreference,
+    val syncAppIconWithTheme: Boolean,
+    val agendaWidgetDaysAhead: Int,
+    val agendaWidgetTransparency: Float,
+    val agendaWidgetFontSize: com.rrajath.grove.settings.FontSizePreference,
+    val agendaWidgetShowTags: Boolean,
+    val agendaWidgetShowFileName: Boolean,
+    val agendaWidgetShowPriority: Boolean,
+) {
+    constructor(s: GroveSettings) : this(
+        s.theme,
+        s.syncAppIconWithTheme,
+        s.agendaWidgetDaysAhead,
+        s.agendaWidgetTransparency,
+        s.agendaWidgetFontSize,
+        s.agendaWidgetShowTags,
+        s.agendaWidgetShowFileName,
+        s.agendaWidgetShowPriority,
+    )
+}
+
 class LedgerWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
@@ -119,7 +151,9 @@ class LedgerWidget : GlanceAppWidget() {
         val initialNotes = app.database.indexDao().plannedNotes().first()
 
         provideContent {
-            val settings by app.settingsRepository.settings.collectAsState(initial = initialSettings)
+            val settings by app.settingsRepository.settings
+                .distinctUntilChangedBy { WidgetPrefs(it) }
+                .collectAsState(initial = initialSettings)
             val notes by app.database.indexDao().plannedNotes().collectAsState(initial = initialNotes)
 
             val colors = groveColorsFor(settings.theme)
@@ -134,12 +168,18 @@ class LedgerWidget : GlanceAppWidget() {
             // triggered it). Degrade to an empty ledger instead of taking the
             // whole widget down with it — the in-app Agenda screen already
             // guides the user to the underlying data problem.
-            val sections = try {
-                val openNotes = notes.map { it.toNoteMeta() }.filter { !it.isDoneKeyword }
-                LedgerBuckets.build(openNotes, today, windowDays, settings)
-            } catch (e: Exception) {
-                Log.e(TAG, "failed to build ledger sections; showing empty widget", e)
-                emptyList()
+            // Memoized on the actual inputs: distinctUntilChangedBy above already
+            // keeps an unrelated settings write from reaching this composition,
+            // but this also skips the O(notes) re-bucket on a recomposition that
+            // touches neither notes nor these fields.
+            val sections = remember(notes, WidgetPrefs(settings), today) {
+                try {
+                    val openNotes = notes.map { it.toNoteMeta() }.filter { !it.isDoneKeyword }
+                    LedgerBuckets.build(openNotes, today, windowDays, settings)
+                } catch (e: Exception) {
+                    Log.e(TAG, "failed to build ledger sections; showing empty widget", e)
+                    emptyList()
+                }
             }
             val todayCount = sections.firstOrNull { it.key.startsWith("Today") }?.count ?: 0
             val totalCount = sections.sumOf { it.count }

@@ -38,6 +38,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -210,7 +211,9 @@ fun CaptureEditorScreen(
     }
     // Snapshot-backed, so every keystroke recomposes the draft-dependent UI
     // (auto-save indicator, discard prompt) just as the old TextFieldValue did.
-    val draftText = textState.text.toString()
+    // derivedStateOf so an unrelated recomposition (readMode, metadataOpen, …)
+    // doesn't re-copy the whole buffer; only an actual text change does.
+    val draftText by remember { derivedStateOf { textState.text.toString() } }
     val focusRequester = remember { FocusRequester() }
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
     val scrollState = rememberScrollState()

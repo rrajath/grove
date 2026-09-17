@@ -103,7 +103,9 @@ import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOn
 import java.time.LocalDate
 import java.time.LocalTime
@@ -136,6 +138,35 @@ import kotlin.time.Duration.Companion.milliseconds
  * points (agenda swipe, outline row, metadata sheet, reminder reschedule, quick
  * add) keep their existing local state and ViewModel wiring.
  */
+
+/**
+ * Every other note's SCHEDULED/DEADLINE/active day, for marking days that
+ * already have something on them on the calendar (mirrors Emacs org-mode's
+ * scheduling calendar), shared by [PlanningDatesScreen] and
+ * [InsertTimestampScreen] rather than each holding its own copy (PERFORMANCE_AUDIT
+ * 2026-09-16 F2/H5). `distinctUntilChanged` on each Room source skips
+ * re-parsing every planned/active timestamp when an unrelated column changed
+ * but these two queries' results didn't.
+ */
+private fun plannedDatesFlow(app: GroveApplication): Flow<Set<LocalDate>> =
+    combine(
+        app.database.indexDao().plannedTimestamps().distinctUntilChanged(),
+        app.database.indexDao().plannedActiveTimestamps().distinctUntilChanged(),
+    ) { planned, activeRows ->
+        val days = planned.mapNotNullTo(mutableSetOf()) { OrgTimestamp.parse(it)?.date }
+        activeRows.forEach { row ->
+            OrgTimestamp.parseAll(row).forEach { ts ->
+                var d = ts.date
+                val end = ts.rangeEnd ?: ts.date
+                while (!d.isAfter(end)) {
+                    days.add(d)
+                    d = d.plusDays(1)
+                }
+            }
+        }
+        days
+    }.flowOn(Dispatchers.Default)
+
 @Composable
 fun PlanningDatesScreen(
     title: String,
@@ -153,26 +184,7 @@ fun PlanningDatesScreen(
     // days that already have something on them (mirrors Emacs org-mode's
     // scheduling calendar) with a small dot, distinct from this note's own dates.
     val app = LocalContext.current.applicationContext as GroveApplication
-    val plannedDatesFlow = remember(app) {
-        combine(
-            app.database.indexDao().plannedTimestamps(),
-            app.database.indexDao().plannedActiveTimestamps(),
-        ) { planned, activeRows ->
-            val days = planned.mapNotNullTo(mutableSetOf()) { OrgTimestamp.parse(it)?.date }
-            activeRows.forEach { row ->
-                OrgTimestamp.parseAll(row).forEach { ts ->
-                    var d = ts.date
-                    val end = ts.rangeEnd ?: ts.date
-                    while (!d.isAfter(end)) {
-                        days.add(d)
-                        d = d.plusDays(1)
-                    }
-                }
-            }
-            days
-        }.flowOn(Dispatchers.Default)
-    }
-    val plannedDates by plannedDatesFlow.collectAsState(initial = emptySet())
+    val plannedDates by remember(app) { plannedDatesFlow(app) }.collectAsState(initial = emptySet())
 
     var sched by remember { mutableStateOf(scheduled) }
     var dead by remember { mutableStateOf(deadline) }
@@ -680,26 +692,7 @@ fun InsertTimestampScreen(
     }
 
     val app = LocalContext.current.applicationContext as GroveApplication
-    val plannedDatesFlow = remember(app) {
-        combine(
-            app.database.indexDao().plannedTimestamps(),
-            app.database.indexDao().plannedActiveTimestamps(),
-        ) { planned, activeRows ->
-            val days = planned.mapNotNullTo(mutableSetOf()) { OrgTimestamp.parse(it)?.date }
-            activeRows.forEach { row ->
-                OrgTimestamp.parseAll(row).forEach { stamp ->
-                    var d = stamp.date
-                    val end = stamp.rangeEnd ?: stamp.date
-                    while (!d.isAfter(end)) {
-                        days.add(d)
-                        d = d.plusDays(1)
-                    }
-                }
-            }
-            days
-        }.flowOn(Dispatchers.Default)
-    }
-    val plannedDates by plannedDatesFlow.collectAsState(initial = emptySet())
+    val plannedDates by remember(app) { plannedDatesFlow(app) }.collectAsState(initial = emptySet())
 
     fun tapDay(day: LocalDate) {
         ts = ts.copy(date = day, rangeEnd = null)

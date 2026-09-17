@@ -29,7 +29,10 @@ import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -69,6 +72,10 @@ data class EditorUiState(
      * buffer swallowed the characters typed in between. Reset to 0 by [load].
      */
     val bufferRevision: Long = 0,
+    /** When the buffer was last written to disk (auto-save or explicit Save), for the
+     *  top bar's save icon. Tracked here (not per-screen `remember`) so both
+     *  [EditorViewModel]'s own idle auto-save and an explicit save update it the same way. */
+    val lastSavedAt: LocalDateTime? = null,
 )
 
 class EditorViewModel(
@@ -99,6 +106,25 @@ class EditorViewModel(
     )
 
     private var archiveUndo: ArchiveUndo? = null
+
+    // Idle auto-save (Settings § Notes → Auto-save notes): waits for a 5s pause
+    // after an edit, then saves if the buffer is still dirty. Lives here instead
+    // of a per-screen `LaunchedEffect(state.buffer, autoSaveNotes)` so typing
+    // doesn't restart a Compose effect on every keystroke (PERFORMANCE_AUDIT
+    // 2026-09-16 C3); EditNoteScreen and EditRegionScreen share this ViewModel
+    // class, so one collector covers both the subtree and scoped-region editors.
+    init {
+        viewModelScope.launch {
+            state
+                .map { it.buffer to it.dirty }
+                .distinctUntilChanged()
+                .collectLatest { (_, dirty) ->
+                    if (!dirty) return@collectLatest
+                    delay(5_000)
+                    if (settings.settings.first().autoSaveNotes) save()
+                }
+        }
+    }
 
     private fun showSnack(message: String) {
         val s = OutlineSnack(message, ++eventId)
@@ -523,6 +549,7 @@ class EditorViewModel(
                 dirty = current.buffer != savedBuffer,
                 staleFile = false,
                 loadedRevision = newRevision,
+                lastSavedAt = LocalDateTime.now(),
             )
         }
         return true

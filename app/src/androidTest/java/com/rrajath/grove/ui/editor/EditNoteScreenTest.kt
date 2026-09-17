@@ -46,6 +46,9 @@ class EditNoteScreenTest {
     @Before
     fun setUp() {
         env = ScreenTestEnv()
+        // The idle auto-save timer now lives in EditorViewModel (PERFORMANCE_AUDIT
+        // 2026-09-16 C3), keyed on this setting rather than a screen parameter.
+        env.fakeSettings.update { it.copy(autoSaveNotes = false) }
     }
 
     @After
@@ -62,7 +65,6 @@ class EditNoteScreenTest {
                 noteRef = noteRef,
                 onBack = onBack,
                 onSwitchToRead = {},
-                autoSaveNotes = false,
                 viewModel = editorVm,
                 refileViewModel = refileVm,
             )
