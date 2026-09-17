@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.rrajath.grove.org.OrgDocument
 import com.rrajath.grove.org.OrgHeadline
+import com.rrajath.grove.ui.components.BrandMarkGlyph
 import com.rrajath.grove.ui.components.notebookIcon
 import com.rrajath.grove.ui.components.searchIcon
 import com.rrajath.grove.ui.theme.PlexMono
@@ -224,7 +225,7 @@ fun LinkPickerSheet(
                                 onClick = { selectSearchResult(hit) },
                             )
                             is LinkHeadingHit -> LinkPickerRow(
-                                glyph = "✳",
+                                asterisk = true,
                                 title = hit.title,
                                 crumb = hit.crumb,
                                 meta = "heading",
@@ -256,7 +257,7 @@ fun LinkPickerSheet(
                     }
                     items(rows, key = { it.lineIndex }) { h ->
                         LinkPickerRow(
-                            glyph = "✳",
+                            asterisk = true,
                             title = h.title,
                             meta = doc.directChildren(h).size.takeIf { it > 0 }?.let { pluralCount(it, "heading") },
                             onClick = { selectBrowseHeading(h) },
@@ -309,7 +310,7 @@ fun LinkPickerSheet(
 
 @Composable
 private fun LinkPickerRow(
-    glyph: String? = null,
+    asterisk: Boolean = false,
     icon: ImageVector? = null,
     title: String,
     crumb: String? = null,
@@ -328,8 +329,8 @@ private fun LinkPickerRow(
     ) {
         if (icon != null) {
             Icon(icon, contentDescription = null, tint = c.accent, modifier = Modifier.size(15.dp))
-        } else {
-            Text(glyph.orEmpty(), fontFamily = PlexMono, fontSize = 15.sp, color = c.accent)
+        } else if (asterisk) {
+            BrandMarkGlyph(size = 10.dp, color = c.accent)
         }
         Spacer(Modifier.width(10.dp))
         Column(Modifier.weight(1f)) {
