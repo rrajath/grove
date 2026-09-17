@@ -62,6 +62,9 @@ re-uploads the APKs to the existing release instead of failing.
 ### Added
 - Added a "Generate org-id" action to the metadata sheet, writing a UUID into the heading's :ID: property.
 
+### Changed
+- Notebook and note opens now parse off the main thread; Outline/Read start pre-collapsed instead of expanding then collapsing.
+
 ### Fixed
 - Fixed the metadata sheet showing "Favorited" instead of "Unfavorite" as the toggle-off label.
 - Sync-conflict notifications now fire only when conflicts first appear, not on every subsequent sync.

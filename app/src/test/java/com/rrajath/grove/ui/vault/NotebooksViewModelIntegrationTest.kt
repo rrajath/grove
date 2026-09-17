@@ -63,7 +63,7 @@ class NotebooksViewModelIntegrationTest {
     )
 
     private val store = FakeFileStore(nested)
-    private val vaultFlow = MutableStateFlow<Vault?>(Vault(store))
+    private val vaultFlow = MutableStateFlow<Vault?>(Vault(store, parseDispatcher = mainDispatcherRule.dispatcher))
     private val sync = FakeSyncTrigger()
     private val db: GroveDatabase =
         InMemoryGroveDatabase.create(queryCoroutineContext = mainDispatcherRule.dispatcher)

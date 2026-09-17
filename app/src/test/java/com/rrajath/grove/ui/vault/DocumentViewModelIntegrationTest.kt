@@ -76,7 +76,7 @@ class DocumentViewModelIntegrationTest {
     """.trimIndent() + "\n"
 
     private val store = FakeFileStore(OrgFixtures.all + mapOf("intro.org" to introFile))
-    private val vault = Vault(store)
+    private val vault = Vault(store, parseDispatcher = mainDispatcherRule.dispatcher)
     private val vaultFlow = MutableStateFlow<Vault?>(vault)
     private val keywords = MutableStateFlow(OrgKeywords.DEFAULT)
     private val sync = FakeSyncTrigger()

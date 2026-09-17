@@ -179,8 +179,20 @@ fun OutlineScreen(
 
     // Collapsed line-indices and scroll survive navigating into a note and back
     // (rememberSaveable persists across the destination leaving composition).
-    var collapsed by rememberSaveable(notebookId, stateSaver = IntSetSaver) {
-        mutableStateOf(setOf<Int>())
+    // Keyed also on whether the doc has loaded yet: the slot the initializer
+    // below fills in is the one live the *first* frame headings are visible, so
+    // a freshly opened notebook renders already collapsed instead of a full
+    // expanded frame that collapses one frame later. Once that key is set, later
+    // recompositions (doc reloads, resumes) keep the same slot, so user toggles
+    // persist as before.
+    var collapsed by rememberSaveable(notebookId, loadedDoc != null, stateSaver = IntSetSaver) {
+        mutableStateOf(
+            loadedDoc?.headlines
+                ?.filter { loadedDoc.hasDescendants(it) }
+                ?.map { it.lineIndex }
+                ?.toSet()
+                ?: emptySet()
+        )
     }
     var prefaceExpanded by rememberSaveable(notebookId) { mutableStateOf(false) }
     // Collapsed by default, like heading `:PROPERTIES:` drawers in Read mode.
@@ -198,24 +210,6 @@ fun OutlineScreen(
 
     // The command bar takes over the top bar in focus mode; back exits it.
     BackHandler(enabled = focusedLine != null) { viewModel.setFocus(null) }
-
-    // A freshly opened notebook starts fully collapsed. Applied once per open
-    // (the flag is saved alongside `collapsed`), so the user's later expanding
-    // and collapsing is preserved across navigating into a note and back.
-    var defaultCollapseApplied by rememberSaveable(notebookId) { mutableStateOf(false) }
-    // Keyed on the loaded *transition*, not the state object itself: every
-    // document emission is a new state instance and would relaunch this effect.
-    LaunchedEffect(state is DocumentUiState.Loaded, defaultCollapseApplied) {
-        if (!defaultCollapseApplied) {
-            (state as? DocumentUiState.Loaded)?.let { loaded ->
-                collapsed = loaded.document.headlines
-                    .filter { loaded.document.hasDescendants(it) }
-                    .map { it.lineIndex }
-                    .toSet()
-                defaultCollapseApplied = true
-            }
-        }
-    }
 
     Scaffold(
         containerColor = c.bg,

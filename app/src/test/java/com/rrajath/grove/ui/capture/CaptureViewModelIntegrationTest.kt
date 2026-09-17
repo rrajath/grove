@@ -46,7 +46,7 @@ class CaptureViewModelIntegrationTest {
     val mainDispatcherRule = MainDispatcherRule()
 
     private val store = FakeFileStore(OrgFixtures.all)
-    private val vaultFlow = MutableStateFlow<Vault?>(Vault(store))
+    private val vaultFlow = MutableStateFlow<Vault?>(Vault(store, parseDispatcher = mainDispatcherRule.dispatcher))
     private val sync = FakeSyncTrigger()
     private val settings = FakeSettingsRepository(GroveSettings(vaultTreeUri = "content://vault/tree"))
     private val db: GroveDatabase =

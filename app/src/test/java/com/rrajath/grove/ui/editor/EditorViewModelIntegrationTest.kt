@@ -41,7 +41,7 @@ class EditorViewModelIntegrationTest {
     val mainDispatcherRule = MainDispatcherRule()
 
     private val store = FakeFileStore(OrgFixtures.all)
-    private val vault = Vault(store)
+    private val vault = Vault(store, parseDispatcher = mainDispatcherRule.dispatcher)
     private val vaultFlow = MutableStateFlow<Vault?>(vault)
     private val sync = FakeSyncTrigger()
     private val settings = FakeSettingsRepository()

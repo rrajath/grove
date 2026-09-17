@@ -234,12 +234,20 @@ fun ReadNoteScreen(
     }
     val currentHeadline = (state as? DocumentUiState.Loaded)?.document?.headlineFor(noteRef)
     // Reload whenever the screen comes back to the foreground (e.g. returning
-    // from the editor) so saved edits show immediately.
+    // from the editor) so saved edits show immediately. The ON_RESUME right
+    // after this screen enters composition is skipped: the LaunchedEffect
+    // below already loads on entry, so that first resume would just be a
+    // redundant second load (and a second Loaded emission) of the same file.
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    var seenFirstResume by remember(noteRef.fileName) { mutableStateOf(false) }
     androidx.compose.runtime.DisposableEffect(lifecycleOwner, noteRef.fileName) {
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
             if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
-                viewModel.load(noteRef.fileName)
+                if (seenFirstResume) {
+                    viewModel.load(noteRef.fileName)
+                } else {
+                    seenFirstResume = true
+                }
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -686,15 +694,13 @@ private fun NoteContent(
     // Column, which janked the open, the scroll and the back navigation. Such
     // notes now open with their inner headings folded, so only the note body +
     // a one-level section list mount; small notes still open fully expanded.
+    // doc/subtree are already loaded by the time this composable is reached, so
+    // the default collapse set is seeded directly in the initializer — the
+    // first frame renders already collapsed instead of a fully expanded frame
+    // that folds one frame later. The rememberSaveable slot still protects any
+    // later user expand/collapse across recomposition.
     var collapsed by rememberSaveable(fileName, headline.lineIndex, stateSaver = IntSetSaver) {
-        mutableStateOf(emptySet<Int>())
-    }
-    var defaultCollapseApplied by rememberSaveable(fileName, headline.lineIndex) { mutableStateOf(false) }
-    LaunchedEffect(fileName, headline.lineIndex) {
-        if (!defaultCollapseApplied) {
-            defaultReadCollapse(doc, subtree).takeIf { it.isNotEmpty() }?.let { collapsed = it }
-            defaultCollapseApplied = true
-        }
+        mutableStateOf(defaultReadCollapse(doc, subtree))
     }
     val visibleRows = remember(subtree, collapsed) { visibleReadRows(subtree, collapsed) }
 

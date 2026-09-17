@@ -3,8 +3,12 @@ package com.rrajath.grove.vault
 import com.rrajath.grove.org.OrgDocument
 import com.rrajath.grove.org.OrgKeywords
 import com.rrajath.grove.org.OrgParser
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 
 /**
  * A notebook = one .org file in the vault. [fileName] is the identity: a
@@ -57,6 +61,7 @@ fun matchOpenedFileToNotebook(requestedFileName: String, notebooks: List<Noteboo
 class Vault(
     private val store: FileStore,
     private val keywords: OrgKeywords = OrgKeywords.DEFAULT,
+    private val parseDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) {
     private data class CacheKey(val name: String, val mtime: Long, val size: Long)
 
@@ -68,6 +73,11 @@ class Vault(
     // and a racing LinkedHashMap.get can loop forever rather than throw.
     private val cache = LinkedHashMap<CacheKey, OrgDocument>(16, 0.75f, true)
     private val cacheMutex = Mutex()
+
+    // One in-flight parse per key: a second caller for the same (name, mtime,
+    // size) awaits the first's result instead of racing it with its own
+    // read+parse. Only ever touched under [cacheMutex].
+    private val inFlight = mutableMapOf<CacheKey, CompletableDeferred<OrgDocument>>()
 
     suspend fun notebooks(): List<Notebook> {
         val entries = store.list()
@@ -224,9 +234,27 @@ class Vault(
         return deleted
     }
 
-    suspend fun save(fileName: String, content: String) {
+    /**
+     * Write [content] to [fileName]. If the caller already has the parse of
+     * [content] on hand (nearly every mutation does — it re-parses to compute
+     * the new document before writing it back), pass it as [parsed] so the
+     * cache is primed under the post-write (mtime, size) key instead of
+     * evicted; the next read (e.g. Read mode's return-from-editor reload)
+     * hits the cache instead of re-parsing the file it just wrote.
+     */
+    suspend fun save(fileName: String, content: String, parsed: OrgDocument? = null) {
         store.write(fileName, content)
-        evictParse(fileName)
+        val entry = if (parsed != null) store.stat(fileName) else null
+        if (entry != null) {
+            val key = CacheKey(entry.name, entry.lastModified, entry.size)
+            cacheMutex.withLock {
+                cache.keys.removeAll { it.name == fileName }
+                if (cache.size > 64) cache.remove(cache.keys.first())
+                cache[key] = parsed!!
+            }
+        } else {
+            evictParse(fileName)
+        }
     }
 
     /** Drop every cached parse of [fileName] (any revision). */
@@ -234,14 +262,43 @@ class Vault(
         cache.keys.removeAll { it.name == fileName }
     }
 
-    private suspend fun document(entry: FileEntry): OrgDocument = cacheMutex.withLock {
+    /**
+     * Look up or parse [entry]'s document. The cache check/insert is the only
+     * part done under [cacheMutex]; the read+parse itself runs on
+     * [parseDispatcher], off both the mutex and the caller's dispatcher (every
+     * UI call site is on Main), so it no longer competes with a screen's enter
+     * animation or blocks an unrelated notebook's open. Concurrent callers for
+     * the same key share one parse via [inFlight] instead of each doing their
+     * own read+parse of the same bytes.
+     */
+    private suspend fun document(entry: FileEntry): OrgDocument {
         val key = CacheKey(entry.name, entry.lastModified, entry.size)
-        cache[key]?.let { return@withLock it }
-        val doc = OrgParser.parse(store.read(entry.name), keywords)
-        // Drop stale parses of the same file, cap total cache size.
-        cache.keys.removeAll { it.name == entry.name }
-        if (cache.size > 64) cache.remove(cache.keys.first())
-        cache[key] = doc
-        doc
+
+        var owner = false
+        val deferred = cacheMutex.withLock {
+            cache[key]?.let { return it }
+            inFlight.getOrPut(key) {
+                owner = true
+                CompletableDeferred()
+            }
+        }
+        if (!owner) return deferred.await()
+
+        return try {
+            val doc = withContext(parseDispatcher) { OrgParser.parse(store.read(entry.name), keywords) }
+            cacheMutex.withLock {
+                // Drop stale parses of the same file, cap total cache size.
+                cache.keys.removeAll { it.name == entry.name }
+                if (cache.size > 64) cache.remove(cache.keys.first())
+                cache[key] = doc
+                inFlight.remove(key)
+            }
+            deferred.complete(doc)
+            doc
+        } catch (e: Throwable) {
+            cacheMutex.withLock { inFlight.remove(key) }
+            deferred.completeExceptionally(e)
+            throw e
+        }
     }
 }

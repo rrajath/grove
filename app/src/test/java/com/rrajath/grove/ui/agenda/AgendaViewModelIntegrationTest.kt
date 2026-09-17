@@ -84,7 +84,7 @@ class AgendaViewModelIntegrationTest {
     }
 
     private val store = FakeFileStore(mapOf("agenda.org" to vaultText))
-    private val vaultFlow = MutableStateFlow<Vault?>(Vault(store))
+    private val vaultFlow = MutableStateFlow<Vault?>(Vault(store, parseDispatcher = mainDispatcherRule.dispatcher))
     private val sync = FakeSyncTrigger()
     private val keywords = MutableStateFlow(OrgKeywords.DEFAULT)
     private val db: GroveDatabase =

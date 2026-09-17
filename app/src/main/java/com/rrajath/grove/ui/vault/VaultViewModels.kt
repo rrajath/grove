@@ -730,7 +730,14 @@ class DocumentViewModel(
      * it stands — its text already carries the unsaved edits, so that write *is*
      * the flush, and the editor is told to let its buffer go.
      */
-    private suspend fun saveDoc(fileName: String, newText: String, syncReason: String) {
+    /**
+     * [newDoc], when the caller already parsed [newText] to compute it (nearly
+     * every mutation does), is handed to [Vault.save] to prime its cache under
+     * the post-write key — the next load of this file (Read mode's
+     * return-from-editor reload, Outline's return from a swipe) then hits the
+     * cache instead of re-reading and re-parsing the file it just wrote.
+     */
+    private suspend fun saveDoc(fileName: String, newText: String, syncReason: String, newDoc: OrgDocument? = null) {
         val vault = vaultFlow.value ?: return
         val p = pending?.takeIf { it.fileName == fileName }
         if (p != null) {
@@ -747,7 +754,7 @@ class DocumentViewModel(
             pending = null
             onPendingPersisted()
         }
-        vault.save(fileName, newText)
+        vault.save(fileName, newText, newDoc)
         sync.requestSync(syncReason)
     }
 
@@ -760,8 +767,17 @@ class DocumentViewModel(
             }
             _state.value = try {
                 val doc = vault.open(fileName)
-                if (doc == null) DocumentUiState.Error("$fileName not found")
-                else DocumentUiState.Loaded(fileName, withPending(fileName, doc))
+                if (doc == null) {
+                    DocumentUiState.Error("$fileName not found")
+                } else {
+                    val spliced = withPending(fileName, doc)
+                    val current = _state.value
+                    if (current is DocumentUiState.Loaded && current.fileName == fileName && current.document === spliced) {
+                        current
+                    } else {
+                        DocumentUiState.Loaded(fileName, spliced)
+                    }
+                }
             } catch (e: Exception) {
                 DocumentUiState.Error(e.message ?: "Could not open $fileName")
             }
@@ -950,7 +966,7 @@ class DocumentViewModel(
                 OrgParser.parse(newText, loaded.document.keywords)
             }
             _state.value = DocumentUiState.Loaded(loaded.fileName, newDoc)
-            saveDoc(loaded.fileName, newText, "favorite added custom id")
+            saveDoc(loaded.fileName, newText, "favorite added custom id", newDoc)
             onResolved(newId)
         }
     }
@@ -1030,7 +1046,7 @@ class DocumentViewModel(
             }
             undoSnapshot = UndoSnapshot(listOf(loaded.fileName to loaded.document.text))
             _state.value = DocumentUiState.Loaded(loaded.fileName, finalDoc)
-            saveDoc(loaded.fileName, finalText, "intro promoted to heading")
+            saveDoc(loaded.fileName, finalText, "intro promoted to heading", finalDoc)
             showSnack("Added a blank heading for this content")
             if (describe.isNotEmpty()) showToast(describe)
             _introPromotedLine.value = newLine
@@ -1064,7 +1080,7 @@ class DocumentViewModel(
             undoSnapshot = UndoSnapshot(listOf(loaded.fileName to loaded.document.text))
             _focusedLine.value = newFocus(newLine)
             _state.value = DocumentUiState.Loaded(loaded.fileName, newDoc)
-            saveDoc(loaded.fileName, newText, "outline edit")
+            saveDoc(loaded.fileName, newText, "outline edit", newDoc)
             showSnack(snackMessage)
         }
     }
@@ -1161,7 +1177,7 @@ class DocumentViewModel(
                 OrgParser.parse(newText, loaded.document.keywords)
             }
             _state.value = DocumentUiState.Loaded(loaded.fileName, newDoc)
-            saveDoc(loaded.fileName, newText, "note added")
+            saveDoc(loaded.fileName, newText, "note added", newDoc)
             onCreated(lineIndex)
         }
     }
@@ -1189,7 +1205,7 @@ class DocumentViewModel(
             ) {
                 is StateChangeResult.Plain -> {
                     _state.value = DocumentUiState.Loaded(loaded.fileName, result.doc)
-                    saveDoc(loaded.fileName, result.text, "state set")
+                    saveDoc(loaded.fileName, result.text, "state set", result.doc)
                     showToast("State → ${keyword ?: "none"}")
                 }
                 is StateChangeResult.Archived -> {
@@ -1203,7 +1219,7 @@ class DocumentViewModel(
                     _focusedLine.value = null
                     _state.value = DocumentUiState.Loaded(loaded.fileName, result.sourceDoc)
                     if (result.destFile != loaded.fileName) vault.save(result.destFile, result.destText)
-                    saveDoc(loaded.fileName, result.sourceText, "state set")
+                    saveDoc(loaded.fileName, result.sourceText, "state set", result.sourceDoc)
                     showSnack("Marked done. Refiled to ${result.label}")
                 }
             }
@@ -1233,7 +1249,7 @@ class DocumentViewModel(
                 OrgParser.parse(newText, loaded.document.keywords)
             }
             _state.value = DocumentUiState.Loaded(loaded.fileName, newDoc)
-            saveDoc(loaded.fileName, newText, "checklist toggled")
+            saveDoc(loaded.fileName, newText, "checklist toggled", newDoc)
         }
     }
 
@@ -1253,7 +1269,7 @@ class DocumentViewModel(
                 text to OrgParser.parse(text, loaded.document.keywords)
             }
             _state.value = DocumentUiState.Loaded(loaded.fileName, newDoc)
-            saveDoc(loaded.fileName, newText, "priority set")
+            saveDoc(loaded.fileName, newText, "priority set", newDoc)
             showToast("Priority → ${priority?.let { "#$it" } ?: "none"}")
         }
     }
@@ -1267,7 +1283,7 @@ class DocumentViewModel(
                 text to OrgParser.parse(text, loaded.document.keywords)
             }
             _state.value = DocumentUiState.Loaded(loaded.fileName, newDoc)
-            saveDoc(loaded.fileName, newText, "tags set")
+            saveDoc(loaded.fileName, newText, "tags set", newDoc)
         }
     }
 
@@ -1291,7 +1307,7 @@ class DocumentViewModel(
                 text to OrgParser.parse(text, loaded.document.keywords)
             }
             _state.value = DocumentUiState.Loaded(loaded.fileName, newDoc)
-            saveDoc(loaded.fileName, newText, "planning edit")
+            saveDoc(loaded.fileName, newText, "planning edit", newDoc)
             val fmt = DateTimeFormatter.ofPattern("EEE, MMM d")
             val parts = listOfNotNull(
                 scheduled?.let { "Scheduled · ${it.date.format(fmt)}" },
@@ -1318,7 +1334,7 @@ class DocumentViewModel(
                 text to OrgParser.parse(text, loaded.document.keywords)
             }
             _state.value = DocumentUiState.Loaded(loaded.fileName, newDoc)
-            saveDoc(loaded.fileName, newText, "planning edit")
+            saveDoc(loaded.fileName, newText, "planning edit", newDoc)
             showToast(
                 if (ts == null) "$label cleared"
                 else "$label · ${ts.date.format(DateTimeFormatter.ofPattern("EEE, MMM d"))}"
@@ -1336,7 +1352,7 @@ class DocumentViewModel(
                 text to OrgParser.parse(text, loaded.document.keywords)
             }
             _state.value = DocumentUiState.Loaded(loaded.fileName, newDoc)
-            saveDoc(loaded.fileName, newText, "org-id generated")
+            saveDoc(loaded.fileName, newText, "org-id generated", newDoc)
             showToast("org-id generated")
         }
     }
@@ -1358,7 +1374,7 @@ class DocumentViewModel(
                 text to OrgParser.parse(text, loaded.document.keywords)
             }
             _state.value = DocumentUiState.Loaded(loaded.fileName, newDoc)
-            saveDoc(loaded.fileName, newText, "note added")
+            saveDoc(loaded.fileName, newText, "note added", newDoc)
             showToast("Note added")
         }
     }
@@ -1486,11 +1502,10 @@ class DocumentViewModel(
             }
         )
         _focusedLine.value = null
-        _state.value = DocumentUiState.Loaded(
-            loaded.fileName, OrgParser.parse(write.sourceText, loaded.document.keywords),
-        )
+        val newSourceDoc = OrgParser.parse(write.sourceText, loaded.document.keywords)
+        _state.value = DocumentUiState.Loaded(loaded.fileName, newSourceDoc)
         if (write.destFile != loaded.fileName) vault.save(write.destFile, write.destText)
-        saveDoc(loaded.fileName, write.sourceText, syncReason)
+        saveDoc(loaded.fileName, write.sourceText, syncReason, newSourceDoc)
         showSnack("$verb to ${write.label}")
     }
 
@@ -1519,7 +1534,7 @@ class DocumentViewModel(
                 undoSnapshot = UndoSnapshot(listOf(loaded.fileName to loaded.document.text))
                 _focusedLine.value = null
                 _state.value = DocumentUiState.Loaded(loaded.fileName, result.second)
-                saveDoc(loaded.fileName, result.first, "refile")
+                saveDoc(loaded.fileName, result.first, "refile", result.second)
                 showSnack("Refiled to $destLabel › ${targetTitle ?: "top level"}")
                 rememberRefileTarget(destFile, headingPath)
             } else {
@@ -1541,7 +1556,7 @@ class DocumentViewModel(
                 _focusedLine.value = null
                 _state.value = DocumentUiState.Loaded(loaded.fileName, newSourceDoc)
                 vault.save(destFile, newDestText)
-                saveDoc(loaded.fileName, newSourceText, "refile")
+                saveDoc(loaded.fileName, newSourceText, "refile", newSourceDoc)
                 showSnack("Refiled to $destLabel › ${target?.title ?: "top level"}")
                 rememberRefileTarget(destFile, headingPath)
             }
