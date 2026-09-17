@@ -474,10 +474,11 @@ private fun tipGroups(): List<TipGroup> = listOf(
             ),
             Tip(
                 "link-picker", Icons.Default.Search, "Search the vault to build a link",
-                "Long-pressing {{link}} opens a full-height picker with the search box already focused, starting at your " +
-                        "notebook list. Type to filter files and headings live across the whole vault, or browse without " +
-                        "typing by tapping a notebook to drill into its headings. Tapping a heading with no sub-headings " +
-                        "links it right away; only a heading with sub-headings drills in further.",
+                "Long-pressing {{link}} opens a full-height picker with the search box already focused, starting at your notebook list.",
+                listOf(
+                    "Type to filter files and headings live across the whole vault, or browse without typing by tapping a notebook to drill into its headings.",
+                    "Tapping a heading with no sub-headings links it right away; only a heading with sub-headings drills in further."
+                ),
                 newAnchor = NewAnchors.tipsItem("links", "link-picker"),
             ),
             Tip(
