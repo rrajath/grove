@@ -219,9 +219,17 @@ data class NoteKey(val fileName: String, val lineIndex: Int)
 /**
  * One heading's outline position + title, for the editor's link-picker search
  * index (see `buildLinkSearchIndex`). No body/tags/planning columns: the index
- * only ever matches and displays a title.
+ * only ever matches and displays a title. [orgId] is the heading's `:ID:` (null
+ * for headings without one), used by the inline auto-link suggester
+ * (`buildAutoLinkIndex`) to filter down to headings an `[[id:…]]` link can target.
  */
-data class NoteOutlineRow(val fileName: String, val lineIndex: Int, val level: Int, val title: String)
+data class NoteOutlineRow(
+    val fileName: String,
+    val lineIndex: Int,
+    val level: Int,
+    val title: String,
+    val orgId: String? = null,
+)
 
 /**
  * Binds a statement built by `NoteCandidateQuery` for [IndexDao.notesMatching].
@@ -314,7 +322,7 @@ abstract class IndexDao {
      * intro row (`lineIndex < 0`): it isn't a heading and has no `[[*title]]`
      * form to link to.
      */
-    @Query("SELECT fileName, lineIndex, level, title FROM notes WHERE lineIndex >= 0 ORDER BY fileName, lineIndex")
+    @Query("SELECT fileName, lineIndex, level, title, orgId FROM notes WHERE lineIndex >= 0 ORDER BY fileName, lineIndex")
     abstract suspend fun allHeadingOutlines(): List<NoteOutlineRow>
 
     /** Where a heading with this `:ID:` lives, for resolving `[[id:…]]` links vault-wide. */

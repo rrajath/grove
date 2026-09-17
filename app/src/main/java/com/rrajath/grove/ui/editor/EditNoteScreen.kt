@@ -162,6 +162,20 @@ fun EditNoteScreen(
     // between the resilient id link and the plain one. Holds both, pre-formatted.
     var linkIdChoice by remember { mutableStateOf<LinkIdChoice?>(null) }
     val linkPicker by viewModel.linkPicker.collectAsStateWithLifecycle()
+    val autoLinkIndex by viewModel.autoLinkIndex.collectAsStateWithLifecycle()
+    // The word currently being typed at the cursor, once it reaches the
+    // 3-character trigger threshold; null hides the suggestion strip. Recomputed
+    // on every text/selection change, so moving the cursor away from the word
+    // (tapping elsewhere in the field) dismisses the strip on its own.
+    var autoLinkTrigger by remember { mutableStateOf<WordAtCursor?>(null) }
+    // Chips currently showing their full (un-ellipsised) title. Keyed by
+    // suggestion, so it naturally clears when the typed word changes.
+    var expandedChipKeys by remember(autoLinkTrigger?.range) { mutableStateOf(emptySet<String>()) }
+    val autoLinkSuggestions = remember(autoLinkTrigger?.text, autoLinkIndex) {
+        val idx = autoLinkIndex
+        val word = autoLinkTrigger?.text
+        if (idx == null || word == null) emptyList() else filterAutoLinkSuggestions(idx, word)
+    }
 
     fun captureLinkSelection() {
         val sel = textState.selection
@@ -299,6 +313,7 @@ fun EditNoteScreen(
     }
 
     LaunchedEffect(noteRef) { if (!resumedDirty) viewModel.load(noteRef) }
+    LaunchedEffect(Unit) { viewModel.loadAutoLinkIndex() }
     LaunchedEffect(state.loading) {
         if (!state.loading && state.error == null) {
             if (isNewNote && !resumedDirty) {
@@ -357,6 +372,13 @@ fun EditNoteScreen(
                 return@collect
             }
             viewModel.onBufferChange(text)
+        }
+    }
+    // Drives the inline auto-link suggestion strip: recomputed on every text or
+    // cursor change so it tracks whatever word is being typed right now.
+    LaunchedEffect(Unit) {
+        snapshotFlow { textState.text.toString() to textState.selection }.collect { (text, selection) ->
+            autoLinkTrigger = wordAtCursor(text, selection)?.takeIf { it.text.length >= 3 }
         }
     }
     val highlight = remember(c, state.keywords) { OrgSyntaxHighlight(c, state.keywords) }
@@ -488,6 +510,29 @@ fun EditNoteScreen(
                         minScrollDeltaPx = scrollButtonThresholdPx,
                     )
                     EditorMenuFab(onClick = { metadataOpen = true })
+                }
+                if (autoLinkSuggestions.isNotEmpty()) {
+                    AutoLinkSuggestionStrip(
+                        suggestions = autoLinkSuggestions,
+                        expandedKeys = expandedChipKeys,
+                        onToggleExpand = { key -> expandedChipKeys = expandedChipKeys + key },
+                        onPick = { suggestion ->
+                            val range = autoLinkTrigger?.range ?: return@AutoLinkSuggestionStrip
+                            val linkText = formatAutoLinkInsertion(suggestion)
+                            textState.edit {
+                                replace(range.start, range.end, linkText)
+                                selection = TextRange(range.start + linkText.length)
+                            }
+                            autoLinkTrigger = null
+                        },
+                        // Same bottom line as the FAB column below, so the strip floats
+                        // over the already-reserved clear space (the field's own 80dp
+                        // bottom padding) instead of pushing the field's height around.
+                        // End-padded clear of the FAB's own 24dp gutter + 54dp size.
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .padding(end = 88.dp, bottom = 16.dp),
+                    )
                 }
                 GroveUndoSnackbar(
                     snack = snack,

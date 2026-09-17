@@ -606,6 +606,21 @@ class EditorViewModel(
     private val _linkPicker = MutableStateFlow<LinkPickerUiState?>(null)
     val linkPicker: StateFlow<LinkPickerUiState?> = _linkPicker
 
+    // --- inline auto-link suggester (prototype) ---
+    // Vault-wide index of id-linkable files/headings, loaded once when the
+    // editor opens (not lazily on first keystroke) so the strip can appear the
+    // moment a 3-character word is typed. Null while still loading.
+    private val _autoLinkIndex = MutableStateFlow<ImmutableList<AutoLinkSuggestion>?>(null)
+    val autoLinkIndex: StateFlow<ImmutableList<AutoLinkSuggestion>?> = _autoLinkIndex
+
+    fun loadAutoLinkIndex() {
+        viewModelScope.launch {
+            val notebooks = database.indexDao().notebooks()
+            val headings = database.indexDao().allHeadingOutlines()
+            _autoLinkIndex.value = buildAutoLinkIndex(notebooks, headings)
+        }
+    }
+
     fun startLinkPicker() {
         _linkPicker.value = LinkPickerUiState()
         viewModelScope.launch {
