@@ -59,6 +59,8 @@ re-uploads the APKs to the existing release instead of failing.
 
 ## [Unreleased]
 
+## [1.6.3] - 2026-09-17
+
 ### Added
 - Added a "Generate org-id" action to the metadata sheet, writing a UUID into the heading's :ID: property.
 
