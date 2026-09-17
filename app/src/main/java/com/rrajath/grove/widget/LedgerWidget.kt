@@ -521,7 +521,7 @@ class MarkDoneAction : ActionCallback {
             } ?: return run { Log.w(TAG, "headline at $fileName:$lineIndex has no keyword and nothing to advance") }
             vault.save(fileName, newText)
             app.reindexNow(fileName, newText)
-            app.syncManager.requestSync("ledger widget advance repeater")
+            app.syncManager.requestReindex(fileName, newText, "ledger widget advance repeater")
             LedgerWidget().updateAll(context)
             return
         }
@@ -537,17 +537,19 @@ class MarkDoneAction : ActionCallback {
             is StateChangeResult.Plain -> {
                 vault.save(fileName, result.text)
                 app.reindexNow(fileName, result.text)
+                app.syncManager.requestReindex(fileName, result.text, "ledger widget mark done")
             }
             is StateChangeResult.Archived -> {
                 vault.save(fileName, result.sourceText)
                 app.reindexNow(fileName, result.sourceText)
+                app.syncManager.requestReindex(fileName, result.sourceText, "ledger widget mark done")
                 if (result.destFile != fileName) {
                     vault.save(result.destFile, result.destText)
                     app.reindexNow(result.destFile, result.destText)
+                    app.syncManager.requestReindex(result.destFile, result.destText, "ledger widget mark done")
                 }
             }
         }
-        app.syncManager.requestSync("ledger widget mark done")
         LedgerWidget().updateAll(context)
     }
 }

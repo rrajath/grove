@@ -224,7 +224,7 @@ class EditorViewModelIntegrationTest {
         advanceUntilIdle()
 
         assertTrue(store.read("projects.org").contains("DONE Ship v2 release"))
-        assertTrue(sync.syncRequests.contains("note state set"))
+        assertTrue(sync.reindexCalls.any { it.reason == "note state set" })
         assertFalse(vm.state.value.dirty)
         assertTrue(vm.state.value.buffer.contains("DONE Ship v2 release"))
     }

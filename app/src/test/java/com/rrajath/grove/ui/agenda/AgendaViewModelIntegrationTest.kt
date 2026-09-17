@@ -139,7 +139,7 @@ class AgendaViewModelIntegrationTest {
         val updated = store.read("agenda.org")
         assertTrue("file should carry a DONE keyword now:\n$updated",
             updated.contains("* DONE Renew the domain") || updated.contains("DONE Renew the domain"))
-        assertTrue(sync.syncRequests.isNotEmpty())
+        assertTrue(sync.reindexCalls.isNotEmpty())
     }
 
     @Test
@@ -211,7 +211,7 @@ class AgendaViewModelIntegrationTest {
         val updated = store.read("recurring.org")
         assertTrue("SCHEDULED should have advanced a week and kept no keyword:\n$updated",
             updated.contains("SCHEDULED: ${orgDate(today.plusDays(7), "+1w")}") && !updated.contains("* TODO"))
-        assertTrue(sync.syncRequests.isNotEmpty())
+        assertTrue(sync.reindexCalls.isNotEmpty())
     }
 
     @Test
@@ -362,7 +362,7 @@ class AgendaViewModelIntegrationTest {
         val text = store.read("agenda.org")
         assertTrue("SCHEDULED should now be today ($today):\n$text", text.contains("SCHEDULED: <$today"))
         assertFalse("the old date should be gone", text.contains(yesterday.toString()))
-        assertTrue(sync.syncRequests.contains("agenda move overdue"))
+        assertTrue(sync.reindexCalls.any { it.reason == "agenda move overdue" })
     }
 
     @Test
@@ -377,7 +377,7 @@ class AgendaViewModelIntegrationTest {
         advanceUntilIdle()
 
         assertTrue(store.read("agenda.org").contains("SCHEDULED: <$inThreeDays"))
-        assertTrue(sync.syncRequests.contains("agenda planning edit"))
+        assertTrue(sync.reindexCalls.any { it.reason == "agenda planning edit" })
     }
 
     @Test
@@ -397,6 +397,6 @@ class AgendaViewModelIntegrationTest {
         advanceUntilIdle()
 
         assertEquals(before, store.read("agenda.org"))
-        assertTrue(sync.syncRequests.contains("agenda undo"))
+        assertTrue(sync.reindexCalls.any { it.reason == "agenda undo" })
     }
 }

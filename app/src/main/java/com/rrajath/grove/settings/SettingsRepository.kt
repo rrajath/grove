@@ -771,15 +771,6 @@ class SettingsRepository(
         context.settingsDataStore.edit { it[Keys.expandedFolders] = dirs.joinToString(";") }
     }
 
-    /** Flip one folder row's expansion state. */
-    suspend fun toggleExpandedFolder(dir: String) {
-        context.settingsDataStore.edit { prefs ->
-            val current = decodeFolderSet(prefs[Keys.expandedFolders]).toMutableSet()
-            if (!current.add(dir)) current.remove(dir)
-            prefs[Keys.expandedFolders] = current.joinToString(";")
-        }
-    }
-
     /** First-open heuristic result: seed the expanded set and mark the pass done, in one write. */
     suspend fun applyNotebooksTreeDefaults(expanded: Set<String>) {
         context.settingsDataStore.edit {

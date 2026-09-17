@@ -49,6 +49,8 @@ import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.collections.immutable.toImmutableMap
 import kotlinx.collections.immutable.toImmutableSet
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -57,7 +59,9 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
@@ -191,6 +195,15 @@ class NotebooksViewModel(
     private val _editEvents = MutableSharedFlow<NotebookEditEvent>(extraBufferCapacity = 1)
     val editEvents: SharedFlow<NotebookEditEvent> = _editEvents
 
+    // Folder expansion, in-memory source of truth (PERFORMANCE_AUDIT_2026-09-16
+    // D1): a folder row used to wait on a DataStore write (read-modify-write +
+    // fsync) landing and the settings flow re-emitting before it could move.
+    // Seeded once from the persisted value in init; the DataStore write below
+    // is write-behind and debounced, so it never gates the tap-to-move.
+    private val expandedFoldersFlow = MutableStateFlow<Set<String>?>(null)
+    private val expandedFoldersToPersist =
+        MutableSharedFlow<Set<String>>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+
     private data class TreeInputs(
         val items: List<NotebookItem>,
         val showFileIcons: Boolean,
@@ -212,7 +225,8 @@ class NotebooksViewModel(
         vaultFlow,
         database.indexDao().notebooksFlow(),
         settingsRepository.settings,
-    ) { vault, notebooks, settings ->
+        expandedFoldersFlow.filterNotNull(),
+    ) { vault, notebooks, settings, expandedFolders ->
         if (vault == null) return@combine null
         val items = notebooks.map {
             NotebookItem(
@@ -233,7 +247,7 @@ class NotebooksViewModel(
             items,
             settings.showNotebookFileIcons,
             settings.flattenNotebookFolders,
-            settings.expandedFolders,
+            expandedFolders,
             vaultDisplayName(settings.vaultTreeUri),
             settings.folderColors,
             settings.pinnedFolders,
@@ -366,6 +380,17 @@ class NotebooksViewModel(
     }
 
     init {
+        // Seed the in-memory expansion state once from whatever's persisted;
+        // treeInputs won't emit until this lands (see expandedFoldersFlow.filterNotNull()).
+        viewModelScope.launch {
+            expandedFoldersFlow.value = settingsRepository.settings.first().expandedFolders
+        }
+        // Write-behind: coalesce a burst of taps (or one expand/collapse-all)
+        // into a single DataStore write, well after the UI has already moved.
+        @OptIn(FlowPreview::class)
+        viewModelScope.launch {
+            expandedFoldersToPersist.debounce(300).collect { settingsRepository.setExpandedFolders(it) }
+        }
         // First open of a vault: expand every folder that recursively contains a
         // SCHEDULED/DEADLINE note, collapse the rest, then never re-run (a vault
         // that starts fully collapsed reads as empty). Waits for the index to
@@ -374,17 +399,20 @@ class NotebooksViewModel(
             if (settingsRepository.settings.first().notebooksTreeDefaultsApplied) return@launch
             database.indexDao().notebooksFlow().first { it.isNotEmpty() }
             val planned = database.indexDao().plannedNotes().first()
-            settingsRepository.applyNotebooksTreeDefaults(
-                firstOpenExpandedDirs(planned.map { it.fileName })
-            )
+            val defaults = firstOpenExpandedDirs(planned.map { it.fileName })
+            settingsRepository.applyNotebooksTreeDefaults(defaults)
+            expandedFoldersFlow.value = defaults
         }
     }
 
     fun requestSync() = sync.requestSync("manual")
 
-    /** Folder row tap: flip that folder's expansion state (persisted for process-death survival). */
+    /** Folder row tap: flip that folder's expansion state (persisted write-behind, see D1). */
     fun toggleFolder(dir: String) {
-        viewModelScope.launch { settingsRepository.toggleExpandedFolder(dir) }
+        val current = expandedFoldersFlow.value ?: return
+        val updated = if (dir in current) current - dir else current + dir
+        expandedFoldersFlow.value = updated
+        expandedFoldersToPersist.tryEmit(updated)
     }
 
     /** Top-bar expand/collapse-all: [expand] every folder in the current tree, or none. */
@@ -398,7 +426,8 @@ class NotebooksViewModel(
         } else {
             emptySet()
         }
-        viewModelScope.launch { settingsRepository.setExpandedFolders(dirs) }
+        expandedFoldersFlow.value = dirs
+        expandedFoldersToPersist.tryEmit(dirs)
     }
 
     fun saveVaultUri(uri: String) {
@@ -755,7 +784,7 @@ class DocumentViewModel(
             onPendingPersisted()
         }
         vault.save(fileName, newText, newDoc)
-        sync.requestSync(syncReason)
+        sync.requestReindex(fileName, newText, syncReason)
     }
 
     fun load(fileName: String) {
@@ -926,14 +955,16 @@ class DocumentViewModel(
             onPendingPersisted()
         }
         viewModelScope.launch {
-            snap.files.forEach { (name, text) -> vault.save(name, text) }
+            snap.files.forEach { (name, text) ->
+                vault.save(name, text)
+                sync.requestReindex(name, text, "undo")
+            }
             snap.files.firstOrNull { it.first == loaded.fileName }?.let { (_, text) ->
                 val doc = withContext(dispatchers.default) {
                     OrgParser.parse(text, loaded.document.keywords)
                 }
                 _state.value = DocumentUiState.Loaded(loaded.fileName, doc)
             }
-            sync.requestSync("undo")
             showToast("Undone")
         }
     }
@@ -1504,7 +1535,10 @@ class DocumentViewModel(
         _focusedLine.value = null
         val newSourceDoc = OrgParser.parse(write.sourceText, loaded.document.keywords)
         _state.value = DocumentUiState.Loaded(loaded.fileName, newSourceDoc)
-        if (write.destFile != loaded.fileName) vault.save(write.destFile, write.destText)
+        if (write.destFile != loaded.fileName) {
+            vault.save(write.destFile, write.destText)
+            sync.requestReindex(write.destFile, write.destText, syncReason)
+        }
         saveDoc(loaded.fileName, write.sourceText, syncReason, newSourceDoc)
         showSnack("$verb to ${write.label}")
     }
@@ -1556,6 +1590,7 @@ class DocumentViewModel(
                 _focusedLine.value = null
                 _state.value = DocumentUiState.Loaded(loaded.fileName, newSourceDoc)
                 vault.save(destFile, newDestText)
+                sync.requestReindex(destFile, newDestText, "refile")
                 saveDoc(loaded.fileName, newSourceText, "refile", newSourceDoc)
                 showSnack("Refiled to $destLabel › ${target?.title ?: "top level"}")
                 rememberRefileTarget(destFile, headingPath)

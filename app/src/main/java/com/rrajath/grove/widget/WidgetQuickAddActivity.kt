@@ -394,6 +394,6 @@ private suspend fun submitQuickAdd(
     }
     vault.save(notebook, text)
     app.reindexNow(notebook, text)
-    app.syncManager.requestSync("widget quick add")
+    app.syncManager.requestReindex(notebook, text, "widget quick add")
     LedgerWidget().updateAll(app)
 }

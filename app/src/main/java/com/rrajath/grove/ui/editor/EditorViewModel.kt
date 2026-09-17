@@ -116,8 +116,10 @@ class EditorViewModel(
         _snack.value = null
         viewModelScope.launch {
             val vault = vaultFlow.value ?: return@launch
-            snap.files.forEach { (name, text) -> vault.save(name, text) }
-            sync.requestSync("note undo")
+            snap.files.forEach { (name, text) ->
+                vault.save(name, text)
+                sync.requestReindex(name, text, "note undo")
+            }
             val revision = vault.revision(snap.fileName)
             _state.update {
                 it.copy(
@@ -356,7 +358,7 @@ class EditorViewModel(
             ) {
                 is StateChangeResult.Plain -> {
                     vault.save(s.fileName, result.text)
-                    sync.requestSync("note state set")
+                    sync.requestReindex(s.fileName, result.text, "note state set")
                     val newHeadline = result.doc.headlines.firstOrNull { it.lineIndex == s.lineIndex }
                     val revision = vault.revision(s.fileName)
                     _state.update {
@@ -380,8 +382,11 @@ class EditorViewModel(
                         buffer = s.buffer,
                     )
                     vault.save(s.fileName, result.sourceText)
-                    if (result.destFile != s.fileName) vault.save(result.destFile, result.destText)
-                    sync.requestSync("note state set")
+                    sync.requestReindex(s.fileName, result.sourceText, "note state set")
+                    if (result.destFile != s.fileName) {
+                        vault.save(result.destFile, result.destText)
+                        sync.requestReindex(result.destFile, result.destText, "note state set")
+                    }
                     val destDoc = OrgParser.parse(result.destText, doc.keywords)
                     val destHeadline = destDoc.headlines.firstOrNull { it.lineIndex == result.destLineIndex }
                     val destRevision = vault.revision(result.destFile)

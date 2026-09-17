@@ -91,8 +91,8 @@ class CaptureViewModel(
         _saveState.value = SaveState.Saving
         viewModelScope.launch {
             try {
-                writeMutex.withLock { upsertEntry(template, entryText, context) }
-                sync.requestSync("capture saved")
+                val (fileName, newText) = writeMutex.withLock { upsertEntry(template, entryText, context) }
+                sync.requestReindex(fileName, newText, "capture saved")
                 draftInsertion = null
                 _saveState.value = SaveState.Saved
             } catch (e: Exception) {
@@ -127,13 +127,14 @@ class CaptureViewModel(
                 val vault = vaultFlow.value ?: return@withLock
                 val text = withContext(dispatchers.default) { vault.open(template.targetFile)?.text }
                     ?: return@withLock
-                vault.save(template.targetFile, CaptureInserter.removeInsertion(text, prev))
+                val newText = CaptureInserter.removeInsertion(text, prev)
+                vault.save(template.targetFile, newText)
+                sync.requestReindex(template.targetFile, newText, "capture discarded")
             }
-            sync.requestSync("capture discarded")
         }
     }
 
-    private suspend fun upsertEntry(template: CaptureTemplate, entryText: String, context: CaptureContext) {
+    private suspend fun upsertEntry(template: CaptureTemplate, entryText: String, context: CaptureContext): Pair<String, String> {
         val currentSettings = settings.settings.first()
         // Throw rather than set state + return: the caller ([save]) continues
         // running after this returns, and would otherwise overwrite the failure
@@ -172,6 +173,7 @@ class CaptureViewModel(
         }
         vault.save(template.targetFile, result.newText)
         draftInsertion = result
+        return template.targetFile to result.newText
     }
 
     fun resetSaveState() {

@@ -298,7 +298,7 @@ class DocumentViewModelIntegrationTest {
 
         val text = store.read("projects.org")
         assertTrue("Backlog should now precede Ship v2", text.indexOf("Backlog") < text.indexOf("Ship v2 release"))
-        assertTrue(sync.syncRequests.isNotEmpty())
+        assertTrue(sync.reindexCalls.isNotEmpty())
     }
 
     @Test
@@ -357,7 +357,7 @@ class DocumentViewModelIntegrationTest {
         advanceUntilIdle()
 
         assertEquals(before, store.read("projects.org"))
-        assertTrue(sync.syncRequests.contains("undo"))
+        assertTrue(sync.reindexCalls.any { it.reason == "undo" })
     }
 
     // --- note creation ------------------------------------------------
@@ -374,7 +374,7 @@ class DocumentViewModelIntegrationTest {
         val doc = OrgParser.parse(store.read("projects.org"))
         val child = doc.headlines.first { it.lineIndex == createdLine }
         assertEquals(2, child.level)
-        assertTrue(sync.syncRequests.contains("note added"))
+        assertTrue(sync.reindexCalls.any { it.reason == "note added" })
     }
 
     @Test
@@ -401,7 +401,7 @@ class DocumentViewModelIntegrationTest {
         advanceUntilIdle()
 
         assertTrue(store.read("projects.org").contains("DONE Ship v2 release"))
-        assertTrue(sync.syncRequests.isNotEmpty())
+        assertTrue(sync.reindexCalls.isNotEmpty())
     }
 
     @Test
@@ -486,7 +486,7 @@ class DocumentViewModelIntegrationTest {
         val headingLine = text.lineSequence().indexOfFirst { it.startsWith("* ") }
         val proseLine = text.lineSequence().indexOfFirst { it.contains("Heading-less prose that lives before any heading.") }
         assertTrue("the prose is now under the new heading", headingLine in 0 until proseLine)
-        assertTrue(sync.syncRequests.contains("intro promoted to heading"))
+        assertTrue(sync.reindexCalls.any { it.reason == "intro promoted to heading" })
     }
 
     // --- favorites (and the CUSTOM_ID they force) ---------------------
@@ -570,7 +570,7 @@ class DocumentViewModelIntegrationTest {
         val dest = store.read("reading-list.org")
         assertTrue("dest file gains the subtree", dest.contains("Backlog"))
         assertTrue("a child came along", dest.contains("Dark mode polish"))
-        assertTrue(sync.syncRequests.contains("refile"))
+        assertTrue(sync.reindexCalls.any { it.reason == "refile" })
     }
 
     @Test

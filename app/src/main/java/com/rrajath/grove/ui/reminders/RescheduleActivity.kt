@@ -164,11 +164,9 @@ private suspend fun writePlanning(
     val vault = app.vault.value ?: return
     val doc = vault.open(reminder.fileName) ?: return
     val headline = ReminderKeys.findHeadline(doc, reminder.headingPath, reminder.headingLevel) ?: return
-    vault.save(
-        reminder.fileName,
-        OrgMutations.setPlanningAndActiveTimestamps(doc, headline, scheduled, deadline, active),
-    )
-    app.syncManager.requestSync("reminder rescheduled")
+    val newText = OrgMutations.setPlanningAndActiveTimestamps(doc, headline, scheduled, deadline, active)
+    vault.save(reminder.fileName, newText)
+    app.syncManager.requestReindex(reminder.fileName, newText, "reminder rescheduled")
     // Only now that the new date is durably on disk: the shown notification is
     // stale. Its alarm and row are the reconciler's to update, and it re-derives
     // them from the file the sync above re-indexes.

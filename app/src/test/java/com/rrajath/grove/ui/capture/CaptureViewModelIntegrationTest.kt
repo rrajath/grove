@@ -91,7 +91,7 @@ class CaptureViewModelIntegrationTest {
         assertTrue(
             store.read("inbox.org").contains("* A captured thought from the share sheet"),
         )
-        assertEquals(listOf("capture saved"), sync.syncRequests)
+        assertEquals(listOf("capture saved"), sync.reindexCalls.map { it.reason })
     }
 
     @Test
@@ -202,6 +202,6 @@ class CaptureViewModelIntegrationTest {
         advanceUntilIdle()
 
         assertFalse(store.read("inbox.org").contains("Abandoned draft"))
-        assertTrue(sync.syncRequests.contains("capture discarded"))
+        assertTrue(sync.reindexCalls.any { it.reason == "capture discarded" })
     }
 }

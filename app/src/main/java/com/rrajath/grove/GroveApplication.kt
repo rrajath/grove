@@ -31,9 +31,12 @@ import androidx.glance.appwidget.updateAll
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
@@ -106,22 +109,36 @@ open class GroveApplication : Application() {
         ReminderReconciler(this, database.reminderDao())
     }
 
+    // Coalesces bursts of onSyncCompleted calls (e.g. a run of outline swipes,
+    // each now a single-file reindex per PERFORMANCE_AUDIT_2026-09-16 D2) into
+    // at most one widget IPC push per second (D3), instead of one per edit.
+    private val widgetRefreshRequests =
+        MutableSharedFlow<Unit>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+
     val syncManager: SyncManager by lazy {
         SyncManager(
             this, appScope, database,
             keywords = { keywords.value },
             onNotebookIndexed = ::reconcileFileReminders,
             onSyncCompleted = { result ->
-                // Only prune on a real directory-diffed pass: a null result means
-                // the sync failed (or was a targeted single-file reindex), where
-                // an empty/stale notebook list would wrongly cancel live reminders.
-                if (result != null) {
+                // Only prune on a real directory-diffed pass that actually saw a
+                // removal: a null result means the sync failed (or was a targeted
+                // single-file reindex), and an empty/stale notebook list there
+                // would wrongly cancel live reminders.
+                if (result != null && result.removed.isNotEmpty()) {
                     reminderReconciler.pruneRemovedFiles(
                         database.indexDao().notebooks().mapTo(HashSet()) { it.fileName },
                     )
                 }
-                reminderReconciler.catchUpOverdue()
-                LedgerWidget().updateAll(this@GroveApplication)
+                // catchUpOverdue reconciles day-boundary rollover, not per-edit
+                // state — reconcileFileReminders (onNotebookIndexed above)
+                // already re-derives the touched file's own reminders on every
+                // pass, reindex included. Only worth paying for on a full sync
+                // that actually pulled something new.
+                if (result != null && result.pulled.isNotEmpty()) {
+                    reminderReconciler.catchUpOverdue()
+                }
+                widgetRefreshRequests.tryEmit(Unit)
             },
         )
     }
@@ -171,6 +188,13 @@ open class GroveApplication : Application() {
      * rather than depending on a sync pass that might not land for a while, or
      * at all.
      */
+    @OptIn(kotlinx.coroutines.FlowPreview::class)
+    private suspend fun collectWidgetRefreshRequests() {
+        widgetRefreshRequests.debounce(1_000).collect {
+            LedgerWidget().updateAll(this@GroveApplication)
+        }
+    }
+
     suspend fun reindexNow(fileName: String, text: String) {
         val store = fileStore.value
             ?: return run { android.util.Log.w("GroveWidget", "reindexNow: fileStore null for $fileName") }
@@ -192,6 +216,8 @@ open class GroveApplication : Application() {
 
         // Warm the notification tint before anything can post a notification.
         notificationMarkColor
+
+        appScope.launch { collectWidgetRefreshRequests() }
 
         appScope.launch {
             // Notifications bake in their color at post time, so a theme switch

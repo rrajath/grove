@@ -204,6 +204,6 @@ class SearchViewModelIntegrationTest {
         advanceUntilIdle()
 
         assertTrue(store.read("projects.org").contains("DONE Tag the release"))
-        assertTrue(sync.syncRequests.contains("search state set"))
+        assertTrue(sync.reindexCalls.any { it.reason == "search state set" })
     }
 }

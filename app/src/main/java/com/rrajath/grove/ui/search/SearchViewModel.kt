@@ -235,8 +235,10 @@ class SearchViewModel(
         _snack.value = null
         viewModelScope.launch {
             val vault = vaultFlow.value ?: return@launch
-            snap.forEach { (name, text) -> vault.save(name, text) }
-            sync.requestSync("search undo")
+            snap.forEach { (name, text) ->
+                vault.save(name, text)
+                sync.requestReindex(name, text, "search undo")
+            }
         }
     }
 
@@ -374,7 +376,7 @@ class SearchViewModel(
             ) {
                 is StateChangeResult.Plain -> {
                     vault.save(fileName, result.text)
-                    sync.requestSync("search state set")
+                    sync.requestReindex(fileName, result.text, "search state set")
                 }
                 is StateChangeResult.Archived -> {
                     undoSnapshot = if (result.sourceFile == result.destFile) {
@@ -383,8 +385,11 @@ class SearchViewModel(
                         listOf(fileName to doc.text, result.destFile to result.destTextBefore)
                     }
                     vault.save(fileName, result.sourceText)
-                    if (result.destFile != fileName) vault.save(result.destFile, result.destText)
-                    sync.requestSync("search state set")
+                    sync.requestReindex(fileName, result.sourceText, "search state set")
+                    if (result.destFile != fileName) {
+                        vault.save(result.destFile, result.destText)
+                        sync.requestReindex(result.destFile, result.destText, "search state set")
+                    }
                     showSnack("Marked done. Refiled to ${result.label}")
                 }
             }
@@ -407,7 +412,7 @@ class SearchViewModel(
                 OrgMutations.setPlanningAndActiveTimestamps(doc, headline, scheduled, deadline, active)
             }
             vault.save(fileName, newText)
-            sync.requestSync("search planning edit")
+            sync.requestReindex(fileName, newText, "search planning edit")
         }
     }
 

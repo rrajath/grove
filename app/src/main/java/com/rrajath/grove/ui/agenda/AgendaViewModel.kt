@@ -472,7 +472,7 @@ class AgendaViewModel(
             val headline = doc.headlineAtLine(lineIndex) ?: return@launch
             val newText = withContext(dispatchers.default) { block(doc, headline) }
             vault.save(fileName, newText)
-            sync.requestSync("agenda planning edit")
+            sync.requestReindex(fileName, newText, "agenda planning edit")
         }
     }
 
@@ -502,7 +502,7 @@ class AgendaViewModel(
                 }
                 undoSnapshot = listOf(FileSnapshot(fileName, doc.text))
                 vault.save(fileName, newText)
-                sync.requestSync("agenda toggle done")
+                sync.requestReindex(fileName, newText, "agenda toggle done")
                 showSnack("Reopened")
                 return@launch
             }
@@ -514,7 +514,7 @@ class AgendaViewModel(
                 is StateChangeResult.Plain -> {
                     undoSnapshot = listOf(FileSnapshot(fileName, doc.text))
                     vault.save(fileName, result.text)
-                    sync.requestSync("agenda toggle done")
+                    sync.requestReindex(fileName, result.text, "agenda toggle done")
                     showSnack("Marked done")
                 }
                 is StateChangeResult.Archived -> {
@@ -524,8 +524,11 @@ class AgendaViewModel(
                         listOf(FileSnapshot(fileName, doc.text), FileSnapshot(result.destFile, result.destTextBefore))
                     }
                     vault.save(fileName, result.sourceText)
-                    if (result.destFile != fileName) vault.save(result.destFile, result.destText)
-                    sync.requestSync("agenda toggle done")
+                    sync.requestReindex(fileName, result.sourceText, "agenda toggle done")
+                    if (result.destFile != fileName) {
+                        vault.save(result.destFile, result.destText)
+                        sync.requestReindex(result.destFile, result.destText, "agenda toggle done")
+                    }
                     showSnack("Marked done. Refiled to ${result.label}")
                 }
             }
@@ -556,7 +559,7 @@ class AgendaViewModel(
             } ?: return@launch
             undoSnapshot = listOf(FileSnapshot(row.fileName, doc.text))
             vault.save(row.fileName, newText)
-            sync.requestSync("agenda advance repeater")
+            sync.requestReindex(row.fileName, newText, "agenda advance repeater")
             showSnack("Advanced to next occurrence")
         }
     }
@@ -578,7 +581,7 @@ class AgendaViewModel(
                 OrgMutations.appendLogbookNote(doc, headline, note.trim(), stamp)
             }
             vault.save(fileName, newText)
-            sync.requestSync("agenda note added")
+            sync.requestReindex(fileName, newText, "agenda note added")
             showSnack("Note added")
         }
     }
@@ -624,6 +627,7 @@ class AgendaViewModel(
                 if (text != original) {
                     snapshots += FileSnapshot(fileName, original)
                     vault.save(fileName, text)
+                    sync.requestReindex(fileName, text, "agenda move overdue")
                 }
             }
 
@@ -631,7 +635,6 @@ class AgendaViewModel(
             undoSnapshot = snapshots
             overdueOpen = false
             recompute()
-            sync.requestSync("agenda move overdue")
             showSnack("Moved $moved to today")
         }
     }
@@ -643,8 +646,10 @@ class AgendaViewModel(
         _snack.value = null
         viewModelScope.launch {
             val vault = vaultFlow.value ?: return@launch
-            snaps.forEach { vault.save(it.fileName, it.text) }
-            sync.requestSync("agenda undo")
+            snaps.forEach {
+                vault.save(it.fileName, it.text)
+                sync.requestReindex(it.fileName, it.text, "agenda undo")
+            }
         }
     }
 
