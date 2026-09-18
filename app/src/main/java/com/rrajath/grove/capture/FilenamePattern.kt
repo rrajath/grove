@@ -36,11 +36,11 @@ object FilenamePattern {
         return now.format(DateTimeFormatter.ofPattern(javaPattern))
     }
 
-    /** Trims and collapses whitespace runs to `_`; no lowercasing/char-stripping. Blank title → blank slug. */
+    /** Trims, lowercases, and collapses whitespace runs to `_`; no char-stripping. Blank title → blank slug. */
     fun slugFromTitle(title: String): String {
         val trimmed = title.trim()
         if (trimmed.isEmpty()) return ""
-        return trimmed.replace(Regex("""\s+"""), "_")
+        return trimmed.lowercase().replace(Regex("""\s+"""), "_")
     }
 
     /**

@@ -516,6 +516,7 @@ private fun GroveNavigation(
                         onSwitchToRead = { mode = "read" },
                         editModeFontSize = settings.editModeFontSize,
                         showBacklinks = settings.roamFeaturesEnabled && settings.roamShowBacklinks,
+                        showSuggestions = settings.roamFeaturesEnabled && settings.roamShowSuggestions,
                         onOpenNote = { target -> navController.navigate(Routes.note(target.encode())) },
                     )
                 } else {
@@ -818,6 +819,7 @@ private fun GroveNavigation(
                     onClose = closeCapture,
                     onSaved = closeCapture,
                     editModeFontSize = settings.editModeFontSize,
+                    showSuggestions = settings.roamFeaturesEnabled && settings.roamShowSuggestions,
                 )
             }
             composable(Routes.TEMPLATE_EDIT) { entry ->

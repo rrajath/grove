@@ -65,6 +65,7 @@ re-uploads the APKs to the existing release instead of failing.
 - Added "View file" to the Outline menu: read or edit the whole file as one note (files up to 1,000 lines).
 - Added Roam Features toggle "Open roam files directly in read mode" (on by default): small roam notebooks skip the outline.
 - Added a Developer tools line-limit override for the whole-file view.
+- Added Roam node capture templates: title-driven filenames, new-file-or-append capture, gated on Roam Features.
 
 ### Changed
 - The link picker now supports live search, opens full height, and links leaf headings on tap.
@@ -72,6 +73,12 @@ re-uploads the APKs to the existing release instead of failing.
 - Linked References bar now also appears in Outline view, is taller collapsed, and shows a centered top chevron.
 - Linked References bar now only shows for org-roam files, and also appears in the whole-file Read/Edit view.
 - Whole-file Read/Edit header now scrolls long file names on one line and compacts folders to their first letter.
+
+### Fixed
+- Fixed link typing suggestions not appearing in the whole-file editor or Roam capture.
+- Fixed a roam file's preface (holding its title) defaulting to collapsed in whole-file Read mode.
+- Fixed missing scroll-to-top/bottom buttons in the Notebooks folder drill-down view.
+- Fixed Roam node title slugs not being lowercased.
 
 ## [1.6.3] - 2026-09-17
 

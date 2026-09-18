@@ -32,8 +32,8 @@ class FilenamePatternTest {
     }
 
     @Test
-    fun `slug from title collapses whitespace to underscores without case changes`() {
-        assertEquals("My_Title", FilenamePattern.slugFromTitle("  My   Title  "))
+    fun `slug from title lowercases and collapses whitespace to underscores`() {
+        assertEquals("my_title", FilenamePattern.slugFromTitle("  My   Title  "))
         assertEquals("", FilenamePattern.slugFromTitle("   "))
         assertEquals("", FilenamePattern.slugFromTitle(""))
     }

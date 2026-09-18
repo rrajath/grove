@@ -39,6 +39,8 @@ The app version is shown at the bottom of the hub screen.
 
 An opt-in page, badged **Experimental** in the hub, for features that are still settling: the Linked References bar (backlinks), inline auto-link suggestions while typing, and **Open roam files directly in read mode**. A master toggle enables the feature area; the sub-toggles then choose which of them are active, each also requiring the master toggle to be on. Backlinks and typing-suggestions default off; **Open roam files directly in read mode** defaults on.
 
+The master toggle also gates the capture-template editor's **New node file** type — see [Roam node templates](/features/capture-templates#roam-node-templates-experimental).
+
 The Linked References bar only ever appears for an org-roam file (one with a file-level `:ID:`) — in the outline, in Read mode and in Edit mode — and only when **Show backlinks** is on. It never appears for a file without a file-level `:ID:`.
 
 **Open roam files directly in read mode** is a separate lever: it only decides whether opening a notebook lands on the outline or skips straight to the whole file. It's for org-roam style vaults, where most files are short and have few or no headings. With it on, opening an org-roam notebook of up to 1,000 lines (from the Notebooks list, a `[[file:]]` link or a search file match) skips the outline and lands on the whole file as a single Read/Edit note, in your default note mode. Larger notebooks, and non-roam notebooks, keep opening in the outline, where the same whole-file view is available from the `⋮` menu's **View file** (see [Outline View](/features/outline-view#viewing-the-whole-file)). Turning it off sends roam files back through the outline too, regardless of size.

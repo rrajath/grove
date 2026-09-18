@@ -16,10 +16,13 @@ import com.rrajath.grove.org.OrgMutations
 import com.rrajath.grove.org.OrgParser
 import com.rrajath.grove.settings.SettingsSource
 import com.rrajath.grove.sync.SyncTrigger
+import com.rrajath.grove.ui.editor.AutoLinkSuggestion
+import com.rrajath.grove.ui.editor.buildAutoLinkIndex
 import com.rrajath.grove.ui.vault.NotebookItem
 import com.rrajath.grove.ui.vault.allFolderDirs
 import com.rrajath.grove.vault.TestVaultHook
 import com.rrajath.grove.vault.Vault
+import kotlinx.collections.immutable.ImmutableList
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -69,6 +72,20 @@ class CaptureViewModel(
                 .filter { it.isNotEmpty() }
                 .distinct()
                 .sorted()
+        }
+    }
+
+    // Inline auto-link suggester (Settings § Roam Features): same vault-wide
+    // id-linkable index as EditorViewModel.loadAutoLinkIndex, loaded once when
+    // the capture screen opens.
+    private val _autoLinkIndex = MutableStateFlow<ImmutableList<AutoLinkSuggestion>?>(null)
+    val autoLinkIndex: StateFlow<ImmutableList<AutoLinkSuggestion>?> = _autoLinkIndex
+
+    fun loadAutoLinkIndex() {
+        viewModelScope.launch {
+            val notebooks = database.indexDao().notebooks()
+            val headings = database.indexDao().allHeadingOutlines()
+            _autoLinkIndex.value = buildAutoLinkIndex(notebooks, headings)
         }
     }
 

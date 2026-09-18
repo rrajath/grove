@@ -172,6 +172,11 @@ fun EditRegionScreen(
      * renders for a roam file (one with a file-level `:ID:`).
      */
     showBacklinks: Boolean = false,
+    /**
+     * Settings § Roam Features (experimental): show file/heading link
+     * suggestions while typing. Only wired for [EditRegion.WHOLE_FILE].
+     */
+    showSuggestions: Boolean = false,
     /** [EditRegion.WHOLE_FILE] only: the Linked References sheet's "open" action. */
     onOpenNote: (NoteRef) -> Unit = {},
     viewModel: EditorViewModel = viewModel(factory = EditorViewModel.Factory),
@@ -192,6 +197,17 @@ fun EditRegionScreen(
     var wholeFileMeta by remember(fileName) { mutableStateOf<Pair<String?, String>?>(null) }
     val linkedReferences by viewModel.linkedReferences.collectAsStateWithLifecycle()
     var linkedRefsOpen by remember { mutableStateOf(false) }
+    // Inline auto-link suggestion strip (whole-file editor only) -- same
+    // mechanism as EditNoteScreen: an index loaded once, and a trigger word
+    // recomputed on every text/selection change.
+    val autoLinkIndex by viewModel.autoLinkIndex.collectAsStateWithLifecycle()
+    var autoLinkTrigger by remember { mutableStateOf<WordAtCursor?>(null) }
+    var expandedChipKeys by remember(autoLinkTrigger?.range) { mutableStateOf(emptySet<String>()) }
+    val autoLinkSuggestions = remember(autoLinkTrigger?.text, autoLinkIndex) {
+        val idx = autoLinkIndex
+        val word = autoLinkTrigger?.text
+        if (idx == null || word == null) emptyList() else filterAutoLinkSuggestions(idx, word)
+    }
     // Timestamp of the most recent save (auto or manual); tracked in the
     // ViewModel (state.lastSavedAt) since it now also owns the idle auto-save timer.
     val lastAutoSavedAt = state.lastSavedAt?.toLocalTime()
@@ -227,6 +243,18 @@ fun EditRegionScreen(
     androidx.activity.compose.BackHandler { leave() }
 
     LaunchedEffect(fileName, noteId, region) { viewModel.loadRegion(fileName, noteId, region, blockLine) }
+    LaunchedEffect(Unit) { if (region == EditRegion.WHOLE_FILE) viewModel.loadAutoLinkIndex() }
+    // Recomputed on every text/selection change so it tracks whatever word is
+    // being typed right now; see EditNoteScreen's identical wiring.
+    LaunchedEffect(showSuggestions, region) {
+        if (!showSuggestions || region != EditRegion.WHOLE_FILE) {
+            autoLinkTrigger = null
+            return@LaunchedEffect
+        }
+        snapshotFlow { textState.text.toString() to textState.selection }.collect { (text, selection) ->
+            autoLinkTrigger = wordAtCursor(text, selection)?.takeIf { it.text.length >= 3 }
+        }
+    }
     LaunchedEffect(state.loading) {
         if (!state.loading && state.error == null) {
             setText(state.buffer, TextRange(0))
@@ -385,6 +413,25 @@ fun EditRegionScreen(
                         .align(Alignment.BottomEnd)
                         .padding(16.dp),
                 )
+                if (autoLinkSuggestions.isNotEmpty()) {
+                    AutoLinkSuggestionStrip(
+                        suggestions = autoLinkSuggestions,
+                        expandedKeys = expandedChipKeys,
+                        onToggleExpand = { key -> expandedChipKeys = expandedChipKeys + key },
+                        onPick = { suggestion ->
+                            val range = autoLinkTrigger?.range ?: return@AutoLinkSuggestionStrip
+                            val linkText = formatAutoLinkInsertion(suggestion)
+                            textState.edit {
+                                replace(range.start, range.end, linkText)
+                                selection = TextRange(range.start + linkText.length)
+                            }
+                            autoLinkTrigger = null
+                        },
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .padding(16.dp),
+                    )
+                }
             }
             EditorToolbar(
                 onWrap = { marker -> textState.applyEdit { wrapSelection(it, marker) } },

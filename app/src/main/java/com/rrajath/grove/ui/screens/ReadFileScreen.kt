@@ -285,7 +285,10 @@ private fun FileContent(
     // Per-section drawer expand state, reset when the file changes; every
     // drawer starts collapsed, matching note Read mode.
     val collapsibleExpanded = remember(fileName) { mutableStateMapOf<String, Boolean>() }
-    var prefaceExpanded by rememberSaveable(fileName) { mutableStateOf(false) }
+    // A roam file's preface holds its title, so it's the one thing worth
+    // seeing by default; a plain file's preface starts collapsed like every
+    // other section.
+    var prefaceExpanded by rememberSaveable(fileName) { mutableStateOf(doc.fileId != null) }
     var filePropsExpanded by rememberSaveable(fileName) { mutableStateOf(false) }
 
     var boxCoords by remember { mutableStateOf<LayoutCoordinates?>(null) }

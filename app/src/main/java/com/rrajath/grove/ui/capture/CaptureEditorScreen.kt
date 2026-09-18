@@ -43,6 +43,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -80,9 +81,14 @@ import com.rrajath.grove.ui.components.GroveTopBar
 import com.rrajath.grove.ui.components.Pill
 import com.rrajath.grove.ui.components.SegmentedControl
 import com.rrajath.grove.ui.components.annotateOrgInline
+import com.rrajath.grove.ui.editor.AutoLinkSuggestionStrip
 import com.rrajath.grove.ui.editor.AutoSaveTimestamp
 import com.rrajath.grove.ui.editor.EditorToolbar
 import com.rrajath.grove.ui.editor.MetadataSheet
+import com.rrajath.grove.ui.editor.WordAtCursor
+import com.rrajath.grove.ui.editor.filterAutoLinkSuggestions
+import com.rrajath.grove.ui.editor.formatAutoLinkInsertion
+import com.rrajath.grove.ui.editor.wordAtCursor
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import com.rrajath.grove.ui.editor.orgInputTransformation
@@ -115,6 +121,12 @@ fun CaptureEditorScreen(
     onSaved: () -> Unit,
     /** Settings § Notes: font-size lever for the editor field. App chrome is unaffected. */
     editModeFontSize: FontSizePreference = FontSizePreference.MEDIUM,
+    /**
+     * Settings § Roam Features (experimental): show file/heading link
+     * suggestions while typing. Only ever shows for a [TemplateKind.ROAM_NODE]
+     * capture, same as the whole-file editor.
+     */
+    showSuggestions: Boolean = false,
     viewModel: CaptureViewModel = viewModel(factory = CaptureViewModel.Factory),
 ) {
     val c = MaterialTheme.grove
@@ -238,6 +250,28 @@ fun CaptureEditorScreen(
     var metadataOpen by remember { mutableStateOf(false) }
     var readMode by remember { mutableStateOf(false) }
     val allTags by viewModel.allTags.collectAsStateWithLifecycle()
+
+    // Inline auto-link suggestion strip -- same mechanism as EditNoteScreen,
+    // gated on the Roam capture flow only.
+    val suggestionsActive = showSuggestions && template.kind == TemplateKind.ROAM_NODE
+    LaunchedEffect(Unit) { if (suggestionsActive) viewModel.loadAutoLinkIndex() }
+    val autoLinkIndex by viewModel.autoLinkIndex.collectAsStateWithLifecycle()
+    var autoLinkTrigger by remember { mutableStateOf<WordAtCursor?>(null) }
+    var expandedChipKeys by remember(autoLinkTrigger?.range) { mutableStateOf(emptySet<String>()) }
+    val autoLinkSuggestions = remember(autoLinkTrigger?.text, autoLinkIndex) {
+        val idx = autoLinkIndex
+        val word = autoLinkTrigger?.text
+        if (idx == null || word == null) emptyList() else filterAutoLinkSuggestions(idx, word)
+    }
+    LaunchedEffect(suggestionsActive) {
+        if (!suggestionsActive) {
+            autoLinkTrigger = null
+            return@LaunchedEffect
+        }
+        snapshotFlow { textState.text.toString() to textState.selection }.collect { (text, selection) ->
+            autoLinkTrigger = wordAtCursor(text, selection)?.takeIf { it.text.length >= 3 }
+        }
+    }
 
     // The draft is always a single heading (withHeadingStars above guarantees
     // it starts with a "* " line), so this is what the metadata sheet and the
@@ -438,6 +472,26 @@ fun CaptureEditorScreen(
                                 .padding(start = 20.dp, top = 20.dp, end = 20.dp, bottom = 80.dp)
                                 .testTag("capture_body_field")
                                 .focusRequester(focusRequester),
+                        )
+                    }
+                    if (autoLinkSuggestions.isNotEmpty()) {
+                        AutoLinkSuggestionStrip(
+                            suggestions = autoLinkSuggestions,
+                            expandedKeys = expandedChipKeys,
+                            onToggleExpand = { key -> expandedChipKeys = expandedChipKeys + key },
+                            onPick = { suggestion ->
+                                val range = autoLinkTrigger?.range ?: return@AutoLinkSuggestionStrip
+                                val linkText = formatAutoLinkInsertion(suggestion)
+                                textState.edit {
+                                    replace(range.start, range.end, linkText)
+                                    selection = TextRange(range.start + linkText.length)
+                                }
+                                autoLinkTrigger = null
+                            },
+                            // Clear of the Save pill's own bottom-end gutter.
+                            modifier = Modifier
+                                .align(Alignment.BottomStart)
+                                .padding(start = 16.dp, bottom = 16.dp),
                         )
                     }
                 }

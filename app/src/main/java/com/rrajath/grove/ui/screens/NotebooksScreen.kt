@@ -413,20 +413,30 @@ fun NotebooksScreen(
                         if (level.childFolders.isEmpty() && level.files.isEmpty()) {
                             CenterMessage("✦", "Nothing in this folder yet")
                         } else {
-                            LazyColumn(
-                                modifier = Modifier.fillMaxSize().testTag("notebooks_drill_list"),
-                                contentPadding = PaddingValues(top = 4.dp, bottom = DOCK_CLEARANCE),
-                            ) {
-                                items(level.childFolders, key = { "dir:${it.dir}" }) { node ->
-                                    folderRow(
-                                        node = node,
-                                        flat = true,
-                                        onClick = { drillDir = node.dir },
-                                    )
+                            val listState = rememberLazyListState()
+                            Box(Modifier.fillMaxSize()) {
+                                LazyColumn(
+                                    state = listState,
+                                    modifier = Modifier.fillMaxSize().testTag("notebooks_drill_list"),
+                                    contentPadding = PaddingValues(top = 4.dp, bottom = DOCK_CLEARANCE),
+                                ) {
+                                    items(level.childFolders, key = { "dir:${it.dir}" }) { node ->
+                                        folderRow(
+                                            node = node,
+                                            flat = true,
+                                            onClick = { drillDir = node.dir },
+                                        )
+                                    }
+                                    items(level.files, key = { "file:${it.fileName}" }) { nb ->
+                                        fileRow(nb, depth = 0, showPath = false, flat = true)
+                                    }
                                 }
-                                items(level.files, key = { "file:${it.fileName}" }) { nb ->
-                                    fileRow(nb, depth = 0, showPath = false, flat = true)
-                                }
+                                ScrollJumpButtons(
+                                    listState = listState,
+                                    modifier = Modifier
+                                        .align(Alignment.BottomEnd)
+                                        .padding(bottom = DOCK_CLEARANCE, end = 16.dp),
+                                )
                             }
                         }
                     } else {
