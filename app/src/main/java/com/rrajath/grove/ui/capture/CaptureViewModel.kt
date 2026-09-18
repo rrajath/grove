@@ -13,6 +13,8 @@ import com.rrajath.grove.capture.TemplatesRepository
 import com.rrajath.grove.data.GroveDatabase
 import com.rrajath.grove.settings.SettingsSource
 import com.rrajath.grove.sync.SyncTrigger
+import com.rrajath.grove.ui.vault.NotebookItem
+import com.rrajath.grove.ui.vault.allFolderDirs
 import com.rrajath.grove.vault.TestVaultHook
 import com.rrajath.grove.vault.Vault
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -210,6 +212,13 @@ class TemplatesViewModel(
     /** Existing vault notebook file names, for the target-file picker dropdown. */
     val notebooks: StateFlow<List<String>> = database.indexDao().notebooksFlow()
         .map { list -> list.map { it.fileName }.sorted() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** Existing vault directories, for a Roam template's directory field. */
+    val directories: StateFlow<List<String>> = database.indexDao().notebooksFlow()
+        .map { list ->
+            allFolderDirs(list.map { NotebookItem(it.fileName, 0, 0, false) }).sorted()
+        }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     fun upsert(template: CaptureTemplate) =
