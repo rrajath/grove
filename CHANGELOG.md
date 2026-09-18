@@ -71,7 +71,7 @@ re-uploads the APKs to the existing release instead of failing.
 - Tips & Tricks now describes the link picker's live search instead of the old drill-down browser.
 - Linked References bar now also appears in Outline view, is taller collapsed, and shows a centered top chevron.
 - Linked References bar now only shows for org-roam files, and also appears in the whole-file Read/Edit view.
-- Whole-file Read/Edit header now wraps long file names and compacts folders to their first letter.
+- Whole-file Read/Edit header now scrolls long file names on one line and compacts folders to their first letter.
 
 ## [1.6.3] - 2026-09-17
 

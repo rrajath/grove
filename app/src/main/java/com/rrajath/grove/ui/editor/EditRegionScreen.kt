@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.only
@@ -300,12 +301,15 @@ fun EditRegionScreen(
                     }
                 },
                 subtitle = {
-                    // Folder-compacted and left free to wrap: a long roam path
-                    // would otherwise crowd or clip the fixed-height title row.
-                    Text(
-                        compactFileLabel(fileName),
-                        fontFamily = PlexMono, fontSize = 11.5.sp, color = c.ink3,
-                    )
+                    // Folder-compacted, single line: scrolls horizontally like the
+                    // Read mode breadcrumb instead of wrapping the fixed-height row.
+                    Row(Modifier.horizontalScroll(rememberScrollState())) {
+                        Text(
+                            compactFileLabel(fileName),
+                            fontFamily = PlexMono, fontSize = 11.5.sp, color = c.ink3,
+                            maxLines = 1,
+                        )
+                    }
                 },
                 actions = {
                     if (onSwitchToRead != null) {
