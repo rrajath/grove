@@ -12,6 +12,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowOutward
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -19,10 +23,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
 import com.rrajath.grove.ui.util.pluralCount
@@ -47,20 +49,25 @@ fun LinkedReferencesBar(
             .fillMaxWidth()
             .background(c.surface)
             .border(1.dp, c.line)
+            .padding(bottom = 15.dp)
             .clickable(onClick = onClick),
     ) {
         // Centered chevron at the top edge, replacing the old trailing caret --
         // reads as a "pull up to expand" affordance instead of a stray glyph
         // competing with the unlinked-count pill on the right.
-        Text(
-            "⌃", fontFamily = PlexMono, fontSize = 13.sp, color = c.ink3,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth().padding(top = 7.dp),
-        )
+        Box(
+            Modifier.fillMaxWidth().padding(top = 7.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                Icons.Default.KeyboardArrowUp, contentDescription = null,
+                tint = c.ink3, modifier = Modifier.size(16.dp),
+            )
+        }
         Row(
             Modifier
                 .fillMaxWidth()
-                .padding(start = 18.dp, end = 18.dp, top = 5.dp, bottom = 20.dp),
+                .padding(start = 18.dp, end = 18.dp, top = 0.dp, bottom = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
@@ -70,9 +77,9 @@ fun LinkedReferencesBar(
                     .background(c.accentSoft),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(
-                    "↗", fontFamily = PlexMono, fontWeight = FontWeight.SemiBold,
-                    fontSize = 13.sp, color = c.accent,
+                Icon(
+                    Icons.Default.ArrowOutward, contentDescription = null,
+                    tint = c.accent, modifier = Modifier.size(14.dp),
                 )
             }
             Spacer(Modifier.width(11.dp))

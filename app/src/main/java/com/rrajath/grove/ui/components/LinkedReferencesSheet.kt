@@ -155,7 +155,7 @@ fun LinkedReferencesSheet(
                     modifier = Modifier.weight(1f),
                 )
                 Text(
-                    "Close ⌄",
+                    "Close",
                     fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
                     fontSize = 12.5.sp, color = c.accent,
                     modifier = Modifier.clickable(onClick = onDismiss),
