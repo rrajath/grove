@@ -5,8 +5,11 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -48,12 +51,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rrajath.grove.capture.CaptureTemplate
+import com.rrajath.grove.capture.FilenamePattern
 import com.rrajath.grove.capture.FilenameValidation
 import com.rrajath.grove.capture.PlaceholderExpander
 import com.rrajath.grove.capture.ShortcutSyncer
 import com.rrajath.grove.capture.TargetLocation
+import com.rrajath.grove.capture.TemplateKind
 import com.rrajath.grove.capture.templateSlug
 import com.rrajath.grove.ui.components.ChangeIconColorDialog
+import com.rrajath.grove.ui.components.DirectoryField
 import com.rrajath.grove.ui.components.GroveTopBar
 import com.rrajath.grove.ui.components.MonogramTile
 import com.rrajath.grove.ui.components.NotebookFileField
@@ -81,12 +87,29 @@ private fun locationIndex(location: TargetLocation): Int = when (location) {
     is TargetLocation.DatetreeDatetime -> 4
 }
 
+/** Chips appended to the "File name pattern" field on tap: (label shown, text inserted). */
+private val FILENAME_PATTERN_CHIPS = listOf(
+    "%<%Y%m%d%H%M%S>" to "%<%Y%m%d%H%M%S>",
+    "%<%Y-%m-%d>" to "%<%Y-%m-%d>",
+    "%(slug)" to "%(slug)",
+    "-" to "-",
+)
+
+/** Chips appended to the "New file template" field on tap: (label shown, text inserted). */
+private val NEW_FILE_TEMPLATE_CHIPS = listOf(
+    "ID drawer" to ":PROPERTIES:\n:ID:       %(id)\n:END:\n",
+    "#+title:" to "#+title: ",
+    "#+filetags:" to "#+filetags: ",
+    "%?" to "%?",
+)
+
 /** Template editor (design spec / PRD §7.6). templateId "new" creates one. */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun TemplateEditScreen(
     templateId: String,
     onBack: () -> Unit,
+    roamFeaturesEnabled: Boolean = false,
     viewModel: TemplatesViewModel = viewModel(factory = TemplatesViewModel.Factory),
 ) {
     val c = MaterialTheme.grove
@@ -97,6 +120,7 @@ fun TemplateEditScreen(
     val leave: () -> Unit = { focusManager.clearFocus(force = true); onBack() }
     val templates by viewModel.templates.collectAsStateWithLifecycle()
     val notebooks by viewModel.notebooks.collectAsStateWithLifecycle()
+    val directories by viewModel.directories.collectAsStateWithLifecycle()
     val existing = templates.firstOrNull { it.id == templateId }
     // Fixed for this editor session so the monogram colour stays stable while the
     // name is still being typed, and so a new template's id matches what is saved.
@@ -105,6 +129,10 @@ fun TemplateEditScreen(
     var name by remember(existing) { mutableStateOf(existing?.name ?: "") }
     var colorKey by remember(existing) { mutableStateOf(existing?.color) }
     var showColorDialog by remember { mutableStateOf(false) }
+    // A stale ROAM_NODE template still edits safely with the flag off; new
+    // templates always start PLAIN when the switch below is hidden.
+    var kind by remember(existing) { mutableStateOf(existing?.kind ?: TemplateKind.PLAIN) }
+    val showKindSwitch = roamFeaturesEnabled || kind == TemplateKind.ROAM_NODE
     var targetFile by remember(existing) { mutableStateOf(existing?.targetFile ?: "inbox.org") }
     val targetFileError = FilenameValidation.errorFor(targetFile)
     var locationIdx by remember(existing) {
@@ -119,6 +147,18 @@ fun TemplateEditScreen(
     var templateText by remember(existing) { mutableStateOf(existing?.template ?: "* %^{Title}\n%cursor") }
     val invalidPlaceholders = remember(templateText) {
         PlaceholderExpander.findInvalid(templateText).map { it.token }.distinct()
+    }
+    var roamDirectory by remember(existing) { mutableStateOf(existing?.roamDirectory ?: "") }
+    val directoryError = FilenameValidation.errorForDirectory(roamDirectory)
+    var filenamePattern by remember(existing) {
+        mutableStateOf(existing?.filenamePattern ?: "%<%Y%m%d%H%M%S>-%(slug)")
+    }
+    val filenamePatternError = FilenamePattern.errorFor(filenamePattern)
+    var newFileTemplate by remember(existing) {
+        mutableStateOf(existing?.newFileTemplate ?: ":PROPERTIES:\n:ID:       %(id)\n:END:\n#+title: %?")
+    }
+    val roamInvalidPlaceholders = remember(newFileTemplate) {
+        PlaceholderExpander.findInvalid(newFileTemplate).map { it.token }.distinct()
     }
     var showPlaceholderHelp by remember { mutableStateOf(false) }
 
@@ -140,8 +180,15 @@ fun TemplateEditScreen(
         targetFile = targetFile.trim(),
         location = buildLocation(),
         template = templateText,
+        kind = kind,
+        roamDirectory = roamDirectory.trim(),
+        filenamePattern = filenamePattern.trim(),
+        newFileTemplate = newFileTemplate,
     )
-    val canSave = name.isNotBlank() && targetFileError == null
+    val canSave = name.isNotBlank() && when (kind) {
+        TemplateKind.PLAIN -> targetFileError == null
+        TemplateKind.ROAM_NODE -> directoryError == null && filenamePatternError == null
+    }
 
     Scaffold(
         containerColor = c.bg,
@@ -213,83 +260,144 @@ fun TemplateEditScreen(
                 )
             }
 
-            FieldLabel("Target file")
-            NotebookFileField(
-                value = targetFile,
-                onValueChange = { targetFile = it },
-                notebooks = notebooks,
-                modifier = Modifier.fillMaxWidth(),
-            )
+            if (showKindSwitch) {
+                FieldLabel("Type")
+                SegmentedControl(
+                    options = listOf("Add to a file", "New node file"),
+                    selectedIndex = if (kind == TemplateKind.PLAIN) 0 else 1,
+                    onSelect = { kind = if (it == 0) TemplateKind.PLAIN else TemplateKind.ROAM_NODE },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
 
-            FieldLabel("Insert at")
-            Column {
-                LOCATION_OPTIONS.forEachIndexed { i, label ->
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(9.dp))
-                            .background(if (i == locationIdx) c.accentSoft else c.surface)
-                            .clickable { locationIdx = i }
-                            .padding(horizontal = 12.dp, vertical = 10.dp),
-                    ) {
-                        Text(
-                            label,
-                            fontFamily = PlexSans,
-                            fontWeight = if (i == locationIdx) FontWeight.SemiBold else FontWeight.Normal,
-                            fontSize = 14.sp,
-                            color = if (i == locationIdx) c.accent else c.ink,
-                        )
+            if (kind == TemplateKind.PLAIN) {
+                FieldLabel("Target file")
+                NotebookFileField(
+                    value = targetFile,
+                    onValueChange = { targetFile = it },
+                    notebooks = notebooks,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+
+                FieldLabel("Insert at")
+                Column {
+                    LOCATION_OPTIONS.forEachIndexed { i, label ->
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(9.dp))
+                                .background(if (i == locationIdx) c.accentSoft else c.surface)
+                                .clickable { locationIdx = i }
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                        ) {
+                            Text(
+                                label,
+                                fontFamily = PlexSans,
+                                fontWeight = if (i == locationIdx) FontWeight.SemiBold else FontWeight.Normal,
+                                fontSize = 14.sp,
+                                color = if (i == locationIdx) c.accent else c.ink,
+                            )
+                        }
+                        Spacer(Modifier.height(4.dp))
                     }
-                    Spacer(Modifier.height(4.dp))
                 }
-            }
 
-            if (locationIdx == 2) {
-                FieldLabel("Heading: CUSTOM_ID (recommended) or exact name")
-                Text(
-                    "CUSTOM_ID keeps working if the heading is renamed; exact name is simpler but fragile.",
-                    fontFamily = PlexSans, fontSize = 12.sp, color = c.ink3,
-                    modifier = Modifier.padding(bottom = 6.dp),
-                )
+                if (locationIdx == 2) {
+                    FieldLabel("Heading: CUSTOM_ID (recommended) or exact name")
+                    Text(
+                        "CUSTOM_ID keeps working if the heading is renamed; exact name is simpler but fragile.",
+                        fontFamily = PlexSans, fontSize = 12.sp, color = c.ink3,
+                        modifier = Modifier.padding(bottom = 6.dp),
+                    )
+                    OutlinedTextField(
+                        value = customId, onValueChange = { customId = it },
+                        singleLine = true, modifier = Modifier.fillMaxWidth(),
+                        textStyle = TextStyle(fontFamily = PlexMono),
+                        placeholder = { Text("custom-id (recommended)", fontFamily = PlexMono, color = c.ink3) },
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    OutlinedTextField(
+                        value = headingTitle, onValueChange = { headingTitle = it },
+                        singleLine = true, modifier = Modifier.fillMaxWidth(),
+                        textStyle = TextStyle(fontFamily = PlexSans),
+                        placeholder = { Text("…or exact heading name", fontFamily = PlexSans, color = c.ink3) },
+                    )
+                }
+
+                FieldLabel("Template")
                 OutlinedTextField(
-                    value = customId, onValueChange = { customId = it },
+                    value = templateText, onValueChange = { templateText = it },
+                    modifier = Modifier.fillMaxWidth().height(140.dp),
+                    isError = invalidPlaceholders.isNotEmpty(),
+                    textStyle = TextStyle(fontFamily = PlexMono, fontSize = 13.5.sp),
+                )
+                if (invalidPlaceholders.isNotEmpty()) {
+                    Text(
+                        "Unsupported placeholder${if (invalidPlaceholders.size > 1) "s" else ""}: " +
+                            invalidPlaceholders.joinToString(", "),
+                        fontFamily = PlexSans, fontSize = 12.sp, color = c.red,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                }
+                Text(
+                    "placeholder help",
+                    fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
+                    fontSize = 12.5.sp, color = c.accent,
+                    textDecoration = TextDecoration.Underline,
+                    modifier = Modifier
+                        .clickable { showPlaceholderHelp = true }
+                        .padding(vertical = 10.dp),
+                )
+            } else {
+                FieldLabel("Directory")
+                DirectoryField(
+                    value = roamDirectory,
+                    onValueChange = { roamDirectory = it },
+                    directories = directories,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+
+                FieldLabel("File name pattern")
+                OutlinedTextField(
+                    value = filenamePattern, onValueChange = { filenamePattern = it },
                     singleLine = true, modifier = Modifier.fillMaxWidth(),
+                    isError = filenamePatternError != null,
+                    supportingText = {
+                        if (filenamePatternError != null) {
+                            Text(filenamePatternError, color = c.red, fontFamily = PlexSans, fontSize = 12.sp)
+                        }
+                    },
                     textStyle = TextStyle(fontFamily = PlexMono),
-                    placeholder = { Text("custom-id (recommended)", fontFamily = PlexMono, color = c.ink3) },
+                    suffix = { Text(".org", fontFamily = PlexMono, color = c.ink3) },
                 )
-                Spacer(Modifier.height(6.dp))
-                OutlinedTextField(
-                    value = headingTitle, onValueChange = { headingTitle = it },
-                    singleLine = true, modifier = Modifier.fillMaxWidth(),
-                    textStyle = TextStyle(fontFamily = PlexSans),
-                    placeholder = { Text("…or exact heading name", fontFamily = PlexSans, color = c.ink3) },
-                )
-            }
+                InsertChipsRow(FILENAME_PATTERN_CHIPS) { insertText -> filenamePattern += insertText }
 
-            FieldLabel("Template")
-            OutlinedTextField(
-                value = templateText, onValueChange = { templateText = it },
-                modifier = Modifier.fillMaxWidth().height(140.dp),
-                isError = invalidPlaceholders.isNotEmpty(),
-                textStyle = TextStyle(fontFamily = PlexMono, fontSize = 13.5.sp),
-            )
-            if (invalidPlaceholders.isNotEmpty()) {
+                FieldLabel("New file template")
+                OutlinedTextField(
+                    value = newFileTemplate, onValueChange = { newFileTemplate = it },
+                    modifier = Modifier.fillMaxWidth().height(140.dp),
+                    isError = roamInvalidPlaceholders.isNotEmpty(),
+                    textStyle = TextStyle(fontFamily = PlexMono, fontSize = 13.5.sp),
+                )
+                if (roamInvalidPlaceholders.isNotEmpty()) {
+                    Text(
+                        "Unsupported placeholder${if (roamInvalidPlaceholders.size > 1) "s" else ""}: " +
+                            roamInvalidPlaceholders.joinToString(", "),
+                        fontFamily = PlexSans, fontSize = 12.sp, color = c.red,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                }
+                InsertChipsRow(NEW_FILE_TEMPLATE_CHIPS) { insertText -> newFileTemplate += insertText }
                 Text(
-                    "Unsupported placeholder${if (invalidPlaceholders.size > 1) "s" else ""}: " +
-                        invalidPlaceholders.joinToString(", "),
-                    fontFamily = PlexSans, fontSize = 12.sp, color = c.red,
-                    modifier = Modifier.padding(top = 4.dp),
+                    "placeholder help",
+                    fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
+                    fontSize = 12.5.sp, color = c.accent,
+                    textDecoration = TextDecoration.Underline,
+                    modifier = Modifier
+                        .clickable { showPlaceholderHelp = true }
+                        .padding(vertical = 10.dp),
                 )
             }
-            Text(
-                "placeholder help",
-                fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
-                fontSize = 12.5.sp, color = c.accent,
-                textDecoration = TextDecoration.Underline,
-                modifier = Modifier
-                    .clickable { showPlaceholderHelp = true }
-                    .padding(vertical = 10.dp),
-            )
 
             // Leaving this screen retires this feature's NEW dot from its whole
             // trail (menu glyph, drawer, Settings hub row, this label).
@@ -380,6 +488,31 @@ fun TemplateEditScreen(
             onDismiss = { showColorDialog = false },
             templateIcon = true,
         )
+    }
+}
+
+/** A row of tappable chips that append their insert text to a field, mirroring the
+ * shorthand-hint chips in PlanningDatesScreen. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun InsertChipsRow(chips: List<Pair<String, String>>, onInsert: (String) -> Unit) {
+    val c = MaterialTheme.grove
+    FlowRow(
+        Modifier.fillMaxWidth().padding(top = 6.dp),
+        horizontalArrangement = Arrangement.spacedBy(5.dp),
+        verticalArrangement = Arrangement.spacedBy(5.dp),
+    ) {
+        chips.forEach { (label, insertText) ->
+            Text(
+                label,
+                fontFamily = PlexMono, fontSize = 11.5.sp, color = c.ink3,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(c.surface2)
+                    .clickable { onInsert(insertText) }
+                    .padding(horizontal = 9.dp, vertical = 5.dp),
+            )
+        }
     }
 }
 

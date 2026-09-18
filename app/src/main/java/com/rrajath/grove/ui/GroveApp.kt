@@ -824,6 +824,7 @@ private fun GroveNavigation(
                 TemplateEditScreen(
                     templateId = entry.arguments?.getString("templateId").orEmpty(),
                     onBack = { navController.popBackStack() },
+                    roamFeaturesEnabled = settings.roamFeaturesEnabled,
                 )
             }
             composable(Routes.SYNC_LOG) {
