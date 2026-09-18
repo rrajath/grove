@@ -62,4 +62,26 @@ object FilenameValidation {
         }
         return null
     }
+
+    /**
+     * Validates a Roam template's target directory. `null` when [path] is a valid
+     * vault-relative directory; a blank [path] means the vault root and is valid.
+     * Same segment rules as [errorForNewNotebook] minus `.org` handling — a
+     * directory has no file extension to worry about.
+     */
+    fun errorForDirectory(path: String): String? {
+        val trimmed = path.trim()
+        if (trimmed.isEmpty()) return null
+        if (trimmed.startsWith("/") || trimmed.endsWith("/")) return "Not a valid path"
+
+        trimmed.split("/").forEach { segment ->
+            when {
+                segment.isEmpty() -> return "Not a valid path"
+                segment == "." || segment == ".." -> return "Not a valid path"
+                ILLEGAL_SEGMENT_CHARS.containsMatchIn(segment) ->
+                    return "Can't contain \\ : * ? \" < > |"
+            }
+        }
+        return null
+    }
 }

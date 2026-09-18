@@ -1,6 +1,7 @@
 package com.rrajath.grove.capture
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Test
 import java.time.LocalDateTime
@@ -63,5 +64,30 @@ class FilenamePatternTest {
     @Test
     fun `titleFromDraft ignores a title line after the first headline`() {
         assertNull(FilenamePattern.titleFromDraft("* Heading\n#+title: Too late"))
+    }
+
+    @Test
+    fun `errorFor rejects a blank pattern`() {
+        assertNotNull(FilenamePattern.errorFor(""))
+        assertNotNull(FilenamePattern.errorFor("   "))
+    }
+
+    @Test
+    fun `errorFor accepts patterns built only from recognized tokens`() {
+        assertNull(FilenamePattern.errorFor("%<%Y%m%d%H%M%S>-%(slug)"))
+        assertNull(FilenamePattern.errorFor("%<%Y-%m-%d>"))
+        assertNull(FilenamePattern.errorFor("%(slug)"))
+    }
+
+    @Test
+    fun `errorFor accepts literal dashes between tokens`() {
+        assertNull(FilenamePattern.errorFor("notes-%(slug)"))
+    }
+
+    @Test
+    fun `errorFor rejects reserved characters in the literal remainder`() {
+        assertNotNull(FilenamePattern.errorFor("in:box-%(slug)"))
+        assertNotNull(FilenamePattern.errorFor("sub/path-%(slug)"))
+        assertNotNull(FilenamePattern.errorFor("bad\\path"))
     }
 }

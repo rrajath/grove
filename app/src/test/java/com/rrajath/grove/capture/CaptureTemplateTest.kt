@@ -22,6 +22,30 @@ class CaptureTemplateTest {
     }
 
     @Test
+    fun `roam node templates round-trip through json`() {
+        val templates = listOf(
+            CaptureTemplate(
+                id = "roam1",
+                name = "Roam Node",
+                targetFile = "unused.org",
+                location = TargetLocation.BottomOfFile,
+                template = "unused",
+                kind = TemplateKind.ROAM_NODE,
+                roamDirectory = "notes/roam",
+                filenamePattern = "%<%Y%m%d%H%M%S>-%(slug)",
+                newFileTemplate = ":PROPERTIES:\n:ID:       %(id)\n:END:\n#+title: %?",
+            ),
+        )
+        val decoded = TemplateSerializer.decode(TemplateSerializer.encode(templates))
+        assertEquals(templates, decoded)
+    }
+
+    @Test
+    fun `default templates decode as PLAIN kind`() {
+        assertTrue(DefaultTemplates.all.all { it.kind == TemplateKind.PLAIN })
+    }
+
+    @Test
     fun `corrupt json decodes to empty list`() {
         assertEquals(emptyList<CaptureTemplate>(), TemplateSerializer.decode("not json"))
         assertEquals(emptyList<CaptureTemplate>(), TemplateSerializer.decode(""))

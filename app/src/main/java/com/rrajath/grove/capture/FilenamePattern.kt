@@ -12,6 +12,10 @@ object FilenamePattern {
     private val SLUG_TOKEN = "%(slug)"
     private val HEADLINE_START = Regex("""^\*+\s""")
 
+    // A filename pattern is a single stem, not a path — forward slash is illegal
+    // here (unlike FilenameValidation, which treats it as a path separator).
+    private val ILLEGAL_LITERAL_CHARS = Regex("""[\\/:*?"<>|\p{Cntrl}]""")
+
     /** Expands `%<...>` strftime blocks (Y/m/d/H/M/S only) and `%(slug)` in [pattern]. */
     fun expand(pattern: String, now: LocalDateTime, slug: String): String =
         STRFTIME_BLOCK.replace(pattern) { expandStrftime(it.groupValues[1], now) }
@@ -52,6 +56,21 @@ object FilenamePattern {
                 return match.groupValues[2].trim().ifEmpty { null }
             }
         }
+        return null
+    }
+
+    /**
+     * `null` when [pattern] is a valid file name pattern: strips recognized
+     * `%<...>` strftime blocks and `%(slug)`, then validates the remaining
+     * literal text contains no filesystem-illegal characters; otherwise a
+     * user-facing reason. A blank (or all-whitespace) pattern is rejected.
+     */
+    fun errorFor(pattern: String): String? {
+        val trimmed = pattern.trim()
+        if (trimmed.isEmpty()) return "Enter a file name pattern"
+
+        val literal = STRFTIME_BLOCK.replace(trimmed, "").replace(SLUG_TOKEN, "")
+        if (ILLEGAL_LITERAL_CHARS.containsMatchIn(literal)) return "Can't contain \\ / : * ? \" < > |"
         return null
     }
 }

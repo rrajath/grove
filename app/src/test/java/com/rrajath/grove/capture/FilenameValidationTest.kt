@@ -118,4 +118,37 @@ class FilenameValidationTest {
         assertNotNull(newNb("in:box"))
         assertNotNull(newNb("sub\\inbox"))
     }
+
+    // --- errorForDirectory: blank is the vault root, valid ---
+
+    private fun dir(path: String) = FilenameValidation.errorForDirectory(path)
+
+    @Test
+    fun `blank directory means vault root and is valid`() {
+        assertNull(dir(""))
+        assertNull(dir("   "))
+    }
+
+    @Test
+    fun `directory accepts a bare name and nested paths`() {
+        assertNull(dir("notes"))
+        assertNull(dir("notes/roam"))
+        assertNull(dir("  clients/2025  "))
+    }
+
+    @Test
+    fun `directory rejects a leading or trailing slash`() {
+        assertEquals("Not a valid path", dir("/notes"))
+        assertEquals("Not a valid path", dir("notes/"))
+    }
+
+    @Test
+    fun `directory rejects malformed paths and reserved chars`() {
+        assertNotNull(dir("sub//inbox"))
+        assertNotNull(dir("sub/../inbox"))
+        assertNotNull(dir("./inbox"))
+        assertNotNull(dir(".."))
+        assertNotNull(dir("in:box"))
+        assertNotNull(dir("sub\\inbox"))
+    }
 }

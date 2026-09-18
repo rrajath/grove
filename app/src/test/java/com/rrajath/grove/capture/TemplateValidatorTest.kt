@@ -48,4 +48,49 @@ class TemplateValidatorTest {
         val issues = TemplateValidator.validate(template("inbox", "%foo"))
         assertEquals(2, issues.count)
     }
+
+    private fun roamTemplate(
+        directory: String = "",
+        pattern: String = "%<%Y%m%d%H%M%S>-%(slug)",
+        newFileTemplate: String = "#+title: %?",
+    ) = CaptureTemplate(
+        id = "t1",
+        name = "Test",
+        targetFile = "unused.org",
+        location = TargetLocation.BottomOfFile,
+        template = "unused",
+        kind = TemplateKind.ROAM_NODE,
+        roamDirectory = directory,
+        filenamePattern = pattern,
+        newFileTemplate = newFileTemplate,
+    )
+
+    @Test
+    fun `valid roam template has no issues and ignores targetFile`() {
+        val issues = TemplateValidator.validate(roamTemplate())
+        assertFalse(issues.hasErrors)
+        assertEquals(0, issues.count)
+    }
+
+    @Test
+    fun `roam template with a bad directory reports directoryError only`() {
+        val issues = TemplateValidator.validate(roamTemplate(directory = "/bad"))
+        assertEquals(1, issues.count)
+        assertTrue(issues.directoryError != null)
+        assertEquals(null, issues.filenamePatternError)
+    }
+
+    @Test
+    fun `roam template with a bad pattern reports filenamePatternError only`() {
+        val issues = TemplateValidator.validate(roamTemplate(pattern = ""))
+        assertEquals(1, issues.count)
+        assertTrue(issues.filenamePatternError != null)
+        assertEquals(null, issues.directoryError)
+    }
+
+    @Test
+    fun `roam template invalid placeholders come from newFileTemplate not template`() {
+        val issues = TemplateValidator.validate(roamTemplate(newFileTemplate = "%foo"))
+        assertEquals(listOf("%foo"), issues.invalidPlaceholders)
+    }
 }

@@ -52,6 +52,10 @@ sealed class TargetLocation {
 fun templateSlug(name: String): String =
     name.trim().lowercase().replace(Regex("[^a-z0-9]+"), "-").trim('-')
 
+/** What a capture template produces: an insert into an existing file, or a Roam node. */
+@Serializable
+enum class TemplateKind { PLAIN, ROAM_NODE }
+
 @Serializable
 data class CaptureTemplate(
     val id: String,
@@ -64,6 +68,13 @@ data class CaptureTemplate(
     val targetFile: String,
     val location: TargetLocation,
     val template: String,
+    val kind: TemplateKind = TemplateKind.PLAIN,
+    /** Vault-relative directory for a Roam node's computed filename; "" = vault root. */
+    val roamDirectory: String = "",
+    /** Stem-only pattern (no `.org`) for a Roam node's computed filename. */
+    val filenamePattern: String = "%<%Y%m%d%H%M%S>-%(slug)",
+    /** Expanded verbatim as a new file's contents on the first capture to a resolved filename. */
+    val newFileTemplate: String = ":PROPERTIES:\n:ID:       %(id)\n:END:\n#+title: %?",
 )
 
 object TemplateSerializer {
