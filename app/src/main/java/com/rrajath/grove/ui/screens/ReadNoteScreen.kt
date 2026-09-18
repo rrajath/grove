@@ -170,6 +170,8 @@ fun ReadNoteScreen(
     onOpenBlock: (fileName: String, line: Int) -> Unit = { _, _ -> },
     /** Settings toggle: show collapsible sections for `:PROPERTIES:`/`:LOGBOOK:` drawers. */
     showPropertyDrawers: Boolean = true,
+    /** Settings § Roam Features (experimental): show the Linked References bar (backlinks). */
+    showBacklinks: Boolean = false,
     /** Settings § Notes: font-size lever for the rendered note. App chrome is unaffected. */
     readModeFontSize: FontSizePreference = FontSizePreference.MEDIUM,
     /** Favorited headlines in this file, matched per-heading by customId, marked with a ★. */
@@ -333,7 +335,7 @@ fun ReadNoteScreen(
             )
         },
         bottomBar = {
-            if (state is DocumentUiState.Loaded) {
+            if (showBacklinks && state is DocumentUiState.Loaded) {
                 LinkedReferencesBar(
                     linkedCount = linkedReferences.linkedCount,
                     unlinkedCount = linkedReferences.unlinkedCount,

@@ -209,6 +209,16 @@ data class GroveSettings(
     val expandedFolders: Set<String> = emptySet(),
     /** True once the first-open folder-expansion heuristic has run for this vault. */
     val notebooksTreeDefaultsApplied: Boolean = false,
+    /**
+     * Settings § Roam Features (experimental, off by default): master switch for
+     * [roamShowBacklinks] / [roamShowSuggestions]. Both sub-toggles are inert
+     * while this is off, regardless of their own stored value.
+     */
+    val roamFeaturesEnabled: Boolean = false,
+    /** Roam Features sub-toggle: show the Linked References bar (backlinks) in Outline/Read/Edit. */
+    val roamShowBacklinks: Boolean = false,
+    /** Roam Features sub-toggle: show file/heading link suggestions while typing in Edit mode. */
+    val roamShowSuggestions: Boolean = false,
 ) {
     /** Pinned notebook file names in pin order — derived view of [pinnedItems]. */
     val pinnedNotebooks: List<String>
@@ -315,6 +325,9 @@ class SettingsRepository(
         val agendaWidgetFontSize = stringPreferencesKey("agenda_widget_font_size")
         val expandedFolders = stringPreferencesKey("expanded_folders")
         val notebooksTreeDefaultsApplied = booleanPreferencesKey("notebooks_tree_defaults_applied")
+        val roamFeaturesEnabled = booleanPreferencesKey("roam_features_enabled")
+        val roamShowBacklinks = booleanPreferencesKey("roam_show_backlinks")
+        val roamShowSuggestions = booleanPreferencesKey("roam_show_suggestions")
     }
 
     /**
@@ -395,6 +408,9 @@ class SettingsRepository(
             agendaWidgetFontSize = FontSizePreference.fromStorage(prefs[Keys.agendaWidgetFontSize]),
             expandedFolders = decodeFolderSet(prefs[Keys.expandedFolders]),
             notebooksTreeDefaultsApplied = prefs[Keys.notebooksTreeDefaultsApplied] ?: false,
+            roamFeaturesEnabled = prefs[Keys.roamFeaturesEnabled] ?: false,
+            roamShowBacklinks = prefs[Keys.roamShowBacklinks] ?: false,
+            roamShowSuggestions = prefs[Keys.roamShowSuggestions] ?: false,
         )
     }.shareIn(scope, SharingStarted.Eagerly, replay = 1)
 
@@ -519,6 +535,9 @@ class SettingsRepository(
             if (s.lastRefileFile == null) p.remove(Keys.lastRefileFile)
             else p[Keys.lastRefileFile] = s.lastRefileFile
             p[Keys.lastRefileHeadingPath] = s.lastRefileHeadingPath
+            p[Keys.roamFeaturesEnabled] = s.roamFeaturesEnabled
+            p[Keys.roamShowBacklinks] = s.roamShowBacklinks
+            p[Keys.roamShowSuggestions] = s.roamShowSuggestions
         }
     }
 
@@ -784,6 +803,18 @@ class SettingsRepository(
             prefs[Keys.lastRefileFile] = fileName
             prefs[Keys.lastRefileHeadingPath] = headingPath.joinToString("/")
         }
+    }
+
+    suspend fun setRoamFeaturesEnabled(enabled: Boolean) {
+        context.settingsDataStore.edit { it[Keys.roamFeaturesEnabled] = enabled }
+    }
+
+    suspend fun setRoamShowBacklinks(enabled: Boolean) {
+        context.settingsDataStore.edit { it[Keys.roamShowBacklinks] = enabled }
+    }
+
+    suspend fun setRoamShowSuggestions(enabled: Boolean) {
+        context.settingsDataStore.edit { it[Keys.roamShowSuggestions] = enabled }
     }
 
     suspend fun setAutoArchiveDoneItems(enabled: Boolean) {

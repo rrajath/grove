@@ -108,6 +108,9 @@ data class SettingsExport(
     val autoArchiveHeadingPath: String = "",
     val lastRefileFile: String? = null,
     val lastRefileHeadingPath: String = "",
+    val roamFeaturesEnabled: Boolean = false,
+    val roamShowBacklinks: Boolean = false,
+    val roamShowSuggestions: Boolean = false,
 ) {
     /** Map back onto [base], using the enums' tolerant `fromStorage` fallbacks. */
     fun applyTo(base: GroveSettings): GroveSettings = base.copy(
@@ -172,6 +175,9 @@ data class SettingsExport(
         autoArchiveHeadingPath = autoArchiveHeadingPath,
         lastRefileFile = lastRefileFile,
         lastRefileHeadingPath = lastRefileHeadingPath,
+        roamFeaturesEnabled = roamFeaturesEnabled,
+        roamShowBacklinks = roamShowBacklinks,
+        roamShowSuggestions = roamShowSuggestions,
     )
 
     companion object {
@@ -184,7 +190,10 @@ data class SettingsExport(
         // (mirroring today's widget behavior).
         // v5: added agendaShowTimestamps. Additive — older exports omit it and
         // import at its default (off), matching today's behavior.
-        const val CURRENT_VERSION = 5
+        // v6: added the Roam Features toggles (roamFeaturesEnabled/roamShowBacklinks/
+        // roamShowSuggestions). Additive — older exports omit them and import at
+        // their default (off, experimental features stay opt-in).
+        const val CURRENT_VERSION = 6
 
         fun fromSettings(s: GroveSettings): SettingsExport = SettingsExport(
             theme = s.theme.storageKey,
@@ -244,6 +253,9 @@ data class SettingsExport(
             autoArchiveHeadingPath = s.autoArchiveHeadingPath,
             lastRefileFile = s.lastRefileFile,
             lastRefileHeadingPath = s.lastRefileHeadingPath,
+            roamFeaturesEnabled = s.roamFeaturesEnabled,
+            roamShowBacklinks = s.roamShowBacklinks,
+            roamShowSuggestions = s.roamShowSuggestions,
         )
     }
 }

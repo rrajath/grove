@@ -110,6 +110,10 @@ fun EditNoteScreen(
     editModeFontSize: FontSizePreference = FontSizePreference.MEDIUM,
     /** Settings § Notes: caret placement for a freshly created note (only used when [isNewNote]). */
     newNoteCursor: NewNoteCursor = NewNoteCursor.BODY,
+    /** Settings § Roam Features (experimental): show the Linked References bar (backlinks). */
+    showBacklinks: Boolean = false,
+    /** Settings § Roam Features (experimental): show file/heading link suggestions while typing. */
+    showSuggestions: Boolean = false,
     viewModel: EditorViewModel = viewModel(factory = EditorViewModel.Factory),
     /**
      * Drives the refile / link-picker sheets (a disk-level move against a loaded
@@ -402,7 +406,11 @@ fun EditNoteScreen(
     }
     // Drives the inline auto-link suggestion strip: recomputed on every text or
     // cursor change so it tracks whatever word is being typed right now.
-    LaunchedEffect(Unit) {
+    LaunchedEffect(showSuggestions) {
+        if (!showSuggestions) {
+            autoLinkTrigger = null
+            return@LaunchedEffect
+        }
         snapshotFlow { textState.text.toString() to textState.selection }.collect { (text, selection) ->
             autoLinkTrigger = wordAtCursor(text, selection)?.takeIf { it.text.length >= 3 }
         }
@@ -578,11 +586,13 @@ fun EditNoteScreen(
                     modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 16.dp),
                 )
             }
-            LinkedReferencesBar(
-                linkedCount = linkedReferences.linkedCount,
-                unlinkedCount = linkedReferences.unlinkedCount,
-                onClick = { linkedRefsOpen = true },
-            )
+            if (showBacklinks) {
+                LinkedReferencesBar(
+                    linkedCount = linkedReferences.linkedCount,
+                    unlinkedCount = linkedReferences.unlinkedCount,
+                    onClick = { linkedRefsOpen = true },
+                )
+            }
             EditorToolbar(
                 onWrap = { marker -> textState.applyEdit { wrapSelection(it, marker) } },
                 onInsert = { snippet -> textState.applyEdit { insertAtCursor(it, snippet) } },

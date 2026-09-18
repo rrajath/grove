@@ -285,6 +285,15 @@ class AppViewModel(
     fun setAutoArchiveDoneItems(enabled: Boolean) =
         viewModelScope.launch { settingsRepository.setAutoArchiveDoneItems(enabled) }
 
+    fun setRoamFeaturesEnabled(enabled: Boolean) =
+        viewModelScope.launch { settingsRepository.setRoamFeaturesEnabled(enabled) }
+
+    fun setRoamShowBacklinks(enabled: Boolean) =
+        viewModelScope.launch { settingsRepository.setRoamShowBacklinks(enabled) }
+
+    fun setRoamShowSuggestions(enabled: Boolean) =
+        viewModelScope.launch { settingsRepository.setRoamShowSuggestions(enabled) }
+
     // --- archive location picker (Settings § Notes): same drill-down flow as RefileSheet,
     // just picking a default destination instead of moving an actual note. ---
 

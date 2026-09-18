@@ -74,6 +74,7 @@ import com.rrajath.grove.ui.screens.settings.SettingsDeveloperScreen
 import com.rrajath.grove.ui.screens.settings.SettingsNotebooksScreen
 import com.rrajath.grove.ui.screens.settings.SettingsNotesScreen
 import com.rrajath.grove.ui.screens.settings.SettingsRemindersScreen
+import com.rrajath.grove.ui.screens.settings.SettingsRoamScreen
 import com.rrajath.grove.ui.screens.settings.SettingsSharingScreen
 import com.rrajath.grove.ui.screens.settings.SettingsSyncScreen
 import com.rrajath.grove.ui.screens.settings.SettingsTipsScreen
@@ -438,6 +439,7 @@ private fun GroveNavigation(
                     onToggleDisplay = viewModel::setOutlineToggle,
                     showPreface = settings.showPreface,
                     showPropertyDrawers = settings.showPropertyDrawers,
+                    showBacklinks = settings.roamFeaturesEnabled && settings.roamShowBacklinks,
                     onOpenPreface = { fileName -> navController.navigate(Routes.preface(fileName)) },
                     onOpenFileProperties = { fileName ->
                         navController.navigate(Routes.drawer(fileName, "fileProps"))
@@ -613,6 +615,8 @@ private fun GroveNavigation(
                             initialCursorLine = editTargetLine,
                             editModeFontSize = settings.editModeFontSize,
                             newNoteCursor = settings.newNoteCursor,
+                            showBacklinks = settings.roamFeaturesEnabled && settings.roamShowBacklinks,
+                            showSuggestions = settings.roamFeaturesEnabled && settings.roamShowSuggestions,
                             onBack = leaveNote,
                             onSwitchToRead = { editTargetLine = null; mode = "read" },
                             onOpenNote = { target -> navController.navigate(Routes.note(target.encode())) },
@@ -657,6 +661,7 @@ private fun GroveNavigation(
                                 navController.navigate(Routes.block(fileName, line))
                             },
                             showPropertyDrawers = settings.showPropertyDrawers,
+                            showBacklinks = settings.roamFeaturesEnabled && settings.roamShowBacklinks,
                             readModeFontSize = settings.readModeFontSize,
                             favorites = remember(favorites, ref.fileName) { favoritesFor(favorites, ref.fileName) },
                             // The intro just got a blank heading (a metadata action
@@ -797,6 +802,7 @@ private fun GroveNavigation(
                     onOpenWidget = { navController.navigate(Routes.SETTINGS_WIDGET) },
                     onOpenReminders = { navController.navigate(Routes.SETTINGS_REMINDERS) },
                     onOpenSharing = { navController.navigate(Routes.SETTINGS_SHARING) },
+                    onOpenRoam = { navController.navigate(Routes.SETTINGS_ROAM) },
                     onOpenBackup = { navController.navigate(Routes.SETTINGS_BACKUP) },
                     onOpenBugReport = { navController.navigate(Routes.SETTINGS_BUG_REPORT) },
                     onOpenTips = { navController.navigate(Routes.SETTINGS_TIPS) },
@@ -918,6 +924,15 @@ private fun GroveNavigation(
                     settings = settings,
                     onBack = { navController.popBackStack() },
                     onSetShareTargetFile = viewModel::setShareTargetFile,
+                )
+            }
+            composable(Routes.SETTINGS_ROAM) {
+                SettingsRoamScreen(
+                    settings = settings,
+                    onBack = { navController.popBackStack() },
+                    onSetRoamFeaturesEnabled = viewModel::setRoamFeaturesEnabled,
+                    onSetRoamShowBacklinks = viewModel::setRoamShowBacklinks,
+                    onSetRoamShowSuggestions = viewModel::setRoamShowSuggestions,
                 )
             }
             composable(Routes.SETTINGS_BACKUP) {

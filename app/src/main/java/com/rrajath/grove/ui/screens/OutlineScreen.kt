@@ -152,6 +152,8 @@ fun OutlineScreen(
      * PREFACE box.
      */
     showPropertyDrawers: Boolean = true,
+    /** Settings § Roam Features (experimental): show the Linked References bar (backlinks). */
+    showBacklinks: Boolean = false,
     /** Double-tapping the PREFACE section: opens an editor scoped to just the `#+KEY:`
      *  (everything before the first heading), mirroring double-tap-to-edit elsewhere. */
     onOpenPreface: (fileName: String) -> Unit = {},
@@ -384,7 +386,7 @@ fun OutlineScreen(
             }
         },
         bottomBar = {
-            if (state is DocumentUiState.Loaded && focusedLine == null) {
+            if (showBacklinks && state is DocumentUiState.Loaded && focusedLine == null) {
                 LinkedReferencesBar(
                     linkedCount = linkedReferences.linkedCount,
                     unlinkedCount = linkedReferences.unlinkedCount,

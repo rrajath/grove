@@ -36,6 +36,8 @@ object Routes {
     const val SETTINGS_WIDGET = "settings/widget"
     const val SETTINGS_REMINDERS = "settings/reminders"
     const val SETTINGS_SHARING = "settings/sharing"
+    /** Experimental Roam-style features: backlinks bar, auto-link suggestions while typing. */
+    const val SETTINGS_ROAM = "settings/roam"
     const val SETTINGS_BACKUP = "settings/backup"
     const val SETTINGS_BUG_REPORT = "settings/bug"
     const val SETTINGS_TIPS = "settings/tips"

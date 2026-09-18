@@ -61,6 +61,7 @@ re-uploads the APKs to the existing release instead of failing.
 
 ### Added
 - Added a Linked References bar and sheet to Read and Edit mode, showing ID-linked backlinks and unlinked title mentions.
+- Added an experimental Settings § Roam Features page: toggles for backlinks and typing suggestions.
 
 ### Changed
 - The link picker now supports live search, opens full height, and links leaf headings on tap.
