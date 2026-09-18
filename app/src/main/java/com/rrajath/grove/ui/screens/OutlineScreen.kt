@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.CheckBox
 import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
 import androidx.compose.material.icons.filled.Circle
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.automirrored.filled.FormatIndentDecrease
 import androidx.compose.material.icons.automirrored.filled.FormatIndentIncrease
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -41,6 +42,7 @@ import androidx.compose.material.icons.filled.UnfoldLess
 import androidx.compose.material.icons.filled.UnfoldMore
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -100,6 +102,9 @@ import com.rrajath.grove.data.matches
 import com.rrajath.grove.ui.components.favoriteIcon
 import com.rrajath.grove.ui.components.favoriteIconFilled
 import com.rrajath.grove.ui.components.searchIcon
+import com.rrajath.grove.ui.newbadge.NewAnchors
+import com.rrajath.grove.ui.newbadge.NewDot
+import com.rrajath.grove.ui.newbadge.NewDotBadge
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
@@ -110,7 +115,9 @@ import com.rrajath.grove.ui.util.pluralCount
 import com.rrajath.grove.ui.vault.DocumentUiState
 import com.rrajath.grove.ui.vault.DocumentViewModel
 import com.rrajath.grove.ui.vault.NoteRef
+import com.rrajath.grove.ui.vault.WHOLE_FILE_LINE_LIMIT
 import com.rrajath.grove.ui.vault.breadcrumbFileLabel
+import com.rrajath.grove.ui.vault.fitsWholeFileView
 import com.rrajath.grove.ui.vault.headlineAtLine
 
 data class OutlineDisplayFlags(
@@ -160,6 +167,21 @@ fun OutlineScreen(
     /** Double-tapping the file-level `:PROPERTIES:` section: opens an editor scoped to just
      *  that drawer. */
     onOpenFileProperties: (fileName: String) -> Unit = {},
+    /** Overflow menu's "View file": open the whole file as one note (`Routes.FILE`). */
+    onViewFile: (fileName: String) -> Unit = {},
+    /**
+     * Largest file, in lines, that "View file" and the auto-open below will open
+     * whole; above it the menu item is disabled with a hint to drill into a heading.
+     */
+    wholeFileLineLimit: Int = WHOLE_FILE_LINE_LIMIT,
+    /**
+     * Settings § Roam Features "Open small files as one note", already combined
+     * with the route's `auto` flag by the caller: when the loaded file fits under
+     * [wholeFileLineLimit] this outline never renders and [onAutoOpenWholeFile]
+     * fires once instead. Off while narrowed.
+     */
+    autoOpenWholeFile: Boolean = false,
+    onAutoOpenWholeFile: (fileName: String) -> Unit = {},
     viewModel: DocumentViewModel = viewModel(factory = DocumentViewModel.Factory),
 ) {
     val c = MaterialTheme.grove
@@ -171,6 +193,29 @@ fun OutlineScreen(
     LaunchedEffect(notebookId) { viewModel.load(notebookId) }
 
     val loadedDoc = (state as? DocumentUiState.Loaded)?.document
+
+    // Roam auto-open: a file under the line limit skips this outline and lands on
+    // the whole-file view instead. Nothing renders here while that is still
+    // undecided (loading) or decided (redirecting), so the outline never flashes;
+    // an over-limit file falls through and renders as usual once loaded.
+    val autoOpenPending = autoOpenWholeFile && narrowLineIndex == null
+    val redirectToWholeFile = autoOpenPending && loadedDoc != null &&
+        fitsWholeFileView(loadedDoc.lines.size, wholeFileLineLimit)
+    if (redirectToWholeFile || (autoOpenPending && state is DocumentUiState.Loading)) {
+        if (redirectToWholeFile) {
+            // Once per back-stack entry: the host replaces this entry with the file
+            // view, so a later emission of the same document must not fire again.
+            var fired by rememberSaveable(notebookId) { mutableStateOf(false) }
+            LaunchedEffect(notebookId) {
+                if (!fired) {
+                    fired = true
+                    onAutoOpenWholeFile(notebookId)
+                }
+            }
+        }
+        Box(Modifier.fillMaxSize().background(c.bg))
+        return
+    }
 
     // Whole-file linked references, independent of any narrow -- narrowing to a
     // subtree doesn't change which file's backlinks/mentions are being shown.
@@ -351,12 +396,52 @@ fun OutlineScreen(
                         }
                         var displayMenuOpen by remember { mutableStateOf(false) }
                         Box {
-                            IconGlyph("⋮", onClick = { displayMenuOpen = true })
+                            NewDotBadge(NewAnchors.OUTLINE_MENU) {
+                                IconGlyph("⋮", onClick = { displayMenuOpen = true })
+                            }
                             androidx.compose.material3.DropdownMenu(
                                 expanded = displayMenuOpen,
                                 onDismissRequest = { displayMenuOpen = false },
                                 containerColor = c.surface,
                             ) {
+                                // "View file": the whole file as one note. Disabled
+                                // (with the reason) once the file is over the line
+                                // limit, since the whole-file editor is a single text
+                                // field that would freeze on a huge buffer.
+                                val lineCount = (state as? DocumentUiState.Loaded)?.document?.lines?.size
+                                val fitsWhole = lineCount != null && fitsWholeFileView(lineCount, wholeFileLineLimit)
+                                androidx.compose.material3.DropdownMenuItem(
+                                    text = {
+                                        Column {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Text(
+                                                    "View file",
+                                                    fontFamily = PlexSans, fontSize = 14.sp,
+                                                    color = if (fitsWhole) c.ink else c.ink3,
+                                                )
+                                                if (fitsWhole) NewDot(NewAnchors.OUTLINE_VIEW_FILE, Modifier.padding(start = 6.dp))
+                                            }
+                                            if (!fitsWhole && lineCount != null) {
+                                                Text(
+                                                    "Too large to open whole (${pluralCount(lineCount, "line")}). " +
+                                                        "Open a heading instead.",
+                                                    fontFamily = PlexSans, fontSize = 11.5.sp, color = c.ink3,
+                                                )
+                                            }
+                                        }
+                                    },
+                                    leadingIcon = {
+                                        Icon(
+                                            Icons.Default.Description,
+                                            contentDescription = null,
+                                            tint = if (fitsWhole) c.accent else c.ink3,
+                                        )
+                                    },
+                                    enabled = fitsWhole,
+                                    onClick = { displayMenuOpen = false; onViewFile(notebookId) },
+                                    modifier = Modifier.testTag("outline_view_file"),
+                                )
+                                HorizontalDivider(color = c.line)
                                 @Composable
                                 fun toggleItem(label: String, value: Boolean, toggle: OutlineToggle) {
                                     androidx.compose.material3.DropdownMenuItem(

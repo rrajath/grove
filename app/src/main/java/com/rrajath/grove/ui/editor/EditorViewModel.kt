@@ -43,8 +43,12 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.time.LocalDateTime
 
-/** Which scoped region of a file an [EditorViewModel] session is editing, if not a headline subtree. */
-enum class EditRegion { INTRO, PREFACE, FILE_PROPERTIES, HEADING_PROPERTIES, HEADING_LOGBOOK, BLOCK }
+/**
+ * Which scoped region of a file an [EditorViewModel] session is editing, if not a
+ * headline subtree. [WHOLE_FILE] is the degenerate region covering every line: the
+ * buffer is the file, written back verbatim (the whole-file editor behind `Routes.FILE`).
+ */
+enum class EditRegion { INTRO, PREFACE, FILE_PROPERTIES, HEADING_PROPERTIES, HEADING_LOGBOOK, BLOCK, WHOLE_FILE }
 
 data class EditorUiState(
     val loading: Boolean = true,
@@ -310,6 +314,9 @@ class EditorViewModel(
                     }
                     OrgMutations.regionText(doc, r) to r
                 }
+                // The whole buffer, exactly as on disk; the range is informational
+                // only (writeBuffer replaces the file rather than splicing a range).
+                EditRegion.WHOLE_FILE -> doc.text to doc.lines.indices
             }
             _state.value = EditorUiState(
                 loading = false,
@@ -573,6 +580,8 @@ class EditorViewModel(
                     val range = s.regionRange?.first?.let { OrgMutations.blockRange(doc, it) } ?: s.regionRange
                     if (range != null) OrgMutations.replaceLines(doc, range, savedBuffer) else appendFallback
                 }
+                // The buffer *is* the file: no range to re-resolve, nothing to splice.
+                EditRegion.WHOLE_FILE -> savedBuffer
                 null -> {
                     val headline = doc.headlines.firstOrNull { it.lineIndex == s.lineIndex }
                     if (headline != null) OrgMutations.replaceSubtree(doc, headline, savedBuffer) else appendFallback

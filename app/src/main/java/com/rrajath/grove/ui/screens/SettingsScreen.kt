@@ -104,7 +104,10 @@ fun SettingsScreen(
             "Roam Features",
             "Backlinks and link suggestions while typing",
             onClick = onOpenRoam,
-            badge = { Pill(text = "Experimental", fg = c.amber, bg = c.amberSoft) },
+            badge = {
+                Pill(text = "Experimental", fg = c.amber, bg = c.amberSoft)
+                NewDot(NewAnchors.SETTINGS_ROAM, Modifier.padding(start = 6.dp))
+            },
         ),
         SettingsPage("Backup", "Export/import your preferences", onOpenBackup),
     )

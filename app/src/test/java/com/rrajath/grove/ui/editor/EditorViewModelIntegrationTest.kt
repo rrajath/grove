@@ -214,6 +214,36 @@ class EditorViewModelIntegrationTest {
     }
 
     @Test
+    fun `loadRegion WHOLE_FILE loads the entire file and save writes it back verbatim`() = runTest {
+        store.write("regions.org", regionsFile)
+        val vm = editor()
+
+        vm.loadRegion("regions.org", noteId = null, region = EditRegion.WHOLE_FILE)
+        advanceUntilIdle()
+
+        val loaded = vm.state.value
+        assertFalse(loaded.loading)
+        assertEquals(EditRegion.WHOLE_FILE, loaded.region)
+        assertEquals(regionsFile, loaded.buffer)
+
+        // An edit that touches every region at once: the drawer, the intro and a
+        // heading. No splice is involved, so the file must equal the buffer exactly.
+        val edited = regionsFile
+            .replace(":ID: regions-file-id", ":ID: renamed-id")
+            .replace("Intro prose that lives before any heading.", "Rewritten intro.")
+            .replace("* TODO A task with a logbook", "* DONE A task with a logbook")
+        vm.onBufferChange(edited)
+        assertTrue(vm.state.value.dirty)
+
+        vm.save()
+        advanceUntilIdle()
+
+        assertFalse(vm.state.value.dirty)
+        assertEquals(edited, store.read("regions.org"))
+        assertEquals(1, sync.reindexCalls.size)
+    }
+
+    @Test
     fun `changeKeyword to a done state writes DONE to the file and requests a sync`() = runTest {
         val line = headlineLine("projects.org", "Ship v2")
         val vm = editor()

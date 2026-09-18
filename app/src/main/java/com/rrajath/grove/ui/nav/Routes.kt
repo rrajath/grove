@@ -9,8 +9,21 @@ import java.net.URLEncoder
 object Routes {
     const val ONBOARDING = "onboarding"
     const val NOTEBOOKS = "notebooks"
-    const val OUTLINE = "outline/{notebookId}?narrowTo={narrowTo}"
+    /**
+     * [auto] is `true` when the outline was reached by opening the notebook itself
+     * (Notebooks list, a `[[file:]]` link, a search file match): with the Roam
+     * "open small files as one note" toggle on, a file under the line limit then
+     * skips the outline and lands on [FILE] instead. Breadcrumbs and the file
+     * view's own filename tap ask for the outline explicitly and leave it off.
+     */
+    const val OUTLINE = "outline/{notebookId}?narrowTo={narrowTo}&auto={auto}"
     const val NOTE = "note/{noteId}?mode={mode}&isNew={isNew}"
+    /**
+     * The whole `.org` file as one note: preface, intro and every heading in one
+     * Read scroll, or the entire buffer in one editor. Gated on the file's line
+     * count (`WHOLE_FILE_LINE_LIMIT`) so a huge file can't freeze the editor.
+     */
+    const val FILE = "file/{fileName}?mode={mode}"
     /** A file's preamble (everything before its first heading), opened by double-tapping
      *  Outline's PREFACE section; scoped to just that region, unlike NOTE. */
     const val PREFACE = "preface/{fileName}"
@@ -77,11 +90,17 @@ object Routes {
      * Read Mode breadcrumb, so the Outline shows only that heading's subtree
      * (org-narrow-to-subtree semantics) until the user taps "widen".
      */
-    fun outline(notebookId: String, narrowTo: Int? = null) =
-        "outline/${encode(notebookId)}" + (narrowTo?.let { "?narrowTo=$it" } ?: "")
+    fun outline(notebookId: String, narrowTo: Int? = null, autoOpen: Boolean = false): String {
+        val params = listOfNotNull(
+            narrowTo?.let { "narrowTo=$it" },
+            "auto=true".takeIf { autoOpen },
+        )
+        return "outline/${encode(notebookId)}" + if (params.isEmpty()) "" else "?" + params.joinToString("&")
+    }
 
     fun note(noteId: String, mode: String = "read", isNew: Boolean = false) =
         "note/${encode(noteId)}?mode=$mode&isNew=$isNew"
+    fun file(fileName: String, mode: String = "read") = "file/${encode(fileName)}?mode=$mode"
     fun preface(fileName: String) = "preface/${encode(fileName)}"
     fun drawer(fileName: String, kind: String, noteId: String? = null) =
         "drawer/${encode(fileName)}?kind=$kind" + (noteId?.let { "&noteId=${encode(it)}" } ?: "")

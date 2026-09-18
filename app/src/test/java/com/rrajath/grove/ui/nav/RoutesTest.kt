@@ -168,6 +168,23 @@ class RoutesTest {
     }
 
     @Test
+    fun `outline route carries auto only when opening the notebook itself`() {
+        assertEquals("outline/travel.org?auto=true", Routes.outline("travel.org", autoOpen = true))
+        assertEquals(
+            "outline/travel.org?narrowTo=42&auto=true",
+            Routes.outline("travel.org", narrowTo = 42, autoOpen = true),
+        )
+        assertFalse(Routes.outline("travel.org").contains("auto"))
+    }
+
+    @Test
+    fun `file route encodes the file name and defaults to read mode`() {
+        assertEquals("file/my%20notes.org?mode=read", Routes.file("my notes.org"))
+        assertEquals("file/a%2Fb.org?mode=edit", Routes.file("a/b.org", mode = "edit"))
+        assertEquals(Routes.FILE.substringBefore("{"), Routes.file("x").substringBefore("x"))
+    }
+
+    @Test
     fun `built routes match declared patterns`() {
         // outline/{notebookId}
         assertEquals(

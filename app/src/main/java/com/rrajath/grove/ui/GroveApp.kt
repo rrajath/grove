@@ -9,6 +9,7 @@ import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberUpdatedState
@@ -61,6 +62,7 @@ import com.rrajath.grove.ui.screens.NotebooksScreen
 import com.rrajath.grove.ui.screens.OnboardingScreen
 import com.rrajath.grove.ui.screens.OutlineDisplayFlags
 import com.rrajath.grove.ui.screens.OutlineScreen
+import com.rrajath.grove.ui.screens.ReadFileScreen
 import com.rrajath.grove.ui.screens.ReadNoteScreen
 import com.rrajath.grove.ui.screens.RefileSheet
 import com.rrajath.grove.ui.search.SearchScreen
@@ -83,6 +85,7 @@ import com.rrajath.grove.ui.screens.settings.SettingsWidgetScreen
 import com.rrajath.grove.ui.screens.SyncLogScreen
 import com.rrajath.grove.ui.vault.NoteRef
 import com.rrajath.grove.ui.vault.PendingEdit
+import com.rrajath.grove.ui.vault.wholeFileLineLimitOverride
 import com.rrajath.grove.ui.theme.ContentFontScale
 import com.rrajath.grove.ui.theme.GroveTheme
 import com.rrajath.grove.ui.theme.grove
@@ -296,7 +299,7 @@ private fun GroveNavigation(
                     matchOpenedFileToNotebook(name, known)
                 }
                 if (match != null) {
-                    navController.navigate(Routes.outline(match.fileName)) { launchSingleTop = true }
+                    navController.navigate(Routes.outline(match.fileName, autoOpen = true)) { launchSingleTop = true }
                 } else {
                     android.widget.Toast.makeText(
                         app,
@@ -397,17 +400,32 @@ private fun GroveNavigation(
                     onOpenDrawer = { scope.launch { drawerState.open() } },
                     onOpenSearch = { navController.navigate(Routes.search()) },
                     onOpenCapture = { navController.navigate(Routes.CAPTURE) },
-                    onOpenNotebook = { id -> navController.navigate(Routes.outline(id)) },
+                    // autoOpen: with Roam's "open small files as one note" on, a
+                    // file under the line limit lands on the whole-file view instead.
+                    onOpenNotebook = { id -> navController.navigate(Routes.outline(id, autoOpen = true)) },
                     onOpenConflict = { id -> navController.navigate(Routes.conflict(id)) },
                 )
             }
             composable(Routes.OUTLINE) { entry ->
                 val notebookId = entry.arguments?.getString("notebookId").orEmpty()
                 val narrowTo = entry.arguments?.getString("narrowTo")?.toIntOrNull()
+                val autoOpen = entry.arguments?.getString("auto") == "true"
+                val wholeFileLineLimit by wholeFileLineLimitOverride.collectAsState()
                 OutlineScreen(
                     notebookId = notebookId,
                     narrowLineIndex = narrowTo,
                     onBack = { navController.popBackStack() },
+                    onViewFile = { fileName -> navController.navigate(Routes.file(fileName)) },
+                    wholeFileLineLimit = wholeFileLineLimit,
+                    autoOpenWholeFile = autoOpen && settings.roamFeaturesEnabled && settings.roamOpenWholeFile,
+                    // Replace this outline entry, so Back from the file view returns
+                    // to wherever the notebook was opened from, not to an outline
+                    // the user never saw.
+                    onAutoOpenWholeFile = { fileName ->
+                        navController.navigate(Routes.file(fileName, settings.defaultNoteOpenMode.storageKey)) {
+                            popUpTo(Routes.OUTLINE) { inclusive = true }
+                        }
+                    },
                     onWiden = {
                         navController.navigate(Routes.outline(notebookId)) {
                             popUpTo(Routes.OUTLINE) { inclusive = true }
@@ -479,6 +497,48 @@ private fun GroveNavigation(
                     onBack = { navController.popBackStack() },
                     editModeFontSize = settings.editModeFontSize,
                 )
+            }
+            composable(Routes.FILE) { entry ->
+                val fileName = entry.arguments?.getString("fileName").orEmpty()
+                // Local, not a nav argument, for the same reason as NOTE: the
+                // Read/Edit toggle must not re-navigate.
+                var mode by rememberSaveable(fileName) {
+                    mutableStateOf(entry.arguments?.getString("mode") ?: "read")
+                }
+                if (mode == "edit") {
+                    // The whole buffer in one editor. Back returns to the file's
+                    // Read view (mirroring the intro editor), never straight out.
+                    EditRegionScreen(
+                        fileName = fileName,
+                        region = EditRegion.WHOLE_FILE,
+                        noteId = null,
+                        onBack = { mode = "read" },
+                        onSwitchToRead = { mode = "read" },
+                        editModeFontSize = settings.editModeFontSize,
+                    )
+                } else {
+                    ReadFileScreen(
+                        fileName = fileName,
+                        onBack = { navController.popBackStack() },
+                        onEdit = { mode = "edit" },
+                        onOpenNote = { target -> navController.navigate(Routes.note(target.encode())) },
+                        // Explicit outline (no autoOpen): the filename tap must land
+                        // on the outline even when this file would auto-open whole.
+                        onOpenOutline = { target -> navController.navigate(Routes.outline(target)) },
+                        onOpenDrawer = { kind, drawerRef ->
+                            navController.navigate(Routes.drawer(drawerRef.fileName, kind, drawerRef.encode()))
+                        },
+                        onOpenBlock = { target, line -> navController.navigate(Routes.block(target, line)) },
+                        onOpenPreface = { target -> navController.navigate(Routes.preface(target)) },
+                        onOpenFileProperties = { target ->
+                            navController.navigate(Routes.drawer(target, "fileProps"))
+                        },
+                        showPreface = settings.showPreface,
+                        showPropertyDrawers = settings.showPropertyDrawers,
+                        readModeFontSize = settings.readModeFontSize,
+                        favorites = remember(favorites, fileName) { favoritesFor(favorites, fileName) },
+                    )
+                }
             }
             composable(
                 Routes.NOTE,
@@ -647,7 +707,7 @@ private fun GroveNavigation(
                                 }
                             },
                             onOpenNote = { target -> navController.navigate(Routes.note(target.encode())) },
-                            onOpenOutline = { fileName -> navController.navigate(Routes.outline(fileName)) },
+                            onOpenOutline = { fileName -> navController.navigate(Routes.outline(fileName, autoOpen = true)) },
                             onEdit = { targetLine -> editTargetLine = targetLine; mode = "edit" },
                             // null (file breadcrumb) opens the full outline; a heading's
                             // line index narrows the outline to that heading's subtree.
@@ -772,7 +832,7 @@ private fun GroveNavigation(
                     initialNotebook = entry.arguments?.getString("notebook"),
                     onBack = { navController.popBackStack() },
                     onOpenNote = { ref -> navController.navigate(Routes.note(ref.encode())) },
-                    onOpenOutline = { fileName -> navController.navigate(Routes.outline(fileName)) },
+                    onOpenOutline = { fileName -> navController.navigate(Routes.outline(fileName, autoOpen = true)) },
                 )
             }
             composable(
@@ -933,6 +993,7 @@ private fun GroveNavigation(
                     onSetRoamFeaturesEnabled = viewModel::setRoamFeaturesEnabled,
                     onSetRoamShowBacklinks = viewModel::setRoamShowBacklinks,
                     onSetRoamShowSuggestions = viewModel::setRoamShowSuggestions,
+                    onSetRoamOpenWholeFile = viewModel::setRoamOpenWholeFile,
                 )
             }
             composable(Routes.SETTINGS_BACKUP) {

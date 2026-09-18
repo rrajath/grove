@@ -73,6 +73,18 @@ object NewAnchors {
     /** The ACTIVE tab in the tabbed planning-dates editor (bare active timestamps / events). */
     const val PLANNING_DATES_ACTIVE = "planningDates.active"
 
+    /** The Outline's `⋮` overflow menu glyph. */
+    const val OUTLINE_MENU = "outline.menu"
+
+    /** The Outline overflow menu's "View file" item; retired on reaching the whole-file view. */
+    const val OUTLINE_VIEW_FILE = "outline.viewFile"
+
+    /** The Settings hub row leading to the Roam Features page. */
+    const val SETTINGS_ROAM = "settings.roam"
+
+    /** The "Open small files as one note" toggle inside Settings § Roam Features. */
+    const val SETTINGS_ROAM_WHOLE_FILE = "settings.roam.wholeFile"
+
     /** A Tips & Tricks section, keyed by its [TipGroup] id. */
     fun tipsGroup(id: String) = "tips.group.$id"
 
@@ -257,5 +269,34 @@ val NEW_FEATURES: List<NewFeature> = listOf(
             NewAnchors.tipsItem("links", "link-picker"),
         ),
         destination = NewAnchors.tipsItem("links", "link-picker"),
+    ),
+    NewFeature(
+        // The Outline overflow menu gained "View file": the whole file (preface,
+        // intro, every heading) as one Read/Edit note, for files under the line limit.
+        // `since` is the versionCode of the release that ships it — bump it to
+        // match `gradle.properties` versionName when cutting the release.
+        id = "outline-view-file",
+        since = 10700,
+        anchors = setOf(
+            NewAnchors.OUTLINE_MENU,
+            NewAnchors.OUTLINE_VIEW_FILE,
+        ),
+        destination = NewAnchors.OUTLINE_VIEW_FILE,
+    ),
+    NewFeature(
+        // Settings § Roam Features gained "Open small files as one note": a file
+        // under the line limit skips the outline and opens whole from the
+        // Notebooks list, file links and search file matches.
+        // `since` is the versionCode of the release that ships it — bump it to
+        // match `gradle.properties` versionName when cutting the release.
+        id = "roam-open-whole-file",
+        since = 10700,
+        anchors = setOf(
+            NewAnchors.TOPBAR_MENU,
+            NewAnchors.DRAWER_SETTINGS,
+            NewAnchors.SETTINGS_ROAM,
+            NewAnchors.SETTINGS_ROAM_WHOLE_FILE,
+        ),
+        destination = NewAnchors.SETTINGS_ROAM_WHOLE_FILE,
     ),
 )

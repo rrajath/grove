@@ -67,6 +67,10 @@ class SettingsSerializationTest {
         autoArchiveHeadingPath = "Done/2026",
         lastRefileFile = "projects.org",
         lastRefileHeadingPath = "Active/Grove",
+        roamFeaturesEnabled = true,
+        roamShowBacklinks = false,
+        roamShowSuggestions = true,
+        roamOpenWholeFile = true,
         // Device-specific fields that must NOT travel with an export.
         vaultTreeUri = "content://com.android.externalstorage/tree/primary%3Aorg",
         onboardingDone = true,
@@ -130,6 +134,10 @@ class SettingsSerializationTest {
         assertEquals(sample.autoArchiveHeadingPath, restored.autoArchiveHeadingPath)
         assertEquals(sample.lastRefileFile, restored.lastRefileFile)
         assertEquals(sample.lastRefileHeadingPath, restored.lastRefileHeadingPath)
+        assertEquals(sample.roamFeaturesEnabled, restored.roamFeaturesEnabled)
+        assertEquals(sample.roamShowBacklinks, restored.roamShowBacklinks)
+        assertEquals(sample.roamShowSuggestions, restored.roamShowSuggestions)
+        assertEquals(sample.roamOpenWholeFile, restored.roamOpenWholeFile)
     }
 
     @Test

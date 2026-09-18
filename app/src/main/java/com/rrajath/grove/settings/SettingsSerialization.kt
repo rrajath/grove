@@ -111,6 +111,7 @@ data class SettingsExport(
     val roamFeaturesEnabled: Boolean = false,
     val roamShowBacklinks: Boolean = false,
     val roamShowSuggestions: Boolean = false,
+    val roamOpenWholeFile: Boolean = false,
 ) {
     /** Map back onto [base], using the enums' tolerant `fromStorage` fallbacks. */
     fun applyTo(base: GroveSettings): GroveSettings = base.copy(
@@ -178,6 +179,7 @@ data class SettingsExport(
         roamFeaturesEnabled = roamFeaturesEnabled,
         roamShowBacklinks = roamShowBacklinks,
         roamShowSuggestions = roamShowSuggestions,
+        roamOpenWholeFile = roamOpenWholeFile,
     )
 
     companion object {
@@ -193,7 +195,9 @@ data class SettingsExport(
         // v6: added the Roam Features toggles (roamFeaturesEnabled/roamShowBacklinks/
         // roamShowSuggestions). Additive — older exports omit them and import at
         // their default (off, experimental features stay opt-in).
-        const val CURRENT_VERSION = 6
+        // v7: added roamOpenWholeFile (Roam Features › open small files as one
+        // note). Additive — older exports omit it and import at its default (off).
+        const val CURRENT_VERSION = 7
 
         fun fromSettings(s: GroveSettings): SettingsExport = SettingsExport(
             theme = s.theme.storageKey,
@@ -256,6 +260,7 @@ data class SettingsExport(
             roamFeaturesEnabled = s.roamFeaturesEnabled,
             roamShowBacklinks = s.roamShowBacklinks,
             roamShowSuggestions = s.roamShowSuggestions,
+            roamOpenWholeFile = s.roamOpenWholeFile,
         )
     }
 }

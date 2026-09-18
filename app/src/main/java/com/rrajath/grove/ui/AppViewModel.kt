@@ -294,6 +294,9 @@ class AppViewModel(
     fun setRoamShowSuggestions(enabled: Boolean) =
         viewModelScope.launch { settingsRepository.setRoamShowSuggestions(enabled) }
 
+    fun setRoamOpenWholeFile(enabled: Boolean) =
+        viewModelScope.launch { settingsRepository.setRoamOpenWholeFile(enabled) }
+
     // --- archive location picker (Settings § Notes): same drill-down flow as RefileSheet,
     // just picking a default destination instead of moving an actual note. ---
 

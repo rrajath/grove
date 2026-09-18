@@ -62,6 +62,9 @@ re-uploads the APKs to the existing release instead of failing.
 ### Added
 - Added a Linked References bar and sheet to Read and Edit mode, showing ID-linked backlinks and unlinked title mentions.
 - Added an experimental Settings § Roam Features page: toggles for backlinks and typing suggestions.
+- Added "View file" to the Outline menu: read or edit the whole file as one note (files up to 1,000 lines).
+- Added Roam Features toggle "Open small files as one note": small notebooks skip the outline and open whole.
+- Added a Developer tools line-limit override for the whole-file view.
 
 ### Changed
 - The link picker now supports live search, opens full height, and links leaf headings on tap.

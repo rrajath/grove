@@ -219,6 +219,12 @@ data class GroveSettings(
     val roamShowBacklinks: Boolean = false,
     /** Roam Features sub-toggle: show file/heading link suggestions while typing in Edit mode. */
     val roamShowSuggestions: Boolean = false,
+    /**
+     * Roam Features sub-toggle: opening a notebook (Notebooks list, a `[[file:]]`
+     * link, a search file match) whose file is under the whole-file line limit
+     * skips the outline and opens the file as one note (`Routes.FILE`).
+     */
+    val roamOpenWholeFile: Boolean = false,
 ) {
     /** Pinned notebook file names in pin order — derived view of [pinnedItems]. */
     val pinnedNotebooks: List<String>
@@ -328,6 +334,7 @@ class SettingsRepository(
         val roamFeaturesEnabled = booleanPreferencesKey("roam_features_enabled")
         val roamShowBacklinks = booleanPreferencesKey("roam_show_backlinks")
         val roamShowSuggestions = booleanPreferencesKey("roam_show_suggestions")
+        val roamOpenWholeFile = booleanPreferencesKey("roam_open_whole_file")
     }
 
     /**
@@ -411,6 +418,7 @@ class SettingsRepository(
             roamFeaturesEnabled = prefs[Keys.roamFeaturesEnabled] ?: false,
             roamShowBacklinks = prefs[Keys.roamShowBacklinks] ?: false,
             roamShowSuggestions = prefs[Keys.roamShowSuggestions] ?: false,
+            roamOpenWholeFile = prefs[Keys.roamOpenWholeFile] ?: false,
         )
     }.shareIn(scope, SharingStarted.Eagerly, replay = 1)
 
@@ -538,6 +546,7 @@ class SettingsRepository(
             p[Keys.roamFeaturesEnabled] = s.roamFeaturesEnabled
             p[Keys.roamShowBacklinks] = s.roamShowBacklinks
             p[Keys.roamShowSuggestions] = s.roamShowSuggestions
+            p[Keys.roamOpenWholeFile] = s.roamOpenWholeFile
         }
     }
 
@@ -815,6 +824,10 @@ class SettingsRepository(
 
     suspend fun setRoamShowSuggestions(enabled: Boolean) {
         context.settingsDataStore.edit { it[Keys.roamShowSuggestions] = enabled }
+    }
+
+    suspend fun setRoamOpenWholeFile(enabled: Boolean) {
+        context.settingsDataStore.edit { it[Keys.roamOpenWholeFile] = enabled }
     }
 
     suspend fun setAutoArchiveDoneItems(enabled: Boolean) {

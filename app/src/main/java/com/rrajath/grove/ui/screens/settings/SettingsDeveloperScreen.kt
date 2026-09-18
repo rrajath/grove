@@ -24,7 +24,9 @@ import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
 import com.rrajath.grove.ui.vault.FOLDER_DRILL_THRESHOLD
+import com.rrajath.grove.ui.vault.WHOLE_FILE_LINE_LIMIT
 import com.rrajath.grove.ui.vault.folderDrillThresholdOverride
+import com.rrajath.grove.ui.vault.wholeFileLineLimitOverride
 
 /**
  * Debug-only tools, reached from Settings › Developer (that entry is gated on
@@ -79,6 +81,29 @@ fun SettingsDeveloperScreen(
         Spacer(Modifier.height(8.dp))
         Text(
             "Not saved. Resets to $FOLDER_DRILL_THRESHOLD when the app restarts.",
+            fontFamily = PlexSans, fontSize = 12.sp, color = c.ink2,
+            modifier = Modifier.padding(start = 4.dp),
+        )
+
+        Spacer(Modifier.height(22.dp))
+        SectionLabel("WHOLE FILE")
+        SettingsGroup {
+            val limit by wholeFileLineLimitOverride.collectAsState()
+            SettingsRow(
+                label = "Line limit",
+                description = "Files with more lines than this can't open as one note: the " +
+                    "Outline's \"View file\" is disabled and the Roam auto-open falls back " +
+                    "to the outline. Raise it to find where Read/Edit mode starts to lag",
+            ) {
+                DrillThresholdField(
+                    value = limit,
+                    onSet = { wholeFileLineLimitOverride.value = it },
+                )
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+        Text(
+            "Not saved. Resets to $WHOLE_FILE_LINE_LIMIT when the app restarts.",
             fontFamily = PlexSans, fontSize = 12.sp, color = c.ink2,
             modifier = Modifier.padding(start = 4.dp),
         )

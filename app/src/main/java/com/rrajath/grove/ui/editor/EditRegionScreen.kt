@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -43,6 +44,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -58,6 +60,7 @@ import com.rrajath.grove.org.LineEditing
 import com.rrajath.grove.settings.FontSizePreference
 import com.rrajath.grove.ui.components.GroveTopBar
 import com.rrajath.grove.ui.components.ScrollJumpButtons
+import com.rrajath.grove.ui.components.SegmentedControl
 import com.rrajath.grove.ui.screens.IconGlyph
 import com.rrajath.grove.ui.theme.ContentFontScale
 import com.rrajath.grove.ui.theme.PlexMono
@@ -105,6 +108,7 @@ private fun regionLabel(region: EditRegion): String = when (region) {
     EditRegion.FILE_PROPERTIES, EditRegion.HEADING_PROPERTIES -> "Properties"
     EditRegion.HEADING_LOGBOOK -> "Logbook"
     EditRegion.BLOCK -> "Block"
+    EditRegion.WHOLE_FILE -> "File"
 }
 
 /**
@@ -134,9 +138,9 @@ private fun blockLabelFromBuffer(buffer: String): String {
  * or per-heading `:PROPERTIES:` drawer, or a `:LOGBOOK:` drawer. Opened by double-tapping
  * the matching section (see [doubleTapToEdit] usage in `CollapsibleKvSection` /
  * `CollapsibleLogSection`). Deliberately a smaller sibling of [EditNoteScreen]: no
- * Read/Edit toggle, metadata sheet, or blank-heading validation, just the same
- * syntax-highlighted text field, dirty/save affordance, idle auto-save, and stale-file
- * handling.
+ * metadata sheet or blank-heading validation, just the same syntax-highlighted text
+ * field, dirty/save affordance, idle auto-save, and stale-file handling. The one
+ * region with a Read/Edit toggle is [EditRegion.WHOLE_FILE] (see [onSwitchToRead]).
  */
 
 @Composable
@@ -149,6 +153,13 @@ fun EditRegionScreen(
     blockLine: Int = -1,
     /** Settings § Notes: font-size lever for the editor field. App chrome is unaffected. */
     editModeFontSize: FontSizePreference = FontSizePreference.MEDIUM,
+    /**
+     * When set, the top bar carries the Read/Edit [SegmentedControl] (Edit selected)
+     * and picking Read calls this. A dirty buffer is saved first: the whole-file Read
+     * view renders the file from disk, so switching with unsaved text would show
+     * stale content (unlike note Read mode, which renders the editor's buffer).
+     */
+    onSwitchToRead: (() -> Unit)? = null,
     viewModel: EditorViewModel = viewModel(factory = EditorViewModel.Factory),
 ) {
     val c = MaterialTheme.grove
@@ -240,16 +251,44 @@ fun EditRegionScreen(
                     }
                 },
                 title = {
-                    Column(Modifier.padding(start = 4.dp)) {
-                        Text(
-                            label,
-                            fontFamily = PlexMono, fontWeight = FontWeight.SemiBold,
-                            fontSize = 17.sp, color = c.ink,
-                        )
+                    if (onSwitchToRead != null) {
+                        // Whole-file editor: the file name alone, matching the
+                        // whole-file Read view's header (no region label to show).
                         Text(
                             fileName,
-                            fontFamily = PlexSans, fontSize = 11.5.sp, color = c.ink2,
+                            fontFamily = PlexMono, fontSize = 15.sp, color = c.ink,
                             maxLines = 1, overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(start = 4.dp),
+                        )
+                    } else {
+                        Column(Modifier.padding(start = 4.dp)) {
+                            Text(
+                                label,
+                                fontFamily = PlexMono, fontWeight = FontWeight.SemiBold,
+                                fontSize = 17.sp, color = c.ink,
+                            )
+                            Text(
+                                fileName,
+                                fontFamily = PlexSans, fontSize = 11.5.sp, color = c.ink2,
+                                maxLines = 1, overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
+                },
+                actions = {
+                    if (onSwitchToRead != null) {
+                        SegmentedControl(
+                            options = listOf("Read", "Edit"),
+                            selectedIndex = 1,
+                            onSelect = { index ->
+                                if (index == 0) {
+                                    if (state.dirty) viewModel.save(onSaved = onSwitchToRead)
+                                    else onSwitchToRead()
+                                }
+                            },
+                            // 16dp + the top bar's 8dp = the 24dp read gutter, so the
+                            // toggle lines up with the Read view's (see ReadNoteScreen).
+                            modifier = Modifier.padding(end = 16.dp).width(140.dp).testTag("read_edit_toggle"),
                         )
                     }
                 },

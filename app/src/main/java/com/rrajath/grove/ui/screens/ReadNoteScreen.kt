@@ -47,6 +47,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.material3.DropdownMenu
@@ -896,132 +897,27 @@ private fun NoteContent(
             // Headings nested under a folded ancestor aren't in `visibleRows`
             // at all, so they never compose.
             items(visibleRows, key = { it.lineIndex }) { child ->
-                val body = remember(doc, child) { doc.bodyOf(child) }
-                val foldable = remember(doc, child) { doc.hasDescendants(child) }
                 val childCollapsed = child.lineIndex in collapsed
-                val rel = (child.level - headline.level).coerceAtLeast(1)
-                Column {
-                    Spacer(Modifier.height(20.dp))
-                    SelectionContainer {
-                        Column {
-                            // Top-aligned so the keyword pill stays on the first line
-                            // when the title wraps.
-                            Row(verticalAlignment = Alignment.Top) {
-                                // Disclosure control: a tap folds/unfolds this
-                                // heading's subtree. Drawn like the outline's caret.
-                                // Only foldable headings reserve the space, so leaf
-                                // headings stay flush with the body like before.
-                                if (foldable) {
-                                    Box(
-                                        Modifier
-                                            .size(22.dp)
-                                            .clip(RoundedCornerShape(6.dp))
-                                            .clickable {
-                                                collapsed = if (childCollapsed) collapsed - child.lineIndex
-                                                else collapsed + child.lineIndex
-                                            },
-                                        contentAlignment = Alignment.Center,
-                                    ) {
-                                        Canvas(Modifier.size(9.dp)) {
-                                            val path = if (childCollapsed) {
-                                                Path().apply {
-                                                    moveTo(0f, 0f); lineTo(0f, size.height)
-                                                    lineTo(size.width, size.height / 2f); close()
-                                                }
-                                            } else {
-                                                Path().apply {
-                                                    moveTo(0f, 0f); lineTo(size.width, 0f)
-                                                    lineTo(size.width / 2f, size.height); close()
-                                                }
-                                            }
-                                            drawPath(path, color = c.ink3)
-                                        }
-                                    }
-                                    Spacer(Modifier.width(6.dp))
-                                }
-                                child.keyword?.let { kw ->
-                                    val (fg, bg) = if (doc.keywords.isDone(kw)) c.green to c.greenSoft
-                                    else c.amber to c.amberSoft
-                                    Pill(kw, fg = fg, bg = bg)
-                                    Spacer(Modifier.width(8.dp))
-                                }
-                                child.priority?.let { p ->
-                                    Text(
-                                        "[#$p]",
-                                        fontFamily = PlexMono, fontWeight = FontWeight.Bold,
-                                        fontSize = 12.sp, color = c.priorityColor(p),
-                                        modifier = Modifier.padding(top = 2.dp),
-                                    )
-                                    Spacer(Modifier.width(8.dp))
-                                }
-                                OrgText(
-                                    child.title, onOpenLink = openLink, onLinkLongPress = onLinkLongPress,
-                                    onDoubleTapAt = { onEditAt(child.lineIndex) },
-                                    style = TextStyle(
-                                        fontFamily = PlexSerif, fontWeight = FontWeight.SemiBold,
-                                        fontSize = when (rel) {
-                                            1 -> 19.sp
-                                            2 -> 17.sp
-                                            else -> 16.sp
-                                        },
-                                        color = c.ink,
-                                    ),
-                                    modifier = Modifier.weight(1f),
-                                )
-                                if (childCollapsed && foldable) {
-                                    Spacer(Modifier.width(6.dp))
-                                    val directChildCount = remember(doc, child) { doc.directChildren(child).size }
-                                    Text(
-                                        "… $directChildCount",
-                                        fontFamily = PlexMono, fontSize = 12.sp, color = c.ink3,
-                                        modifier = Modifier.padding(top = 3.dp),
-                                    )
-                                }
-                                if (remember(child, favoriteCustomIds, favoriteLineIndices) { isFavorite(child) }) {
-                                    Spacer(Modifier.width(8.dp))
-                                    FavoriteStar(modifier = Modifier.padding(top = 2.dp))
-                                }
-                            }
-                            if (showPropertyDrawers && (child.properties.isNotEmpty() || child.logbook.isNotEmpty())) {
-                                Spacer(Modifier.height(10.dp))
-                                val childRef = NoteRef(fileName, child.lineIndex, child.customId)
-                                if (child.properties.isNotEmpty()) {
-                                    CollapsibleKvSection(
-                                        label = ":PROPERTIES:",
-                                        entries = child.properties.map { (k, v) -> ":$k:" to v },
-                                        expanded = collapsibleExpanded["child:${child.lineIndex}"] == true,
-                                        onToggle = {
-                                            val key = "child:${child.lineIndex}"
-                                            collapsibleExpanded[key] = collapsibleExpanded[key] != true
-                                        },
-                                        onDoubleTap = { onOpenDrawer("headingProps", childRef) },
-                                    )
-                                }
-                                if (child.logbook.isNotEmpty()) {
-                                    if (child.properties.isNotEmpty()) Spacer(Modifier.height(6.dp))
-                                    CollapsibleLogSection(
-                                        label = ":LOGBOOK:",
-                                        lines = child.logbook,
-                                        expanded = collapsibleExpanded["child-logbook:${child.lineIndex}"] == true,
-                                        onToggle = {
-                                            val key = "child-logbook:${child.lineIndex}"
-                                            collapsibleExpanded[key] = collapsibleExpanded[key] != true
-                                        },
-                                        onDoubleTap = { onOpenDrawer("headingLog", childRef) },
-                                    )
-                                }
-                                Spacer(Modifier.height(14.dp))
-                            } else {
-                                Spacer(Modifier.height(8.dp))
-                            }
-                            // A folded heading shows only its title + "… N"; its
-                            // body and descendants stay unmounted.
-                            if (!childCollapsed) {
-                                BodyBlocks(body, child.bodyStart, onToggleCheckbox, openLink, onLinkLongPress, { onEditAt(child.lineIndex) }, onOpenBlock)
-                            }
-                        }
-                    }
-                }
+                ReadHeadingRow(
+                    doc = doc,
+                    child = child,
+                    fileName = fileName,
+                    relLevel = (child.level - headline.level).coerceAtLeast(1),
+                    isCollapsed = childCollapsed,
+                    isFavorite = remember(child, favoriteCustomIds, favoriteLineIndices) { isFavorite(child) },
+                    onToggleFold = {
+                        collapsed = if (childCollapsed) collapsed - child.lineIndex
+                        else collapsed + child.lineIndex
+                    },
+                    collapsibleExpanded = collapsibleExpanded,
+                    showPropertyDrawers = showPropertyDrawers,
+                    onOpenDrawer = onOpenDrawer,
+                    onEditAt = onEditAt,
+                    onToggleCheckbox = onToggleCheckbox,
+                    onOpenLink = openLink,
+                    onLinkLongPress = onLinkLongPress,
+                    onOpenBlock = onOpenBlock,
+                )
             }
 
             item(key = "bottom-spacer") { Spacer(Modifier.height(40.dp)) }
@@ -1039,6 +935,157 @@ private fun NoteContent(
                     containerColor = c.surface,
                 ) {
                     LinkActionMenuItems(target, onDismiss = { linkMenuState = null })
+                }
+            }
+        }
+    }
+}
+
+/**
+ * One heading inside a Read-mode scroll: disclosure caret (foldable headings only),
+ * keyword pill, priority, title sized by [relLevel], "… N" child count when folded,
+ * ★, its own drawers, then its body (unmounted while folded). Shared by note Read
+ * mode ([NoteContent], where [relLevel] is the depth below the enclosing note) and
+ * the whole-file view (`ReadFileScreen`, which passes the heading's absolute level).
+ * Each row is its own [SelectionContainer], so a drag-select stays within a heading.
+ */
+@Composable
+internal fun ReadHeadingRow(
+    doc: OrgDocument,
+    child: OrgHeadline,
+    fileName: String,
+    relLevel: Int,
+    isCollapsed: Boolean,
+    isFavorite: Boolean,
+    onToggleFold: () -> Unit,
+    /** Expanded state of this row's `:PROPERTIES:` / `:LOGBOOK:` sections, keyed per heading. */
+    collapsibleExpanded: SnapshotStateMap<String, Boolean>,
+    showPropertyDrawers: Boolean,
+    onOpenDrawer: (kind: String, ref: NoteRef) -> Unit,
+    onEditAt: (Int?) -> Unit,
+    onToggleCheckbox: (line: Int, longPress: Boolean) -> Unit,
+    onOpenLink: (String) -> Unit,
+    onLinkLongPress: (String, Offset, LayoutCoordinates) -> Unit,
+    onOpenBlock: (Int) -> Unit,
+) {
+    val c = MaterialTheme.grove
+    val body = remember(doc, child) { doc.bodyOf(child) }
+    val foldable = remember(doc, child) { doc.hasDescendants(child) }
+    Column {
+        Spacer(Modifier.height(20.dp))
+        SelectionContainer {
+            Column {
+                // Top-aligned so the keyword pill stays on the first line
+                // when the title wraps.
+                Row(verticalAlignment = Alignment.Top) {
+                    // Disclosure control: a tap folds/unfolds this
+                    // heading's subtree. Drawn like the outline's caret.
+                    // Only foldable headings reserve the space, so leaf
+                    // headings stay flush with the body like before.
+                    if (foldable) {
+                        Box(
+                            Modifier
+                                .size(22.dp)
+                                .clip(RoundedCornerShape(6.dp))
+                                .clickable(onClick = onToggleFold),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Canvas(Modifier.size(9.dp)) {
+                                val path = if (isCollapsed) {
+                                    Path().apply {
+                                        moveTo(0f, 0f); lineTo(0f, size.height)
+                                        lineTo(size.width, size.height / 2f); close()
+                                    }
+                                } else {
+                                    Path().apply {
+                                        moveTo(0f, 0f); lineTo(size.width, 0f)
+                                        lineTo(size.width / 2f, size.height); close()
+                                    }
+                                }
+                                drawPath(path, color = c.ink3)
+                            }
+                        }
+                        Spacer(Modifier.width(6.dp))
+                    }
+                    child.keyword?.let { kw ->
+                        val (fg, bg) = if (doc.keywords.isDone(kw)) c.green to c.greenSoft
+                        else c.amber to c.amberSoft
+                        Pill(kw, fg = fg, bg = bg)
+                        Spacer(Modifier.width(8.dp))
+                    }
+                    child.priority?.let { p ->
+                        Text(
+                            "[#$p]",
+                            fontFamily = PlexMono, fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp, color = c.priorityColor(p),
+                            modifier = Modifier.padding(top = 2.dp),
+                        )
+                        Spacer(Modifier.width(8.dp))
+                    }
+                    OrgText(
+                        child.title, onOpenLink = onOpenLink, onLinkLongPress = onLinkLongPress,
+                        onDoubleTapAt = { onEditAt(child.lineIndex) },
+                        style = TextStyle(
+                            fontFamily = PlexSerif, fontWeight = FontWeight.SemiBold,
+                            fontSize = when (relLevel) {
+                                1 -> 19.sp
+                                2 -> 17.sp
+                                else -> 16.sp
+                            },
+                            color = c.ink,
+                        ),
+                        modifier = Modifier.weight(1f),
+                    )
+                    if (isCollapsed && foldable) {
+                        Spacer(Modifier.width(6.dp))
+                        val directChildCount = remember(doc, child) { doc.directChildren(child).size }
+                        Text(
+                            "… $directChildCount",
+                            fontFamily = PlexMono, fontSize = 12.sp, color = c.ink3,
+                            modifier = Modifier.padding(top = 3.dp),
+                        )
+                    }
+                    if (isFavorite) {
+                        Spacer(Modifier.width(8.dp))
+                        FavoriteStar(modifier = Modifier.padding(top = 2.dp))
+                    }
+                }
+                if (showPropertyDrawers && (child.properties.isNotEmpty() || child.logbook.isNotEmpty())) {
+                    Spacer(Modifier.height(10.dp))
+                    val childRef = NoteRef(fileName, child.lineIndex, child.customId)
+                    if (child.properties.isNotEmpty()) {
+                        CollapsibleKvSection(
+                            label = ":PROPERTIES:",
+                            entries = child.properties.map { (k, v) -> ":$k:" to v },
+                            expanded = collapsibleExpanded["child:${child.lineIndex}"] == true,
+                            onToggle = {
+                                val key = "child:${child.lineIndex}"
+                                collapsibleExpanded[key] = collapsibleExpanded[key] != true
+                            },
+                            onDoubleTap = { onOpenDrawer("headingProps", childRef) },
+                        )
+                    }
+                    if (child.logbook.isNotEmpty()) {
+                        if (child.properties.isNotEmpty()) Spacer(Modifier.height(6.dp))
+                        CollapsibleLogSection(
+                            label = ":LOGBOOK:",
+                            lines = child.logbook,
+                            expanded = collapsibleExpanded["child-logbook:${child.lineIndex}"] == true,
+                            onToggle = {
+                                val key = "child-logbook:${child.lineIndex}"
+                                collapsibleExpanded[key] = collapsibleExpanded[key] != true
+                            },
+                            onDoubleTap = { onOpenDrawer("headingLog", childRef) },
+                        )
+                    }
+                    Spacer(Modifier.height(14.dp))
+                } else {
+                    Spacer(Modifier.height(8.dp))
+                }
+                // A folded heading shows only its title + "… N"; its
+                // body and descendants stay unmounted.
+                if (!isCollapsed) {
+                    BodyBlocks(body, child.bodyStart, onToggleCheckbox, onOpenLink, onLinkLongPress, { onEditAt(child.lineIndex) }, onOpenBlock)
                 }
             }
         }
@@ -1087,7 +1134,7 @@ internal fun visibleReadRows(subtree: List<OrgHeadline>, collapsed: Set<Int>): L
 
 /** Text that renders org inline markup and hands link taps/long-presses to [onOpenLink]/[onLinkLongPress]. */
 @Composable
-private fun OrgText(
+internal fun OrgText(
     text: String,
     onOpenLink: (String) -> Unit,
     onLinkLongPress: (String, Offset, LayoutCoordinates) -> Unit,
@@ -1138,7 +1185,7 @@ private fun OrgText(
 
 /** Copy link / Share link: the actions offered when long-pressing a link in read mode. */
 @Composable
-private fun LinkActionMenuItems(target: String, onDismiss: () -> Unit) {
+internal fun LinkActionMenuItems(target: String, onDismiss: () -> Unit) {
     val c = MaterialTheme.grove
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
@@ -1191,7 +1238,7 @@ private fun PlanningChip(
 }
 
 @Composable
-private fun BodyBlocks(
+internal fun BodyBlocks(
     bodyLines: List<String>,
     /** Absolute doc line of `bodyLines[0]`, to resolve a [OrgBlock.ListItem]'s body-relative `line`. */
     lineOffset: Int,

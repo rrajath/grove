@@ -9,15 +9,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.rrajath.grove.settings.GroveSettings
+import com.rrajath.grove.ui.newbadge.NewAnchors
+import com.rrajath.grove.ui.newbadge.NewDot
 import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
+import com.rrajath.grove.ui.vault.WHOLE_FILE_LINE_LIMIT
 
 /**
- * Settings § Roam Features (experimental): a master toggle plus two sub-toggles
- * for the Linked References bar (backlinks) and inline auto-link suggestions.
- * Both sub-toggles are gated on [GroveSettings.roamFeaturesEnabled] as well as
- * their own stored value — see call sites in `OutlineScreen`/`ReadNoteScreen`/
- * `EditNoteScreen` (all `settings.roamFeaturesEnabled && settings.roamShowX`).
+ * Settings § Roam Features (experimental): a master toggle plus three sub-toggles
+ * for the Linked References bar (backlinks), inline auto-link suggestions, and
+ * opening small files as one note. Every sub-toggle is gated on
+ * [GroveSettings.roamFeaturesEnabled] as well as its own stored value — see call
+ * sites in `GroveApp` (all `settings.roamFeaturesEnabled && settings.roamX`).
  */
 @Composable
 fun SettingsRoamScreen(
@@ -26,6 +29,7 @@ fun SettingsRoamScreen(
     onSetRoamFeaturesEnabled: (Boolean) -> Unit,
     onSetRoamShowBacklinks: (Boolean) -> Unit,
     onSetRoamShowSuggestions: (Boolean) -> Unit,
+    onSetRoamOpenWholeFile: (Boolean) -> Unit,
 ) {
     val c = MaterialTheme.grove
     SettingsPageScaffold(title = "Roam Features", onBack = onBack) {
@@ -58,6 +62,16 @@ fun SettingsRoamScreen(
                     checked = settings.roamShowSuggestions,
                     description = "Suggest matching files or headings to link to as you type in Edit mode.",
                     onToggle = onSetRoamShowSuggestions,
+                )
+                RowDivider()
+                ToggleRow(
+                    label = "Open small files as one note",
+                    checked = settings.roamOpenWholeFile,
+                    description = "Opening a notebook of up to $WHOLE_FILE_LINE_LIMIT lines skips " +
+                        "the outline and shows the whole file in Read or Edit mode, like a single note. " +
+                        "Larger files still open in the outline.",
+                    labelBadge = { NewDot(NewAnchors.SETTINGS_ROAM_WHOLE_FILE, Modifier.padding(start = 6.dp)) },
+                    onToggle = onSetRoamOpenWholeFile,
                 )
             }
         }
