@@ -1,6 +1,5 @@
 package com.rrajath.grove.ui.screens
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -36,7 +35,6 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -59,14 +57,12 @@ import com.rrajath.grove.ui.components.SegmentedControl
 import com.rrajath.grove.ui.newbadge.MarkNewFeatureSeen
 import com.rrajath.grove.ui.newbadge.NewAnchors
 import com.rrajath.grove.ui.theme.ContentFontScale
-import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
 import com.rrajath.grove.ui.util.IntSetSaver
 import com.rrajath.grove.ui.vault.DocumentUiState
 import com.rrajath.grove.ui.vault.DocumentViewModel
 import com.rrajath.grove.ui.vault.NoteRef
-import com.rrajath.grove.ui.vault.breadcrumbFileLabel
 
 /**
  * Read view for a whole `.org` file as one note: the file-level property drawer,
@@ -156,19 +152,6 @@ fun ReadFileScreen(
         topBar = {
             GroveTopBar(
                 leading = { IconGlyph("←", onClick = onBack) },
-                title = {
-                    // Filename-only header (there is no heading to crumb to); a
-                    // tap opens the outline, like Read mode's file breadcrumb.
-                    Text(
-                        breadcrumbFileLabel(fileName),
-                        fontFamily = PlexMono, fontSize = 15.sp, color = c.ink,
-                        maxLines = 1, overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier
-                            .padding(start = 4.dp)
-                            .clickable { onOpenOutline(fileName) }
-                            .testTag("read_file_label"),
-                    )
-                },
                 actions = {
                     SegmentedControl(
                         options = listOf("Read", "Edit"),
@@ -177,6 +160,16 @@ fun ReadFileScreen(
                         // 16dp here + the top bar's own 8dp = the 24dp read gutter,
                         // so the toggle lines up with the body (see ReadNoteScreen).
                         modifier = Modifier.padding(end = 16.dp).width(140.dp).testTag("read_edit_toggle"),
+                    )
+                },
+                subtitle = {
+                    // No heading to crumb to -- just the file segment, like Read
+                    // mode's intro breadcrumb; a tap opens the outline.
+                    ReadModeBreadcrumb(
+                        fileName = fileName,
+                        path = emptyList(),
+                        onOpenBreadcrumb = { onOpenOutline(fileName) },
+                        modifier = Modifier.testTag("read_file_label"),
                     )
                 },
             )

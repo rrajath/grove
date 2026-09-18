@@ -23,12 +23,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
@@ -128,7 +126,7 @@ import com.rrajath.grove.ui.vault.DocumentUiState
 import com.rrajath.grove.ui.vault.DocumentViewModel
 import com.rrajath.grove.ui.vault.NoteRef
 import com.rrajath.grove.ui.vault.PendingEdit
-import com.rrajath.grove.ui.vault.breadcrumbFileLabel
+import com.rrajath.grove.ui.vault.compactFileLabel
 import com.rrajath.grove.ui.vault.headlineFor
 
 /**
@@ -588,23 +586,27 @@ fun ReadNoteScreen(
 /**
  * Path to the current heading, e.g. "shopping.org › Errands › Groceries".
  * Every segment is tappable: the file segment opens the full outline, each
- * heading segment narrows the outline to that heading's subtree.
+ * heading segment narrows the outline to that heading's subtree. The file
+ * segment is folder-compacted (see [compactFileLabel]) and the whole trail
+ * wraps onto further lines instead of scrolling, so a long roam path never
+ * gets clipped.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun ReadModeBreadcrumb(
+internal fun ReadModeBreadcrumb(
     fileName: String,
     path: List<OrgHeadline>,
     onOpenBreadcrumb: (Int?) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val c = MaterialTheme.grove
-    Row(
-        Modifier.horizontalScroll(rememberScrollState()),
-        verticalAlignment = Alignment.CenterVertically,
+    FlowRow(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         Text(
-            breadcrumbFileLabel(fileName),
+            compactFileLabel(fileName),
             fontFamily = PlexMono, fontSize = 11.5.sp, color = c.ink3,
-            maxLines = 1,
             modifier = Modifier.clickable { onOpenBreadcrumb(null) },
         )
         path.forEach { h ->
@@ -612,7 +614,6 @@ private fun ReadModeBreadcrumb(
             Text(
                 h.title,
                 fontFamily = PlexMono, fontSize = 11.5.sp, color = c.ink3,
-                maxLines = 1,
                 modifier = Modifier.clickable { onOpenBreadcrumb(h.lineIndex) },
             )
         }

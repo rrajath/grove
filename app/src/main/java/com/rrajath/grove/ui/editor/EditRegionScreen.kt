@@ -50,7 +50,6 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.TextFieldValue
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
@@ -71,6 +70,7 @@ import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
 import com.rrajath.grove.ui.vault.NoteRef
+import com.rrajath.grove.ui.vault.compactFileLabel
 import java.time.LocalTime
 
 /**
@@ -288,29 +288,24 @@ fun EditRegionScreen(
                     }
                 },
                 title = {
-                    if (onSwitchToRead != null) {
-                        // Whole-file editor: the file name alone, matching the
-                        // whole-file Read view's header (no region label to show).
+                    // Whole-file editor has no region label to show; the file name
+                    // itself moves to the subtitle row below (see ReadFileScreen).
+                    if (onSwitchToRead == null) {
                         Text(
-                            fileName,
-                            fontFamily = PlexMono, fontSize = 15.sp, color = c.ink,
-                            maxLines = 1, overflow = TextOverflow.Ellipsis,
+                            label,
+                            fontFamily = PlexMono, fontWeight = FontWeight.SemiBold,
+                            fontSize = 17.sp, color = c.ink,
                             modifier = Modifier.padding(start = 4.dp),
                         )
-                    } else {
-                        Column(Modifier.padding(start = 4.dp)) {
-                            Text(
-                                label,
-                                fontFamily = PlexMono, fontWeight = FontWeight.SemiBold,
-                                fontSize = 17.sp, color = c.ink,
-                            )
-                            Text(
-                                fileName,
-                                fontFamily = PlexSans, fontSize = 11.5.sp, color = c.ink2,
-                                maxLines = 1, overflow = TextOverflow.Ellipsis,
-                            )
-                        }
                     }
+                },
+                subtitle = {
+                    // Folder-compacted and left free to wrap: a long roam path
+                    // would otherwise crowd or clip the fixed-height title row.
+                    Text(
+                        compactFileLabel(fileName),
+                        fontFamily = PlexMono, fontSize = 11.5.sp, color = c.ink3,
+                    )
                 },
                 actions = {
                     if (onSwitchToRead != null) {

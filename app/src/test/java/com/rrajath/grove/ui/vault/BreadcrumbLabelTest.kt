@@ -20,4 +20,19 @@ class BreadcrumbLabelTest {
     fun `an empty path is passed through unchanged`() {
         assertEquals("", breadcrumbFileLabel(""))
     }
+
+    @Test
+    fun `compactFileLabel compacts folders two or more deep to their first letter`() {
+        assertEquals("w/i/app.org", compactFileLabel("work/ideas/app.org"))
+    }
+
+    @Test
+    fun `compactFileLabel leaves a file one folder deep unchanged`() {
+        assertEquals("work/app.org", compactFileLabel("work/app.org"))
+    }
+
+    @Test
+    fun `compactFileLabel leaves a vault-root file unchanged`() {
+        assertEquals("inbox.org", compactFileLabel("inbox.org"))
+    }
 }
