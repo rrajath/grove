@@ -18,6 +18,8 @@ data class CaptureContext(
      * a time-of-day, same as `%T`/`%t`.
      */
     val dateOnly: Boolean = false,
+    /** `%(id)` value — generated once per capture, not regenerated per [PlaceholderExpander.expand] call. */
+    val id: String = "",
 )
 
 data class ExpandedTemplate(
@@ -45,7 +47,7 @@ object PlaceholderExpander {
     // Shared with findInvalid so the two can never disagree about what's supported.
     private val SIMPLE_KEYS = listOf(
         "%shared_text", "%shared_url", "%clipboard", "%cursor", "%month", "%date",
-        "%time", "%year", "%day", "%t", "%T", "%u", "%U", "%?",
+        "%time", "%year", "%day", "%t", "%T", "%u", "%U", "%?", "%(id)",
     )
 
     /** Prompts the UI must collect (in order, deduplicated) before expanding. */
@@ -76,6 +78,7 @@ object PlaceholderExpander {
             "%u" to { dateTimeStamp.copy(active = false).format() },
             "%U" to { dateTimeStamp.format() },
             "%?" to null,
+            "%(id)" to { ctx.id },
         )
 
         val sb = StringBuilder()

@@ -104,4 +104,18 @@ class PlaceholderExpanderTest {
         assertEquals("<2025-06-11 Wed 14:32> ", result.text)
         assertEquals(result.text.length, result.cursorOffset)
     }
+
+    @Test
+    fun `id placeholder substitutes the context id`() {
+        val idCtx = ctx.copy(id = "ABCD-1234")
+        assertEquals(
+            "ABCD-1234",
+            PlaceholderExpander.expand("%(id)", idCtx).text,
+        )
+    }
+
+    @Test
+    fun `id placeholder is blank when context has no id`() {
+        assertEquals("", expand("%(id)").text)
+    }
 }
