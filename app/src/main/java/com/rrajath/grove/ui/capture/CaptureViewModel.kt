@@ -9,8 +9,11 @@ import com.rrajath.grove.GroveApplication
 import com.rrajath.grove.capture.CaptureContext
 import com.rrajath.grove.capture.CaptureInserter
 import com.rrajath.grove.capture.CaptureTemplate
+import com.rrajath.grove.capture.TargetLocation
 import com.rrajath.grove.capture.TemplatesRepository
 import com.rrajath.grove.data.GroveDatabase
+import com.rrajath.grove.org.OrgMutations
+import com.rrajath.grove.org.OrgParser
 import com.rrajath.grove.settings.SettingsSource
 import com.rrajath.grove.sync.SyncTrigger
 import com.rrajath.grove.ui.vault.NotebookItem
@@ -176,6 +179,144 @@ class CaptureViewModel(
         vault.save(template.targetFile, result.newText)
         draftInsertion = result
         return template.targetFile to result.newText
+    }
+
+    // --- Roam node capture (kind == TemplateKind.ROAM_NODE) ---
+    //
+    // entryText is the full expanded newFileTemplate draft (head + body); the
+    // target path is computed by the screen from the draft's live #+title:
+    // line, not fixed like template.targetFile, so it's passed in resolved.
+
+    private data class RoamDraft(
+        val path: String,
+        val insertion: CaptureInserter.Insertion?,
+        /** True once this session created [path] fresh and owns its whole content. */
+        val ownedNewFile: Boolean,
+    )
+
+    private var roamDraft: RoamDraft? = null
+
+    /**
+     * Writes [fullDraftText] verbatim to a brand-new [resolvedPath], or — an
+     * existing file, e.g. a second capture into today's daily note — strips
+     * its head (properties drawer + preamble) and appends just the body at
+     * the bottom, same as [upsertEntry]'s insert-and-track mechanism.
+     */
+    fun saveRoam(resolvedPath: String, fullDraftText: String, context: CaptureContext) {
+        if (fullDraftText.isBlank()) {
+            _saveState.value = SaveState.Failed("Nothing to save")
+            return
+        }
+        _saveState.value = SaveState.Saving
+        viewModelScope.launch {
+            try {
+                val (fileName, newText) = writeMutex.withLock { upsertRoamEntry(resolvedPath, fullDraftText, context) }
+                sync.requestReindex(fileName, newText, "capture saved")
+                roamDraft = null
+                _saveState.value = SaveState.Saved
+            } catch (e: Exception) {
+                _saveState.value = SaveState.Failed(e.message ?: "Capture failed")
+            }
+        }
+    }
+
+    /** Silent equivalent of [saveRoam], mirroring [autosave]. */
+    fun autosaveRoam(resolvedPath: String, fullDraftText: String, context: CaptureContext) {
+        if (fullDraftText.isBlank()) return
+        viewModelScope.launch {
+            try {
+                writeMutex.withLock { upsertRoamEntry(resolvedPath, fullDraftText, context) }
+            } catch (_: Exception) {
+                // Best-effort, same rationale as autosave().
+            }
+        }
+    }
+
+    /**
+     * Remove a Roam draft this session autosaved: deletes a freshly-created
+     * file outright, or strips just the tracked insertion out of a
+     * pre-existing one. A no-op if [resolvedPath] no longer matches what was
+     * last autosaved (e.g. the title changed since) — same accepted gap as
+     * the stray-file risk already noted for a mid-edit title change.
+     */
+    fun discardRoamDraft(resolvedPath: String) {
+        val prev = roamDraft ?: return
+        if (prev.path != resolvedPath) return
+        roamDraft = null
+        viewModelScope.launch {
+            writeMutex.withLock {
+                val vault = vaultFlow.value ?: return@withLock
+                if (prev.ownedNewFile) {
+                    if (withContext(dispatchers.default) { vault.deleteNotebook(resolvedPath) }) {
+                        database.indexDao().removeNotebook(resolvedPath)
+                    }
+                    sync.requestSync("capture discarded")
+                } else {
+                    val insertion = prev.insertion ?: return@withLock
+                    val text = withContext(dispatchers.default) { vault.open(resolvedPath)?.text }
+                        ?: return@withLock
+                    val newText = CaptureInserter.removeInsertion(text, insertion)
+                    vault.save(resolvedPath, newText)
+                    sync.requestReindex(resolvedPath, newText, "capture discarded")
+                }
+            }
+        }
+    }
+
+    private suspend fun upsertRoamEntry(
+        resolvedPath: String,
+        fullDraftText: String,
+        context: CaptureContext,
+    ): Pair<String, String> {
+        val currentSettings = settings.settings.first()
+        if (currentSettings.vaultTreeUri == null && TestVaultHook.root.value == null) {
+            error("No sync folder configured")
+        }
+        val vault = vaultFlow.filterNotNull().first()
+        val prev = roamDraft
+        val result = withContext(dispatchers.default) {
+            if (prev != null && prev.path == resolvedPath && prev.ownedNewFile) {
+                // Still the same file this session created; it's ours alone,
+                // so the freshest draft simply replaces its whole content.
+                vault.save(resolvedPath, fullDraftText)
+                RoamDraft(resolvedPath, null, ownedNewFile = true)
+            } else if (vault.open(resolvedPath) == null) {
+                vault.createNotebook(resolvedPath)
+                vault.save(resolvedPath, fullDraftText)
+                RoamDraft(resolvedPath, null, ownedNewFile = true)
+            } else {
+                val currentText = vault.open(resolvedPath)?.text ?: ""
+                val baseText = if (prev != null && prev.path == resolvedPath && !prev.ownedNewFile) {
+                    prev.insertion?.let { CaptureInserter.removeInsertion(currentText, it) } ?: currentText
+                } else {
+                    currentText
+                }
+                val insertion = CaptureInserter.insert(
+                    docText = baseText,
+                    location = TargetLocation.BottomOfFile,
+                    entry = roamBody(fullDraftText),
+                    today = LocalDate.from(context.now),
+                )
+                vault.save(resolvedPath, insertion.newText)
+                RoamDraft(resolvedPath, insertion, ownedNewFile = false)
+            }
+        }
+        roamDraft = result
+        val savedText = result.insertion?.newText ?: fullDraftText
+        return resolvedPath to savedText
+    }
+
+    /**
+     * Everything after a Roam draft's head (file-level properties drawer +
+     * `#+KEY:` preamble lines) — the part that gets appended, not the front
+     * matter, when capturing into an already-existing resolved file.
+     */
+    private fun roamBody(text: String): String {
+        val doc = OrgParser.parse(text)
+        val drawerEnd = OrgMutations.fileDrawerRange(doc)?.last ?: -1
+        val prefaceEnd = OrgMutations.prefaceRange(doc)?.last ?: -1
+        val headEnd = maxOf(drawerEnd, prefaceEnd)
+        return doc.lines.drop(headEnd + 1).joinToString("\n")
     }
 
     fun resetSaveState() {

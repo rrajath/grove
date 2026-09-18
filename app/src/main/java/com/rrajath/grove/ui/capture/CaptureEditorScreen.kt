@@ -64,8 +64,10 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rrajath.grove.capture.CaptureContext
 import com.rrajath.grove.capture.CaptureInserter
 import com.rrajath.grove.capture.CaptureTemplate
+import com.rrajath.grove.capture.FilenamePattern
 import com.rrajath.grove.capture.PlaceholderExpander
 import com.rrajath.grove.capture.TargetLocation
+import com.rrajath.grove.capture.TemplateKind
 import com.rrajath.grove.capture.templateSlug
 import com.rrajath.grove.org.LineEditing
 import com.rrajath.grove.org.OrgDocument
@@ -156,7 +158,10 @@ fun CaptureEditorScreen(
     if (template == null) return
 
     val now = remember { LocalDateTime.now() }
-    val prompts = remember(template) { PlaceholderExpander.prompts(template.template) }
+    val prompts = remember(template) {
+        val body = if (template.kind == TemplateKind.ROAM_NODE) template.newFileTemplate else template.template
+        PlaceholderExpander.prompts(body)
+    }
     var promptValues by remember(template) { mutableStateOf<Map<String, String>?>(null) }
 
     if (prompts.isNotEmpty() && promptValues == null) {
@@ -170,11 +175,12 @@ fun CaptureEditorScreen(
 
     val context = remember(template, promptValues) {
         val share = app.pendingShare.value
+        val body = if (template.kind == TemplateKind.ROAM_NODE) template.newFileTemplate else template.template
         // Only read the clipboard when the template actually uses %clipboard.
         // Android 13+ shows a system toast on every clipboard read, so reading
         // unconditionally would confuse users whose templates don't need it.
         val clipboardText =
-            if (template.template.contains("%clipboard")) {
+            if (body.contains("%clipboard")) {
                 // getClipEntry() has no real suspension point on Android (it's a
                 // synchronous Binder call under the hood), so runBlocking here
                 // just reads it inline instead of introducing an async gap that
@@ -193,6 +199,8 @@ fun CaptureEditorScreen(
             sharedUrl = share?.url ?: "",
             promptValues = promptValues ?: emptyMap(),
             dateOnly = template.location is TargetLocation.DatetreeDate,
+            // Generated once per capture, not regenerated on every expand() call.
+            id = newOrgId(),
         )
     }
     // The share payload is one-shot: consumed by this capture.
@@ -200,10 +208,16 @@ fun CaptureEditorScreen(
         onDispose { app.pendingShare.value = null }
     }
     val expanded = remember(template, context) {
-        CaptureInserter.withHeadingStars(
-            PlaceholderExpander.expand(template.template, context),
-            template.location,
-        )
+        if (template.kind == TemplateKind.ROAM_NODE) {
+            // The title is never prompted for: it expands blank with the
+            // cursor on it, and the user types it straight into the draft.
+            PlaceholderExpander.expand(template.newFileTemplate, context)
+        } else {
+            CaptureInserter.withHeadingStars(
+                PlaceholderExpander.expand(template.template, context),
+                template.location,
+            )
+        }
     }
     val initialText = remember(expanded) { expanded.text }
     val textState = remember(expanded) {
@@ -220,6 +234,7 @@ fun CaptureEditorScreen(
 
     var showDiscardDialog by remember { mutableStateOf(false) }
     var showEmptyHeadingAlert by remember { mutableStateOf(false) }
+    var showEmptyTitleAlert by remember { mutableStateOf(false) }
     var metadataOpen by remember { mutableStateOf(false) }
     var readMode by remember { mutableStateOf(false) }
     val allTags by viewModel.allTags.collectAsStateWithLifecycle()
@@ -252,9 +267,28 @@ fun CaptureEditorScreen(
     val dirty = draftText != lastAutoSavedText
     val toastContext = LocalContext.current
 
+    /**
+     * The Roam node's target file, recomputed from the draft's live
+     * `#+title:` line — same `now` the rest of the draft's timestamps use, so
+     * a `%<...>` filename pattern doesn't drift while the user is still
+     * typing. Null when the title is blank/missing.
+     */
+    fun resolvedRoamPath(): String? {
+        val title = FilenamePattern.titleFromDraft(draftText) ?: return null
+        val slug = FilenamePattern.slugFromTitle(title)
+        val stem = FilenamePattern.expand(template.filenamePattern, now, slug)
+        return if (template.roamDirectory.isBlank()) "$stem.org" else "${template.roamDirectory}/$stem.org"
+    }
+
     /** Immediate autosave, used by the idle timer and by tapping the dirty save icon. */
     fun saveNow() {
-        if (!CaptureInserter.hasBlankHeading(draftText)) {
+        if (template.kind == TemplateKind.ROAM_NODE) {
+            resolvedRoamPath()?.let { path ->
+                viewModel.autosaveRoam(path, draftText, context)
+                lastAutoSavedAt = LocalTime.now()
+                lastAutoSavedText = draftText
+            }
+        } else if (!CaptureInserter.hasBlankHeading(draftText)) {
             viewModel.autosave(template, draftText, context)
             lastAutoSavedAt = LocalTime.now()
             lastAutoSavedText = draftText
@@ -266,7 +300,11 @@ fun CaptureEditorScreen(
     }
 
     fun discard() {
-        viewModel.discardDraft(template)
+        if (template.kind == TemplateKind.ROAM_NODE) {
+            resolvedRoamPath()?.let { viewModel.discardRoamDraft(it) }
+        } else {
+            viewModel.discardDraft(template)
+        }
         onClose()
     }
 
@@ -281,7 +319,14 @@ fun CaptureEditorScreen(
     }
 
     fun trySave() {
-        if (CaptureInserter.hasBlankHeading(draftText)) {
+        if (template.kind == TemplateKind.ROAM_NODE) {
+            val resolvedPath = resolvedRoamPath()
+            if (resolvedPath == null) {
+                showEmptyTitleAlert = true
+            } else {
+                viewModel.saveRoam(resolvedPath, draftText, context)
+            }
+        } else if (CaptureInserter.hasBlankHeading(draftText)) {
             showEmptyHeadingAlert = true
         } else {
             viewModel.save(template, draftText, context)
@@ -350,7 +395,7 @@ fun CaptureEditorScreen(
                 .padding(padding)
                 .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom)),
         ) {
-            if (template.location.isDatetree) {
+            if (template.kind == TemplateKind.PLAIN && template.location.isDatetree) {
                 DatetreeBreadcrumb(template, now.toLocalDate())
             }
             (saveState as? SaveState.Failed)?.let { failed ->
@@ -492,6 +537,31 @@ fun CaptureEditorScreen(
             },
             confirmButton = {
                 TextButton(onClick = { showEmptyHeadingAlert = false }) {
+                    Text("OK", color = c.accent, fontWeight = FontWeight.SemiBold)
+                }
+            },
+        )
+    }
+
+    if (showEmptyTitleAlert) {
+        AlertDialog(
+            onDismissRequest = { showEmptyTitleAlert = false },
+            containerColor = c.surface,
+            title = {
+                Text(
+                    "Add a title",
+                    fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
+                    fontSize = 16.sp, color = c.ink,
+                )
+            },
+            text = {
+                Text(
+                    "Please give this note a title before saving.",
+                    fontFamily = PlexSans, fontSize = 14.sp, color = c.ink2,
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { showEmptyTitleAlert = false }) {
                     Text("OK", color = c.accent, fontWeight = FontWeight.SemiBold)
                 }
             },
