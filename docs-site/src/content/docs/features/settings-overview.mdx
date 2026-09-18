@@ -30,16 +30,18 @@ Settings is reachable from the navigation drawer. It's a single hub screen linki
 | **Widget** | Home-screen Agenda widget: transparency, days ahead, per-row Filename/Tags/Priority, font size, live preview | [Agenda](/features/agenda#home-screen-widget-appearance) |
 | **Reminders** | Enable toggle, lead time, notify for tasks without a time, daily digest, default reminder time | [Reminders](/features/reminders) |
 | **Sharing** | Default target file for shared content | [Share Intake](/features/share-intake) |
-| **Roam Features** *(Experimental)* | Master toggle plus backlinks / typing-suggestions / open-small-files-as-one-note sub-toggles | See below |
+| **Roam Features** *(Experimental)* | Master toggle plus backlinks / typing-suggestions / open-roam-files-in-read-mode sub-toggles | See below |
 | **Backup** | Export/import all preferences as JSON | [Backup](/features/backup-export-import) |
 
 The app version is shown at the bottom of the hub screen.
 
 ## Roam Features (experimental)
 
-An opt-in page, badged **Experimental** in the hub, for features that are still settling: the Linked References bar (backlinks), inline auto-link suggestions while typing, and **Open small files as one note**. A master toggle enables the feature area; the sub-toggles then choose which of them are active, each also requiring the master toggle to be on. Everything defaults off.
+An opt-in page, badged **Experimental** in the hub, for features that are still settling: the Linked References bar (backlinks), inline auto-link suggestions while typing, and **Open roam files directly in read mode**. A master toggle enables the feature area; the sub-toggles then choose which of them are active, each also requiring the master toggle to be on. Backlinks and typing-suggestions default off; **Open roam files directly in read mode** defaults on.
 
-**Open small files as one note** is for org-roam style vaults, where most files are short and have few or no headings. With it on, opening a notebook of up to 1,000 lines (from the Notebooks list, a `[[file:]]` link or a search file match) skips the outline and lands on the whole file as a single Read/Edit note, in your default note mode. Larger notebooks keep opening in the outline, where the same view is available from the `⋮` menu's **View file** (see [Outline View](/features/outline-view#viewing-the-whole-file)).
+The Linked References bar only ever appears for an org-roam file (one with a file-level `:ID:`) — in the outline, in Read mode and in Edit mode — and only when **Show backlinks** is on. It never appears for a file without a file-level `:ID:`.
+
+**Open roam files directly in read mode** is a separate lever: it only decides whether opening a notebook lands on the outline or skips straight to the whole file. It's for org-roam style vaults, where most files are short and have few or no headings. With it on, opening an org-roam notebook of up to 1,000 lines (from the Notebooks list, a `[[file:]]` link or a search file match) skips the outline and lands on the whole file as a single Read/Edit note, in your default note mode. Larger notebooks, and non-roam notebooks, keep opening in the outline, where the same whole-file view is available from the `⋮` menu's **View file** (see [Outline View](/features/outline-view#viewing-the-whole-file)). Turning it off sends roam files back through the outline too, regardless of size.
 
 ## Keeping settings in sync with backup
 

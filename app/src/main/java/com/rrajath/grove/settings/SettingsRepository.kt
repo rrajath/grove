@@ -222,9 +222,11 @@ data class GroveSettings(
     /**
      * Roam Features sub-toggle: opening a notebook (Notebooks list, a `[[file:]]`
      * link, a search file match) whose file is under the whole-file line limit
-     * skips the outline and opens the file as one note (`Routes.FILE`).
+     * skips the outline and opens the file as one note (`Routes.FILE`). On by
+     * default (unlike the other Roam Features sub-toggles) once the master
+     * switch is on.
      */
-    val roamOpenWholeFile: Boolean = false,
+    val roamOpenWholeFile: Boolean = true,
 ) {
     /** Pinned notebook file names in pin order — derived view of [pinnedItems]. */
     val pinnedNotebooks: List<String>
@@ -418,7 +420,7 @@ class SettingsRepository(
             roamFeaturesEnabled = prefs[Keys.roamFeaturesEnabled] ?: false,
             roamShowBacklinks = prefs[Keys.roamShowBacklinks] ?: false,
             roamShowSuggestions = prefs[Keys.roamShowSuggestions] ?: false,
-            roamOpenWholeFile = prefs[Keys.roamOpenWholeFile] ?: false,
+            roamOpenWholeFile = prefs[Keys.roamOpenWholeFile] ?: true,
         )
     }.shareIn(scope, SharingStarted.Eagerly, replay = 1)
 

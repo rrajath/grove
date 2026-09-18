@@ -515,6 +515,8 @@ private fun GroveNavigation(
                         onBack = { mode = "read" },
                         onSwitchToRead = { mode = "read" },
                         editModeFontSize = settings.editModeFontSize,
+                        showBacklinks = settings.roamFeaturesEnabled && settings.roamShowBacklinks,
+                        onOpenNote = { target -> navController.navigate(Routes.note(target.encode())) },
                     )
                 } else {
                     ReadFileScreen(
@@ -535,6 +537,7 @@ private fun GroveNavigation(
                         },
                         showPreface = settings.showPreface,
                         showPropertyDrawers = settings.showPropertyDrawers,
+                        showBacklinks = settings.roamFeaturesEnabled && settings.roamShowBacklinks,
                         readModeFontSize = settings.readModeFontSize,
                         favorites = remember(favorites, fileName) { favoritesFor(favorites, fileName) },
                     )

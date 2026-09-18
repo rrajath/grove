@@ -56,9 +56,13 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.rrajath.grove.org.INTRO_LINE_INDEX
 import com.rrajath.grove.org.LineEditing
+import com.rrajath.grove.org.OrgParser
 import com.rrajath.grove.settings.FontSizePreference
 import com.rrajath.grove.ui.components.GroveTopBar
+import com.rrajath.grove.ui.components.LinkedReferencesBar
+import com.rrajath.grove.ui.components.LinkedReferencesSheet
 import com.rrajath.grove.ui.components.ScrollJumpButtons
 import com.rrajath.grove.ui.components.SegmentedControl
 import com.rrajath.grove.ui.screens.IconGlyph
@@ -66,6 +70,7 @@ import com.rrajath.grove.ui.theme.ContentFontScale
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
+import com.rrajath.grove.ui.vault.NoteRef
 import java.time.LocalTime
 
 /**
@@ -160,6 +165,14 @@ fun EditRegionScreen(
      * stale content (unlike note Read mode, which renders the editor's buffer).
      */
     onSwitchToRead: (() -> Unit)? = null,
+    /**
+     * Settings § Roam Features (experimental): show the Linked References bar
+     * (backlinks). Only wired for [EditRegion.WHOLE_FILE], and only ever
+     * renders for a roam file (one with a file-level `:ID:`).
+     */
+    showBacklinks: Boolean = false,
+    /** [EditRegion.WHOLE_FILE] only: the Linked References sheet's "open" action. */
+    onOpenNote: (NoteRef) -> Unit = {},
     viewModel: EditorViewModel = viewModel(factory = EditorViewModel.Factory),
 ) {
     val c = MaterialTheme.grove
@@ -169,6 +182,15 @@ fun EditRegionScreen(
     val label = if (region == EditRegion.BLOCK) blockLabelFromBuffer(state.buffer) else regionLabel(region)
     val textState = rememberTextFieldState()
     var confirmLeave by remember { mutableStateOf(false) }
+    // Set when a Linked References tap needs to navigate away from a dirty
+    // buffer; the leave-confirm dialog below routes there instead of onBack.
+    var pendingOpenNote by remember { mutableStateOf<NoteRef?>(null) }
+    // Whole-file editor only: (fileId, title) parsed once the buffer first
+    // loads, not on every keystroke -- fileId/title don't change mid-edit, and
+    // reparsing the whole buffer per keystroke would be wasted work.
+    var wholeFileMeta by remember(fileName) { mutableStateOf<Pair<String?, String>?>(null) }
+    val linkedReferences by viewModel.linkedReferences.collectAsStateWithLifecycle()
+    var linkedRefsOpen by remember { mutableStateOf(false) }
     // Timestamp of the most recent save (auto or manual); tracked in the
     // ViewModel (state.lastSavedAt) since it now also owns the idle auto-save timer.
     val lastAutoSavedAt = state.lastSavedAt?.toLocalTime()
@@ -193,6 +215,14 @@ fun EditRegionScreen(
     fun leave() {
         if (state.dirty) confirmLeave = true else onBack()
     }
+    fun openNote(target: NoteRef) {
+        if (state.dirty) {
+            pendingOpenNote = target
+            confirmLeave = true
+        } else {
+            onOpenNote(target)
+        }
+    }
     androidx.activity.compose.BackHandler { leave() }
 
     LaunchedEffect(fileName, noteId, region) { viewModel.loadRegion(fileName, noteId, region, blockLine) }
@@ -200,6 +230,13 @@ fun EditRegionScreen(
         if (!state.loading && state.error == null) {
             setText(state.buffer, TextRange(0))
             fieldLoaded = true
+            if (region == EditRegion.WHOLE_FILE) {
+                val doc = OrgParser.parse(state.buffer, state.keywords)
+                val title = doc.preambleKeywords.firstOrNull { it.first.equals("#+TITLE:", ignoreCase = true) }
+                    ?.second ?: fileName.removeSuffix(".org")
+                wholeFileMeta = doc.fileId to title
+                viewModel.loadLinkedReferences(fileName, INTRO_LINE_INDEX, doc.fileId, title)
+            }
         }
     }
     // Report the user's own edits back to the view model. The programmatic write
@@ -294,6 +331,15 @@ fun EditRegionScreen(
                 },
             )
         },
+        bottomBar = {
+            if (showBacklinks && region == EditRegion.WHOLE_FILE && wholeFileMeta?.first != null) {
+                LinkedReferencesBar(
+                    linkedCount = linkedReferences.linkedCount,
+                    unlinkedCount = linkedReferences.unlinkedCount,
+                    onClick = { linkedRefsOpen = true },
+                )
+            }
+        },
     ) { padding ->
         Column(
             Modifier
@@ -381,15 +427,29 @@ fun EditRegionScreen(
             confirmButton = {
                 androidx.compose.material3.TextButton(onClick = {
                     confirmLeave = false
-                    viewModel.save(onSaved = onBack)
+                    val target = pendingOpenNote.also { pendingOpenNote = null }
+                    viewModel.save(onSaved = { if (target != null) onOpenNote(target) else onBack() })
                 }) { Text("Save", color = c.accent, fontWeight = FontWeight.SemiBold) }
             },
             dismissButton = {
                 androidx.compose.material3.TextButton(onClick = {
                     confirmLeave = false
-                    onBack()
+                    val target = pendingOpenNote.also { pendingOpenNote = null }
+                    if (target != null) onOpenNote(target) else onBack()
                 }) { Text("Discard", color = c.red) }
             },
+        )
+    }
+
+    if (linkedRefsOpen) {
+        LinkedReferencesSheet(
+            title = wholeFileMeta?.second ?: fileName.removeSuffix(".org"),
+            result = linkedReferences,
+            onOpenReference = { refFileName, lineIndex, id ->
+                linkedRefsOpen = false
+                openNote(NoteRef(refFileName, lineIndex, id))
+            },
+            onDismiss = { linkedRefsOpen = false },
         )
     }
 }

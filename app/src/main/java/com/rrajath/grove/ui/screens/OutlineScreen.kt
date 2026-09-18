@@ -159,7 +159,11 @@ fun OutlineScreen(
      * PREFACE box.
      */
     showPropertyDrawers: Boolean = true,
-    /** Settings § Roam Features (experimental): show the Linked References bar (backlinks). */
+    /**
+     * Settings § Roam Features (experimental): show the Linked References bar
+     * (backlinks). Only ever renders for a roam file (one with a file-level
+     * `:ID:`) -- this toggle alone doesn't force it on for a non-roam file.
+     */
     showBacklinks: Boolean = false,
     /** Double-tapping the PREFACE section: opens an editor scoped to just the `#+KEY:`
      *  (everything before the first heading), mirroring double-tap-to-edit elsewhere. */
@@ -175,10 +179,11 @@ fun OutlineScreen(
      */
     wholeFileLineLimit: Int = WHOLE_FILE_LINE_LIMIT,
     /**
-     * Settings § Roam Features "Open small files as one note", already combined
-     * with the route's `auto` flag by the caller: when the loaded file fits under
-     * [wholeFileLineLimit] this outline never renders and [onAutoOpenWholeFile]
-     * fires once instead. Off while narrowed.
+     * Settings § Roam Features "Open roam files directly in read mode", already
+     * combined with the route's `auto` flag by the caller: when the loaded file is
+     * an org-roam file (has a file-level `:ID:`, i.e. `fileId != null`) and fits
+     * under [wholeFileLineLimit], this outline never renders and
+     * [onAutoOpenWholeFile] fires once instead. Off while narrowed.
      */
     autoOpenWholeFile: Boolean = false,
     onAutoOpenWholeFile: (fileName: String) -> Unit = {},
@@ -194,12 +199,15 @@ fun OutlineScreen(
 
     val loadedDoc = (state as? DocumentUiState.Loaded)?.document
 
-    // Roam auto-open: a file under the line limit skips this outline and lands on
-    // the whole-file view instead. Nothing renders here while that is still
-    // undecided (loading) or decided (redirecting), so the outline never flashes;
-    // an over-limit file falls through and renders as usual once loaded.
+    // Roam auto-open: an org-roam file (one with a file-level :ID:, i.e.
+    // loadedDoc.fileId != null) under the line limit skips this outline and
+    // lands on the whole-file view instead. Nothing renders here while that is
+    // still undecided (loading) or decided (redirecting), so the outline never
+    // flashes; a non-roam or over-limit file falls through and renders as usual
+    // once loaded.
     val autoOpenPending = autoOpenWholeFile && narrowLineIndex == null
     val redirectToWholeFile = autoOpenPending && loadedDoc != null &&
+        loadedDoc.fileId != null &&
         fitsWholeFileView(loadedDoc.lines.size, wholeFileLineLimit)
     if (redirectToWholeFile || (autoOpenPending && state is DocumentUiState.Loading)) {
         if (redirectToWholeFile) {
@@ -471,7 +479,10 @@ fun OutlineScreen(
             }
         },
         bottomBar = {
-            if (showBacklinks && state is DocumentUiState.Loaded && focusedLine == null) {
+            // Backlinks are roam-only: the bar never shows for a file without a
+            // file-level :ID:, regardless of the "Show backlinks" toggle.
+            val isRoamFile = (state as? DocumentUiState.Loaded)?.document?.fileId != null
+            if (showBacklinks && isRoamFile && focusedLine == null) {
                 LinkedReferencesBar(
                     linkedCount = linkedReferences.linkedCount,
                     unlinkedCount = linkedReferences.unlinkedCount,

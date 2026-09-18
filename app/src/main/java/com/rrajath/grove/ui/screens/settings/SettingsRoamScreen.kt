@@ -9,6 +9,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.rrajath.grove.settings.GroveSettings
+import com.rrajath.grove.ui.newbadge.MarkNewFeatureSeen
 import com.rrajath.grove.ui.newbadge.NewAnchors
 import com.rrajath.grove.ui.newbadge.NewDot
 import com.rrajath.grove.ui.theme.PlexSans
@@ -33,6 +34,10 @@ fun SettingsRoamScreen(
 ) {
     val c = MaterialTheme.grove
     SettingsPageScaffold(title = "Roam Features", onBack = onBack) {
+        // Leaving this screen retires the "Open roam files directly in read mode"
+        // dot from its whole trail (menu glyph, drawer, Settings hub row, the row itself).
+        MarkNewFeatureSeen(NewAnchors.SETTINGS_ROAM_WHOLE_FILE)
+
         Column(Modifier.padding(bottom = 10.dp)) {
             Text(
                 "These are experimental features and are subject to change.",
@@ -65,11 +70,13 @@ fun SettingsRoamScreen(
                 )
                 RowDivider()
                 ToggleRow(
-                    label = "Open small files as one note",
+                    label = "Open roam files directly in read mode",
                     checked = settings.roamOpenWholeFile,
-                    description = "Opening a notebook of up to $WHOLE_FILE_LINE_LIMIT lines skips " +
-                        "the outline and shows the whole file in Read or Edit mode, like a single note. " +
-                        "Larger files still open in the outline.",
+                    description = "For org-roam files (ones with a file-level :ID:) of up to " +
+                        "$WHOLE_FILE_LINE_LIMIT lines, opening the notebook skips the outline and " +
+                        "shows the whole file in your default note mode, like a single note. Larger " +
+                        "and non-roam files still open in the outline. Turning this off opens roam " +
+                        "files in the outline too, regardless of size.",
                     labelBadge = { NewDot(NewAnchors.SETTINGS_ROAM_WHOLE_FILE, Modifier.padding(start = 6.dp)) },
                     onToggle = onSetRoamOpenWholeFile,
                 )

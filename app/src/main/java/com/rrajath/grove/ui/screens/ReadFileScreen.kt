@@ -46,11 +46,14 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rrajath.grove.data.FavoriteNote
+import com.rrajath.grove.org.INTRO_LINE_INDEX
 import com.rrajath.grove.org.OrgDocument
 import com.rrajath.grove.settings.FontSizePreference
 import com.rrajath.grove.ui.components.CollapsibleKvSection
 import com.rrajath.grove.ui.components.GroveToast
 import com.rrajath.grove.ui.components.GroveTopBar
+import com.rrajath.grove.ui.components.LinkedReferencesBar
+import com.rrajath.grove.ui.components.LinkedReferencesSheet
 import com.rrajath.grove.ui.components.ScrollJumpButtons
 import com.rrajath.grove.ui.components.SegmentedControl
 import com.rrajath.grove.ui.newbadge.MarkNewFeatureSeen
@@ -69,13 +72,15 @@ import com.rrajath.grove.ui.vault.breadcrumbFileLabel
  * Read view for a whole `.org` file as one note: the file-level property drawer,
  * the preface, the heading-less intro and every heading in a single scroll. Reached
  * from the Outline overflow menu's "View file", or directly from the Notebooks list
- * when Settings § Roam Features' "Open small files as one note" is on and the file
- * is under the line limit (`WHOLE_FILE_LINE_LIMIT`).
+ * when Settings § Roam Features' "Open roam files directly in read mode" is on and
+ * the file is an org-roam file (has a file-level `:ID:`) under the line limit
+ * (`WHOLE_FILE_LINE_LIMIT`).
  *
  * Deliberately has no `☰` metadata FAB: those actions are heading-scoped. The
  * Read/Edit toggle switches to the whole-file editor (`EditRegionScreen` with
  * `EditRegion.WHOLE_FILE`). Large files open with foldable headings folded, like
- * note Read mode.
+ * note Read mode. The Linked References bar (backlinks) shows at the bottom for
+ * roam files when Settings § Roam Features' "Show backlinks" is on.
  */
 @Composable
 fun ReadFileScreen(
@@ -94,6 +99,13 @@ fun ReadFileScreen(
     showPreface: Boolean = true,
     /** Settings toggle: show collapsible sections for `:PROPERTIES:`/`:LOGBOOK:` drawers. */
     showPropertyDrawers: Boolean = true,
+    /**
+     * Settings § Roam Features (experimental): show the Linked References bar
+     * (backlinks). Only ever renders for a roam file (one with a file-level
+     * `:ID:`, i.e. `document.fileId != null`) -- this toggle alone doesn't
+     * force it on for a non-roam file.
+     */
+    showBacklinks: Boolean = false,
     /** Settings § Notes: font-size lever for the rendered file. App chrome is unaffected. */
     readModeFontSize: FontSizePreference = FontSizePreference.MEDIUM,
     /** Favorited headlines in this file, matched per-heading by customId, marked with a ★. */
@@ -103,6 +115,16 @@ fun ReadFileScreen(
     val c = MaterialTheme.grove
     val state by viewModel.state.collectAsStateWithLifecycle()
     val toast by viewModel.toast.collectAsStateWithLifecycle()
+    val loadedDoc = (state as? DocumentUiState.Loaded)?.document
+    val isRoamFile = loadedDoc?.fileId != null
+    val linkedReferences by viewModel.linkedReferences.collectAsStateWithLifecycle()
+    var linkedRefsOpen by remember { mutableStateOf(false) }
+    LaunchedEffect(fileName, loadedDoc) {
+        val doc = loadedDoc ?: return@LaunchedEffect
+        val fileTitle = doc.preambleKeywords.firstOrNull { it.first.equals("#+TITLE:", ignoreCase = true) }
+            ?.second ?: fileName.removeSuffix(".org")
+        viewModel.loadLinkedReferences(fileName, INTRO_LINE_INDEX, doc.fileId, fileTitle)
+    }
     // Resolves a tapped org link (heading/id: → Read mode, whole file → outline,
     // external scheme → OS, unresolved → toast). See DocumentViewModel.openOrgLink.
     val onOpenLink: (String) -> Unit = remember(viewModel, onOpenNote, onOpenOutline, fileName) {
@@ -158,6 +180,15 @@ fun ReadFileScreen(
                     )
                 },
             )
+        },
+        bottomBar = {
+            if (showBacklinks && isRoamFile) {
+                LinkedReferencesBar(
+                    linkedCount = linkedReferences.linkedCount,
+                    unlinkedCount = linkedReferences.unlinkedCount,
+                    onClick = { linkedRefsOpen = true },
+                )
+            }
         },
     ) { padding ->
         Box(Modifier.fillMaxSize().testTag("read_file_screen")) {
@@ -217,6 +248,21 @@ fun ReadFileScreen(
                     .padding(bottom = 16.dp),
             )
         }
+    }
+
+    if (linkedRefsOpen) {
+        val doc = loadedDoc
+        val title = doc?.preambleKeywords?.firstOrNull { it.first.equals("#+TITLE:", ignoreCase = true) }
+            ?.second ?: fileName.removeSuffix(".org")
+        LinkedReferencesSheet(
+            title = title,
+            result = linkedReferences,
+            onOpenReference = { refFileName, lineIndex, id ->
+                linkedRefsOpen = false
+                onOpenNote(NoteRef(refFileName, lineIndex, id))
+            },
+            onDismiss = { linkedRefsOpen = false },
+        )
     }
 }
 
