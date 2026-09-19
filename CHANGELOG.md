@@ -84,6 +84,7 @@ re-uploads the APKs to the existing release instead of failing.
 - Fixed the formatting toolbar staying visible with keyboard closed, and gapped above it when open, in the whole-file editor.
 - Fixed a Roam capture into an existing file adding a stray heading instead of appending directly below.
 - Fixed Roam node title slugs not being lowercased.
+- Fixed Roam-node captures (e.g. a date-filename daily template) silently dropping all typed body text on save.
 
 ## [1.6.3] - 2026-09-17
 

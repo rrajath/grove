@@ -306,8 +306,13 @@ fun CaptureEditorScreen(
     // Snapshot-backed, so every keystroke recomposes the draft-dependent UI
     // (auto-save indicator, discard prompt) just as the old TextFieldValue did.
     // derivedStateOf so an unrelated recomposition (readMode, metadataOpen, …)
-    // doesn't re-copy the whole buffer; only an actual text change does.
-    val draftText by remember { derivedStateOf { textState.text.toString() } }
+    // doesn't re-copy the whole buffer; only an actual text change does. Keyed
+    // on textState itself: a Roam capture's Checking -> New/ExistingFile
+    // transition recreates textState with a fresh TextFieldState (see its own
+    // remember above), and an unkeyed derivedStateOf here would permanently
+    // close over the original Checking-era instance -- silently orphaning
+    // every keystroke into the field the user actually sees and edits.
+    val draftText by remember(textState) { derivedStateOf { textState.text.toString() } }
     val focusRequester = remember { FocusRequester() }
     LaunchedEffect(roamAppendState) {
         if (roamAppendState !is RoamAppendState.Checking) focusRequester.requestFocus()
