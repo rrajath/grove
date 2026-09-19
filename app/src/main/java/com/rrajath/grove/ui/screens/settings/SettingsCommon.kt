@@ -35,6 +35,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.rrajath.grove.capture.CaptureTemplate
+import com.rrajath.grove.capture.TemplateKind
 import com.rrajath.grove.capture.TemplateValidator
 import com.rrajath.grove.settings.AgendaSwipeAction
 import com.rrajath.grove.ui.components.GroveTopBar
@@ -280,7 +281,12 @@ internal fun TemplateSettingsRow(
                 fontSize = 14.5.sp, color = c.ink,
             )
             Text(
-                "${template.targetFile} · ${template.location.describe()}",
+                if (template.kind == TemplateKind.ROAM_NODE) {
+                    val stem = "${template.filenamePattern}.org"
+                    if (template.roamDirectory.isBlank()) stem else "${template.roamDirectory}/$stem"
+                } else {
+                    "${template.targetFile} · ${template.location.describe()}"
+                },
                 fontFamily = PlexMono, fontSize = 12.sp, color = c.ink2,
             )
         }

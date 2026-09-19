@@ -7,6 +7,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -14,9 +15,11 @@ import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
@@ -52,6 +55,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
@@ -114,6 +118,7 @@ import java.time.LocalTime
  * pre-expanded mono editor with the cursor at `%cursor`. Save inserts into
  * the template's target file.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun CaptureEditorScreen(
     templateId: String,
@@ -423,11 +428,19 @@ fun CaptureEditorScreen(
             )
         },
     ) { padding ->
+        // ime.getBottom > 0 tracks the live keyboard height, unlike isImeVisible's
+        // visibility flag, which can get stuck true after a gesture-dismiss that
+        // leaves the field focused.
+        val imeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
         Column(
             Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom)),
+                // union (not sum) of nav-bar and ime bottom insets: the ime inset
+                // already spans down to the screen edge when the keyboard is up,
+                // so adding navigationBarsPadding on top double-counted it and
+                // left a gap above the keyboard.
+                .windowInsetsPadding(WindowInsets.navigationBars.union(WindowInsets.ime).only(WindowInsetsSides.Bottom)),
         ) {
             if (template.kind == TemplateKind.PLAIN && template.location.isDatetree) {
                 DatetreeBreadcrumb(template, now.toLocalDate())
@@ -519,7 +532,7 @@ fun CaptureEditorScreen(
                     )
                 }
             }
-            if (!readMode) EditorToolbar(
+            if (!readMode && imeVisible) EditorToolbar(
                 onWrap = { marker -> textState.applyEdit { wrapSelection(it, marker) } },
                 onInsert = { snippet -> textState.applyEdit { insertAtCursor(it, snippet) } },
                 onLink = { textState.applyToolbarLink(clipboard) },
