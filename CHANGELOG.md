@@ -80,7 +80,7 @@ re-uploads the APKs to the existing release instead of failing.
 - Fixed a roam file's preface (holding its title) defaulting to collapsed in whole-file Read mode.
 - Fixed missing scroll-to-top/bottom buttons in the Notebooks folder drill-down view.
 - Fixed Roam capture template subtitles showing a hardcoded file instead of the template's filename pattern.
-- Fixed the formatting toolbar staying visible with the keyboard closed, and floating above it with a gap when open.
+- Fixed the formatting toolbar staying visible with the keyboard closed, and floating above it with a gap when open (previous fix summed instead of unioned insets).
 - Fixed a Roam capture into an existing file adding a stray heading instead of appending directly below.
 - Fixed Roam node title slugs not being lowercased.
 
