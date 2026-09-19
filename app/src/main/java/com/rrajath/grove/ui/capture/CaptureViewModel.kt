@@ -9,7 +9,6 @@ import com.rrajath.grove.GroveApplication
 import com.rrajath.grove.capture.CaptureContext
 import com.rrajath.grove.capture.CaptureInserter
 import com.rrajath.grove.capture.CaptureTemplate
-import com.rrajath.grove.capture.TargetLocation
 import com.rrajath.grove.capture.TemplatesRepository
 import com.rrajath.grove.data.GroveDatabase
 import com.rrajath.grove.org.OrgMutations
@@ -308,12 +307,10 @@ class CaptureViewModel(
                 } else {
                     currentText
                 }
-                val insertion = CaptureInserter.insert(
-                    docText = baseText,
-                    location = TargetLocation.BottomOfFile,
-                    entry = roamBody(fullDraftText),
-                    today = LocalDate.from(context.now),
-                )
+                // appendVerbatim, not insert(): the body is plain continuation
+                // text/structure the template itself defines, not a new
+                // top-level heading entry, so it must not be re-leveled.
+                val insertion = CaptureInserter.appendVerbatim(baseText, roamBody(fullDraftText))
                 vault.save(resolvedPath, insertion.newText)
                 RoamDraft(resolvedPath, insertion, ownedNewFile = false)
             }
@@ -338,6 +335,16 @@ class CaptureViewModel(
 
     fun resetSaveState() {
         _saveState.value = SaveState.Idle
+    }
+
+    /**
+     * The on-disk text at [path], or null if it doesn't exist yet. Lets the
+     * capture editor show a Roam node's already-existing content read-only
+     * above the newly captured continuation, instead of re-typing it.
+     */
+    suspend fun loadExistingRoamContent(path: String): String? {
+        val vault = vaultFlow.filterNotNull().first()
+        return withContext(dispatchers.default) { vault.open(path)?.text }
     }
 
     companion object {

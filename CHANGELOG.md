@@ -66,6 +66,7 @@ re-uploads the APKs to the existing release instead of failing.
 - Added Roam Features toggle "Open roam files directly in read mode" (on by default): small roam notebooks skip the outline.
 - Added a Developer tools line-limit override for the whole-file view.
 - Added Roam node capture templates: title-driven filenames, new-file-or-append capture, gated on Roam Features.
+- Added a read-only, greyed preview of a Roam file's existing content when capturing another entry into it.
 
 ### Changed
 - The link picker now supports live search, opens full height, and links leaf headings on tap.
@@ -80,6 +81,7 @@ re-uploads the APKs to the existing release instead of failing.
 - Fixed missing scroll-to-top/bottom buttons in the Notebooks folder drill-down view.
 - Fixed Roam capture template subtitles showing a hardcoded file instead of the template's filename pattern.
 - Fixed the formatting toolbar staying visible with the keyboard closed, and floating above it with a gap when open.
+- Fixed a Roam capture into an existing file adding a stray heading instead of appending directly below.
 - Fixed Roam node title slugs not being lowercased.
 
 ## [1.6.3] - 2026-09-17

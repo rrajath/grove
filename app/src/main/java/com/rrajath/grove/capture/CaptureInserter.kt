@@ -55,6 +55,15 @@ object CaptureInserter {
     class CaptureTargetNotFound(message: String) : Exception(message)
 
     /**
+     * Appends [entry] verbatim at the bottom of [docText] with no re-leveling —
+     * unlike [insert], which always turns the entry's first line into a
+     * heading. Used for a Roam node's continuation body, which is plain
+     * text/structure the template itself defines, not a new top-level entry.
+     */
+    fun appendVerbatim(docText: String, entry: String): Insertion =
+        spliceEntry(docText, endOfFileLine(docText), entry.trimEnd('\n').split("\n"))
+
+    /**
      * Remove a previously spliced-in entry (e.g. an autosaved draft) so it can
      * be replaced by a fresh [insert] rather than duplicated.
      */

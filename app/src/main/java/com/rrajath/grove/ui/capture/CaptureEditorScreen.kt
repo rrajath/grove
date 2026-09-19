@@ -29,9 +29,11 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Save
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -112,6 +114,19 @@ import com.rrajath.grove.ui.theme.priorityColor
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
+
+/**
+ * Whether a Roam capture is a brand-new node or a continuation of a file that
+ * already exists (e.g. a second capture into today's daily note). Resolved
+ * once from the template's fresh expansion, before the user types anything,
+ * and held fixed for the rest of the capture session -- it must not flip
+ * back and forth as a title-driven filename changes while typing.
+ */
+private sealed class RoamAppendState {
+    data object Checking : RoamAppendState()
+    data object New : RoamAppendState()
+    data class ExistingFile(val path: String, val content: String) : RoamAppendState()
+}
 
 /**
  * Capture editor (design spec §8): prompts for `%^{…}` values, then a
@@ -236,9 +251,57 @@ fun CaptureEditorScreen(
             )
         }
     }
-    val initialText = remember(expanded) { expanded.text }
-    val textState = remember(expanded) {
-        TextFieldState(expanded.text, TextRange(expanded.cursorOffset))
+
+    /** [text]'s properties-drawer + preamble head vs. everything after it --
+     *  the same boundary CaptureViewModel.roamBody splits on when a Roam
+     *  capture lands on an already-existing file. */
+    fun roamBodySplit(text: String): Pair<String, String> {
+        val doc = OrgParser.parse(text, keywords)
+        val drawerEnd = OrgMutations.fileDrawerRange(doc)?.last ?: -1
+        val prefaceEnd = OrgMutations.prefaceRange(doc)?.last ?: -1
+        val headLineCount = maxOf(drawerEnd, prefaceEnd) + 1
+        val lines = doc.lines
+        return lines.take(headLineCount).joinToString("\n") to lines.drop(headLineCount).joinToString("\n")
+    }
+
+    fun resolvedRoamPathFor(text: String): String? {
+        val title = FilenamePattern.titleFromDraft(text) ?: return null
+        val slug = FilenamePattern.slugFromTitle(title)
+        val stem = FilenamePattern.expand(template.filenamePattern, now, slug)
+        return if (template.roamDirectory.isBlank()) "$stem.org" else "${template.roamDirectory}/$stem.org"
+    }
+
+    var roamAppendState by remember(expanded) {
+        mutableStateOf<RoamAppendState>(
+            if (template.kind == TemplateKind.ROAM_NODE) RoamAppendState.Checking else RoamAppendState.New,
+        )
+    }
+    LaunchedEffect(expanded) {
+        if (template.kind != TemplateKind.ROAM_NODE) return@LaunchedEffect
+        val path = resolvedRoamPathFor(expanded.text)
+        roamAppendState = if (path == null) {
+            RoamAppendState.New
+        } else {
+            viewModel.loadExistingRoamContent(path)?.let { RoamAppendState.ExistingFile(path, it) } ?: RoamAppendState.New
+        }
+    }
+
+    // For a continuation of an existing file, only the new body is editable
+    // (the existing content renders read-only above it), so the field starts
+    // out holding just the body half of the fresh expansion, cursor re-based
+    // into it.
+    val initialText = remember(expanded, roamAppendState) {
+        (roamAppendState as? RoamAppendState.ExistingFile)?.let { roamBodySplit(expanded.text).second } ?: expanded.text
+    }
+    val textState = remember(expanded, roamAppendState) {
+        val appendState = roamAppendState
+        if (appendState is RoamAppendState.ExistingFile) {
+            val (head, body) = roamBodySplit(expanded.text)
+            val headOffset = if (head.isEmpty()) 0 else head.length + 1
+            TextFieldState(body, TextRange((expanded.cursorOffset - headOffset).coerceIn(0, body.length)))
+        } else {
+            TextFieldState(expanded.text, TextRange(expanded.cursorOffset))
+        }
     }
     // Snapshot-backed, so every keystroke recomposes the draft-dependent UI
     // (auto-save indicator, discard prompt) just as the old TextFieldValue did.
@@ -246,7 +309,9 @@ fun CaptureEditorScreen(
     // doesn't re-copy the whole buffer; only an actual text change does.
     val draftText by remember { derivedStateOf { textState.text.toString() } }
     val focusRequester = remember { FocusRequester() }
-    LaunchedEffect(Unit) { focusRequester.requestFocus() }
+    LaunchedEffect(roamAppendState) {
+        if (roamAppendState !is RoamAppendState.Checking) focusRequester.requestFocus()
+    }
     val scrollState = rememberScrollState()
 
     var showDiscardDialog by remember { mutableStateOf(false) }
@@ -302,21 +367,22 @@ fun CaptureEditorScreen(
     // saved-toast once clean, exactly like EditNoteScreen/EditRegionScreen.
     var lastAutoSavedAt by remember { mutableStateOf<LocalTime?>(null) }
     // Text as of the last auto-save, so dirty can be computed by comparison.
-    var lastAutoSavedText by remember(expanded) { mutableStateOf(initialText) }
+    var lastAutoSavedText by remember(expanded, roamAppendState) { mutableStateOf(initialText) }
     val dirty = draftText != lastAutoSavedText
     val toastContext = LocalContext.current
 
     /**
-     * The Roam node's target file, recomputed from the draft's live
-     * `#+title:` line — same `now` the rest of the draft's timestamps use, so
-     * a `%<...>` filename pattern doesn't drift while the user is still
-     * typing. Null when the title is blank/missing.
+     * The Roam node's target file. A continuation of an already-existing file
+     * keeps the path resolved once at capture start ([RoamAppendState]); a
+     * brand-new node keeps recomputing from the draft's live `#+title:` line
+     * (same `now` the rest of the draft's timestamps use, so a `%<...>`
+     * filename pattern doesn't drift while the user is still typing). Null
+     * when the title is blank/missing, or the existence check hasn't landed yet.
      */
-    fun resolvedRoamPath(): String? {
-        val title = FilenamePattern.titleFromDraft(draftText) ?: return null
-        val slug = FilenamePattern.slugFromTitle(title)
-        val stem = FilenamePattern.expand(template.filenamePattern, now, slug)
-        return if (template.roamDirectory.isBlank()) "$stem.org" else "${template.roamDirectory}/$stem.org"
+    fun resolvedRoamPath(): String? = when (val appendState = roamAppendState) {
+        is RoamAppendState.ExistingFile -> appendState.path
+        RoamAppendState.Checking -> null
+        RoamAppendState.New -> resolvedRoamPathFor(draftText)
     }
 
     /** Immediate autosave, used by the idle timer and by tapping the dirty save icon. */
@@ -461,31 +527,72 @@ fun CaptureEditorScreen(
                             modifier = Modifier.fillMaxSize().padding(bottom = 80.dp),
                         )
                     }
-                } else {
-                    // The field owns its own vertical scrolling (rather than being
-                    // wrapped in Modifier.verticalScroll): that is what lets Compose
-                    // auto-scroll while a selection handle is dragged past the top or
-                    // bottom edge, and keeps the cursor visible when the keyboard
-                    // shrinks the viewport.
+                } else if (roamAppendState !is RoamAppendState.Checking) {
+                    val existingContent = (roamAppendState as? RoamAppendState.ExistingFile)?.content
                     ContentFontScale(editModeFontSize) {
-                        BasicTextField(
-                            state = textState,
-                            inputTransformation = remember(keywords) { orgInputTransformation(keywords) },
-                            outputTransformation = remember(c, keywords) { OrgSyntaxHighlight(c, keywords) },
-                            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-                            lineLimits = TextFieldLineLimits.MultiLine(),
-                            textStyle = TextStyle(
-                                fontFamily = PlexMono, fontSize = 14.sp,
-                                lineHeight = 1.9.em, color = c.ink,
-                            ),
-                            cursorBrush = SolidColor(c.accent),
-                            scrollState = scrollState,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(start = 20.dp, top = 20.dp, end = 20.dp, bottom = 80.dp)
-                                .testTag("capture_body_field")
-                                .focusRequester(focusRequester),
-                        )
+                        if (existingContent != null) {
+                            // Continuing an already-existing file: its prior content
+                            // renders read-only (selectable, greyed) above a divider,
+                            // and only the new body below it is editable. Both scroll
+                            // together as one column, unlike the plain field below.
+                            Column(Modifier.fillMaxSize().verticalScroll(scrollState)) {
+                                SelectionContainer {
+                                    Text(
+                                        existingContent,
+                                        fontFamily = PlexMono, fontSize = 14.sp,
+                                        lineHeight = 1.9.em, color = c.ink3,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(start = 20.dp, top = 20.dp, end = 20.dp),
+                                    )
+                                }
+                                HorizontalDivider(
+                                    color = c.line,
+                                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
+                                )
+                                BasicTextField(
+                                    state = textState,
+                                    inputTransformation = remember(keywords) { orgInputTransformation(keywords) },
+                                    outputTransformation = remember(c, keywords) { OrgSyntaxHighlight(c, keywords) },
+                                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                                    lineLimits = TextFieldLineLimits.MultiLine(),
+                                    textStyle = TextStyle(
+                                        fontFamily = PlexMono, fontSize = 14.sp,
+                                        lineHeight = 1.9.em, color = c.ink,
+                                    ),
+                                    cursorBrush = SolidColor(c.accent),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(start = 20.dp, end = 20.dp, bottom = 80.dp)
+                                        .testTag("capture_body_field")
+                                        .focusRequester(focusRequester),
+                                )
+                            }
+                        } else {
+                            // The field owns its own vertical scrolling (rather than
+                            // being wrapped in Modifier.verticalScroll): that is what
+                            // lets Compose auto-scroll while a selection handle is
+                            // dragged past the top or bottom edge, and keeps the cursor
+                            // visible when the keyboard shrinks the viewport.
+                            BasicTextField(
+                                state = textState,
+                                inputTransformation = remember(keywords) { orgInputTransformation(keywords) },
+                                outputTransformation = remember(c, keywords) { OrgSyntaxHighlight(c, keywords) },
+                                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                                lineLimits = TextFieldLineLimits.MultiLine(),
+                                textStyle = TextStyle(
+                                    fontFamily = PlexMono, fontSize = 14.sp,
+                                    lineHeight = 1.9.em, color = c.ink,
+                                ),
+                                cursorBrush = SolidColor(c.accent),
+                                scrollState = scrollState,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(start = 20.dp, top = 20.dp, end = 20.dp, bottom = 80.dp)
+                                    .testTag("capture_body_field")
+                                    .focusRequester(focusRequester),
+                            )
+                        }
                     }
                     if (autoLinkSuggestions.isNotEmpty()) {
                         AutoLinkSuggestionStrip(
@@ -519,7 +626,7 @@ fun CaptureEditorScreen(
                         .padding(end = 16.dp, bottom = 14.dp)
                         .clip(RoundedCornerShape(15.dp))
                         .background(c.accent)
-                        .clickable(enabled = saveState !is SaveState.Saving) {
+                        .clickable(enabled = saveState !is SaveState.Saving && roamAppendState !is RoamAppendState.Checking) {
                             trySave()
                         }
                         .testTag("capture_save")
