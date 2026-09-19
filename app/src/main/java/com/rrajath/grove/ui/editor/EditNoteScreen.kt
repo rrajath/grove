@@ -595,7 +595,10 @@ fun EditNoteScreen(
                     modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 16.dp),
                 )
             }
-            if (showBacklinks) {
+            // Hidden while the keyboard is up: the bar and the toolbar both sit at
+            // the bottom of this Column, and only one of them should own that row
+            // at a time -- the toolbar takes it while typing.
+            if (showBacklinks && !imeVisible) {
                 LinkedReferencesBar(
                     linkedCount = linkedReferences.linkedCount,
                     unlinkedCount = linkedReferences.unlinkedCount,

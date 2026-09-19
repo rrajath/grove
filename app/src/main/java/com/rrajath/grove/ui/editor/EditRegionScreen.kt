@@ -12,9 +12,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
@@ -358,21 +360,17 @@ fun EditRegionScreen(
                 },
             )
         },
-        bottomBar = {
-            if (showBacklinks && region == EditRegion.WHOLE_FILE && wholeFileMeta?.first != null) {
-                LinkedReferencesBar(
-                    linkedCount = linkedReferences.linkedCount,
-                    unlinkedCount = linkedReferences.unlinkedCount,
-                    onClick = { linkedRefsOpen = true },
-                )
-            }
-        },
     ) { padding ->
+        // ime.getBottom > 0 tracks the live keyboard height, unlike isImeVisible's
+        // visibility flag; see EditNoteScreen's identical wiring.
+        val imeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
         Column(
             Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom)),
+                // union (not safeDrawing alone): the bar below and the toolbar must
+                // sit inside this same inset-padded Column -- see EditNoteScreen.
+                .windowInsetsPadding(WindowInsets.navigationBars.union(WindowInsets.ime).only(WindowInsetsSides.Bottom)),
         ) {
             state.error?.let { error ->
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -433,7 +431,17 @@ fun EditRegionScreen(
                     )
                 }
             }
-            EditorToolbar(
+            // Hidden while the keyboard is up: the bar and the toolbar both sit at
+            // the bottom of this Column, and only one of them should own that row
+            // at a time -- the toolbar takes it while typing (see EditNoteScreen).
+            if (showBacklinks && region == EditRegion.WHOLE_FILE && wholeFileMeta?.first != null && !imeVisible) {
+                LinkedReferencesBar(
+                    linkedCount = linkedReferences.linkedCount,
+                    unlinkedCount = linkedReferences.unlinkedCount,
+                    onClick = { linkedRefsOpen = true },
+                )
+            }
+            if (imeVisible) EditorToolbar(
                 onWrap = { marker -> textState.applyEdit { wrapSelection(it, marker) } },
                 onInsert = { snippet -> textState.applyEdit { insertAtCursor(it, snippet) } },
                 onLink = { textState.applyToolbarLink(clipboard) },

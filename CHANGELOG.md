@@ -74,13 +74,14 @@ re-uploads the APKs to the existing release instead of failing.
 - Linked References bar now also appears in Outline view, is taller collapsed, and shows a centered top chevron.
 - Linked References bar now only shows for org-roam files, and also appears in the whole-file Read/Edit view.
 - Whole-file Read/Edit header now scrolls long file names on one line and compacts folders to their first letter.
+- Linked References bar now hides whenever the keyboard is open, since the toolbar takes that row instead.
 
 ### Fixed
 - Fixed link typing suggestions not appearing in the whole-file editor or Roam capture.
 - Fixed a roam file's preface (holding its title) defaulting to collapsed in whole-file Read mode.
 - Fixed missing scroll-to-top/bottom buttons in the Notebooks folder drill-down view.
 - Fixed Roam capture template subtitles showing a hardcoded file instead of the template's filename pattern.
-- Fixed the formatting toolbar staying visible with the keyboard closed, and floating above it with a gap when open (previous fix summed instead of unioned insets).
+- Fixed the formatting toolbar staying visible with keyboard closed, and gapped above it when open, in the whole-file editor.
 - Fixed a Roam capture into an existing file adding a stray heading instead of appending directly below.
 - Fixed Roam node title slugs not being lowercased.
 
