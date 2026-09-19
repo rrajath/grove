@@ -74,7 +74,7 @@ data class CaptureTemplate(
     /** Stem-only pattern (no `.org`) for a Roam node's computed filename. */
     val filenamePattern: String = "%<%Y%m%d%H%M%S>-%(slug)",
     /** Expanded verbatim as a new file's contents on the first capture to a resolved filename. */
-    val newFileTemplate: String = ":PROPERTIES:\n:ID:       %(id)\n:END:\n#+title: %?",
+    val newFileTemplate: String = ":PROPERTIES:\n:ID: %(id)\n:END:\n#+title: %?",
 )
 
 object TemplateSerializer {
