@@ -92,6 +92,7 @@ re-uploads the APKs to the existing release instead of failing.
 - Fixed the roam-node prompt label sitting top-aligned; it now also reads "Link" for an existing match.
 - Fixed Roam-node captures (e.g. a date-filename daily template) silently dropping all typed body text on save.
 - Fixed link typing suggestions in Roam capture watching a stale text field after the new-file/existing-file check resolved.
+- Fixed the auto-link/roam-node suggestion strip sitting top-aligned against the FAB/Save pill instead of centered.
 
 ## [1.6.3] - 2026-09-17
 

@@ -640,86 +640,99 @@ fun CaptureEditorScreen(
                             )
                         }
                     }
-                    if (autoLinkSuggestions.isNotEmpty()) {
-                        AutoLinkSuggestionStrip(
-                            suggestions = autoLinkSuggestions,
-                            expandedKeys = expandedChipKeys,
-                            onToggleExpand = { key -> expandedChipKeys = expandedChipKeys + key },
-                            onPick = { suggestion ->
-                                val range = autoLinkTrigger?.range ?: return@AutoLinkSuggestionStrip
-                                val linkText = formatAutoLinkInsertion(suggestion)
-                                textState.edit {
-                                    replace(range.start, range.end, linkText)
-                                    selection = TextRange(range.start + linkText.length)
-                                }
-                                autoLinkTrigger = null
-                            },
-                            // End-padded clear of the Save pill's own 16dp gutter +
-                            // its widest ("Saving…") width, so the scrollable strip
-                            // stops short of the pill instead of running chips
-                            // behind it.
-                            modifier = Modifier
-                                .align(Alignment.BottomStart)
-                                .padding(start = 16.dp, end = 100.dp, bottom = 16.dp),
-                        )
-                    } else if (roamNodeSuggestionActive) {
-                        val (selectedText, selectedRange) = roamNodeSelection!!
-                        RoamNodeSuggestionStrip(
-                            templates = roamNodeTemplates,
-                            selectedText = selectedText,
-                            matchesExistingNode = remember(selectedText, autoLinkIndex) {
-                                autoLinkIndex?.any { it.titleLower == selectedText.lowercase() } == true
-                            },
-                            expandedKeys = roamNodeExpandedKeys,
-                            onToggleExpand = { key -> roamNodeExpandedKeys = roamNodeExpandedKeys + key },
-                            onPick = { template ->
-                                roamNodeSelection = null
-                                coroutineScope.launch {
-                                    val result = viewModel.createOrLinkRoamNode(template, selectedText)
-                                    if (result == null) return@launch
-                                    val lo = selectedRange.min.coerceIn(0, textState.text.length)
-                                    val hi = selectedRange.max.coerceIn(lo, textState.text.length)
-                                    val linkText = result.formatLink()
-                                    textState.edit {
-                                        replace(lo, hi, linkText)
-                                        selection = TextRange(lo + linkText.length)
-                                    }
-                                    val message = when (result) {
-                                        is RoamNodeResult.Linked -> "Linked to existing roam node: ${result.title}"
-                                        is RoamNodeResult.Created ->
-                                            "A roam node with title \"${result.title}\" has been created."
-                                    }
-                                    Toast.makeText(toastContext, message, Toast.LENGTH_SHORT).show()
-                                }
-                            },
-                            modifier = Modifier
-                                .align(Alignment.BottomStart)
-                                .padding(start = 16.dp, end = 100.dp, bottom = 16.dp),
-                        )
-                    }
                 }
-                // Save floats bottom-right: above the keyboard while it's up
-                // (the column is ime-padded), at the screen's bottom otherwise.
-                // Stays available in Read mode too, so a metadata-only capture
-                // (state/dates/tags set from the sheet, no further typing) can be
-                // saved without switching back to Edit.
+                // Bottom bar: the suggestion strip (if any) and the Save pill share
+                // this row's own vertical center -- they're independently sized, so
+                // Alignment.Center rather than Alignment.Bottom keeps them lined up
+                // regardless of the strip's or pill's exact rendered height.
                 Box(
                     Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(end = 16.dp, bottom = 14.dp)
-                        .clip(RoundedCornerShape(15.dp))
-                        .background(c.accent)
-                        .clickable(enabled = saveState !is SaveState.Saving && roamAppendState !is RoamAppendState.Checking) {
-                            trySave()
-                        }
-                        .testTag("capture_save")
-                        .padding(horizontal = 22.dp, vertical = 13.dp),
+                        .align(Alignment.BottomStart)
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp),
                 ) {
-                    Text(
-                        if (saveState is SaveState.Saving) "Saving…" else "Save",
-                        fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
-                        fontSize = 14.sp, color = c.accentInk,
-                    )
+                    if (roamAppendState !is RoamAppendState.Checking) {
+                        if (autoLinkSuggestions.isNotEmpty()) {
+                            AutoLinkSuggestionStrip(
+                                suggestions = autoLinkSuggestions,
+                                expandedKeys = expandedChipKeys,
+                                onToggleExpand = { key -> expandedChipKeys = expandedChipKeys + key },
+                                onPick = { suggestion ->
+                                    val range = autoLinkTrigger?.range ?: return@AutoLinkSuggestionStrip
+                                    val linkText = formatAutoLinkInsertion(suggestion)
+                                    textState.edit {
+                                        replace(range.start, range.end, linkText)
+                                        selection = TextRange(range.start + linkText.length)
+                                    }
+                                    autoLinkTrigger = null
+                                },
+                                // End-padded clear of the Save pill's own 16dp gutter +
+                                // its widest ("Saving…") width, so the scrollable strip
+                                // stops short of the pill instead of running chips
+                                // behind it.
+                                modifier = Modifier
+                                    .align(Alignment.CenterStart)
+                                    .padding(start = 16.dp, end = 100.dp),
+                            )
+                        } else if (roamNodeSuggestionActive) {
+                            val (selectedText, selectedRange) = roamNodeSelection!!
+                            RoamNodeSuggestionStrip(
+                                templates = roamNodeTemplates,
+                                selectedText = selectedText,
+                                matchesExistingNode = remember(selectedText, autoLinkIndex) {
+                                    autoLinkIndex?.any { it.titleLower == selectedText.lowercase() } == true
+                                },
+                                expandedKeys = roamNodeExpandedKeys,
+                                onToggleExpand = { key -> roamNodeExpandedKeys = roamNodeExpandedKeys + key },
+                                onPick = { template ->
+                                    roamNodeSelection = null
+                                    coroutineScope.launch {
+                                        val result = viewModel.createOrLinkRoamNode(template, selectedText)
+                                        if (result == null) return@launch
+                                        val lo = selectedRange.min.coerceIn(0, textState.text.length)
+                                        val hi = selectedRange.max.coerceIn(lo, textState.text.length)
+                                        val linkText = result.formatLink()
+                                        textState.edit {
+                                            replace(lo, hi, linkText)
+                                            selection = TextRange(lo + linkText.length)
+                                        }
+                                        val message = when (result) {
+                                            is RoamNodeResult.Linked -> "Linked to existing roam node: ${result.title}"
+                                            is RoamNodeResult.Created ->
+                                                "A roam node with title \"${result.title}\" has been created."
+                                        }
+                                        Toast.makeText(toastContext, message, Toast.LENGTH_SHORT).show()
+                                    }
+                                },
+                                modifier = Modifier
+                                    .align(Alignment.CenterStart)
+                                    .padding(start = 16.dp, end = 100.dp),
+                            )
+                        }
+                    }
+                    // Save floats bottom-right: above the keyboard while it's up
+                    // (the column is ime-padded), at the screen's bottom otherwise.
+                    // Stays available in Read mode too, so a metadata-only capture
+                    // (state/dates/tags set from the sheet, no further typing) can be
+                    // saved without switching back to Edit.
+                    Box(
+                        Modifier
+                            .align(Alignment.CenterEnd)
+                            .padding(end = 16.dp)
+                            .clip(RoundedCornerShape(15.dp))
+                            .background(c.accent)
+                            .clickable(enabled = saveState !is SaveState.Saving && roamAppendState !is RoamAppendState.Checking) {
+                                trySave()
+                            }
+                            .testTag("capture_save")
+                            .padding(horizontal = 22.dp, vertical = 13.dp),
+                    ) {
+                        Text(
+                            if (saveState is SaveState.Saving) "Saving…" else "Save",
+                            fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
+                            fontSize = 14.sp, color = c.accentInk,
+                        )
+                    }
                 }
             }
             if (!readMode && imeVisible) EditorToolbar(

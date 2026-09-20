@@ -558,77 +558,87 @@ fun EditNoteScreen(
                             .testTag("edit_note_field"),
                     )
                 }
-                Column(
+                // Bottom bar: the suggestion strip (if any) and the FAB column share
+                // this row's own vertical center -- they're independently sized, so
+                // Alignment.Center rather than Alignment.Bottom keeps them lined up
+                // regardless of the strip's or column's exact rendered height.
+                Box(
                     Modifier
-                        .align(Alignment.BottomEnd)
-                        // 24dp end = the note gutter, matching the Read/Edit
-                        // toggle in the top bar.
-                        .padding(end = 24.dp, bottom = 16.dp),
-                    horizontalAlignment = Alignment.End,
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                        .align(Alignment.BottomStart)
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp),
                 ) {
-                    ScrollJumpButtons(
-                        scrollState = scrollState,
-                        minScrollDeltaPx = scrollButtonThresholdPx,
-                    )
-                    EditorMenuFab(onClick = { metadataOpen = true })
-                }
-                if (autoLinkSuggestions.isNotEmpty()) {
-                    AutoLinkSuggestionStrip(
-                        suggestions = autoLinkSuggestions,
-                        expandedKeys = expandedChipKeys,
-                        onToggleExpand = { key -> expandedChipKeys = expandedChipKeys + key },
-                        onPick = { suggestion ->
-                            val range = autoLinkTrigger?.range ?: return@AutoLinkSuggestionStrip
-                            val linkText = formatAutoLinkInsertion(suggestion)
-                            textState.edit {
-                                replace(range.start, range.end, linkText)
-                                selection = TextRange(range.start + linkText.length)
-                            }
-                            autoLinkTrigger = null
-                        },
-                        // Same bottom line as the FAB column below, so the strip floats
-                        // over the already-reserved clear space (the field's own 80dp
-                        // bottom padding) instead of pushing the field's height around.
-                        // End-padded clear of the FAB's own 24dp gutter + 54dp size.
-                        modifier = Modifier
-                            .align(Alignment.BottomStart)
-                            .padding(end = 88.dp, bottom = 16.dp),
-                    )
-                } else if (roamNodeSuggestionActive) {
-                    val (selectedText, selectedRange) = roamNodeSelection!!
-                    RoamNodeSuggestionStrip(
-                        templates = roamNodeTemplates,
-                        selectedText = selectedText,
-                        matchesExistingNode = remember(selectedText, autoLinkIndex) {
-                            autoLinkIndex?.any { it.titleLower == selectedText.lowercase() } == true
-                        },
-                        expandedKeys = roamNodeExpandedKeys,
-                        onToggleExpand = { key -> roamNodeExpandedKeys = roamNodeExpandedKeys + key },
-                        onPick = { template ->
-                            roamNodeSelection = null
-                            coroutineScope.launch {
-                                val result = viewModel.createOrLinkRoamNode(template, selectedText)
-                                if (result == null) return@launch
-                                val lo = selectedRange.min.coerceIn(0, textState.text.length)
-                                val hi = selectedRange.max.coerceIn(lo, textState.text.length)
-                                val linkText = result.formatLink()
+                    Column(
+                        Modifier
+                            .align(Alignment.CenterEnd)
+                            // 24dp end = the note gutter, matching the Read/Edit
+                            // toggle in the top bar.
+                            .padding(end = 24.dp),
+                        horizontalAlignment = Alignment.End,
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        ScrollJumpButtons(
+                            scrollState = scrollState,
+                            minScrollDeltaPx = scrollButtonThresholdPx,
+                        )
+                        EditorMenuFab(onClick = { metadataOpen = true })
+                    }
+                    if (autoLinkSuggestions.isNotEmpty()) {
+                        AutoLinkSuggestionStrip(
+                            suggestions = autoLinkSuggestions,
+                            expandedKeys = expandedChipKeys,
+                            onToggleExpand = { key -> expandedChipKeys = expandedChipKeys + key },
+                            onPick = { suggestion ->
+                                val range = autoLinkTrigger?.range ?: return@AutoLinkSuggestionStrip
+                                val linkText = formatAutoLinkInsertion(suggestion)
                                 textState.edit {
-                                    replace(lo, hi, linkText)
-                                    selection = TextRange(lo + linkText.length)
+                                    replace(range.start, range.end, linkText)
+                                    selection = TextRange(range.start + linkText.length)
                                 }
-                                val message = when (result) {
-                                    is RoamNodeResult.Linked -> "Linked to existing roam node: ${result.title}"
-                                    is RoamNodeResult.Created ->
-                                        "A roam node with title \"${result.title}\" has been created."
+                                autoLinkTrigger = null
+                            },
+                            // Over the field's own reserved bottom clearance, so the
+                            // strip floats there instead of pushing the field's height
+                            // around. End-padded clear of the FAB's own 24dp gutter + 54dp size.
+                            modifier = Modifier
+                                .align(Alignment.CenterStart)
+                                .padding(end = 88.dp),
+                        )
+                    } else if (roamNodeSuggestionActive) {
+                        val (selectedText, selectedRange) = roamNodeSelection!!
+                        RoamNodeSuggestionStrip(
+                            templates = roamNodeTemplates,
+                            selectedText = selectedText,
+                            matchesExistingNode = remember(selectedText, autoLinkIndex) {
+                                autoLinkIndex?.any { it.titleLower == selectedText.lowercase() } == true
+                            },
+                            expandedKeys = roamNodeExpandedKeys,
+                            onToggleExpand = { key -> roamNodeExpandedKeys = roamNodeExpandedKeys + key },
+                            onPick = { template ->
+                                roamNodeSelection = null
+                                coroutineScope.launch {
+                                    val result = viewModel.createOrLinkRoamNode(template, selectedText)
+                                    if (result == null) return@launch
+                                    val lo = selectedRange.min.coerceIn(0, textState.text.length)
+                                    val hi = selectedRange.max.coerceIn(lo, textState.text.length)
+                                    val linkText = result.formatLink()
+                                    textState.edit {
+                                        replace(lo, hi, linkText)
+                                        selection = TextRange(lo + linkText.length)
+                                    }
+                                    val message = when (result) {
+                                        is RoamNodeResult.Linked -> "Linked to existing roam node: ${result.title}"
+                                        is RoamNodeResult.Created ->
+                                            "A roam node with title \"${result.title}\" has been created."
+                                    }
+                                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
                                 }
-                                Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-                            }
-                        },
-                        modifier = Modifier
-                            .align(Alignment.BottomStart)
-                            .padding(end = 88.dp, bottom = 16.dp),
-                    )
+                            },
+                            modifier = Modifier
+                                .align(Alignment.CenterStart)
+                                .padding(end = 88.dp),
+                        )
+                    }
                 }
                 GroveUndoSnackbar(
                     snack = snack,
