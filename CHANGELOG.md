@@ -87,6 +87,7 @@ re-uploads the APKs to the existing release instead of failing.
 - Fixed the formatting toolbar staying visible with keyboard closed, and gapped above it when open, in the whole-file editor.
 - Fixed a Roam capture into an existing file adding a stray heading instead of appending directly below.
 - Fixed Roam node title slugs not being lowercased.
+- Fixed the roam-node prompt label sitting top-aligned; it now also reads "Link" for an existing match.
 - Fixed Roam-node captures (e.g. a date-filename daily template) silently dropping all typed body text on save.
 - Fixed link typing suggestions in Roam capture watching a stale text field after the new-file/existing-file check resolved.
 

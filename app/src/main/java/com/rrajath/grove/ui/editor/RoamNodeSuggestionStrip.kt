@@ -33,6 +33,8 @@ import com.rrajath.grove.ui.theme.grove
 fun RoamNodeSuggestionStrip(
     templates: List<CaptureTemplate>,
     selectedText: String,
+    /** Whether [selectedText] already names an existing roam node (see [AutoLinkSuggestion.titleLower]) -- flips the prompt from offering to create one to offering to link it. */
+    matchesExistingNode: Boolean,
     expandedKeys: Set<String>,
     onToggleExpand: (String) -> Unit,
     onPick: (CaptureTemplate) -> Unit,
@@ -42,11 +44,12 @@ fun RoamNodeSuggestionStrip(
     LazyRow(
         modifier.fadingTrailingEdge(40.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
     ) {
         item {
             Text(
-                "Create a roam node?",
+                if (matchesExistingNode) "Link to the roam node?" else "Create a roam node?",
                 fontFamily = PlexMono, fontSize = 13.sp, color = c.ink2,
                 modifier = Modifier.padding(end = 4.dp),
             )

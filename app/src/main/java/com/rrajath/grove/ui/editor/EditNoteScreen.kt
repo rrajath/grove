@@ -600,6 +600,9 @@ fun EditNoteScreen(
                     RoamNodeSuggestionStrip(
                         templates = roamNodeTemplates,
                         selectedText = selectedText,
+                        matchesExistingNode = remember(selectedText, autoLinkIndex) {
+                            autoLinkIndex?.any { it.titleLower == selectedText.lowercase() } == true
+                        },
                         expandedKeys = roamNodeExpandedKeys,
                         onToggleExpand = { key -> roamNodeExpandedKeys = roamNodeExpandedKeys + key },
                         onPick = { template ->
