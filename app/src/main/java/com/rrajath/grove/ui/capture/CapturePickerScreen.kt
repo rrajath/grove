@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rrajath.grove.capture.CaptureTemplate
+import com.rrajath.grove.capture.TemplateKind
 import com.rrajath.grove.capture.TemplateValidator
 import com.rrajath.grove.ui.components.MonogramTile
 import com.rrajath.grove.ui.components.Pill
@@ -44,7 +45,7 @@ fun CapturePickerSheet(
     onManage: () -> Unit,
     viewModel: CaptureViewModel = viewModel(factory = CaptureViewModel.Factory),
 ) {
-    val templates by viewModel.templates.collectAsStateWithLifecycle()
+    val templates by viewModel.pickerTemplates.collectAsStateWithLifecycle()
 
     // `templates` starts as emptyList() until TemplatesRepository's DataStore
     // flow delivers its first emission (async, via stateIn/WhileSubscribed) —
@@ -134,7 +135,12 @@ private fun TemplateRow(template: CaptureTemplate, onClick: () -> Unit) {
                 fontSize = 15.5.sp, color = c.ink,
             )
             Text(
-                "${template.targetFile} · ${template.location.describe()}",
+                if (template.kind == TemplateKind.ROAM_NODE) {
+                    val stem = "${template.filenamePattern}.org"
+                    if (template.roamDirectory.isBlank()) stem else "${template.roamDirectory}/$stem"
+                } else {
+                    "${template.targetFile} · ${template.location.describe()}"
+                },
                 fontFamily = PlexMono, fontSize = 12.5.sp, color = c.ink2,
             )
         }

@@ -9,6 +9,7 @@ import com.rrajath.grove.GroveApplication
 import com.rrajath.grove.capture.CaptureContext
 import com.rrajath.grove.capture.CaptureInserter
 import com.rrajath.grove.capture.CaptureTemplate
+import com.rrajath.grove.capture.TemplateKind
 import com.rrajath.grove.capture.TemplatesRepository
 import com.rrajath.grove.data.GroveDatabase
 import com.rrajath.grove.org.OrgMutations
@@ -25,6 +26,7 @@ import kotlinx.collections.immutable.ImmutableList
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -53,6 +55,14 @@ class CaptureViewModel(
 
     val templates: StateFlow<List<CaptureTemplate>> = templatesRepository.templates
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** [templates] minus Roam-node templates when Settings § Roam Features is off. */
+    val pickerTemplates: StateFlow<List<CaptureTemplate>> = combine(
+        templatesRepository.templates,
+        settings.settings.map { it.roamFeaturesEnabled },
+    ) { all, roamEnabled ->
+        if (roamEnabled) all else all.filterNot { it.kind == TemplateKind.ROAM_NODE }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private val _saveState = MutableStateFlow<SaveState>(SaveState.Idle)
     val saveState: StateFlow<SaveState> = _saveState

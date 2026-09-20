@@ -4,6 +4,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.rrajath.grove.capture.TemplateKind
 import com.rrajath.grove.settings.GroveSettings
 import com.rrajath.grove.ui.capture.TemplatesViewModel
 
@@ -16,7 +17,12 @@ fun SettingsCaptureTemplatesScreen(
     onSetCaptureNotification: (Boolean) -> Unit,
     templatesViewModel: TemplatesViewModel = viewModel(factory = TemplatesViewModel.Factory),
 ) {
-    val templates by templatesViewModel.templates.collectAsStateWithLifecycle()
+    val allTemplates by templatesViewModel.templates.collectAsStateWithLifecycle()
+    val templates = if (settings.roamFeaturesEnabled) {
+        allTemplates
+    } else {
+        allTemplates.filterNot { it.kind == TemplateKind.ROAM_NODE }
+    }
     SettingsPageScaffold(title = "Capture Templates", onBack = onBack) {
         SettingsGroup {
             templates.forEachIndexed { i, template ->
