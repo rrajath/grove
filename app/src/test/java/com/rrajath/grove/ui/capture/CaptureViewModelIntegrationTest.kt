@@ -87,7 +87,7 @@ class CaptureViewModelIntegrationTest {
         vm.save(quickNote, "* A captured thought from the share sheet", context)
         advanceUntilIdle()
 
-        assertEquals(SaveState.Saved, vm.saveState.value)
+        assertEquals(SaveState.Saved("inbox.org"), vm.saveState.value)
         assertTrue(
             store.read("inbox.org").contains("* A captured thought from the share sheet"),
         )
@@ -102,7 +102,7 @@ class CaptureViewModelIntegrationTest {
         vm.save(template, "* Brand new notebook entry", context)
         advanceUntilIdle()
 
-        assertEquals(SaveState.Saved, vm.saveState.value)
+        assertEquals(SaveState.Saved("captures.org"), vm.saveState.value)
         assertTrue(store.exists("captures.org"))
         assertTrue(store.read("captures.org").contains("* Brand new notebook entry"))
     }
@@ -144,7 +144,7 @@ class CaptureViewModelIntegrationTest {
         vm.save(template, "* Filed under the custom id", context)
         advanceUntilIdle()
 
-        assertEquals(SaveState.Saved, vm.saveState.value)
+        assertEquals(SaveState.Saved("inbox.org"), vm.saveState.value)
         val text = store.read("inbox.org")
         // "Captured" is a level-1 heading, so the entry lands one level deeper.
         assertTrue(text.contains("** Filed under the custom id"))
@@ -165,7 +165,7 @@ class CaptureViewModelIntegrationTest {
         vm.save(template, "* Filed by title", context)
         advanceUntilIdle()
 
-        assertEquals(SaveState.Saved, vm.saveState.value)
+        assertEquals(SaveState.Saved("inbox.org"), vm.saveState.value)
         assertTrue(store.read("inbox.org").contains("** Filed by title"))
     }
 

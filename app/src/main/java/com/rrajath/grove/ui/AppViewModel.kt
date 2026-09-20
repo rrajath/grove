@@ -35,6 +35,7 @@ import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import com.rrajath.grove.whatsnew.ChangelogParser
 import com.rrajath.grove.whatsnew.ChangelogVersion
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -43,6 +44,9 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
+/** A just-saved Roam capture file, offering a "Visit file" snackbar action (~4.2s, like [com.rrajath.grove.ui.vault.OutlineSnack]). */
+data class CaptureSavedSnack(val filePath: String, val id: Long)
 
 class AppViewModel(
     private val settingsRepository: SettingsRepository,
@@ -77,6 +81,31 @@ class AppViewModel(
 
     val favorites: StateFlow<List<FavoriteNote>> = favoritesRepository.favorites
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    private var captureSavedSnackId = 0L
+    private val _captureSavedSnack = MutableStateFlow<CaptureSavedSnack?>(null)
+
+    /**
+     * Held here (not in [com.rrajath.grove.ui.capture.CaptureViewModel]) because
+     * it must outlive the capture screen: the capture route pops off the back
+     * stack the moment it fires, so a screen-scoped ViewModel would already be
+     * cleared by the time the snackbar needs to render over whatever's
+     * revealed underneath.
+     */
+    val captureSavedSnack: StateFlow<CaptureSavedSnack?> = _captureSavedSnack
+
+    fun showCaptureSavedSnack(filePath: String) {
+        val snack = CaptureSavedSnack(filePath, ++captureSavedSnackId)
+        _captureSavedSnack.value = snack
+        viewModelScope.launch {
+            delay(4200)
+            if (_captureSavedSnack.value?.id == snack.id) _captureSavedSnack.value = null
+        }
+    }
+
+    fun dismissCaptureSavedSnack() {
+        _captureSavedSnack.value = null
+    }
 
     /**
      * @param customId the heading's existing or newly-written stable id — see

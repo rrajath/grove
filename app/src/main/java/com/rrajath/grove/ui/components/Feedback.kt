@@ -111,3 +111,55 @@ fun GroveUndoSnackbar(
         }
     }
 }
+
+/**
+ * Bottom action snackbar for a one-shot confirmation with a follow-up action
+ * (design spec: same ink bg/12dp radius/14dp margins as [GroveUndoSnackbar],
+ * but the action is a distinct button rather than a whole-bar tap target,
+ * since dismissing this one is not itself a meaningful action to guard
+ * against a stray tap on).
+ */
+@Composable
+fun GroveActionSnackbar(
+    visible: Boolean,
+    message: String,
+    actionLabel: String,
+    onAction: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val c = MaterialTheme.grove
+    var lastMessage by remember { mutableStateOf("") }
+    if (visible) lastMessage = message
+    AnimatedVisibility(
+        visible = visible,
+        enter = fadeIn() + slideInVertically { it / 2 },
+        exit = fadeOut() + slideOutVertically { it / 2 },
+        modifier = modifier,
+    ) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(c.ink)
+                .padding(start = 16.dp, end = 6.dp, top = 12.dp, bottom = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                lastMessage,
+                fontFamily = PlexSans, fontSize = 13.5.sp, color = c.bg,
+                modifier = Modifier.weight(1f),
+            )
+            Spacer(Modifier.width(12.dp))
+            Text(
+                actionLabel,
+                fontFamily = PlexSans, fontWeight = FontWeight.Bold,
+                fontSize = 13.sp, color = c.accent,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable(onClick = onAction)
+                    .padding(horizontal = 10.dp, vertical = 8.dp),
+            )
+        }
+    }
+}

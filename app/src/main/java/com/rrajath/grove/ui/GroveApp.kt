@@ -1,6 +1,7 @@
 package com.rrajath.grove.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.MaterialTheme
@@ -22,6 +23,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
@@ -48,6 +50,7 @@ import com.rrajath.grove.ui.editor.EmptyHeadingAlertDialog
 import com.rrajath.grove.ui.editor.UnsavedNoteDialog
 import com.rrajath.grove.ui.capture.CapturePickerSheet
 import com.rrajath.grove.ui.capture.TemplateEditScreen
+import com.rrajath.grove.ui.components.GroveActionSnackbar
 import com.rrajath.grove.ui.nav.Routes
 import com.rrajath.grove.ui.newbadge.LocalNewBadges
 import com.rrajath.grove.ui.newbadge.NewBadges
@@ -366,6 +369,7 @@ private fun GroveNavigation(
             }
         },
     ) {
+    Box(Modifier.fillMaxSize()) {
         NavHost(
             navController = navController,
             startDestination = if (settings.onboardingDone || TestVaultHook.skipOnboarding) {
@@ -817,7 +821,10 @@ private fun GroveNavigation(
                 CaptureEditorScreen(
                     templateId = entry.arguments?.getString("templateId").orEmpty(),
                     onClose = closeCapture,
-                    onSaved = closeCapture,
+                    onSaved = { savedRoamFilePath ->
+                        closeCapture()
+                        if (savedRoamFilePath != null) viewModel.showCaptureSavedSnack(savedRoamFilePath)
+                    },
                     editModeFontSize = settings.editModeFontSize,
                     showSuggestions = settings.roamFeaturesEnabled && settings.roamShowSuggestions,
                 )
@@ -1031,6 +1038,22 @@ private fun GroveNavigation(
                 )
             }
         }
+        // Overlays whatever the capture route's onSaved popped back onto, since
+        // AppViewModel (not a route-scoped ViewModel) owns this state -- see
+        // AppViewModel.captureSavedSnack.
+        val captureSavedSnack by viewModel.captureSavedSnack.collectAsStateWithLifecycle()
+        GroveActionSnackbar(
+            visible = captureSavedSnack != null,
+            message = "Saved \"${captureSavedSnack?.filePath?.substringAfterLast('/').orEmpty()}\"",
+            actionLabel = "Visit file",
+            onAction = {
+                val path = captureSavedSnack?.filePath ?: return@GroveActionSnackbar
+                viewModel.dismissCaptureSavedSnack()
+                navController.navigate(Routes.file(path, "read"))
+            },
+            modifier = Modifier.align(Alignment.BottomCenter),
+        )
+    }
     }
     }
 

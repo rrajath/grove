@@ -68,7 +68,7 @@ class CaptureScreenTest {
     private fun editor(
         templateId: String,
         onClose: () -> Unit = {},
-        onSaved: () -> Unit = {},
+        onSaved: (String?) -> Unit = {},
     ) {
         composeRule.setGroveContent {
             CaptureEditorScreen(

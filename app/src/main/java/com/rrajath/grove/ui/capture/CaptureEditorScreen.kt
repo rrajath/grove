@@ -138,7 +138,15 @@ private sealed class RoamAppendState {
 fun CaptureEditorScreen(
     templateId: String,
     onClose: () -> Unit,
-    onSaved: () -> Unit,
+    /**
+     * Fired once the draft is persisted. [savedRoamFilePath] is the vault path
+     * of the file just written, but only for a [TemplateKind.ROAM_NODE]
+     * capture (null for a PLAIN entry) -- that's what the caller uses to
+     * offer a "Visit file" snackbar action; a PLAIN capture inserts into an
+     * existing notebook the user is presumably already looking at, so no
+     * snackbar is warranted there.
+     */
+    onSaved: (savedRoamFilePath: String?) -> Unit,
     /** Settings § Notes: font-size lever for the editor field. App chrome is unaffected. */
     editModeFontSize: FontSizePreference = FontSizePreference.MEDIUM,
     /**
@@ -166,9 +174,10 @@ fun CaptureEditorScreen(
     val keywords by app.keywords.collectAsStateWithLifecycle()
 
     LaunchedEffect(saveState) {
-        if (saveState is SaveState.Saved) {
+        val saved = saveState as? SaveState.Saved
+        if (saved != null) {
             viewModel.resetSaveState()
-            onSaved()
+            onSaved(saved.filePath.takeIf { template?.kind == TemplateKind.ROAM_NODE })
         }
     }
 

@@ -38,7 +38,7 @@ import java.time.LocalDate
 sealed class SaveState {
     data object Idle : SaveState()
     data object Saving : SaveState()
-    data object Saved : SaveState()
+    data class Saved(val filePath: String) : SaveState()
     data class Failed(val message: String) : SaveState()
 }
 
@@ -115,7 +115,7 @@ class CaptureViewModel(
                 val (fileName, newText) = writeMutex.withLock { upsertEntry(template, entryText, context) }
                 sync.requestReindex(fileName, newText, "capture saved")
                 draftInsertion = null
-                _saveState.value = SaveState.Saved
+                _saveState.value = SaveState.Saved(fileName)
             } catch (e: Exception) {
                 _saveState.value = SaveState.Failed(e.message ?: "Capture failed")
             }
@@ -229,7 +229,7 @@ class CaptureViewModel(
                 val (fileName, newText) = writeMutex.withLock { upsertRoamEntry(resolvedPath, fullDraftText, context) }
                 sync.requestReindex(fileName, newText, "capture saved")
                 roamDraft = null
-                _saveState.value = SaveState.Saved
+                _saveState.value = SaveState.Saved(fileName)
             } catch (e: Exception) {
                 _saveState.value = SaveState.Failed(e.message ?: "Capture failed")
             }

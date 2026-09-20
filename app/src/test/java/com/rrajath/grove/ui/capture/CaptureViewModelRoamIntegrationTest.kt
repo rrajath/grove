@@ -76,7 +76,7 @@ class CaptureViewModelRoamIntegrationTest {
         vm.saveRoam("roam/my-new-node.org", newNodeDraft, context)
         advanceUntilIdle()
 
-        assertEquals(SaveState.Saved, vm.saveState.value)
+        assertEquals(SaveState.Saved("roam/my-new-node.org"), vm.saveState.value)
         assertTrue(store.exists("roam/my-new-node.org"))
         assertEquals(newNodeDraft, store.read("roam/my-new-node.org"))
         assertEquals(listOf("capture saved"), sync.reindexCalls.map { it.reason })
@@ -105,7 +105,7 @@ class CaptureViewModelRoamIntegrationTest {
         advanceUntilIdle()
 
         val text = store.read(dailyPath)
-        assertEquals(SaveState.Saved, vm.saveState.value)
+        assertEquals(SaveState.Saved(dailyPath), vm.saveState.value)
         // The pre-existing head (title) is untouched — not duplicated or overwritten.
         assertEquals(1, Regex("#\\+title:").findAll(text).count())
         assertTrue(text.contains("* First entry"))
