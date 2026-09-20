@@ -79,6 +79,7 @@ re-uploads the APKs to the existing release instead of failing.
 - Linked References bar now hides whenever the keyboard is open, since the toolbar takes that row instead.
 - The auto-link suggestion strip now fades its trailing edge instead of hard-clipping the last chip near the FAB.
 - Roam-node suggestion chips are now tinted with their capture template's own icon color.
+- Template editor's "New file template" chips now insert at the cursor instead of always appending to the end.
 
 ### Fixed
 - Fixed link typing suggestions not appearing in the whole-file editor or Roam capture.

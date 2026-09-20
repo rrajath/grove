@@ -44,8 +44,10 @@ import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -155,10 +157,10 @@ fun TemplateEditScreen(
     }
     val filenamePatternError = FilenamePattern.errorFor(filenamePattern)
     var newFileTemplate by remember(existing) {
-        mutableStateOf(existing?.newFileTemplate ?: ":PROPERTIES:\n:ID: %(id)\n:END:\n#+title: %?")
+        mutableStateOf(TextFieldValue(existing?.newFileTemplate ?: ":PROPERTIES:\n:ID: %(id)\n:END:\n#+title: %?"))
     }
-    val roamInvalidPlaceholders = remember(newFileTemplate) {
-        PlaceholderExpander.findInvalid(newFileTemplate).map { it.token }.distinct()
+    val roamInvalidPlaceholders = remember(newFileTemplate.text) {
+        PlaceholderExpander.findInvalid(newFileTemplate.text).map { it.token }.distinct()
     }
     var showPlaceholderHelp by remember { mutableStateOf(false) }
 
@@ -183,7 +185,7 @@ fun TemplateEditScreen(
         kind = kind,
         roamDirectory = roamDirectory.trim(),
         filenamePattern = filenamePattern.trim(),
-        newFileTemplate = newFileTemplate,
+        newFileTemplate = newFileTemplate.text,
     )
     val canSave = name.isNotBlank() && when (kind) {
         TemplateKind.PLAIN -> targetFileError == null
@@ -387,7 +389,11 @@ fun TemplateEditScreen(
                         modifier = Modifier.padding(top = 4.dp),
                     )
                 }
-                InsertChipsRow(NEW_FILE_TEMPLATE_CHIPS) { insertText -> newFileTemplate += insertText }
+                InsertChipsRow(NEW_FILE_TEMPLATE_CHIPS) { insertText ->
+                    val sel = newFileTemplate.selection
+                    val text = newFileTemplate.text.replaceRange(sel.min, sel.max, insertText)
+                    newFileTemplate = TextFieldValue(text, TextRange(sel.min + insertText.length))
+                }
                 Text(
                     "placeholder help",
                     fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
