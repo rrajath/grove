@@ -20,6 +20,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.rrajath.grove.capture.CaptureTemplate
+import com.rrajath.grove.ui.components.monogramPalette
+import com.rrajath.grove.ui.components.nameHashPaletteKey
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.grove
 
@@ -59,6 +61,7 @@ fun RoamNodeSuggestionStrip(
             val truncated = selectedText.length >= 10
             RoamNodeChip(
                 label = "${template.name}: " + ellipsizeChipLabel(selectedText, expanded),
+                colorKey = template.color ?: nameHashPaletteKey(template.id),
                 onClick = {
                     if (truncated && !expanded) onToggleExpand(template.id) else onPick(template)
                 },
@@ -70,14 +73,16 @@ fun RoamNodeSuggestionStrip(
 @Composable
 private fun RoamNodeChip(
     label: String,
+    colorKey: String,
     onClick: () -> Unit,
 ) {
     val c = MaterialTheme.grove
+    val (fg, bg) = monogramPalette(c, colorKey)
     Row(
         Modifier
             .clip(RoundedCornerShape(16.dp))
-            .background(c.surface2)
-            .border(1.dp, c.line, RoundedCornerShape(16.dp))
+            .background(bg)
+            .border(1.dp, fg, RoundedCornerShape(16.dp))
             .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -85,7 +90,7 @@ private fun RoamNodeChip(
         Text(
             label,
             fontFamily = PlexMono, fontWeight = FontWeight.Medium,
-            fontSize = 13.sp, color = c.ink,
+            fontSize = 13.sp, color = fg,
         )
     }
 }
