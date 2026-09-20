@@ -68,6 +68,7 @@ re-uploads the APKs to the existing release instead of failing.
 - Added Roam node capture templates: title-driven filenames, new-file-or-append capture, gated on Roam Features.
 - Added a read-only, greyed preview of a Roam file's existing content when capturing another entry into it.
 - Added a "Saved" snackbar with a "Visit file" action after a Roam capture saves, opening the file in read mode.
+- Added selection-triggered chips to link or create a roam node from selected text, in the note editor and roam captures.
 
 ### Changed
 - The link picker now supports live search, opens full height, and links leaf headings on tap.
