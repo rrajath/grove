@@ -20,7 +20,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.rrajath.grove.ui.components.BrandMarkGlyph
@@ -44,7 +51,11 @@ fun AutoLinkSuggestionStrip(
     modifier: Modifier = Modifier,
 ) {
     LazyRow(
-        modifier,
+        // The trailing chip is hard-clipped at the row's end edge -- callers
+        // keep that edge clear of their Save/menu FAB, so a clipped chip
+        // there reads as sliced off. Dissolving it instead makes the strip
+        // look like it fades into the FAB rather than stopping dead.
+        modifier.fadingTrailingEdge(40.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
     ) {
@@ -92,3 +103,18 @@ private fun AutoLinkChip(
         )
     }
 }
+
+private fun Modifier.fadingTrailingEdge(width: Dp) = this
+    .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
+    .drawWithContent {
+        drawContent()
+        val fadePx = width.toPx()
+        drawRect(
+            brush = Brush.horizontalGradient(
+                colors = listOf(Color.Black, Color.Transparent),
+                startX = size.width - fadePx,
+                endX = size.width,
+            ),
+            blendMode = BlendMode.DstIn,
+        )
+    }

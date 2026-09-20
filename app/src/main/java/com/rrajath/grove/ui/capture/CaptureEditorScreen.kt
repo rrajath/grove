@@ -628,10 +628,13 @@ fun CaptureEditorScreen(
                                 }
                                 autoLinkTrigger = null
                             },
-                            // Clear of the Save pill's own bottom-end gutter.
+                            // End-padded clear of the Save pill's own 16dp gutter +
+                            // its widest ("Saving…") width, so the scrollable strip
+                            // stops short of the pill instead of running chips
+                            // behind it.
                             modifier = Modifier
                                 .align(Alignment.BottomStart)
-                                .padding(start = 16.dp, bottom = 16.dp),
+                                .padding(start = 16.dp, end = 100.dp, bottom = 16.dp),
                         )
                     }
                 }

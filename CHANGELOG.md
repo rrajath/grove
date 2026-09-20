@@ -76,6 +76,7 @@ re-uploads the APKs to the existing release instead of failing.
 - Linked References bar now only shows for org-roam files, and also appears in the whole-file Read/Edit view.
 - Whole-file Read/Edit header now scrolls long file names on one line and compacts folders to their first letter.
 - Linked References bar now hides whenever the keyboard is open, since the toolbar takes that row instead.
+- The auto-link suggestion strip now fades its trailing edge instead of hard-clipping the last chip near the FAB.
 
 ### Fixed
 - Fixed link typing suggestions not appearing in the whole-file editor or Roam capture.
