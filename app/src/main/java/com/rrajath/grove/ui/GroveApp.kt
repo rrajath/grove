@@ -3,6 +3,8 @@ package com.rrajath.grove.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
@@ -1051,7 +1053,14 @@ private fun GroveNavigation(
                 viewModel.dismissCaptureSavedSnack()
                 navController.navigate(Routes.file(path, "read"))
             },
-            modifier = Modifier.align(Alignment.BottomCenter),
+            // navigationBarsPadding, not a Scaffold's contentWindowInsets, since
+            // this overlay sits above the whole NavHost rather than inside any
+            // one screen's own inset-aware Scaffold (see GroveUndoSnackbar/
+            // GroveToast, which rely on the latter).
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(bottom = 14.dp),
         )
     }
     }
