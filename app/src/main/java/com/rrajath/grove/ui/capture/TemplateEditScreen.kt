@@ -97,7 +97,7 @@ private val FILENAME_PATTERN_CHIPS = listOf(
 
 /** Chips appended to the "New file template" field on tap: (label shown, text inserted). */
 private val NEW_FILE_TEMPLATE_CHIPS = listOf(
-    "ID drawer" to ":PROPERTIES:\n:ID:       %(id)\n:END:\n",
+    "ID drawer" to ":PROPERTIES:\n:ID: %(id)\n:END:\n",
     "#+title:" to "#+title: ",
     "#+filetags:" to "#+filetags: ",
     "%?" to "%?",
