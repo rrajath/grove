@@ -104,7 +104,8 @@ private fun AutoLinkChip(
     }
 }
 
-private fun Modifier.fadingTrailingEdge(width: Dp) = this
+/** Shared with [RoamNodeSuggestionStrip], the mutually-exclusive selection-triggered sibling strip. */
+internal fun Modifier.fadingTrailingEdge(width: Dp) = this
     .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
     .drawWithContent {
         drawContent()
