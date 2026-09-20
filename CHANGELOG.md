@@ -86,6 +86,7 @@ re-uploads the APKs to the existing release instead of failing.
 - Fixed a Roam capture into an existing file adding a stray heading instead of appending directly below.
 - Fixed Roam node title slugs not being lowercased.
 - Fixed Roam-node captures (e.g. a date-filename daily template) silently dropping all typed body text on save.
+- Fixed link typing suggestions in Roam capture watching a stale text field after the new-file/existing-file check resolved.
 
 ## [1.6.3] - 2026-09-17
 

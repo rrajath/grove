@@ -347,7 +347,13 @@ fun CaptureEditorScreen(
         val word = autoLinkTrigger?.text
         if (idx == null || word == null) emptyList() else filterAutoLinkSuggestions(idx, word)
     }
-    LaunchedEffect(suggestionsActive) {
+    // Keyed on textState too: a Roam capture's Checking -> New/ExistingFile
+    // transition (below) recreates textState with a fresh TextFieldState, same
+    // as draftText's derivedStateOf above. Keying on suggestionsActive alone
+    // left this permanently watching the abandoned Checking-era instance,
+    // so real keystrokes never reached it and the strip never had anything
+    // to show.
+    LaunchedEffect(suggestionsActive, textState) {
         if (!suggestionsActive) {
             autoLinkTrigger = null
             return@LaunchedEffect
