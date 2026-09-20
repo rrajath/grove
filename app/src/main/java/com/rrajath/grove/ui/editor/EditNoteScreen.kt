@@ -39,6 +39,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
@@ -61,6 +62,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.rrajath.grove.capture.RoamNodeResult
+import com.rrajath.grove.capture.formatLink
 import com.rrajath.grove.org.LineEditing
 import com.rrajath.grove.org.OrgDocument
 import com.rrajath.grove.org.OrgHeadline
@@ -85,6 +88,7 @@ import com.rrajath.grove.ui.vault.DocumentUiState
 import com.rrajath.grove.ui.vault.DocumentViewModel
 import com.rrajath.grove.ui.vault.NoteRef
 import com.rrajath.grove.ui.vault.headlineAtLine
+import kotlinx.coroutines.launch
 import java.time.LocalDateTime
 import java.time.LocalTime
 
@@ -189,6 +193,17 @@ fun EditNoteScreen(
         val word = autoLinkTrigger?.text
         if (idx == null || word == null) emptyList() else filterAutoLinkSuggestions(idx, word)
     }
+
+    // Selection-triggered roam-node suggestions: parallel to the typing-triggered
+    // auto-link strip above, but for a non-collapsed selection instead of a word
+    // at a collapsed cursor -- the two never fire at once (see wordAtCursor's own
+    // collapsed-selection check), so they share the same docked strip location.
+    val coroutineScope = rememberCoroutineScope()
+    val roamNodeTemplates by viewModel.roamNodeSuggestionTemplates.collectAsStateWithLifecycle()
+    var roamNodeSelection by remember { mutableStateOf<Pair<String, TextRange>?>(null) }
+    var roamNodeExpandedKeys by remember(roamNodeSelection?.second) { mutableStateOf(emptySet<String>()) }
+    val roamNodeSuggestionActive =
+        roamNodeSelection != null && state.fileOrgId != null && roamNodeTemplates.isNotEmpty()
 
     fun captureLinkSelection() {
         val sel = textState.selection
@@ -412,10 +427,14 @@ fun EditNoteScreen(
     LaunchedEffect(showSuggestions) {
         if (!showSuggestions) {
             autoLinkTrigger = null
+            roamNodeSelection = null
             return@LaunchedEffect
         }
         snapshotFlow { textState.text.toString() to textState.selection }.collect { (text, selection) ->
             autoLinkTrigger = wordAtCursor(text, selection)?.takeIf { it.text.length >= 3 }
+            roamNodeSelection = selection.takeIf { !it.collapsed }
+                ?.let { sel -> text.substring(sel.min, sel.max) to sel }
+                ?.takeIf { (selected, _) -> !selected.contains('\n') }
         }
     }
     val highlight = remember(c, state.keywords) { OrgSyntaxHighlight(c, state.keywords) }
@@ -572,6 +591,37 @@ fun EditNoteScreen(
                         // over the already-reserved clear space (the field's own 80dp
                         // bottom padding) instead of pushing the field's height around.
                         // End-padded clear of the FAB's own 24dp gutter + 54dp size.
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .padding(end = 88.dp, bottom = 16.dp),
+                    )
+                } else if (roamNodeSuggestionActive) {
+                    val (selectedText, selectedRange) = roamNodeSelection!!
+                    RoamNodeSuggestionStrip(
+                        templates = roamNodeTemplates,
+                        selectedText = selectedText,
+                        expandedKeys = roamNodeExpandedKeys,
+                        onToggleExpand = { key -> roamNodeExpandedKeys = roamNodeExpandedKeys + key },
+                        onPick = { template ->
+                            roamNodeSelection = null
+                            coroutineScope.launch {
+                                val result = viewModel.createOrLinkRoamNode(template, selectedText)
+                                if (result == null) return@launch
+                                val lo = selectedRange.min.coerceIn(0, textState.text.length)
+                                val hi = selectedRange.max.coerceIn(lo, textState.text.length)
+                                val linkText = result.formatLink()
+                                textState.edit {
+                                    replace(lo, hi, linkText)
+                                    selection = TextRange(lo + linkText.length)
+                                }
+                                val message = when (result) {
+                                    is RoamNodeResult.Linked -> "Linked to existing roam node: ${result.title}"
+                                    is RoamNodeResult.Created ->
+                                        "A roam node with title \"${result.title}\" has been created."
+                                }
+                                Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                            }
+                        },
                         modifier = Modifier
                             .align(Alignment.BottomStart)
                             .padding(end = 88.dp, bottom = 16.dp),

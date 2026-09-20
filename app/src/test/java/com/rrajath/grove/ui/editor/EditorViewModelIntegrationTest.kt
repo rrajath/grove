@@ -1,6 +1,8 @@
 package com.rrajath.grove.ui.editor
 
 import android.app.Application
+import androidx.test.core.app.ApplicationProvider
+import com.rrajath.grove.capture.TemplatesRepository
 import com.rrajath.grove.data.GroveDatabase
 import com.rrajath.grove.org.OrgKeywords
 import com.rrajath.grove.org.OrgParser
@@ -48,6 +50,8 @@ class EditorViewModelIntegrationTest {
     private val keywords = MutableStateFlow(OrgKeywords.DEFAULT)
     private val db: GroveDatabase =
         InMemoryGroveDatabase.create(queryCoroutineContext = mainDispatcherRule.dispatcher)
+    private val templatesRepository =
+        TemplatesRepository(ApplicationProvider.getApplicationContext<Application>())
 
     private fun editor() = EditorViewModel(
         vaultFlow = vaultFlow,
@@ -56,6 +60,7 @@ class EditorViewModelIntegrationTest {
         settings = settings,
         keywords = keywords,
         dispatchers = mainDispatcherRule.appDispatchers,
+        templatesRepository = templatesRepository,
     )
 
     /** Line index of the first headline whose title starts with [prefix], in [file]. */

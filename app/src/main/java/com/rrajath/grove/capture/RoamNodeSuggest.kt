@@ -22,9 +22,15 @@ fun CaptureTemplate.hasUserDefinedTitle(): Boolean {
 
 /** Result of [RoamNodeCreator.createOrLink]: linked to an already-existing node, or a fresh one created. */
 sealed class RoamNodeResult {
-    data class Linked(val id: String, val title: String) : RoamNodeResult()
-    data class Created(val id: String, val title: String, val path: String) : RoamNodeResult()
+    abstract val id: String
+    abstract val title: String
+
+    data class Linked(override val id: String, override val title: String) : RoamNodeResult()
+    data class Created(override val id: String, override val title: String, val path: String) : RoamNodeResult()
 }
+
+/** The `[[id:…][Title]]` link text either branch of [RoamNodeResult] splices over the selection. */
+fun RoamNodeResult.formatLink(): String = "[[id:$id][$title]]"
 
 /**
  * Turns a selected span of text into a link to a Roam node -- an existing

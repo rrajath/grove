@@ -3,6 +3,12 @@ package com.rrajath.grove.ui.editor
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rrajath.grove.AppDispatchers
+import com.rrajath.grove.capture.CaptureTemplate
+import com.rrajath.grove.capture.RoamNodeCreator
+import com.rrajath.grove.capture.RoamNodeResult
+import com.rrajath.grove.capture.TemplateKind
+import com.rrajath.grove.capture.TemplatesRepository
+import com.rrajath.grove.capture.hasUserDefinedTitle
 import com.rrajath.grove.data.GroveDatabase
 import com.rrajath.grove.org.OrgDocument
 import com.rrajath.grove.org.OrgHeadline
@@ -31,11 +37,14 @@ import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -54,6 +63,11 @@ data class EditorUiState(
     val loading: Boolean = true,
     val fileName: String = "",
     val lineIndex: Int = 0,
+    /** The whole file's file-level `:ID:` ([OrgDocument.fileId]), captured once at [EditorViewModel.load]
+     *  time -- null for a non-roam file, and always null for a scoped [region] (loaded via
+     *  [EditorViewModel.loadRegion], which never sets it): selection-triggered roam-node
+     *  suggestions only ever apply to the main subtree editor. */
+    val fileOrgId: String? = null,
     /** Non-null when this session edits a scoped region (see [EditorViewModel.loadRegion])
      *  rather than a headline's subtree. [lineIndex] anchors the headline for the
      *  HEADING_* regions and is meaningless for INTRO / PREFACE / FILE_PROPERTIES. */
@@ -108,6 +122,7 @@ class EditorViewModel(
     private val settings: SettingsSource,
     private val keywords: StateFlow<OrgKeywords>,
     private val dispatchers: AppDispatchers,
+    private val templatesRepository: TemplatesRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(EditorUiState())
@@ -238,6 +253,7 @@ class EditorViewModel(
                 loading = false,
                 fileName = ref.fileName,
                 lineIndex = headline.lineIndex,
+                fileOrgId = doc.fileId,
                 buffer = OrgMutations.subtreeText(doc, headline),
                 loadedRevision = vault.revision(ref.fileName),
                 keywords = keywords.value,
@@ -658,6 +674,36 @@ class EditorViewModel(
         }
     }
 
+    // --- selection-triggered roam-node suggestions ---
+    // Parallel to the typing-triggered auto-link suggester above: offers to
+    // turn a non-collapsed selection into a link to a new or existing roam
+    // node. See capture/RoamNodeSuggest.kt.
+
+    /** Roam-kind templates whose title the user actually types (see [hasUserDefinedTitle]),
+     *  gated the same way [com.rrajath.grove.ui.capture.CaptureViewModel.pickerTemplates] is. */
+    val roamNodeSuggestionTemplates: StateFlow<List<CaptureTemplate>> = combine(
+        templatesRepository.templates,
+        settings.settings.map { it.roamFeaturesEnabled },
+    ) { all, roamEnabled ->
+        if (!roamEnabled) emptyList()
+        else all.filter { it.kind == TemplateKind.ROAM_NODE && it.hasUserDefinedTitle() }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /**
+     * Selection-triggered chip tap: links [selectedTitle] to an already-existing
+     * same-titled node, or expands [template] into a brand-new one. Refreshes
+     * [autoLinkIndex] after a create so a second identical selection later in
+     * this session hits the match branch instead of duplicating the node.
+     */
+    suspend fun createOrLinkRoamNode(template: CaptureTemplate, selectedTitle: String): RoamNodeResult? {
+        val vault = vaultFlow.value ?: return null
+        val result = RoamNodeCreator.createOrLink(
+            vault, sync, template, selectedTitle, autoLinkIndex.value.orEmpty(), LocalDateTime.now(),
+        )
+        if (result is RoamNodeResult.Created) loadAutoLinkIndex()
+        return result
+    }
+
     fun startLinkPicker() {
         _linkPicker.value = LinkPickerUiState()
         viewModelScope.launch {
@@ -752,7 +798,10 @@ class EditorViewModel(
 
     companion object {
         val Factory = factory {
-            EditorViewModel(it.vault, it.syncManager, it.database, it.settingsRepository, it.keywords, it.dispatchers)
+            EditorViewModel(
+                it.vault, it.syncManager, it.database, it.settingsRepository, it.keywords, it.dispatchers,
+                it.templatesRepository,
+            )
         }
     }
 }

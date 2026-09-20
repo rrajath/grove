@@ -113,6 +113,7 @@ class ScreenTestEnv(
         settings = fakeSettings,
         keywords = keywords,
         dispatchers = dispatchers,
+        templatesRepository = templatesRepository,
     )
 
     fun agendaViewModel() = com.rrajath.grove.ui.agenda.AgendaViewModel(
