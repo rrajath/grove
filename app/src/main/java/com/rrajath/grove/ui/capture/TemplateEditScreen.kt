@@ -155,7 +155,7 @@ fun TemplateEditScreen(
     }
     val filenamePatternError = FilenamePattern.errorFor(filenamePattern)
     var newFileTemplate by remember(existing) {
-        mutableStateOf(existing?.newFileTemplate ?: ":PROPERTIES:\n:ID:       %(id)\n:END:\n#+title: %?")
+        mutableStateOf(existing?.newFileTemplate ?: ":PROPERTIES:\n:ID: %(id)\n:END:\n#+title: %?")
     }
     val roamInvalidPlaceholders = remember(newFileTemplate) {
         PlaceholderExpander.findInvalid(newFileTemplate).map { it.token }.distinct()
