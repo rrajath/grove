@@ -9,8 +9,11 @@ import com.rrajath.grove.GroveApplication
 import com.rrajath.grove.capture.CaptureContext
 import com.rrajath.grove.capture.CaptureInserter
 import com.rrajath.grove.capture.CaptureTemplate
+import com.rrajath.grove.capture.RoamNodeCreator
+import com.rrajath.grove.capture.RoamNodeResult
 import com.rrajath.grove.capture.TemplateKind
 import com.rrajath.grove.capture.TemplatesRepository
+import com.rrajath.grove.capture.hasUserDefinedTitle
 import com.rrajath.grove.data.GroveDatabase
 import com.rrajath.grove.org.OrgMutations
 import com.rrajath.grove.org.OrgParser
@@ -36,6 +39,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
+import java.time.LocalDateTime
 
 sealed class SaveState {
     data object Idle : SaveState()
@@ -96,6 +100,29 @@ class CaptureViewModel(
             val headings = database.indexDao().allHeadingOutlines()
             _autoLinkIndex.value = buildAutoLinkIndex(notebooks, headings)
         }
+    }
+
+    // Selection-triggered roam-node suggestions inside a Roam-kind capture
+    // draft -- same mechanism as EditorViewModel's, see capture/RoamNodeSuggest.kt.
+
+    /** Roam-kind templates whose title the user actually types (see [hasUserDefinedTitle]),
+     *  same eligibility filter [pickerTemplates] applies for the Roam Features gate. */
+    val roamNodeSuggestionTemplates: StateFlow<List<CaptureTemplate>> = combine(
+        templatesRepository.templates,
+        settings.settings.map { it.roamFeaturesEnabled },
+    ) { all, roamEnabled ->
+        if (!roamEnabled) emptyList()
+        else all.filter { it.kind == TemplateKind.ROAM_NODE && it.hasUserDefinedTitle() }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** Selection-triggered chip tap inside the capture draft; see EditorViewModel.createOrLinkRoamNode. */
+    suspend fun createOrLinkRoamNode(template: CaptureTemplate, selectedTitle: String): RoamNodeResult? {
+        val vault = vaultFlow.value ?: return null
+        val result = RoamNodeCreator.createOrLink(
+            vault, sync, template, selectedTitle, autoLinkIndex.value.orEmpty(), LocalDateTime.now(),
+        )
+        if (result is RoamNodeResult.Created) loadAutoLinkIndex()
+        return result
     }
 
     fun template(id: String): CaptureTemplate? = templates.value.firstOrNull { it.id == id }

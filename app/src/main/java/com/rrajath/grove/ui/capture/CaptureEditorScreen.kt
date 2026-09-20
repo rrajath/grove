@@ -47,6 +47,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -73,8 +74,10 @@ import com.rrajath.grove.capture.CaptureInserter
 import com.rrajath.grove.capture.CaptureTemplate
 import com.rrajath.grove.capture.FilenamePattern
 import com.rrajath.grove.capture.PlaceholderExpander
+import com.rrajath.grove.capture.RoamNodeResult
 import com.rrajath.grove.capture.TargetLocation
 import com.rrajath.grove.capture.TemplateKind
+import com.rrajath.grove.capture.formatLink
 import com.rrajath.grove.capture.templateSlug
 import com.rrajath.grove.org.LineEditing
 import com.rrajath.grove.org.OrgDocument
@@ -91,11 +94,13 @@ import com.rrajath.grove.ui.editor.AutoLinkSuggestionStrip
 import com.rrajath.grove.ui.editor.AutoSaveTimestamp
 import com.rrajath.grove.ui.editor.EditorToolbar
 import com.rrajath.grove.ui.editor.MetadataSheet
+import com.rrajath.grove.ui.editor.RoamNodeSuggestionStrip
 import com.rrajath.grove.ui.editor.WordAtCursor
 import com.rrajath.grove.ui.editor.filterAutoLinkSuggestions
 import com.rrajath.grove.ui.editor.formatAutoLinkInsertion
 import com.rrajath.grove.ui.editor.wordAtCursor
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import com.rrajath.grove.ui.editor.orgInputTransformation
 import com.rrajath.grove.ui.editor.OrgSyntaxHighlight
@@ -347,6 +352,23 @@ fun CaptureEditorScreen(
         val word = autoLinkTrigger?.text
         if (idx == null || word == null) emptyList() else filterAutoLinkSuggestions(idx, word)
     }
+
+    // Selection-triggered roam-node suggestions: parallel to the typing-triggered
+    // auto-link strip above, but for a non-collapsed selection instead of a word
+    // at a collapsed cursor. Gated the same way suggestionsActive already gates
+    // the typing-based strip.
+    val coroutineScope = rememberCoroutineScope()
+    val roamNodeTemplates by viewModel.roamNodeSuggestionTemplates.collectAsStateWithLifecycle()
+    var roamNodeSelection by remember { mutableStateOf<Pair<String, TextRange>?>(null) }
+    var roamNodeExpandedKeys by remember(roamNodeSelection?.second) { mutableStateOf(emptySet<String>()) }
+    // The draft is the whole prospective file (see the "UI" section of
+    // internal/roam-node-from-selection-design.md), so its own #+title:/:ID:
+    // is what makes it a roam file here -- checked live against the field's
+    // current text, not assumed from the template, since a template can be edited.
+    val draftFileOrgId = remember(draftText, keywords) { OrgParser.parse(draftText, keywords).fileId }
+    val roamNodeSuggestionActive =
+        roamNodeSelection != null && draftFileOrgId != null && roamNodeTemplates.isNotEmpty()
+
     // Keyed on textState too: a Roam capture's Checking -> New/ExistingFile
     // transition (below) recreates textState with a fresh TextFieldState, same
     // as draftText's derivedStateOf above. Keying on suggestionsActive alone
@@ -356,10 +378,14 @@ fun CaptureEditorScreen(
     LaunchedEffect(suggestionsActive, textState) {
         if (!suggestionsActive) {
             autoLinkTrigger = null
+            roamNodeSelection = null
             return@LaunchedEffect
         }
         snapshotFlow { textState.text.toString() to textState.selection }.collect { (text, selection) ->
             autoLinkTrigger = wordAtCursor(text, selection)?.takeIf { it.text.length >= 3 }
+            roamNodeSelection = selection.takeIf { !it.collapsed }
+                ?.let { sel -> text.substring(sel.min, sel.max) to sel }
+                ?.takeIf { (selected, _) -> !selected.contains('\n') }
         }
     }
 
@@ -632,6 +658,37 @@ fun CaptureEditorScreen(
                             // its widest ("Saving…") width, so the scrollable strip
                             // stops short of the pill instead of running chips
                             // behind it.
+                            modifier = Modifier
+                                .align(Alignment.BottomStart)
+                                .padding(start = 16.dp, end = 100.dp, bottom = 16.dp),
+                        )
+                    } else if (roamNodeSuggestionActive) {
+                        val (selectedText, selectedRange) = roamNodeSelection!!
+                        RoamNodeSuggestionStrip(
+                            templates = roamNodeTemplates,
+                            selectedText = selectedText,
+                            expandedKeys = roamNodeExpandedKeys,
+                            onToggleExpand = { key -> roamNodeExpandedKeys = roamNodeExpandedKeys + key },
+                            onPick = { template ->
+                                roamNodeSelection = null
+                                coroutineScope.launch {
+                                    val result = viewModel.createOrLinkRoamNode(template, selectedText)
+                                    if (result == null) return@launch
+                                    val lo = selectedRange.min.coerceIn(0, textState.text.length)
+                                    val hi = selectedRange.max.coerceIn(lo, textState.text.length)
+                                    val linkText = result.formatLink()
+                                    textState.edit {
+                                        replace(lo, hi, linkText)
+                                        selection = TextRange(lo + linkText.length)
+                                    }
+                                    val message = when (result) {
+                                        is RoamNodeResult.Linked -> "Linked to existing roam node: ${result.title}"
+                                        is RoamNodeResult.Created ->
+                                            "A roam node with title \"${result.title}\" has been created."
+                                    }
+                                    Toast.makeText(toastContext, message, Toast.LENGTH_SHORT).show()
+                                }
+                            },
                             modifier = Modifier
                                 .align(Alignment.BottomStart)
                                 .padding(start = 16.dp, end = 100.dp, bottom = 16.dp),
