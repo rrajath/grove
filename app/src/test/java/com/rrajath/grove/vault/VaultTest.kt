@@ -15,7 +15,8 @@ class VaultTest {
     @get:Rule
     val tmp = TemporaryFolder()
 
-    private fun vault(): Vault = Vault(JvmFileStore(tmp.root))
+    private fun vault(ignore: IgnorePatterns = IgnorePatterns("")): Vault =
+        Vault(JvmFileStore(tmp.root, ignore))
 
     @Test
     fun `lists only org files`() = runTest {
@@ -55,12 +56,11 @@ class VaultTest {
     }
 
     @Test
-    fun `applies orgzlyignore rules`() = runTest {
+    fun `only lists files the FileStore surfaces`() = runTest {
         tmp.newFile("keep.org").writeText("* K")
         tmp.newFile("archive.org").writeText("* A")
-        tmp.newFile(".orgzlyignore").writeText("archive*")
 
-        val notebooks = vault().notebooks()
+        val notebooks = vault(IgnorePatterns("archive*")).notebooks()
         assertEquals(listOf("keep.org"), notebooks.map { it.fileName })
     }
 

@@ -2,7 +2,6 @@ package com.rrajath.grove.sync
 
 import com.rrajath.grove.vault.FileEntry
 import com.rrajath.grove.vault.FileStore
-import com.rrajath.grove.vault.IgnoreRules
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -99,9 +98,6 @@ class SyncEngine(
         _state.value = SyncState.Checking
         return try {
             val entries = store.list()
-            val ignore = entries.firstOrNull { it.name == IgnoreRules.FILE_NAME }
-                ?.let { IgnoreRules(store.read(it.name)) }
-                ?: IgnoreRules("")
 
             // Notebook file name -> conflict copy; non-.org conflict copies (an
             // image, a stray file Syncthing touched) are dropped here so they
@@ -110,9 +106,7 @@ class SyncEngine(
             val conflicts = SyncConflicts.detect(entries.map { it.name })
                 .filterKeys { it.endsWith(".org") }
             val notebooks = entries.filter {
-                it.name.endsWith(".org") &&
-                        !SyncConflicts.isConflictFile(it.name) &&
-                        !ignore.isIgnored(it.name)
+                it.name.endsWith(".org") && !SyncConflicts.isConflictFile(it.name)
             }
 
             val known = index.knownNotebooks()

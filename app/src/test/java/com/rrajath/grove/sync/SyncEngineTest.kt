@@ -2,6 +2,7 @@ package com.rrajath.grove.sync
 
 import com.rrajath.grove.vault.FileEntry
 import com.rrajath.grove.vault.FileStore
+import com.rrajath.grove.vault.IgnorePatterns
 import com.rrajath.grove.vault.JvmFileStore
 import java.io.File
 import kotlinx.coroutines.test.runTest
@@ -95,7 +96,8 @@ class SyncEngineTest {
     private val index = FakeIndex()
     private var now = 1000L
 
-    private fun engine() = SyncEngine(JvmFileStore(tmp.root), index) { now }
+    private fun engine(ignore: IgnorePatterns = IgnorePatterns("")) =
+        SyncEngine(JvmFileStore(tmp.root, ignore), index) { now }
 
     @Test
     fun `first sync pulls everything`() = runTest {
@@ -172,12 +174,11 @@ class SyncEngineTest {
     }
 
     @Test
-    fun `orgzlyignore is honored`() = runTest {
+    fun `ignored files never reach the sync result`() = runTest {
         tmp.newFile("keep.org").writeText("* K")
         tmp.newFile("archive.org").writeText("* A")
-        tmp.newFile(".orgzlyignore").writeText("archive*")
 
-        val result = engine().sync()!!
+        val result = engine(IgnorePatterns("archive*")).sync()!!
         assertEquals(listOf("keep.org"), result.pulled)
     }
 

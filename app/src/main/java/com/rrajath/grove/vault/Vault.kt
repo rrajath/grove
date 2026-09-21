@@ -86,23 +86,16 @@ class Vault(
         }
 
     /**
-     * Every `.org` file in the vault (ignore rules applied, sync-conflict copies
-     * excluded), without parsing any of them. For callers that only need file
-     * paths — [renameFolder] and [deleteFolder] used to go through [notebooks],
-     * which parses every file just to throw the parse away
-     * (PERFORMANCE_AUDIT_2026-09-16 F7).
+     * Every `.org` file in the vault (sync-conflict copies excluded; ignored
+     * files/folders are already excluded by the `FileStore`), without parsing
+     * any of them. For callers that only need file paths — [renameFolder] and
+     * [deleteFolder] used to go through [notebooks], which parses every file
+     * just to throw the parse away (PERFORMANCE_AUDIT_2026-09-16 F7).
      */
-    private suspend fun listOrgFiles(): List<FileEntry> {
-        val entries = store.list()
-        val ignore = entries.firstOrNull { it.name == IgnoreRules.FILE_NAME }
-            ?.let { IgnoreRules(store.read(it.name)) }
-            ?: IgnoreRules("")
-        return entries.filter {
-            it.name.endsWith(".org") &&
-                    !it.name.contains(".sync-conflict-") &&
-                    !ignore.isIgnored(it.name)
+    private suspend fun listOrgFiles(): List<FileEntry> =
+        store.list().filter {
+            it.name.endsWith(".org") && !it.name.contains(".sync-conflict-")
         }
-    }
 
     /** Current revision marker ("mtime:size") of a file, or null if missing. */
     suspend fun revision(fileName: String): String? =

@@ -57,9 +57,9 @@ import kotlinx.coroutines.withTimeoutOrNull
 /**
  * Historical ignore-file name from the now-superseded `.orgzlyignore`
  * mechanism (see [com.rrajath.grove.vault.IgnorePatterns] and
- * internal/ignore-list-feature/00-overview.md). Hardcoded here rather than
- * referencing the old `IgnoreRules.FILE_NAME` constant, since that class is
- * deleted once every caller of it is migrated.
+ * internal/ignore-list-feature/00-overview.md). Hardcoded as a literal rather
+ * than a shared constant, since the class that used to own it was deleted
+ * once every caller of it was migrated.
  */
 private const val LEGACY_IGNORE_FILE_NAME = ".orgzlyignore"
 
