@@ -1241,6 +1241,29 @@ private fun PlanningChip(
     }
 }
 
+/**
+ * Per-item ordinal (1-based) for a [OrgBlock.ListBlock]'s ordered items, so a
+ * numbered sub-list nested under a bullet restarts at 1 instead of counting
+ * through the whole flat [items] list. Counting resets whenever a shallower
+ * item is seen (closing the sub-list) or a bullet appears at the same indent
+ * (breaking the numbered run); unordered items get 0 (unused by the caller).
+ */
+private fun orderedListOrdinals(items: List<OrgBlock.ListItem>): IntArray {
+    val ordinals = IntArray(items.size)
+    val counts = mutableMapOf<Int, Int>()
+    for ((idx, item) in items.withIndex()) {
+        counts.keys.filter { it > item.indent }.forEach { counts.remove(it) }
+        if (item.ordered) {
+            val next = (counts[item.indent] ?: 0) + 1
+            counts[item.indent] = next
+            ordinals[idx] = next
+        } else {
+            counts.remove(item.indent)
+        }
+    }
+    return ordinals
+}
+
 @Composable
 internal fun BodyBlocks(
     bodyLines: List<String>,
@@ -1303,6 +1326,7 @@ internal fun BodyBlocks(
             }
 
             is OrgBlock.ListBlock -> {
+                val ordinals = remember(block) { orderedListOrdinals(block.items) }
                 Column(Modifier.padding(start = 8.dp)) {
                     block.items.forEachIndexed { i, item ->
                         val done = item.checkbox == 'X' || item.checkbox == 'x'
@@ -1379,7 +1403,7 @@ internal fun BodyBlocks(
                                         }
                                     }
                                     item.ordered -> {
-                                        Text("${i + 1}.", fontFamily = PlexSerif, fontSize = 16.sp, color = markColor)
+                                        Text("${ordinals[i]}.", fontFamily = PlexSerif, fontSize = 16.sp, color = markColor)
                                     }
                                     else -> {
                                         Canvas(Modifier.size(6.dp)) { drawCircle(color = markColor) }

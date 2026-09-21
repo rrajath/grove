@@ -88,6 +88,7 @@ re-uploads the APKs to the existing release instead of failing.
 - Fixed missing scroll-to-top/bottom buttons in the Notebooks folder drill-down view.
 - Fixed Roam capture template subtitles showing a hardcoded file instead of the template's filename pattern.
 - Fixed the formatting toolbar staying visible with keyboard closed, and gapped above it when open, in the whole-file editor.
+- Fixed a numbered sub-list nested under a bullet not restarting its numbering at 1 in Read mode.
 - Fixed a Roam capture into an existing file adding a stray heading instead of appending directly below.
 - Fixed Roam node title slugs not being lowercased.
 - Fixed the roam-node prompt label sitting top-aligned; it now also reads "Link" for an existing match.
