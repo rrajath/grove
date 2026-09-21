@@ -7,6 +7,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.net.toUri
 import com.rrajath.grove.MainActivity
@@ -28,10 +29,12 @@ object CaptureNotification {
 
     fun show(context: Context) {
         if (!canShow(context)) return
-        val nm = context.getSystemService(NotificationManager::class.java)
-        nm.createNotificationChannel(
-            NotificationChannel(CHANNEL_ID, "Capture shortcut", NotificationManager.IMPORTANCE_MIN)
-        )
+        val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            nm.createNotificationChannel(
+                NotificationChannel(CHANNEL_ID, "Capture shortcut", NotificationManager.IMPORTANCE_MIN)
+            )
+        }
         val intent = Intent(Intent.ACTION_VIEW, "grove://capture".toUri())
             .setClass(context, MainActivity::class.java)
         val pending = PendingIntent.getActivity(
@@ -52,6 +55,6 @@ object CaptureNotification {
     }
 
     fun hide(context: Context) {
-        context.getSystemService(NotificationManager::class.java).cancel(NOTIFICATION_ID)
+        (context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).cancel(NOTIFICATION_ID)
     }
 }

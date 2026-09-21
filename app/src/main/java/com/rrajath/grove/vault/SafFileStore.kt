@@ -2,6 +2,7 @@ package com.rrajath.grove.vault
 
 import android.content.Context
 import android.net.Uri
+import android.os.Build
 import android.provider.DocumentsContract
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
@@ -191,9 +192,15 @@ class SafFileStore(
         val sourceParentUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, sourceParentId)
         val targetParentUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, targetParentId)
 
-        val moved = runCatching {
-            DocumentsContract.moveDocument(resolver, uri, sourceParentUri, targetParentUri)
-        }.getOrNull()
+        // DocumentsContract.moveDocument needs API 24; below that, skip straight
+        // to the copy + delete fallback below instead of ever attempting it.
+        val moved = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            runCatching {
+                DocumentsContract.moveDocument(resolver, uri, sourceParentUri, targetParentUri)
+            }.getOrNull()
+        } else {
+            null
+        }
 
         if (moved == null) {
             // Provider refused moveDocument: copy the bytes then delete the source.

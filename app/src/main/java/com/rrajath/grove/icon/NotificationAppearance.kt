@@ -49,7 +49,7 @@ object NotificationAppearance {
      * at hand here.
      */
     fun retintActive(context: Context) {
-        val nm = context.getSystemService(NotificationManager::class.java) ?: return
+        val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
         val color = markColor(context)
         val active = try {
             nm.activeNotifications

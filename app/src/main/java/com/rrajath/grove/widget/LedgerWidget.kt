@@ -2,6 +2,7 @@ package com.rrajath.grove.widget
 
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.util.Log
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -183,7 +184,12 @@ class LedgerWidget : GlanceAppWidget() {
             }
             val todayCount = sections.firstOrNull { it.key.startsWith("Today") }?.count ?: 0
             val totalCount = sections.sumOf { it.count }
-            val iconRes = AppIconManager.mipmapRes(settings.syncAppIconWithTheme, settings.theme)
+            // Themed mipmaps only exist as <adaptive-icon> (API 26+); below that
+            // there is only the default fallback icon.
+            val iconRes = AppIconManager.mipmapRes(
+                settings.syncAppIconWithTheme && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O,
+                settings.theme,
+            )
             val backgroundColor = colors.surface.copy(alpha = 1f - settings.agendaWidgetTransparency)
             val fontScale = settings.agendaWidgetFontSize.scale
 

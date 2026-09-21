@@ -2,6 +2,7 @@ package com.rrajath.grove.capture
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.text.Html
@@ -199,8 +200,12 @@ object PageTitleFetcher {
             }
         }
 
-    private fun cleanTitle(raw: String): String =
-        Html.fromHtml(raw, Html.FROM_HTML_MODE_LEGACY).toString()
-            .replace(Regex("\\s+"), " ")
-            .trim()
+    private fun cleanTitle(raw: String): String {
+        val unescaped = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            Html.fromHtml(raw, Html.FROM_HTML_MODE_LEGACY)
+        } else {
+            @Suppress("DEPRECATION") Html.fromHtml(raw)
+        }
+        return unescaped.toString().replace(Regex("\\s+"), " ").trim()
+    }
 }

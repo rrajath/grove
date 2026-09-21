@@ -7,6 +7,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
@@ -314,7 +315,7 @@ class SyncManager(
      * dying between sync passes (e.g. periodic WorkManager runs).
      */
     private fun notifyConflicts(names: Set<String>) {
-        val nm = context.getSystemService(NotificationManager::class.java)
+        val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         if (names.isEmpty()) {
             nm.cancel(NOTIFICATION_ID)
             conflictAlertState.setActive(false)
@@ -326,9 +327,11 @@ class SyncManager(
         if (context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
             != PackageManager.PERMISSION_GRANTED
         ) return
-        nm.createNotificationChannel(
-            NotificationChannel(CHANNEL_ID, "Sync conflicts", NotificationManager.IMPORTANCE_DEFAULT)
-        )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            nm.createNotificationChannel(
+                NotificationChannel(CHANNEL_ID, "Sync conflicts", NotificationManager.IMPORTANCE_DEFAULT)
+            )
+        }
         val launch = context.packageManager.getLaunchIntentForPackage(context.packageName)
         val pending = PendingIntent.getActivity(
             context, 0, launch ?: Intent(),

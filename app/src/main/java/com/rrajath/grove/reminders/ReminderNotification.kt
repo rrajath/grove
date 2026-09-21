@@ -5,6 +5,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.net.toUri
 import com.rrajath.grove.MainActivity
@@ -32,10 +33,12 @@ object ReminderNotification {
 
     fun show(context: Context, reminder: ReminderEntity) {
         if (!canShow(context)) return
-        val nm = context.getSystemService(NotificationManager::class.java)
-        nm.createNotificationChannel(
-            NotificationChannel(CHANNEL_ID, "Reminders", NotificationManager.IMPORTANCE_HIGH)
-        )
+        val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            nm.createNotificationChannel(
+                NotificationChannel(CHANNEL_ID, "Reminders", NotificationManager.IMPORTANCE_HIGH)
+            )
+        }
 
         val contentIntent = PendingIntent.getActivity(
             context, reminder.notificationId,
@@ -73,7 +76,7 @@ object ReminderNotification {
     }
 
     fun cancel(context: Context, notificationId: Int) {
-        context.getSystemService(NotificationManager::class.java).cancel(notificationId)
+        (context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).cancel(notificationId)
     }
 
     /**
@@ -84,10 +87,12 @@ object ReminderNotification {
      */
     fun showDigest(context: Context, count: Int) {
         if (!canShow(context)) return
-        val nm = context.getSystemService(NotificationManager::class.java)
-        nm.createNotificationChannel(
-            NotificationChannel(CHANNEL_ID, "Reminders", NotificationManager.IMPORTANCE_HIGH)
-        )
+        val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            nm.createNotificationChannel(
+                NotificationChannel(CHANNEL_ID, "Reminders", NotificationManager.IMPORTANCE_HIGH)
+            )
+        }
 
         val contentIntent = PendingIntent.getActivity(
             context, DIGEST_NOTIFICATION_ID,

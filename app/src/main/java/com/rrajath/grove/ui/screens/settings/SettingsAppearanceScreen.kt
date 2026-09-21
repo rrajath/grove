@@ -1,5 +1,6 @@
 package com.rrajath.grove.ui.screens.settings
 
+import android.os.Build
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -61,12 +62,16 @@ fun SettingsAppearanceScreen(
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
-            RowDivider()
-            SyncAppIconRow(
-                checked = settings.syncAppIconWithTheme,
-                theme = settings.theme,
-                onToggle = onSetSyncAppIconWithTheme,
-            )
+            // Themed launcher icons only exist as <adaptive-icon> (API 26+); on
+            // older devices there's nothing for this setting to actually do.
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                RowDivider()
+                SyncAppIconRow(
+                    checked = settings.syncAppIconWithTheme,
+                    theme = settings.theme,
+                    onToggle = onSetSyncAppIconWithTheme,
+                )
+            }
             RowDivider()
             Column(Modifier.padding(horizontal = 15.dp, vertical = 12.dp)) {
                 Row(

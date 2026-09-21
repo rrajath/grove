@@ -23,7 +23,7 @@ object ReminderDigestScheduler {
     private const val REQUEST_CODE = -1000
 
     fun scheduleNext(context: Context, defaultReminderTime: LocalTime, zone: ZoneId = ZoneId.systemDefault()) {
-        val am = context.getSystemService(AlarmManager::class.java) ?: return
+        val am = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
         val pending = pendingIntent(context, create = true) ?: return
         val triggerAt = nextTriggerMillis(defaultReminderTime, zone)
         if (AlarmScheduler.canScheduleExactAlarms(context)) {
@@ -38,7 +38,7 @@ object ReminderDigestScheduler {
     }
 
     fun cancel(context: Context) {
-        val am = context.getSystemService(AlarmManager::class.java) ?: return
+        val am = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
         val pending = pendingIntent(context, create = false) ?: return
         am.cancel(pending)
         pending.cancel()

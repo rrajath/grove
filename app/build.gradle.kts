@@ -141,7 +141,7 @@ android {
 
     defaultConfig {
         applicationId = "com.rrajath.grove"
-        minSdk = 33
+        minSdk = 23
         targetSdk = 36
         versionCode = derivedVersionCode
         versionName = manualVersionName
@@ -202,6 +202,10 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+        // minSdk 23 puts java.time (LocalDate/Instant/DayOfWeek/DateTimeFormatter,
+        // used throughout the org date-parsing/scheduling code) below its native
+        // floor of API 26; desugaring backports it to API 21+ instead.
+        isCoreLibraryDesugaringEnabled = true
     }
     buildFeatures {
         compose = true
@@ -278,6 +282,7 @@ androidComponents {
 }
 
 dependencies {
+    coreLibraryDesugaring(libs.desugar.jdk.libs)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)

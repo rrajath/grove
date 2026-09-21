@@ -24,6 +24,7 @@ benchmark = "1.5.0-rc02"
 uiautomator = "2.3.0"
 profileinstaller = "1.4.1"
 javaDiffUtils = "4.15"
+desugarJdkLibs = "2.1.5"
 # Test-suite layers (see internal/test-suite-00-overview.md). Robolectric is
 # bumped past the design doc's 4.14.1 because AGP 9 / compileSdk 36 need 4.16+.
 robolectric = "4.16.1"
@@ -41,6 +42,7 @@ baselineprofile = "1.5.0-rc02"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+desugar-jdk-libs = { group = "com.android.tools", name = "desugar_jdk_libs", version.ref = "desugarJdkLibs" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }

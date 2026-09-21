@@ -3,6 +3,7 @@ package com.rrajath.grove.icon
 import android.content.ComponentName
 import android.content.Context
 import android.content.pm.PackageManager
+import android.os.Build
 import com.rrajath.grove.R
 import com.rrajath.grove.settings.ThemePreference
 
@@ -161,13 +162,19 @@ object AppIconManager {
      * other alias so exactly one launcher icon is ever active.
      */
     fun applyIcon(context: Context, enabled: Boolean, theme: ThemePreference) {
-        val target = targetAlias(enabled, theme)
+        // Themed alias icons only exist as <adaptive-icon> (API 26+); below
+        // that only the default alias has a resolvable icon resource, so
+        // treat "enabled" as always false regardless of the stored setting
+        // (e.g. a setting imported from a backup taken on a 26+ device).
+        val themingSupported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+        val effectivelyEnabled = enabled && themingSupported
+        val target = targetAlias(effectivelyEnabled, theme)
         // ON_STOP fires on every backgrounding, but the icon theme rarely
         // changed since the last apply. Bail before touching PackageManager at
         // all when the currently-enabled alias is already the target, instead of
         // pushing one no-op Binder IPC per alias every time (PERFORMANCE_AUDIT #5).
         val currentAlias = currentAliasComponent(context).className.removePrefix(MANIFEST_PACKAGE)
-        if (!iconChangeNeeded(currentAlias, enabled, theme)) return
+        if (!iconChangeNeeded(currentAlias, effectivelyEnabled, theme)) return
         val pm = context.packageManager
         for (alias in ALL_ALIASES) {
             val state = if (alias == target) {
