@@ -18,6 +18,7 @@ flows verified against a Pixel_9a AVD (API 35, AOSP keyboard) on 2026-09-07.
 | `flows/10-add-note-to-heading.yaml` | Log a free-text LOGBOOK note against a heading from the outline's right-swipe panel and from the metadata sheet |
 | `flows/11-add-note-position.yaml` | Create a new note above, below, and as a child of an existing note via the outline's left-swipe panel |
 | `flows/12-pin-unpin-notebook.yaml` | Pin/unpin a notebook from its long-press context menu on the Notebooks screen |
+| `scripts/ignore-list-settings.sh` | Settings § Notebooks' "Ignore list" row: the `.orgzlyignore` one-shot import (no file / empty file / imported with dedup) plus adding a pattern by hand and confirming it takes effect — see below |
 
 Journey 01 (onboarding + the SAF system folder picker) is **deferred** — see the
 design doc. Flows 02–05 skip onboarding entirely via the debug hook.
@@ -82,6 +83,52 @@ edge-trigger rewrite):
   current") cancels the notification;
 - once all conflicts clear, a fresh conflict re-notifies with a new `when`
   ("1 sync conflict found").
+
+### Ignore-list settings: `scripts/ignore-list-settings.sh`
+
+Also not a plain Maestro YAML flow, for the same class of reason as Flow 06:
+the app's `.orgzlyignore` import (`GroveApplication.onCreate`) is a **one-shot
+check that runs on the very first process start after install**, before any
+UI interaction is possible. To control what it finds, `.orgzlyignore` has to
+already exist in the vault directory before that first launch — which needs
+`adb shell` writes ahead of a `pm clear`-fresh install, not a Maestro
+primitive. Each scenario below is its own `pm clear` + `adb shell` vault
+write + `maestro test` run (`subflows/launch-direct-vault.yaml`, which skips
+the bundled `.org` fixture seed so the adb-pushed files survive the launch).
+
+Run: `./gradlew :app:installDebug && .maestro/scripts/ignore-list-settings.sh`
+(needs exactly one connected device/emulator — an AVD, never the physical
+device with the real vault).
+
+Covers (**UNVERIFIED ON-DEVICE** — written from `SettingsNotebooksScreen.kt`,
+`GroveApplication.kt` and `SyncEngine.kt` source, not yet run against a real
+emulator):
+- no `.orgzlyignore` file: "No .orgzlyignore file found." and an empty field;
+- an empty `.orgzlyignore` file: "Found a .orgzlyignore file and it's
+  empty." and an empty field;
+- a `.orgzlyignore` with a few patterns and `#` comment lines: "Imported from
+  .orgzlyignore." and the field shows exactly the deduped, comment-stripped
+  patterns;
+- same import, then typing one more pattern into the field by hand and
+  confirming it actually takes effect — a matching notebook drops out of the
+  Notebooks list after a few pull-to-refresh passes, while a non-matching one
+  stays.
+
+Known fragile points, same spirit as flows 07-12's caveats:
+- **No testTag on the Ignore list `OutlinedTextField`.** Selectors fall back
+  to position (`above: {text: "Dot-prefixed folders.*"}`, the constant text
+  right below the field) rather than an id. Worth a testTag if this flow
+  proves worth keeping.
+- **Asserting "the field is empty"** uses `text: "^$"` anchored `above` that
+  same constant text, since the field has no label/placeholder to check
+  instead — unverified that Maestro's accessibility dump exposes an empty
+  Compose `OutlinedTextField`'s text as `""` rather than omitting the node.
+- **Editing the field's content** clears it (`eraseText: 500`) and retypes
+  the full expected content line-by-line with `pressKey: Enter` between
+  lines, rather than tapping to place a cursor and appending — a tap's
+  landing offset inside a multi-line field isn't reliably "end of text", and
+  `adb shell input text` doesn't reliably turn an embedded `\n` into a real
+  line break.
 
 ## The debug test-vault hook
 

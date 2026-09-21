@@ -1,0 +1,67 @@
+# Ignore-list scenario 4: verify an imported .orgzlyignore, then add a new
+# pattern by hand and confirm it actually takes effect (a file matching it
+# drops out of the Notebooks list after a sync refresh).
+#
+# Driven by scripts/ignore-list-settings.sh, which adb-pushes the same
+# .orgzlyignore as scenario 3 (archive/, *.bak, old-notes.org, plus comments)
+# and two hand-written notebooks, keep.org and hide-me.org, directly into the
+# vault before launch (no bundled fixture seed -- see launch-direct-vault.yaml).
+#
+# UNVERIFIED ON-DEVICE: written from SettingsNotebooksScreen.kt,
+# GroveApplication.kt and SyncEngine.kt source, not yet run against a real
+# emulator.
+appId: com.rrajath.grove.debug
+---
+- runFlow: launch-direct-vault.yaml
+
+# Baseline: both hand-pushed notebooks are indexed and visible before any
+# ignore-list edit, so their later disappearance is attributable to the edit.
+- extendedWaitUntil:
+    visible:
+      text: "keep.org"
+    timeout: 10000
+- assertVisible:
+    text: "hide-me.org"
+
+- runFlow: open-settings-notebooks.yaml
+- assertVisible:
+    text: "Imported from \\.orgzlyignore\\."
+- assertVisible:
+    text: "archive/\n\\*\\.bak\nold-notes\\.org"
+
+# Replace the field with the imported content plus one new line, rather than
+# tapping to position a cursor and appending: a tap's landing offset inside a
+# multi-line OutlinedTextField isn't reliably "end of text", so a full
+# deterministic retype is the safer primitive here. Newlines go in as
+# separate inputText + pressKey Enter steps -- `adb shell input text` does
+# not reliably turn an embedded "\n" into a real line break.
+- tapOn:
+    above:
+      text: "Dot-prefixed folders.*"
+- eraseText: 500
+- inputText: "archive/"
+- pressKey: Enter
+- inputText: "*.bak"
+- pressKey: Enter
+- inputText: "old-notes.org"
+- pressKey: Enter
+- inputText: "hide-me.org"
+- hideKeyboard
+
+- runFlow: close-settings-notebooks.yaml
+
+# A few pull-to-refresh passes (PullToRefreshBox -> SyncEngine.sync()) to
+# pick up the new ignore pattern: it's applied via the IgnorePatterns rebuilt
+# from the ignoreList setting change, and a file that drops out of the
+# directory listing is removed from the Room index on the next sync pass
+# (SyncEngine's `known.keys - current.keys` diff).
+- runFlow: trigger-sync.yaml
+- runFlow: trigger-sync.yaml
+- runFlow: trigger-sync.yaml
+
+- extendedWaitUntil:
+    notVisible:
+      text: "hide-me.org"
+    timeout: 10000
+- assertVisible:
+    text: "keep.org"

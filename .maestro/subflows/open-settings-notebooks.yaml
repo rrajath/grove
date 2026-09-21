@@ -1,0 +1,22 @@
+# From the Notebooks screen: drawer -> Settings -> Notebooks. Lands with the
+# "Ignore list" row (and its status message + text field) visible.
+appId: com.rrajath.grove.debug
+---
+- tapOn:
+    text: "☰"
+- extendedWaitUntil:
+    visible:
+      text: "Settings"
+    timeout: 10000
+- tapOn:
+    text: "Settings"
+- scrollUntilVisible:
+    element:
+      text: "Notebooks"
+    direction: DOWN
+- tapOn:
+    text: "Notebooks"
+- scrollUntilVisible:
+    element:
+      text: "Ignore list"
+    direction: DOWN

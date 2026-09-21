@@ -1,0 +1,12 @@
+# Leave Settings § Notebooks back to the Notebooks screen. The ignore-list
+# field commits its pending edit on DisposableEffect(Unit).onDispose (see
+# SettingsNotebooksScreen.kt), which back-navigation triggers same as any
+# other way the screen leaves composition.
+appId: com.rrajath.grove.debug
+---
+- back
+- back
+- extendedWaitUntil:
+    visible:
+      id: "notebooks_capture"
+    timeout: 10000

@@ -1,0 +1,28 @@
+# Ignore-list scenario 1: no .orgzlyignore file in the vault.
+#
+# Driven by scripts/ignore-list-settings.sh, which adb-creates an empty vault
+# directory (no .orgzlyignore, no notebooks) before this flow launches the
+# app -- see that script and launch-direct-vault.yaml for why this can't be a
+# plain numbered flow (Maestro has no filesystem-injection primitive, and the
+# app's .orgzlyignore import is a one-shot check on the very first process
+# start after install, so the file has to exist before that first launch).
+#
+# UNVERIFIED ON-DEVICE: written from SettingsNotebooksScreen.kt +
+# GroveApplication.kt source, not yet run against a real emulator.
+appId: com.rrajath.grove.debug
+---
+- runFlow: launch-direct-vault.yaml
+- runFlow: open-settings-notebooks.yaml
+
+- assertVisible:
+    text: "No \\.orgzlyignore file found\\."
+
+# The field has no label/placeholder to distinguish empty from unloaded, so
+# anchor on the constant text directly below it ("Dot-prefixed folders...")
+# and assert the element above that anchor has no text.
+- assertVisible:
+    text: "^$"
+    above:
+      text: "Dot-prefixed folders.*"
+
+- runFlow: close-settings-notebooks.yaml

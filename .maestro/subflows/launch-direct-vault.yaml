@@ -1,0 +1,16 @@
+# Launch onto a debug direct-vault directory WITHOUT the bundled .org fixture
+# seed, so an already-injected vault directory (adb-pushed before this launch
+# — see scripts/ignore-list-settings.sh) survives untouched: DebugTestVault's
+# seed() wipes the whole vault dir before rewriting the fixtures, which would
+# destroy anything adb pushed there ahead of time. clearState is left off
+# (default false) — the driving script does its own `adb shell pm clear`
+# before pushing files, and a clearState launch here would wipe them again.
+appId: com.rrajath.grove.debug
+---
+- launchApp:
+    arguments:
+      grove_test_direct_vault: true
+- extendedWaitUntil:
+    visible:
+      id: "notebooks_capture"
+    timeout: 15000

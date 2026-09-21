@@ -1,0 +1,39 @@
+# Ignore-list scenario 3: a non-empty .orgzlyignore with patterns and comments.
+#
+# Driven by scripts/ignore-list-settings.sh, which adb-pushes this file into
+# the vault before launch:
+#   # Legacy Orgzly ignore file
+#   archive/
+#   *.bak
+#   old-notes.org
+#   # trailing comment
+# Comment (#) and blank lines are dropped on import (GroveApplication.kt), so
+# the expected merged ignoreList is exactly "archive/\n*.bak\nold-notes.org"
+# (settings.ignoreList starts "" on this fresh install, so the merge is just
+# the imported lines, deduped and joined).
+#
+# UNVERIFIED ON-DEVICE: written from SettingsNotebooksScreen.kt +
+# GroveApplication.kt source, not yet run against a real emulator.
+appId: com.rrajath.grove.debug
+---
+- runFlow: launch-direct-vault.yaml
+- runFlow: open-settings-notebooks.yaml
+
+- assertVisible:
+    text: "Imported from \\.orgzlyignore\\."
+
+# Exact match proves both the dedup/import content AND that comment lines
+# were dropped, in one assertion.
+- assertVisible:
+    text: "archive/\n\\*\\.bak\nold-notes\\.org"
+
+# Belt-and-suspenders: the raw comment text should never appear anywhere on
+# screen (the app only ever renders the derived ignoreList, never the raw
+# file), though the exact-match assertion above already proves it's absent
+# from the field itself.
+- assertNotVisible:
+    text: "(?s).*Legacy Orgzly ignore file.*"
+- assertNotVisible:
+    text: "(?s).*trailing comment.*"
+
+- runFlow: close-settings-notebooks.yaml

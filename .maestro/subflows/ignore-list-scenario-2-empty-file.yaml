@@ -1,0 +1,24 @@
+# Ignore-list scenario 2: an empty .orgzlyignore file in the vault.
+#
+# Driven by scripts/ignore-list-settings.sh, which adb-pushes a zero-byte
+# .orgzlyignore into the vault directory before this flow launches the app --
+# see launch-direct-vault.yaml for why (one-shot import on first process
+# start, no Maestro filesystem-injection primitive).
+#
+# UNVERIFIED ON-DEVICE: written from SettingsNotebooksScreen.kt +
+# GroveApplication.kt source, not yet run against a real emulator.
+appId: com.rrajath.grove.debug
+---
+- runFlow: launch-direct-vault.yaml
+- runFlow: open-settings-notebooks.yaml
+
+- assertVisible:
+    text: "Found a \\.orgzlyignore file and it's empty\\."
+
+# Same empty-field anchor trick as scenario 1 -- see that file's comment.
+- assertVisible:
+    text: "^$"
+    above:
+      text: "Dot-prefixed folders.*"
+
+- runFlow: close-settings-notebooks.yaml
