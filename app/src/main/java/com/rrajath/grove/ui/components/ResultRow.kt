@@ -13,6 +13,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
@@ -56,7 +57,11 @@ fun ResultRowContent(
                 )
                 Spacer(Modifier.width(7.dp))
             }
-            Text(titleText, fontFamily = PlexSans, fontWeight = FontWeight.SemiBold, fontSize = 14.5.sp, color = c.ink)
+            Text(
+                titleText, fontFamily = PlexSans, fontWeight = FontWeight.SemiBold, fontSize = 14.5.sp,
+                color = if (isDone) c.ink3 else c.ink,
+                textDecoration = if (isDone) TextDecoration.LineThrough else null,
+            )
         }
         if (snippetText != null && snippetText.text.isNotEmpty()) {
             Text(
