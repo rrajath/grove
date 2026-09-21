@@ -21,6 +21,7 @@ import com.rrajath.grove.settings.SettingsRepository
 import com.rrajath.grove.settings.ThemePreference
 import com.rrajath.grove.sync.SyncManager
 import com.rrajath.grove.vault.FileStore
+import com.rrajath.grove.vault.IgnorePatterns
 import com.rrajath.grove.widget.CaptureNotification
 import com.rrajath.grove.vault.JvmFileStore
 import com.rrajath.grove.vault.SafFileStore
@@ -39,6 +40,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -52,6 +54,15 @@ import kotlinx.coroutines.withTimeoutOrNull
  * [onCreate] (`testing.TestGroveApplication`); production has exactly one
  * instance, created by the framework.
  */
+/**
+ * Historical ignore-file name from the now-superseded `.orgzlyignore`
+ * mechanism (see [com.rrajath.grove.vault.IgnorePatterns] and
+ * internal/ignore-list-feature/00-overview.md). Hardcoded here rather than
+ * referencing the old `IgnoreRules.FILE_NAME` constant, since that class is
+ * deleted once every caller of it is migrated.
+ */
+private const val LEGACY_IGNORE_FILE_NAME = ".orgzlyignore"
+
 open class GroveApplication : Application() {
 
     val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -152,11 +163,13 @@ open class GroveApplication : Application() {
     val fileStore: StateFlow<FileStore?> by lazy {
         combine(
             settingsRepository.settings.map { it.vaultTreeUri }.distinctUntilChanged(),
+            settingsRepository.settings.map { it.ignoreList }.distinctUntilChanged(),
             TestVaultHook.root,
-        ) { uriString, testRoot ->
+        ) { uriString, ignoreListText, testRoot ->
+            val ignore = IgnorePatterns(ignoreListText)
             when {
-                testRoot != null -> JvmFileStore(testRoot)
-                uriString != null -> SafFileStore(this, uriString.toUri())
+                testRoot != null -> JvmFileStore(testRoot, ignore)
+                uriString != null -> SafFileStore(this, uriString.toUri(), ignore)
                 else -> null
             }
         }.stateIn(appScope, SharingStarted.Eagerly, null)
@@ -217,6 +230,31 @@ open class GroveApplication : Application() {
         notificationMarkColor
 
         appScope.launch { collectWidgetRefreshRequests() }
+
+        appScope.launch {
+            // .orgzlyignore is superseded by the ignoreList setting (see
+            // internal/ignore-list-feature/00-overview.md). Import its lines into
+            // ignoreList exactly once, then never read the file again — the file
+            // itself is left on disk, untouched.
+            val store = fileStore.filterNotNull().first()
+            val settings = settingsRepository.settings.first()
+            if (!settings.ignoreListImportedFromFile) {
+                val legacyText = runCatching { store.read(LEGACY_IGNORE_FILE_NAME) }.getOrNull()
+                val imported = legacyText
+                    ?.lineSequence()
+                    ?.map { it.trim() }
+                    ?.filter { it.isNotEmpty() && !it.startsWith("#") && !it.startsWith("!") }
+                    ?.toList()
+                    ?: emptyList()
+                if (imported.isNotEmpty()) {
+                    val merged = (settings.ignoreList.lineSequence().filter { it.isNotBlank() } + imported)
+                        .distinct()
+                        .joinToString("\n")
+                    settingsRepository.setIgnoreList(merged)
+                }
+                settingsRepository.markIgnoreListImportedFromFile()
+            }
+        }
 
         appScope.launch {
             // Notifications bake in their color at post time, so a theme switch
