@@ -123,29 +123,38 @@ fun SettingsNotebooksScreen(
                     fontSize = 14.5.sp, color = c.ink,
                 )
                 Text(
-                    "Files, folders, and patterns to skip entirely, one per line",
+                    "All .org files in this vault and its subfolders are indexed " +
+                        "automatically. The files, folders, and patterns listed below " +
+                        "are skipped entirely and never scanned.",
+                    fontFamily = PlexSans, fontSize = 12.sp, color = c.ink3,
+                    modifier = Modifier.padding(top = 2.dp, bottom = 6.dp),
+                )
+                Text(
+                    "Add files, folders and patterns to skip entirely, one per line",
                     fontFamily = PlexSans, fontSize = 12.sp, color = c.ink3,
                     modifier = Modifier.padding(bottom = 6.dp),
                 )
-                if (settings.ignoreListLegacyFileEmpty) {
-                    Text(
-                        "Nothing was imported from .orgzlyignore since it was found to be empty.",
-                        fontFamily = PlexSans, fontSize = 12.sp, color = c.ink3,
-                        modifier = Modifier.padding(bottom = 6.dp),
-                    )
-                } else if (settings.ignoreListImportedFromFile) {
-                    Text(
-                        "Imported from .orgzlyignore.",
-                        fontFamily = PlexSans, fontSize = 12.sp, color = c.ink3,
-                        modifier = Modifier.padding(bottom = 6.dp),
-                    )
-                }
+                Text(
+                    when {
+                        settings.ignoreListImportedFromFile -> "Imported from .orgzlyignore."
+                        settings.ignoreListLegacyFileEmpty -> "Found a .orgzlyignore file and it's empty."
+                        else -> "No .orgzlyignore file found."
+                    },
+                    fontFamily = PlexSans, fontSize = 12.sp, color = c.ink3,
+                    modifier = Modifier.padding(bottom = 6.dp),
+                )
                 OutlinedTextField(
                     value = ignoreListText,
                     onValueChange = { ignoreListText = it },
                     singleLine = false,
                     textStyle = TextStyle(fontFamily = PlexMono, fontSize = 13.sp),
                     modifier = Modifier.fillMaxWidth().height(160.dp),
+                )
+                Text(
+                    "Dot-prefixed folders (e.g. .git, .stversions, .stfolder) are always " +
+                        "skipped automatically — no need to add them here.",
+                    fontFamily = PlexSans, fontSize = 11.sp, color = c.ink3,
+                    modifier = Modifier.padding(top = 6.dp),
                 )
             }
         }

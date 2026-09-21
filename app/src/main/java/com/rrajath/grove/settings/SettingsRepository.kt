@@ -98,14 +98,23 @@ data class GroveSettings(
     /** Settings § Notebooks: newline-separated file/folder/pattern entries, never descended into or indexed. */
     val ignoreList: String = "",
     /**
-     * Device-local: true once `.orgzlyignore`'s content (if any) has been
-     * imported into [ignoreList]. Guards against re-importing after the user
-     * clears the list. Not included in SettingsSerialization — same
-     * treatment as [onboardingDone].
+     * Device-local: true once the one-time `.orgzlyignore` check has run, so it
+     * never re-runs — regardless of what it found. Guards against re-importing
+     * (or re-flagging empty/missing) after the user clears the list. Not
+     * included in SettingsSerialization — same treatment as [onboardingDone].
+     */
+    val ignoreListImportCheckDone: Boolean = false,
+    /**
+     * Device-local: true only if the one-time `.orgzlyignore` check actually
+     * found the file *and* it had at least one importable pattern, which was
+     * then merged into [ignoreList]. False for both "no `.orgzlyignore` file at
+     * all" and "found but empty" — see [ignoreListLegacyFileEmpty] for the
+     * latter. Not included in SettingsSerialization — same treatment as
+     * [onboardingDone].
      */
     val ignoreListImportedFromFile: Boolean = false,
     /**
-     * Device-local: true if the one-time `.orgzlyignore` import found the file
+     * Device-local: true if the one-time `.orgzlyignore` check found the file
      * but it had no importable patterns (blank/comment/negated lines only), so
      * [ignoreList] was left untouched. Distinguishes "found but empty" from "no
      * `.orgzlyignore` file at all" for the Settings § Notebooks messaging. Not
@@ -289,6 +298,7 @@ class SettingsRepository(
         val periodicSyncMinutes = intPreferencesKey("periodic_sync_minutes")
         val todoKeywords = stringPreferencesKey("todo_keywords")
         val ignoreList = stringPreferencesKey("ignore_list")
+        val ignoreListImportCheckDone = booleanPreferencesKey("ignore_list_import_check_done")
         val ignoreListImportedFromFile = booleanPreferencesKey("ignore_list_imported_from_file")
         val ignoreListLegacyFileEmpty = booleanPreferencesKey("ignore_list_legacy_file_empty")
         val defaultPriority = stringPreferencesKey("default_priority")
@@ -386,6 +396,7 @@ class SettingsRepository(
             periodicSyncMinutes = prefs[Keys.periodicSyncMinutes] ?: 30,
             todoKeywords = prefs[Keys.todoKeywords] ?: GroveSettings.DEFAULT_TODO_KEYWORDS,
             ignoreList = prefs[Keys.ignoreList] ?: "",
+            ignoreListImportCheckDone = prefs[Keys.ignoreListImportCheckDone] ?: false,
             ignoreListImportedFromFile = prefs[Keys.ignoreListImportedFromFile] ?: false,
             ignoreListLegacyFileEmpty = prefs[Keys.ignoreListLegacyFileEmpty] ?: false,
             defaultPriority = prefs[Keys.defaultPriority]?.firstOrNull(),
@@ -679,6 +690,10 @@ class SettingsRepository(
 
     suspend fun setIgnoreList(value: String) {
         context.settingsDataStore.edit { it[Keys.ignoreList] = value }
+    }
+
+    suspend fun markIgnoreListImportCheckDone() {
+        context.settingsDataStore.edit { it[Keys.ignoreListImportCheckDone] = true }
     }
 
     suspend fun markIgnoreListImportedFromFile() {

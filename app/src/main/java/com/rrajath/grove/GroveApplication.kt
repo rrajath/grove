@@ -238,7 +238,7 @@ open class GroveApplication : Application() {
             // itself is left on disk, untouched.
             val store = fileStore.filterNotNull().first()
             val settings = settingsRepository.settings.first()
-            if (!settings.ignoreListImportedFromFile) {
+            if (!settings.ignoreListImportCheckDone) {
                 val legacyText = runCatching { store.read(LEGACY_IGNORE_FILE_NAME) }.getOrNull()
                 val imported = legacyText
                     ?.lineSequence()
@@ -251,12 +251,15 @@ open class GroveApplication : Application() {
                         .distinct()
                         .joinToString("\n")
                     settingsRepository.setIgnoreList(merged)
+                    settingsRepository.markIgnoreListImportedFromFile()
                 } else if (legacyText != null) {
                     // The file was found and readable, but had no importable
                     // patterns (blank/comment/negated lines only).
                     settingsRepository.markIgnoreListLegacyFileEmpty()
                 }
-                settingsRepository.markIgnoreListImportedFromFile()
+                // Neither branch above fires when legacyText is null — no
+                // .orgzlyignore file exists at all, nothing to record.
+                settingsRepository.markIgnoreListImportCheckDone()
             }
         }
 
