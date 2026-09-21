@@ -95,6 +95,15 @@ data class GroveSettings(
     val periodicSyncMinutes: Int = 30,
     /** Org TODO keyword config, `|` splits done-type ("TODO IN-PROGRESS | DONE CANCELLED"). */
     val todoKeywords: String = DEFAULT_TODO_KEYWORDS,
+    /** Settings § Notebooks: newline-separated file/folder/pattern entries, never descended into or indexed. */
+    val ignoreList: String = "",
+    /**
+     * Device-local: true once `.orgzlyignore`'s content (if any) has been
+     * imported into [ignoreList]. Guards against re-importing after the user
+     * clears the list. Not included in SettingsSerialization — same
+     * treatment as [onboardingDone].
+     */
+    val ignoreListImportedFromFile: Boolean = false,
     /** Default priority for the metadata sheet; null = none. */
     val defaultPriority: Char? = null,
     val addIdToNewNotes: Boolean = false,
@@ -271,6 +280,8 @@ class SettingsRepository(
         val syncMode = stringPreferencesKey("sync_mode")
         val periodicSyncMinutes = intPreferencesKey("periodic_sync_minutes")
         val todoKeywords = stringPreferencesKey("todo_keywords")
+        val ignoreList = stringPreferencesKey("ignore_list")
+        val ignoreListImportedFromFile = booleanPreferencesKey("ignore_list_imported_from_file")
         val defaultPriority = stringPreferencesKey("default_priority")
         val addIdToNewNotes = booleanPreferencesKey("add_id_to_new_notes")
         val addCreatedToNewNotes = booleanPreferencesKey("add_created_to_new_notes")
@@ -365,6 +376,8 @@ class SettingsRepository(
             syncMode = SyncMode.fromStorage(prefs[Keys.syncMode]),
             periodicSyncMinutes = prefs[Keys.periodicSyncMinutes] ?: 30,
             todoKeywords = prefs[Keys.todoKeywords] ?: GroveSettings.DEFAULT_TODO_KEYWORDS,
+            ignoreList = prefs[Keys.ignoreList] ?: "",
+            ignoreListImportedFromFile = prefs[Keys.ignoreListImportedFromFile] ?: false,
             defaultPriority = prefs[Keys.defaultPriority]?.firstOrNull(),
             addIdToNewNotes = prefs[Keys.addIdToNewNotes] ?: false,
             addCreatedToNewNotes = prefs[Keys.addCreatedToNewNotes] ?: true,
@@ -497,6 +510,7 @@ class SettingsRepository(
             p[Keys.syncMode] = s.syncMode.storageKey
             p[Keys.periodicSyncMinutes] = s.periodicSyncMinutes
             p[Keys.todoKeywords] = s.todoKeywords
+            p[Keys.ignoreList] = s.ignoreList
             if (s.defaultPriority == null) p.remove(Keys.defaultPriority)
             else p[Keys.defaultPriority] = s.defaultPriority.toString()
             p[Keys.addIdToNewNotes] = s.addIdToNewNotes
@@ -651,6 +665,14 @@ class SettingsRepository(
 
     suspend fun setTodoKeywords(config: String) {
         context.settingsDataStore.edit { it[Keys.todoKeywords] = config }
+    }
+
+    suspend fun setIgnoreList(value: String) {
+        context.settingsDataStore.edit { it[Keys.ignoreList] = value }
+    }
+
+    suspend fun markIgnoreListImportedFromFile() {
+        context.settingsDataStore.edit { it[Keys.ignoreListImportedFromFile] = true }
     }
 
     suspend fun setDefaultPriority(priority: Char?) {

@@ -18,6 +18,7 @@ class SettingsSerializationTest {
         syncMode = SyncMode.PERIODIC,
         periodicSyncMinutes = 60,
         todoKeywords = "TODO NEXT | DONE",
+        ignoreList = "archive\n*.bak",
         defaultPriority = 'B',
         addIdToNewNotes = true,
         addCreatedToNewNotes = false,
@@ -91,6 +92,7 @@ class SettingsSerializationTest {
         assertEquals(sample.syncMode, restored.syncMode)
         assertEquals(sample.periodicSyncMinutes, restored.periodicSyncMinutes)
         assertEquals(sample.todoKeywords, restored.todoKeywords)
+        assertEquals(sample.ignoreList, restored.ignoreList)
         assertEquals(sample.defaultPriority, restored.defaultPriority)
         assertEquals(sample.addIdToNewNotes, restored.addIdToNewNotes)
         assertEquals(sample.addCreatedToNewNotes, restored.addCreatedToNewNotes)
@@ -251,6 +253,13 @@ class SettingsSerializationTest {
         assertEquals(true, restored.agendaWidgetShowTags)
         assertEquals(true, restored.agendaWidgetShowPriority)
         assertEquals(FontSizePreference.MEDIUM, restored.agendaWidgetFontSize)
+    }
+
+    @Test
+    fun `a pre-v8 export without ignoreList imports as an empty list`() {
+        val json = """{ "theme": "dark" }"""
+        val restored = SettingsSerialization.import(json, GroveSettings())
+        assertEquals("", restored.ignoreList)
     }
 
     @Test

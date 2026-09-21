@@ -53,6 +53,7 @@ data class SettingsExport(
     val syncMode: String = SyncMode.ON_OPEN_CLOSE.storageKey,
     val periodicSyncMinutes: Int = 30,
     val todoKeywords: String = GroveSettings.DEFAULT_TODO_KEYWORDS,
+    val ignoreList: String = "",
     val defaultPriority: String? = null,
     val addIdToNewNotes: Boolean = false,
     val addCreatedToNewNotes: Boolean = true,
@@ -125,6 +126,7 @@ data class SettingsExport(
         syncMode = SyncMode.fromStorage(syncMode),
         periodicSyncMinutes = periodicSyncMinutes,
         todoKeywords = todoKeywords,
+        ignoreList = ignoreList,
         defaultPriority = defaultPriority?.firstOrNull(),
         addIdToNewNotes = addIdToNewNotes,
         addCreatedToNewNotes = addCreatedToNewNotes,
@@ -197,7 +199,9 @@ data class SettingsExport(
         // their default (off, experimental features stay opt-in).
         // v7: added roamOpenWholeFile (Roam Features › open small files as one
         // note). Additive — older exports omit it and import at its default (off).
-        const val CURRENT_VERSION = 7
+        // v8: added ignoreList (Settings § Notebooks). Additive — older exports
+        // omit it and import at its default (empty list).
+        const val CURRENT_VERSION = 8
 
         fun fromSettings(s: GroveSettings): SettingsExport = SettingsExport(
             theme = s.theme.storageKey,
@@ -209,6 +213,7 @@ data class SettingsExport(
             syncMode = s.syncMode.storageKey,
             periodicSyncMinutes = s.periodicSyncMinutes,
             todoKeywords = s.todoKeywords,
+            ignoreList = s.ignoreList,
             defaultPriority = s.defaultPriority?.toString(),
             addIdToNewNotes = s.addIdToNewNotes,
             addCreatedToNewNotes = s.addCreatedToNewNotes,
