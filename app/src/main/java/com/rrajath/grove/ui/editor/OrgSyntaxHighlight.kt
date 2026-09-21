@@ -122,6 +122,7 @@ class OrgSyntaxHighlight(
                 InlineType.BOLD -> add(LineSpan(SpanStyle(color = colors.synTag, fontWeight = FontWeight.SemiBold), s, e))
                 InlineType.ITALIC -> add(LineSpan(SpanStyle(color = colors.green, fontStyle = FontStyle.Italic), s, e))
                 InlineType.UNDERLINE -> add(LineSpan(SpanStyle(textDecoration = TextDecoration.Underline), s, e))
+                InlineType.STRIKETHROUGH -> add(LineSpan(SpanStyle(textDecoration = TextDecoration.LineThrough), s, e))
                 InlineType.CODE -> add(LineSpan(SpanStyle(color = colors.accent, background = colors.surface2), s, e))
                 InlineType.VERBATIM -> add(LineSpan(SpanStyle(color = colors.accent, background = colors.surface2), s, e))
                 InlineType.LINK -> add(

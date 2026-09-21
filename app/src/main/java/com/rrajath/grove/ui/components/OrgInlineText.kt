@@ -33,6 +33,7 @@ fun annotateOrgInline(
             InlineType.BOLD -> withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) { append(token.text) }
             InlineType.ITALIC -> withStyle(SpanStyle(fontStyle = FontStyle.Italic)) { append(token.text) }
             InlineType.UNDERLINE -> withStyle(SpanStyle(textDecoration = TextDecoration.Underline)) { append(token.text) }
+            InlineType.STRIKETHROUGH -> withStyle(SpanStyle(textDecoration = TextDecoration.LineThrough)) { append(token.text) }
             InlineType.CODE, InlineType.VERBATIM -> withStyle(
                 SpanStyle(fontFamily = PlexMono, fontSize = 13.5.sp, background = c.surface2)
             ) { append(token.text) }

@@ -1,7 +1,7 @@
 package com.rrajath.grove.org
 
 enum class InlineType {
-    TEXT, BOLD, ITALIC, UNDERLINE, CODE, VERBATIM, LINK, TIMESTAMP,
+    TEXT, BOLD, ITALIC, UNDERLINE, STRIKETHROUGH, CODE, VERBATIM, LINK, TIMESTAMP,
 }
 
 /**
@@ -51,6 +51,7 @@ object InlineTokenizer {
     private val CODE_TILDE = emphasis('~')
     private val CODE_BACKTICK = emphasis('`')
     private val VERBATIM = emphasis('=')
+    private val STRIKETHROUGH = emphasis('+')
 
     /** Tokenize [line] into non-overlapping spans covering the whole string. */
     fun tokenize(line: String): List<InlineToken> {
@@ -89,6 +90,7 @@ object InlineTokenizer {
         addAll(BOLD) { m -> InlineToken(m.range, InlineType.BOLD, m.groupValues[1]) }
         addAll(ITALIC) { m -> InlineToken(m.range, InlineType.ITALIC, m.groupValues[1]) }
         addAll(UNDERLINE) { m -> InlineToken(m.range, InlineType.UNDERLINE, m.groupValues[1]) }
+        addAll(STRIKETHROUGH) { m -> InlineToken(m.range, InlineType.STRIKETHROUGH, m.groupValues[1]) }
         addAll(CODE_TILDE) { m -> InlineToken(m.range, InlineType.CODE, m.groupValues[1]) }
         addAll(CODE_BACKTICK) { m -> InlineToken(m.range, InlineType.CODE, m.groupValues[1]) }
         addAll(VERBATIM) { m -> InlineToken(m.range, InlineType.VERBATIM, m.groupValues[1]) }

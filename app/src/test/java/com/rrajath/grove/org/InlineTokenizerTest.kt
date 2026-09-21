@@ -29,6 +29,7 @@ class InlineTokenizerTest {
         assertEquals(listOf(InlineType.BOLD), types("*bold*"))
         assertEquals(listOf(InlineType.ITALIC), types("/italic/"))
         assertEquals(listOf(InlineType.UNDERLINE), types("_under_"))
+        assertEquals(listOf(InlineType.STRIKETHROUGH), types("+strike+"))
         assertEquals(listOf(InlineType.CODE), types("~code~"))
         assertEquals(listOf(InlineType.CODE), types("`code`"))
         assertEquals(listOf(InlineType.VERBATIM), types("=verb="))
