@@ -104,6 +104,14 @@ data class GroveSettings(
      * treatment as [onboardingDone].
      */
     val ignoreListImportedFromFile: Boolean = false,
+    /**
+     * Device-local: true if the one-time `.orgzlyignore` import found the file
+     * but it had no importable patterns (blank/comment/negated lines only), so
+     * [ignoreList] was left untouched. Distinguishes "found but empty" from "no
+     * `.orgzlyignore` file at all" for the Settings § Notebooks messaging. Not
+     * included in SettingsSerialization — same treatment as [onboardingDone].
+     */
+    val ignoreListLegacyFileEmpty: Boolean = false,
     /** Default priority for the metadata sheet; null = none. */
     val defaultPriority: Char? = null,
     val addIdToNewNotes: Boolean = false,
@@ -282,6 +290,7 @@ class SettingsRepository(
         val todoKeywords = stringPreferencesKey("todo_keywords")
         val ignoreList = stringPreferencesKey("ignore_list")
         val ignoreListImportedFromFile = booleanPreferencesKey("ignore_list_imported_from_file")
+        val ignoreListLegacyFileEmpty = booleanPreferencesKey("ignore_list_legacy_file_empty")
         val defaultPriority = stringPreferencesKey("default_priority")
         val addIdToNewNotes = booleanPreferencesKey("add_id_to_new_notes")
         val addCreatedToNewNotes = booleanPreferencesKey("add_created_to_new_notes")
@@ -378,6 +387,7 @@ class SettingsRepository(
             todoKeywords = prefs[Keys.todoKeywords] ?: GroveSettings.DEFAULT_TODO_KEYWORDS,
             ignoreList = prefs[Keys.ignoreList] ?: "",
             ignoreListImportedFromFile = prefs[Keys.ignoreListImportedFromFile] ?: false,
+            ignoreListLegacyFileEmpty = prefs[Keys.ignoreListLegacyFileEmpty] ?: false,
             defaultPriority = prefs[Keys.defaultPriority]?.firstOrNull(),
             addIdToNewNotes = prefs[Keys.addIdToNewNotes] ?: false,
             addCreatedToNewNotes = prefs[Keys.addCreatedToNewNotes] ?: true,
@@ -673,6 +683,10 @@ class SettingsRepository(
 
     suspend fun markIgnoreListImportedFromFile() {
         context.settingsDataStore.edit { it[Keys.ignoreListImportedFromFile] = true }
+    }
+
+    suspend fun markIgnoreListLegacyFileEmpty() {
+        context.settingsDataStore.edit { it[Keys.ignoreListLegacyFileEmpty] = true }
     }
 
     suspend fun setDefaultPriority(priority: Char?) {

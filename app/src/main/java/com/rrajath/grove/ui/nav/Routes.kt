@@ -42,7 +42,6 @@ object Routes {
     const val SETTINGS = "settings"
     const val SETTINGS_APPEARANCE = "settings/appearance"
     const val SETTINGS_NOTEBOOKS = "settings/notebooks"
-    const val SETTINGS_IGNORE_LIST = "settings/ignorelist"
     const val SETTINGS_CAPTURE_TEMPLATES = "settings/templates"
     const val SETTINGS_SYNC = "settings/sync"
     const val SETTINGS_NOTES = "settings/notes"

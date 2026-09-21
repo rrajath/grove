@@ -1,10 +1,22 @@
 package com.rrajath.grove.ui.screens.settings
 
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.rrajath.grove.settings.GroveSettings
@@ -12,6 +24,7 @@ import com.rrajath.grove.settings.NotebookDisplayNameMode
 import com.rrajath.grove.settings.NotebookSortKey
 import com.rrajath.grove.ui.components.SegmentedControl
 import com.rrajath.grove.ui.theme.PlexMono
+import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
 
 /**
@@ -28,8 +41,20 @@ fun SettingsNotebooksScreen(
     onSetNotebookDisplayNameMode: (NotebookDisplayNameMode) -> Unit,
     onSetNotebookSortKey: (NotebookSortKey) -> Unit,
     onSetNotebookSortAscending: (Boolean) -> Unit,
-    onOpenIgnoreList: () -> Unit,
+    onSetIgnoreList: (String) -> Unit,
 ) {
+    val c = MaterialTheme.grove
+    var ignoreListText by remember(settings.ignoreList) { mutableStateOf(settings.ignoreList) }
+
+    // Commit a pending ignore-list edit when the screen leaves composition, however
+    // that happens (back gesture included) — same rationale as Settings § Notes'
+    // todoKeywords field.
+    DisposableEffect(Unit) {
+        onDispose {
+            if (ignoreListText != settings.ignoreList) onSetIgnoreList(ignoreListText)
+        }
+    }
+
     SettingsPageScaffold(title = "Notebooks", onBack = onBack) {
         SettingsGroup {
             ToggleRow(
@@ -91,8 +116,37 @@ fun SettingsNotebooksScreen(
                 )
             }
             RowDivider()
-            SettingsRow(label = "Ignore list", onClick = onOpenIgnoreList) {
-                Text("›", fontFamily = PlexMono, fontSize = 14.sp, color = MaterialTheme.grove.ink2)
+            Column(Modifier.padding(horizontal = 15.dp, vertical = 10.dp)) {
+                Text(
+                    "Ignore list",
+                    fontFamily = PlexSans, fontWeight = FontWeight.Medium,
+                    fontSize = 14.5.sp, color = c.ink,
+                )
+                Text(
+                    "Files, folders, and patterns to skip entirely, one per line",
+                    fontFamily = PlexSans, fontSize = 12.sp, color = c.ink3,
+                    modifier = Modifier.padding(bottom = 6.dp),
+                )
+                if (settings.ignoreListLegacyFileEmpty) {
+                    Text(
+                        "Nothing was imported from .orgzlyignore since it was found to be empty.",
+                        fontFamily = PlexSans, fontSize = 12.sp, color = c.ink3,
+                        modifier = Modifier.padding(bottom = 6.dp),
+                    )
+                } else if (settings.ignoreListImportedFromFile) {
+                    Text(
+                        "Imported from .orgzlyignore.",
+                        fontFamily = PlexSans, fontSize = 12.sp, color = c.ink3,
+                        modifier = Modifier.padding(bottom = 6.dp),
+                    )
+                }
+                OutlinedTextField(
+                    value = ignoreListText,
+                    onValueChange = { ignoreListText = it },
+                    singleLine = false,
+                    textStyle = TextStyle(fontFamily = PlexMono, fontSize = 13.sp),
+                    modifier = Modifier.fillMaxWidth().height(160.dp),
+                )
             }
         }
     }

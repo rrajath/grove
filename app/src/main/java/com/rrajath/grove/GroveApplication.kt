@@ -251,6 +251,10 @@ open class GroveApplication : Application() {
                         .distinct()
                         .joinToString("\n")
                     settingsRepository.setIgnoreList(merged)
+                } else if (legacyText != null) {
+                    // The file was found and readable, but had no importable
+                    // patterns (blank/comment/negated lines only).
+                    settingsRepository.markIgnoreListLegacyFileEmpty()
                 }
                 settingsRepository.markIgnoreListImportedFromFile()
             }
