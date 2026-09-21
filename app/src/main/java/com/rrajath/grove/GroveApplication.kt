@@ -246,19 +246,21 @@ open class GroveApplication : Application() {
                     ?.filter { it.isNotEmpty() && !it.startsWith("#") && !it.startsWith("!") }
                     ?.toList()
                     ?: emptyList()
+                // Always write both flags explicitly (not just on the true
+                // branch) so this corrects any stale value left over from a
+                // prior buggy run — e.g. an older build that unconditionally
+                // marked ignoreListImportedFromFile true regardless of outcome.
+                // This block only ever runs once per install (guarded by
+                // ignoreListImportCheckDone above), so it's the one chance to
+                // make the persisted flags authoritative.
+                settingsRepository.setIgnoreListImportedFromFile(imported.isNotEmpty())
+                settingsRepository.setIgnoreListLegacyFileEmpty(imported.isEmpty() && legacyText != null)
                 if (imported.isNotEmpty()) {
                     val merged = (settings.ignoreList.lineSequence().filter { it.isNotBlank() } + imported)
                         .distinct()
                         .joinToString("\n")
                     settingsRepository.setIgnoreList(merged)
-                    settingsRepository.markIgnoreListImportedFromFile()
-                } else if (legacyText != null) {
-                    // The file was found and readable, but had no importable
-                    // patterns (blank/comment/negated lines only).
-                    settingsRepository.markIgnoreListLegacyFileEmpty()
                 }
-                // Neither branch above fires when legacyText is null — no
-                // .orgzlyignore file exists at all, nothing to record.
                 settingsRepository.markIgnoreListImportCheckDone()
             }
         }

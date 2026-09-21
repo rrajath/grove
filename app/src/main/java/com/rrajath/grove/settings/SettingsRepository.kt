@@ -696,12 +696,17 @@ class SettingsRepository(
         context.settingsDataStore.edit { it[Keys.ignoreListImportCheckDone] = true }
     }
 
-    suspend fun markIgnoreListImportedFromFile() {
-        context.settingsDataStore.edit { it[Keys.ignoreListImportedFromFile] = true }
+    /** Debug only (Settings › Developer): flip the one-time import-check flag back to re-trigger it. */
+    suspend fun setIgnoreListImportCheckDone(value: Boolean) {
+        context.settingsDataStore.edit { it[Keys.ignoreListImportCheckDone] = value }
     }
 
-    suspend fun markIgnoreListLegacyFileEmpty() {
-        context.settingsDataStore.edit { it[Keys.ignoreListLegacyFileEmpty] = true }
+    suspend fun setIgnoreListImportedFromFile(value: Boolean) {
+        context.settingsDataStore.edit { it[Keys.ignoreListImportedFromFile] = value }
+    }
+
+    suspend fun setIgnoreListLegacyFileEmpty(value: Boolean) {
+        context.settingsDataStore.edit { it[Keys.ignoreListLegacyFileEmpty] = value }
     }
 
     suspend fun setDefaultPriority(priority: Char?) {

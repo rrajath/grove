@@ -1,8 +1,11 @@
 package com.rrajath.grove.ui.screens.settings
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
@@ -10,15 +13,18 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
 import com.rrajath.grove.settings.GroveSettings
 import com.rrajath.grove.settings.NotebookDisplayNameMode
 import com.rrajath.grove.settings.NotebookSortKey
@@ -45,6 +51,7 @@ fun SettingsNotebooksScreen(
 ) {
     val c = MaterialTheme.grove
     var ignoreListText by remember(settings.ignoreList) { mutableStateOf(settings.ignoreList) }
+    var ignoreListFieldFocused by remember { mutableStateOf(false) }
 
     // Commit a pending ignore-list edit when the screen leaves composition, however
     // that happens (back gesture included) — same rationale as Settings § Notes'
@@ -55,7 +62,21 @@ fun SettingsNotebooksScreen(
         }
     }
 
-    SettingsPageScaffold(title = "Notebooks", onBack = onBack) {
+    SettingsPageScaffold(title = "Notebooks", onBack = onBack) { scrollState ->
+        // Bring the field into view once the IME has actually reported itself visible, not on
+        // focus alone: at focus time the keyboard hasn't resized the scroll viewport yet, so
+        // scrolling immediately targets a stale (pre-keyboard) maxValue. Repeat across the
+        // animation window so a later call lands after maxValue has grown to its final size.
+        @OptIn(ExperimentalLayoutApi::class)
+        val imeVisible = WindowInsets.isImeVisible
+        LaunchedEffect(imeVisible, ignoreListFieldFocused) {
+            if (imeVisible && ignoreListFieldFocused) {
+                repeat(10) {
+                    scrollState.animateScrollTo(scrollState.maxValue)
+                    delay(30)
+                }
+            }
+        }
         SettingsGroup {
             ToggleRow(
                 label = "Show file icons in notebooks",
@@ -148,7 +169,10 @@ fun SettingsNotebooksScreen(
                     onValueChange = { ignoreListText = it },
                     singleLine = false,
                     textStyle = TextStyle(fontFamily = PlexMono, fontSize = 13.sp),
-                    modifier = Modifier.fillMaxWidth().height(160.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(160.dp)
+                        .onFocusChanged { ignoreListFieldFocused = it.isFocused },
                 )
                 Text(
                     "Dot-prefixed folders (e.g. .git, .stversions, .stfolder) are always " +

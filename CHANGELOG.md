@@ -98,6 +98,8 @@ re-uploads the APKs to the existing release instead of failing.
 - Fixed link typing suggestions in Roam capture watching a stale text field after the new-file/existing-file check resolved.
 - Fixed the auto-link/roam-node suggestion strip sitting top-aligned against the FAB/Save pill instead of centered.
 - Fixed `+strikethrough+` text not rendering with a line-through style in Read mode.
+- Fixed a stale "Imported from .orgzlyignore" status persisting even with no such file in the vault.
+- Fixed the keyboard covering the Ignore list field; it now auto-scrolls into view when focused.
 
 ## [1.6.3] - 2026-09-17
 
