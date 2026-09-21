@@ -1,13 +1,18 @@
 package com.rrajath.grove.ui.screens.settings
 
 import androidx.compose.foundation.layout.width
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.rrajath.grove.settings.GroveSettings
 import com.rrajath.grove.settings.NotebookDisplayNameMode
 import com.rrajath.grove.settings.NotebookSortKey
 import com.rrajath.grove.ui.components.SegmentedControl
+import com.rrajath.grove.ui.theme.PlexMono
+import com.rrajath.grove.ui.theme.grove
 
 /**
  * Settings § Notebooks: everything that shapes the Notebooks list itself. Split
@@ -23,6 +28,7 @@ fun SettingsNotebooksScreen(
     onSetNotebookDisplayNameMode: (NotebookDisplayNameMode) -> Unit,
     onSetNotebookSortKey: (NotebookSortKey) -> Unit,
     onSetNotebookSortAscending: (Boolean) -> Unit,
+    onOpenIgnoreList: () -> Unit,
 ) {
     SettingsPageScaffold(title = "Notebooks", onBack = onBack) {
         SettingsGroup {
@@ -83,6 +89,10 @@ fun SettingsNotebooksScreen(
                     onSelect = { onSetNotebookSortAscending(it == 0) },
                     modifier = Modifier.width(200.dp),
                 )
+            }
+            RowDivider()
+            SettingsRow(label = "Ignore list", onClick = onOpenIgnoreList) {
+                Text("›", fontFamily = PlexMono, fontSize = 14.sp, color = MaterialTheme.grove.ink2)
             }
         }
     }

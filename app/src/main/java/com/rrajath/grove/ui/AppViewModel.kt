@@ -268,6 +268,11 @@ class AppViewModel(
         sync.clearAndResync("todo keywords applied")
     }
 
+    fun setIgnoreList(value: String) = viewModelScope.launch {
+        settingsRepository.setIgnoreList(value)
+        sync.clearAndResync("ignore list applied")
+    }
+
     fun setDefaultPriority(priority: Char?) =
         viewModelScope.launch { settingsRepository.setDefaultPriority(priority) }
 

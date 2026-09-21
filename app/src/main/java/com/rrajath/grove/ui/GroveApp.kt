@@ -78,6 +78,7 @@ import com.rrajath.grove.ui.screens.settings.SettingsBackupScreen
 import com.rrajath.grove.ui.screens.settings.SettingsBugReportScreen
 import com.rrajath.grove.ui.screens.settings.SettingsCaptureTemplatesScreen
 import com.rrajath.grove.ui.screens.settings.SettingsDeveloperScreen
+import com.rrajath.grove.ui.screens.settings.SettingsIgnoreListScreen
 import com.rrajath.grove.ui.screens.settings.SettingsNotebooksScreen
 import com.rrajath.grove.ui.screens.settings.SettingsNotesScreen
 import com.rrajath.grove.ui.screens.settings.SettingsRemindersScreen
@@ -904,6 +905,14 @@ private fun GroveNavigation(
                     onSetNotebookDisplayNameMode = viewModel::setNotebookDisplayNameMode,
                     onSetNotebookSortKey = viewModel::setNotebookSortKey,
                     onSetNotebookSortAscending = viewModel::setNotebookSortAscending,
+                    onOpenIgnoreList = { navController.navigate(Routes.SETTINGS_IGNORE_LIST) },
+                )
+            }
+            composable(Routes.SETTINGS_IGNORE_LIST) {
+                SettingsIgnoreListScreen(
+                    settings = settings,
+                    onBack = { navController.popBackStack() },
+                    onSetIgnoreList = viewModel::setIgnoreList,
                 )
             }
             composable(Routes.SETTINGS_CAPTURE_TEMPLATES) {

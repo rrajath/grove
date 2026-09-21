@@ -60,6 +60,7 @@ re-uploads the APKs to the existing release instead of failing.
 ## [Unreleased]
 
 ### Added
+- Add a Notebooks settings Ignore list to exclude files, folders, and patterns from indexing and sync.
 - Added a Linked References bar and sheet to Read and Edit mode, showing ID-linked backlinks and unlinked title mentions.
 - Added an experimental Settings § Roam Features page: toggles for backlinks and typing suggestions.
 - Added "View file" to the Outline menu: read or edit the whole file as one note (files up to 1,000 lines).
