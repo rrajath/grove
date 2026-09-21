@@ -27,6 +27,7 @@ import java.util.concurrent.ConcurrentHashMap
 class SafFileStore(
     private val context: Context,
     private val treeUri: Uri,
+    private val ignore: IgnorePatterns = IgnorePatterns(""),
 ) : FileStore {
 
     private val resolver get() = context.contentResolver
@@ -90,10 +91,11 @@ class SafFileStore(
                     val mime = cursor.getString(4)
                     val path = if (dir.isEmpty()) name else "$dir/$name"
                     if (mime == DocumentsContract.Document.MIME_TYPE_DIR) {
-                        if (isSkippedVaultDir(name)) continue
+                        if (isSkippedVaultDir(name) || ignore.isDirIgnored(name, path)) continue
                         dirs[path] = childDocId
                         queue.add(path to childDocId)
                     } else {
+                        if (ignore.isFileIgnored(name, path)) continue
                         files[path] = childDocId
                         entries.add(FileEntry(path, cursor.getLong(2), cursor.getLong(3)))
                     }

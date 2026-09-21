@@ -7,12 +7,20 @@ import java.io.File
  * future direct-filesystem vault location. Recurses into subdirectories,
  * skipping dot-directories (see [isSkippedVaultDir]).
  */
-class JvmFileStore(private val root: File) : FileStore {
+class JvmFileStore(
+    private val root: File,
+    private val ignore: IgnorePatterns = IgnorePatterns(""),
+) : FileStore {
 
     override suspend fun list(): List<FileEntry> =
         root.walkTopDown()
-            .onEnter { it == root || !isSkippedVaultDir(it.name) }
-            .filter { it.isFile }
+            .onEnter {
+                it == root || (!isSkippedVaultDir(it.name) &&
+                    !ignore.isDirIgnored(it.name, it.relativeTo(root).invariantSeparatorsPath))
+            }
+            .filter {
+                it.isFile && !ignore.isFileIgnored(it.name, it.relativeTo(root).invariantSeparatorsPath)
+            }
             .map {
                 FileEntry(
                     it.relativeTo(root).invariantSeparatorsPath,

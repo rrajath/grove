@@ -1,5 +1,6 @@
 package com.rrajath.grove.vault
 
+import java.io.File
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -110,5 +111,34 @@ class JvmFileStoreTest {
     fun `resolve rejects parent traversal`() = runTest {
         val ex = runCatching { store().read("../escape.org") }.exceptionOrNull()
         assertTrue(ex is IllegalArgumentException)
+    }
+
+    @Test
+    fun `list skips a directory matched by a bare ignore pattern`() = runTest {
+        tmp.newFile("keep.org")
+        File(tmp.root, "archive").mkdirs()
+        File(tmp.root, "archive/x.org").writeText("* X")
+
+        val s = JvmFileStore(tmp.root, IgnorePatterns("archive"))
+        assertEquals(listOf("keep.org"), s.list().map { it.name })
+    }
+
+    @Test
+    fun `list skips a file matched by a glob pattern`() = runTest {
+        tmp.newFile("notes.bak")
+        tmp.newFile("notes.org")
+
+        val s = JvmFileStore(tmp.root, IgnorePatterns("*.bak"))
+        assertEquals(listOf("notes.org"), s.list().map { it.name })
+    }
+
+    @Test
+    fun `list still applies isSkippedVaultDir alongside ignore patterns`() = runTest {
+        tmp.newFile("keep.org")
+        tmp.newFolder(".git")
+        tmp.root.resolve(".git/config").writeText("[core]")
+
+        val s = JvmFileStore(tmp.root, IgnorePatterns(""))
+        assertEquals(listOf("keep.org"), s.list().map { it.name })
     }
 }
