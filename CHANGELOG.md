@@ -61,42 +61,20 @@ re-uploads the APKs to the existing release instead of failing.
 
 ### Added
 - Add a Notebooks settings Ignore list to exclude files, folders, and patterns from indexing and sync.
-- Added a Linked References bar and sheet to Read and Edit mode, showing ID-linked backlinks and unlinked title mentions.
-- Added an experimental Settings § Roam Features page: toggles for backlinks and typing suggestions.
 - Added "View file" to the Outline menu: read or edit the whole file as one note (files up to 1,000 lines).
-- Added Roam Features toggle "Open roam files directly in read mode" (on by default): small roam notebooks skip the outline.
 - Added a Developer tools line-limit override for the whole-file view.
-- Added Roam node capture templates: title-driven filenames, new-file-or-append capture, gated on Roam Features.
-- Added a read-only, greyed preview of a Roam file's existing content when capturing another entry into it.
-- Added a "Saved" snackbar with a "Visit file" action after a Roam capture saves, opening the file in read mode.
-- Added selection-triggered chips to link or create a roam node from selected text, in the note editor and roam captures.
 
 ### Changed
 - The link picker now supports live search, opens full height, and links leaf headings on tap.
 - Tips & Tricks now describes the link picker's live search instead of the old drill-down browser.
-- Linked References bar now also appears in Outline view, is taller collapsed, and shows a centered top chevron.
-- Linked References bar now only shows for org-roam files, and also appears in the whole-file Read/Edit view.
-- Whole-file Read/Edit header now scrolls long file names on one line and compacts folders to their first letter.
-- Linked References bar now hides whenever the keyboard is open, since the toolbar takes that row instead.
-- The auto-link suggestion strip now fades its trailing edge instead of hard-clipping the last chip near the FAB.
-- Roam-node suggestion chips are now tinted with their capture template's own icon color.
-- Template editor's "New file template" chips now insert at the cursor instead of always appending to the end.
+- Whole-file Read/Edit header now scrolls long file names on one line and compacts folders to their first letter. 
 - Lowered minSdk to Android 6.0 (API 23), widening device support; added API-level guards where needed.
 
 ### Fixed
-- Fixed link typing suggestions not appearing in the whole-file editor or Roam capture.
-- Fixed a roam file's preface (holding its title) defaulting to collapsed in whole-file Read mode.
 - Fixed missing scroll-to-top/bottom buttons in the Notebooks folder drill-down view.
-- Fixed Roam capture template subtitles showing a hardcoded file instead of the template's filename pattern.
 - Fixed the formatting toolbar staying visible with keyboard closed, and gapped above it when open, in the whole-file editor.
 - Fixed done items in Search results not showing faded, crossed-out titles like Outline mode.
 - Fixed a numbered sub-list nested under a bullet not restarting its numbering at 1 in Read mode.
-- Fixed a Roam capture into an existing file adding a stray heading instead of appending directly below.
-- Fixed Roam node title slugs not being lowercased.
-- Fixed the roam-node prompt label sitting top-aligned; it now also reads "Link" for an existing match.
-- Fixed Roam-node captures (e.g. a date-filename daily template) silently dropping all typed body text on save.
-- Fixed link typing suggestions in Roam capture watching a stale text field after the new-file/existing-file check resolved.
-- Fixed the auto-link/roam-node suggestion strip sitting top-aligned against the FAB/Save pill instead of centered.
 - Fixed `+strikethrough+` text not rendering with a line-through style in Read mode.
 - Fixed a stale "Imported from .orgzlyignore" status persisting even with no such file in the vault.
 - Fixed the keyboard covering the Ignore list field; it now auto-scrolls into view when focused.
