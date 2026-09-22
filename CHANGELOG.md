@@ -59,6 +59,8 @@ re-uploads the APKs to the existing release instead of failing.
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-09-22
+
 ### Added
 - Add a Notebooks settings Ignore list to exclude files, folders, and patterns from indexing and sync.
 - Added "View file" to the Outline menu: read or edit the whole file as one note (files up to 1,000 lines).
