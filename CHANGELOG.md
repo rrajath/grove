@@ -62,7 +62,6 @@ re-uploads the APKs to the existing release instead of failing.
 ### Added
 - Add a Notebooks settings Ignore list to exclude files, folders, and patterns from indexing and sync.
 - Added "View file" to the Outline menu: read or edit the whole file as one note (files up to 1,000 lines).
-- Added a Developer tools line-limit override for the whole-file view.
 
 ### Changed
 - The link picker now supports live search, opens full height, and links leaf headings on tap.
