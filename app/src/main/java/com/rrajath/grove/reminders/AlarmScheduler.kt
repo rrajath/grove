@@ -16,9 +16,14 @@ import com.rrajath.grove.data.ReminderEntity
  */
 object AlarmScheduler {
 
-    fun hasNotificationPermission(context: Context): Boolean =
-        context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) ==
+    fun hasNotificationPermission(context: Context): Boolean {
+        // Below API 33 POST_NOTIFICATIONS isn't a runtime-gated permission at all;
+        // checkSelfPermission always reports it denied there, which would otherwise
+        // strand every reminder in pendingPermission with no dialog for Grant to show.
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return true
+        return context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) ==
                 PackageManager.PERMISSION_GRANTED
+    }
 
     fun canScheduleExactAlarms(context: Context): Boolean {
         // Below API 31 exact alarms aren't gated by a runtime permission at all.

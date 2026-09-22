@@ -100,6 +100,7 @@ re-uploads the APKs to the existing release instead of failing.
 - Fixed `+strikethrough+` text not rendering with a line-through style in Read mode.
 - Fixed a stale "Imported from .orgzlyignore" status persisting even with no such file in the vault.
 - Fixed the keyboard covering the Ignore list field; it now auto-scrolls into view when focused.
+- Fixed reminders stuck behind a stale notification-permission banner on Android 12 and below.
 
 ## [1.6.3] - 2026-09-17
 
