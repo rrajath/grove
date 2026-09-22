@@ -290,22 +290,6 @@ val NEW_FEATURES: List<NewFeature> = listOf(
         destination = NewAnchors.OUTLINE_VIEW_FILE,
     ),
     NewFeature(
-        // Settings § Roam Features gained "Open small files as one note": a file
-        // under the line limit skips the outline and opens whole from the
-        // Notebooks list, file links and search file matches.
-        // `since` is the versionCode of the release that ships it — bump it to
-        // match `gradle.properties` versionName when cutting the release.
-        id = "roam-open-whole-file",
-        since = 10700,
-        anchors = setOf(
-            NewAnchors.TOPBAR_MENU,
-            NewAnchors.DRAWER_SETTINGS,
-            NewAnchors.SETTINGS_ROAM,
-            NewAnchors.SETTINGS_ROAM_WHOLE_FILE,
-        ),
-        destination = NewAnchors.SETTINGS_ROAM_WHOLE_FILE,
-    ),
-    NewFeature(
         // Settings § Notebooks gained an Ignore list: files, folders and patterns
         // to skip entirely, never scanned or indexed.
         // `since` is the versionCode of the release that ships it — bump it to

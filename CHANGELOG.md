@@ -59,6 +59,9 @@ re-uploads the APKs to the existing release instead of failing.
 
 ## [Unreleased]
 
+### Fixed
+- Remove stale new feature dot
+
 ## [1.7.0] - 2026-09-22
 
 ### Added
