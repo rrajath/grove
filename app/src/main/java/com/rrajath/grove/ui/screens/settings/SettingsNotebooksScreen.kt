@@ -159,16 +159,9 @@ fun SettingsNotebooksScreen(
                     NewDot(NewAnchors.SETTINGS_NOTEBOOKS_IGNORE_LIST)
                 }
                 Text(
-                    "All .org files in this vault and its subfolders are indexed " +
-                        "automatically. The files, folders, and patterns listed below " +
-                        "are skipped entirely and never scanned.",
+                    "Files, folders, and patterns listed below are skipped during indexing. One per line.",
                     fontFamily = PlexSans, fontSize = 12.sp, color = c.ink3,
                     modifier = Modifier.padding(top = 2.dp, bottom = 6.dp),
-                )
-                Text(
-                    "Add files, folders and patterns to skip entirely, one per line",
-                    fontFamily = PlexSans, fontSize = 12.sp, color = c.ink3,
-                    modifier = Modifier.padding(bottom = 6.dp),
                 )
                 Text(
                     when {
@@ -190,8 +183,7 @@ fun SettingsNotebooksScreen(
                         .onFocusChanged { ignoreListFieldFocused = it.isFocused },
                 )
                 Text(
-                    "Dot-prefixed folders (e.g. .git, .stversions, .stfolder) are always " +
-                        "skipped automatically — no need to add them here.",
+                    "Dot-prefixed folders (e.g. .git, .stversions, .stfolder) are always skipped automatically, no need to add them here.",
                     fontFamily = PlexSans, fontSize = 11.sp, color = c.ink3,
                     modifier = Modifier.padding(top = 6.dp),
                 )
