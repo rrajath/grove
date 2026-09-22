@@ -1,7 +1,9 @@
 package com.rrajath.grove.ui.screens.settings
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -18,6 +20,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.text.TextStyle
@@ -29,6 +32,9 @@ import com.rrajath.grove.settings.GroveSettings
 import com.rrajath.grove.settings.NotebookDisplayNameMode
 import com.rrajath.grove.settings.NotebookSortKey
 import com.rrajath.grove.ui.components.SegmentedControl
+import com.rrajath.grove.ui.newbadge.MarkNewFeatureSeen
+import com.rrajath.grove.ui.newbadge.NewAnchors
+import com.rrajath.grove.ui.newbadge.NewDot
 import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
@@ -63,6 +69,9 @@ fun SettingsNotebooksScreen(
     }
 
     SettingsPageScaffold(title = "Notebooks", onBack = onBack) { scrollState ->
+        // Leaving this screen retires the "Ignore list" NEW dot from its whole
+        // trail (menu glyph, drawer, Settings hub row, the block itself).
+        MarkNewFeatureSeen(NewAnchors.SETTINGS_NOTEBOOKS_IGNORE_LIST)
         // Bring the field into view once the IME has actually reported itself visible, not on
         // focus alone: at focus time the keyboard hasn't resized the scroll viewport yet, so
         // scrolling immediately targets a stale (pre-keyboard) maxValue. Repeat across the
@@ -138,11 +147,17 @@ fun SettingsNotebooksScreen(
             }
             RowDivider()
             Column(Modifier.padding(horizontal = 15.dp, vertical = 10.dp)) {
-                Text(
-                    "Ignore list",
-                    fontFamily = PlexSans, fontWeight = FontWeight.Medium,
-                    fontSize = 14.5.sp, color = c.ink,
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Text(
+                        "Ignore list",
+                        fontFamily = PlexSans, fontWeight = FontWeight.Medium,
+                        fontSize = 14.5.sp, color = c.ink,
+                    )
+                    NewDot(NewAnchors.SETTINGS_NOTEBOOKS_IGNORE_LIST)
+                }
                 Text(
                     "All .org files in this vault and its subfolders are indexed " +
                         "automatically. The files, folders, and patterns listed below " +

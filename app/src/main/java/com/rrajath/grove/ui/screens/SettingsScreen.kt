@@ -70,7 +70,12 @@ fun SettingsScreen(
             onClick = onOpenAppearance,
             badge = { NewDot(NewAnchors.SETTINGS_APPEARANCE) },
         ),
-        SettingsPage("Notebooks", "File icons, folder flattening, display names, sort order", onOpenNotebooks),
+        SettingsPage(
+            "Notebooks",
+            "File icons, folder flattening, display names, sort order",
+            onClick = onOpenNotebooks,
+            badge = { NewDot(NewAnchors.SETTINGS_NOTEBOOKS) },
+        ),
         SettingsPage(
             "Capture Templates",
             "Quick-capture targets and shortcuts",

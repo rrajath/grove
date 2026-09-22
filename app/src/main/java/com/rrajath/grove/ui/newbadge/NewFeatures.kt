@@ -85,6 +85,12 @@ object NewAnchors {
     /** The "Open small files as one note" toggle inside Settings § Roam Features. */
     const val SETTINGS_ROAM_WHOLE_FILE = "settings.roam.wholeFile"
 
+    /** The Settings hub row leading to the Notebooks page. */
+    const val SETTINGS_NOTEBOOKS = "settings.notebooks"
+
+    /** The "Ignore list" block inside Settings § Notebooks. */
+    const val SETTINGS_NOTEBOOKS_IGNORE_LIST = "settings.notebooks.ignoreList"
+
     /** A Tips & Tricks section, keyed by its [TipGroup] id. */
     fun tipsGroup(id: String) = "tips.group.$id"
 
@@ -298,5 +304,20 @@ val NEW_FEATURES: List<NewFeature> = listOf(
             NewAnchors.SETTINGS_ROAM_WHOLE_FILE,
         ),
         destination = NewAnchors.SETTINGS_ROAM_WHOLE_FILE,
+    ),
+    NewFeature(
+        // Settings § Notebooks gained an Ignore list: files, folders and patterns
+        // to skip entirely, never scanned or indexed.
+        // `since` is the versionCode of the release that ships it — bump it to
+        // match `gradle.properties` versionName when cutting the release.
+        id = "notebooks-ignore-list",
+        since = 10700,
+        anchors = setOf(
+            NewAnchors.TOPBAR_MENU,
+            NewAnchors.DRAWER_SETTINGS,
+            NewAnchors.SETTINGS_NOTEBOOKS,
+            NewAnchors.SETTINGS_NOTEBOOKS_IGNORE_LIST,
+        ),
+        destination = NewAnchors.SETTINGS_NOTEBOOKS_IGNORE_LIST,
     ),
 )
