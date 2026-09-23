@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
@@ -357,7 +358,7 @@ fun EditRegionScreen(
                             },
                             // 16dp + the top bar's 8dp = the 24dp read gutter, so the
                             // toggle lines up with the Read view's (see ReadNoteScreen).
-                            modifier = Modifier.padding(end = 16.dp).width(140.dp).testTag("read_edit_toggle"),
+                            modifier = Modifier.padding(end = 16.dp).width(IntrinsicSize.Min).testTag("read_edit_toggle"),
                         )
                     }
                 },

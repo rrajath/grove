@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
@@ -500,7 +501,7 @@ fun EditNoteScreen(
                         // 16dp here + the top bar's own 8dp = the 24dp note
                         // gutter, so the toggle's right edge lines up with the
                         // back arrow's optical left edge.
-                        modifier = Modifier.padding(end = 16.dp).width(140.dp),
+                        modifier = Modifier.padding(end = 16.dp).width(IntrinsicSize.Min),
                     )
                 },
             )

@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
@@ -537,7 +538,7 @@ fun CaptureEditorScreen(
                         optionIcons = listOf(Icons.Outlined.Visibility, Icons.Outlined.Edit),
                         selectedIndex = if (readMode) 0 else 1,
                         onSelect = { readMode = it == 0 },
-                        modifier = Modifier.width(140.dp),
+                        modifier = Modifier.width(IntrinsicSize.Min),
                     )
                 },
             )

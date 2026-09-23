@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
@@ -163,7 +164,7 @@ fun ReadFileScreen(
                         onSelect = { if (it == 1) onEdit() },
                         // 16dp here + the top bar's own 8dp = the 24dp read gutter,
                         // so the toggle lines up with the body (see ReadNoteScreen).
-                        modifier = Modifier.padding(end = 16.dp).width(140.dp).testTag("read_edit_toggle"),
+                        modifier = Modifier.padding(end = 16.dp).width(IntrinsicSize.Min).testTag("read_edit_toggle"),
                     )
                 },
                 subtitle = {

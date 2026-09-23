@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.clickable
@@ -314,7 +315,7 @@ fun ReadNoteScreen(
                         // 16dp here + the top bar's own 8dp = the 24dp read-note
                         // gutter, so the toggle's right edge lines up with the
                         // back arrow's optical left edge and the note body.
-                        modifier = Modifier.padding(end = 16.dp).width(140.dp).testTag("read_edit_toggle"),
+                        modifier = Modifier.padding(end = 16.dp).width(IntrinsicSize.Min).testTag("read_edit_toggle"),
                     )
                 },
                 subtitle = {
