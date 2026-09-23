@@ -1,6 +1,7 @@
 package com.rrajath.grove.capture
 
 import com.rrajath.grove.org.OrgParser
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
@@ -20,6 +21,61 @@ object FilenamePattern {
     fun expand(pattern: String, now: LocalDateTime, slug: String): String =
         STRFTIME_BLOCK.replace(pattern) { expandStrftime(it.groupValues[1], now) }
             .replace(SLUG_TOKEN, slug)
+
+    /**
+     * A regex matching file names [expand] would produce for *some* date, with
+     * named groups `y`/`m`/`d` for the year/month/day digits — or `null` when
+     * [pattern] doesn't carry a full year+month+day date (only those patterns
+     * can be reverse-parsed into a [LocalDate]; a date-only-by-month pattern,
+     * for instance, can't distinguish which day a file belongs to).
+     */
+    fun toDateRegex(pattern: String): Regex? {
+        var hasYear = false
+        var hasMonth = false
+        var hasDay = false
+        val sb = StringBuilder()
+        var i = 0
+        while (i < pattern.length) {
+            val block = STRFTIME_BLOCK.find(pattern, i)
+            if (block == null || block.range.first != i) {
+                sb.append(Regex.escape(pattern[i].toString()))
+                i++
+                continue
+            }
+            val spec = block.groupValues[1]
+            var j = 0
+            while (j < spec.length) {
+                val token = STRFTIME_TOKEN.find(spec, j)
+                if (token == null || token.range.first != j) {
+                    sb.append(Regex.escape(spec[j].toString()))
+                    j++
+                    continue
+                }
+                when (token.value) {
+                    "%Y" -> { sb.append("(?<y>\\d{4})"); hasYear = true }
+                    "%m" -> { sb.append("(?<m>\\d{2})"); hasMonth = true }
+                    "%d" -> { sb.append("(?<d>\\d{2})"); hasDay = true }
+                    "%H" -> sb.append("\\d{2}")
+                    "%M" -> sb.append("\\d{2}")
+                    "%S" -> sb.append("\\d{2}")
+                }
+                j += token.value.length
+            }
+            i = block.range.last + 1
+        }
+        if (!hasYear || !hasMonth || !hasDay) return null
+        return Regex("^$sb$")
+    }
+
+    /** [fileName] parsed against [pattern] via [toDateRegex], or `null` if it doesn't match
+     *  or the matched digits aren't a real calendar date. */
+    fun parseDate(fileName: String, pattern: String): LocalDate? {
+        val match = toDateRegex(pattern)?.find(fileName) ?: return null
+        val y = match.groups["y"]?.value?.toIntOrNull() ?: return null
+        val m = match.groups["m"]?.value?.toIntOrNull() ?: return null
+        val d = match.groups["d"]?.value?.toIntOrNull() ?: return null
+        return runCatching { java.time.LocalDate.of(y, m, d) }.getOrNull()
+    }
 
     private fun expandStrftime(spec: String, now: LocalDateTime): String {
         val javaPattern = STRFTIME_TOKEN.replace(spec) { m ->
