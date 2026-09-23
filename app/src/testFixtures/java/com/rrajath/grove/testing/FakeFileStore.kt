@@ -22,6 +22,11 @@ import kotlinx.coroutines.sync.withLock
  */
 class FakeFileStore(
     initial: Map<String, String> = emptyMap(),
+    /** When true, [write] on a path with no existing entry throws — matching
+     *  [com.rrajath.grove.vault.SafFileStore]'s real contract (its `write` needs an
+     *  already-resolved SAF document URI; only [create] makes one). Default false
+     *  keeps every existing caller's permissive-write assumption unchanged. */
+    private val strictWrite: Boolean = false,
 ) : FileStore {
 
     private data class Node(val content: String, val modified: Long)
@@ -62,7 +67,9 @@ class FakeFileStore(
     }
 
     override suspend fun write(name: String, content: String) = mutex.withLock {
-        files[normalize(name)] = Node(content, tick())
+        val key = normalize(name)
+        if (strictWrite && !files.containsKey(key)) throw FileNotFoundException(name)
+        files[key] = Node(content, tick())
     }
 
     override suspend fun create(name: String): Boolean = mutex.withLock {

@@ -277,4 +277,14 @@ class VaultTest {
         assertNull(v.renameFolder("Alpha", "Beta"))
         assertNull(v.renameFolder("Alpha", "beta"))
     }
+
+    @Test
+    fun `save creates a file that does not exist yet`() = runTest {
+        val store = com.rrajath.grove.testing.FakeFileStore(strictWrite = true)
+        val v = Vault(store)
+
+        v.save("roam/daily/2026-09-23.org", "* 19:20 Long run\n")
+
+        assertEquals("* 19:20 Long run\n", store.read("roam/daily/2026-09-23.org"))
+    }
 }

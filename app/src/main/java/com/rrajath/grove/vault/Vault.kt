@@ -246,6 +246,7 @@ class Vault(
      * hits the cache instead of re-parsing the file it just wrote.
      */
     suspend fun save(fileName: String, content: String, parsed: OrgDocument? = null) {
+        if (store.stat(fileName) == null) store.create(fileName)
         store.write(fileName, content)
         val entry = if (parsed != null) store.stat(fileName) else null
         if (entry != null) {

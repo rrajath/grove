@@ -67,6 +67,7 @@ re-uploads the APKs to the existing release instead of failing.
 - Read/Edit mode toggles now show eye and pencil icons instead of text labels, and shrink to fit them.
 
 ### Fixed
+- Vault.save() now creates missing files before writing (required by SAF backend).
 - Dailies settings moved into their own section; editing stopped resetting to defaults; keyboard no longer covers the field being edited.
 
 ## [1.7.1] - 2026-09-22
