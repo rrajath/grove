@@ -113,6 +113,9 @@ data class SettingsExport(
     val roamShowBacklinks: Boolean = false,
     val roamShowSuggestions: Boolean = false,
     val roamOpenWholeFile: Boolean = false,
+    val dailiesDirectory: String = "",
+    val dailiesFilenamePattern: String = "%<%Y-%m-%d>.org",
+    val dailiesHeaderTemplate: String = ":PROPERTIES:\n:ID: %(id)\n:END:\n#+title: %date\n%?",
 ) {
     /** Map back onto [base], using the enums' tolerant `fromStorage` fallbacks. */
     fun applyTo(base: GroveSettings): GroveSettings = base.copy(
@@ -182,6 +185,9 @@ data class SettingsExport(
         roamShowBacklinks = roamShowBacklinks,
         roamShowSuggestions = roamShowSuggestions,
         roamOpenWholeFile = roamOpenWholeFile,
+        dailiesDirectory = dailiesDirectory,
+        dailiesFilenamePattern = dailiesFilenamePattern,
+        dailiesHeaderTemplate = dailiesHeaderTemplate,
     )
 
     companion object {
@@ -201,7 +207,10 @@ data class SettingsExport(
         // note). Additive — older exports omit it and import at its default (off).
         // v8: added ignoreList (Settings § Notebooks). Additive — older exports
         // omit it and import at its default (empty list).
-        const val CURRENT_VERSION = 8
+        // v9: added the Dailies fields (dailiesDirectory/dailiesFilenamePattern/
+        // dailiesHeaderTemplate). Additive — older exports omit them and import
+        // at their defaults (vault root, %<%Y-%m-%d>.org, the ID+title template).
+        const val CURRENT_VERSION = 9
 
         fun fromSettings(s: GroveSettings): SettingsExport = SettingsExport(
             theme = s.theme.storageKey,
@@ -266,6 +275,9 @@ data class SettingsExport(
             roamShowBacklinks = s.roamShowBacklinks,
             roamShowSuggestions = s.roamShowSuggestions,
             roamOpenWholeFile = s.roamOpenWholeFile,
+            dailiesDirectory = s.dailiesDirectory,
+            dailiesFilenamePattern = s.dailiesFilenamePattern,
+            dailiesHeaderTemplate = s.dailiesHeaderTemplate,
         )
     }
 }

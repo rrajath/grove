@@ -72,6 +72,9 @@ class SettingsSerializationTest {
         roamShowBacklinks = false,
         roamShowSuggestions = true,
         roamOpenWholeFile = true,
+        dailiesDirectory = "roam/daily",
+        dailiesFilenamePattern = "%<%Y%m%d>.org",
+        dailiesHeaderTemplate = ":PROPERTIES:\n:ID: %(id)\n:END:\n#+title: %<%Y-%m-%d>\n%?",
         // Device-specific fields that must NOT travel with an export.
         vaultTreeUri = "content://com.android.externalstorage/tree/primary%3Aorg",
         onboardingDone = true,
@@ -140,6 +143,9 @@ class SettingsSerializationTest {
         assertEquals(sample.roamShowBacklinks, restored.roamShowBacklinks)
         assertEquals(sample.roamShowSuggestions, restored.roamShowSuggestions)
         assertEquals(sample.roamOpenWholeFile, restored.roamOpenWholeFile)
+        assertEquals(sample.dailiesDirectory, restored.dailiesDirectory)
+        assertEquals(sample.dailiesFilenamePattern, restored.dailiesFilenamePattern)
+        assertEquals(sample.dailiesHeaderTemplate, restored.dailiesHeaderTemplate)
     }
 
     @Test
@@ -260,6 +266,15 @@ class SettingsSerializationTest {
         val json = """{ "theme": "dark" }"""
         val restored = SettingsSerialization.import(json, GroveSettings())
         assertEquals("", restored.ignoreList)
+    }
+
+    @Test
+    fun `a pre-v9 export without dailies fields imports at their defaults`() {
+        val legacy = """{"version": 8, "roamOpenWholeFile": true}"""
+        val restored = SettingsSerialization.import(legacy)
+        assertEquals("", restored.dailiesDirectory)
+        assertEquals(GroveSettings().dailiesFilenamePattern, restored.dailiesFilenamePattern)
+        assertEquals(GroveSettings().dailiesHeaderTemplate, restored.dailiesHeaderTemplate)
     }
 
     @Test
