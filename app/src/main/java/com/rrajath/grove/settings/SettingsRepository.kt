@@ -253,6 +253,12 @@ data class GroveSettings(
      * switch is on.
      */
     val roamOpenWholeFile: Boolean = true,
+    /** Roam Features § Dailies: vault-relative folder daily notes are created in; "" = vault root. */
+    val dailiesDirectory: String = "",
+    /** Roam Features § Dailies: filename pattern (FilenamePattern tokens), including the `.org` suffix. */
+    val dailiesFilenamePattern: String = "%<%Y-%m-%d>.org",
+    /** Roam Features § Dailies: expanded (PlaceholderExpander) into a new day file's initial content. */
+    val dailiesHeaderTemplate: String = ":PROPERTIES:\n:ID: %(id)\n:END:\n#+title: %date\n%?",
 ) {
     /** Pinned notebook file names in pin order — derived view of [pinnedItems]. */
     val pinnedNotebooks: List<String>
@@ -367,6 +373,9 @@ class SettingsRepository(
         val roamShowBacklinks = booleanPreferencesKey("roam_show_backlinks")
         val roamShowSuggestions = booleanPreferencesKey("roam_show_suggestions")
         val roamOpenWholeFile = booleanPreferencesKey("roam_open_whole_file")
+        val dailiesDirectory = stringPreferencesKey("dailies_directory")
+        val dailiesFilenamePattern = stringPreferencesKey("dailies_filename_pattern")
+        val dailiesHeaderTemplate = stringPreferencesKey("dailies_header_template")
     }
 
     /**
@@ -455,6 +464,9 @@ class SettingsRepository(
             roamShowBacklinks = prefs[Keys.roamShowBacklinks] ?: false,
             roamShowSuggestions = prefs[Keys.roamShowSuggestions] ?: false,
             roamOpenWholeFile = prefs[Keys.roamOpenWholeFile] ?: true,
+            dailiesDirectory = prefs[Keys.dailiesDirectory] ?: "",
+            dailiesFilenamePattern = prefs[Keys.dailiesFilenamePattern] ?: GroveSettings().dailiesFilenamePattern,
+            dailiesHeaderTemplate = prefs[Keys.dailiesHeaderTemplate] ?: GroveSettings().dailiesHeaderTemplate,
         )
     }.shareIn(scope, SharingStarted.Eagerly, replay = 1)
 
@@ -584,6 +596,9 @@ class SettingsRepository(
             p[Keys.roamShowBacklinks] = s.roamShowBacklinks
             p[Keys.roamShowSuggestions] = s.roamShowSuggestions
             p[Keys.roamOpenWholeFile] = s.roamOpenWholeFile
+            p[Keys.dailiesDirectory] = s.dailiesDirectory
+            p[Keys.dailiesFilenamePattern] = s.dailiesFilenamePattern
+            p[Keys.dailiesHeaderTemplate] = s.dailiesHeaderTemplate
         }
     }
 
@@ -886,6 +901,18 @@ class SettingsRepository(
 
     suspend fun setRoamOpenWholeFile(enabled: Boolean) {
         context.settingsDataStore.edit { it[Keys.roamOpenWholeFile] = enabled }
+    }
+
+    suspend fun setDailiesDirectory(dir: String) {
+        context.settingsDataStore.edit { it[Keys.dailiesDirectory] = dir }
+    }
+
+    suspend fun setDailiesFilenamePattern(pattern: String) {
+        context.settingsDataStore.edit { it[Keys.dailiesFilenamePattern] = pattern }
+    }
+
+    suspend fun setDailiesHeaderTemplate(template: String) {
+        context.settingsDataStore.edit { it[Keys.dailiesHeaderTemplate] = template }
     }
 
     suspend fun setAutoArchiveDoneItems(enabled: Boolean) {
