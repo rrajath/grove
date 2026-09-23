@@ -59,6 +59,9 @@ re-uploads the APKs to the existing release instead of failing.
 
 ## [Unreleased]
 
+### Changed
+- Read/Edit mode toggles now show eye and pencil icons instead of text labels.
+
 ## [1.7.1] - 2026-09-22
 
 ### Fixed

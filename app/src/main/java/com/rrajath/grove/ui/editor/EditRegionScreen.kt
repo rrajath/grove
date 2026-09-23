@@ -26,7 +26,9 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Save
+import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -345,6 +347,7 @@ fun EditRegionScreen(
                     if (onSwitchToRead != null) {
                         SegmentedControl(
                             options = listOf("Read", "Edit"),
+                            optionIcons = listOf(Icons.Outlined.Visibility, Icons.Outlined.Edit),
                             selectedIndex = 1,
                             onSelect = { index ->
                                 if (index == 0) {

@@ -33,7 +33,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Save
+import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.filled.Circle
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material3.Icon
@@ -306,6 +308,7 @@ fun ReadNoteScreen(
                 actions = {
                     SegmentedControl(
                         options = listOf("Read", "Edit"),
+                        optionIcons = listOf(Icons.Outlined.Visibility, Icons.Outlined.Edit),
                         selectedIndex = 0,
                         onSelect = { if (it == 1) onEdit(null) },
                         // 16dp here + the top bar's own 8dp = the 24dp read-note

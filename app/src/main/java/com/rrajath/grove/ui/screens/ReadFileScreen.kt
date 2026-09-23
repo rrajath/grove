@@ -15,6 +15,9 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -155,6 +158,7 @@ fun ReadFileScreen(
                 actions = {
                     SegmentedControl(
                         options = listOf("Read", "Edit"),
+                        optionIcons = listOf(Icons.Outlined.Visibility, Icons.Outlined.Edit),
                         selectedIndex = 0,
                         onSelect = { if (it == 1) onEdit() },
                         // 16dp here + the top bar's own 8dp = the 24dp read gutter,

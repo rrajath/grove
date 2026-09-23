@@ -31,7 +31,9 @@ import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Save
+import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -532,6 +534,7 @@ fun CaptureEditorScreen(
                     IconGlyph("☰", onClick = { metadataOpen = true })
                     SegmentedControl(
                         options = listOf("Read", "Edit"),
+                        optionIcons = listOf(Icons.Outlined.Visibility, Icons.Outlined.Edit),
                         selectedIndex = if (readMode) 0 else 1,
                         onSelect = { readMode = it == 0 },
                         modifier = Modifier.width(140.dp),
