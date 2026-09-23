@@ -59,6 +59,9 @@ re-uploads the APKs to the existing release instead of failing.
 
 ## [Unreleased]
 
+### Added
+- Add Dailies settings under Roam Features: location, file name pattern, and header template, with import/export support.
+
 ### Changed
 - Read/Edit mode toggles now show eye and pencil icons instead of text labels, and shrink to fit them.
 
