@@ -1005,11 +1005,15 @@ private fun GroveNavigation(
             composable(Routes.SETTINGS_ROAM) {
                 SettingsRoamScreen(
                     settings = settings,
+                    directories = viewModel.directories.collectAsStateWithLifecycle().value,
                     onBack = { navController.popBackStack() },
                     onSetRoamFeaturesEnabled = viewModel::setRoamFeaturesEnabled,
                     onSetRoamShowBacklinks = viewModel::setRoamShowBacklinks,
                     onSetRoamShowSuggestions = viewModel::setRoamShowSuggestions,
                     onSetRoamOpenWholeFile = viewModel::setRoamOpenWholeFile,
+                    onSetDailiesDirectory = viewModel::setDailiesDirectory,
+                    onSetDailiesFilenamePattern = viewModel::setDailiesFilenamePattern,
+                    onSetDailiesHeaderTemplate = viewModel::setDailiesHeaderTemplate,
                 )
             }
             composable(Routes.SETTINGS_BACKUP) {

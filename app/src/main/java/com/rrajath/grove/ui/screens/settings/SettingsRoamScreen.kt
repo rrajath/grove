@@ -1,10 +1,14 @@
 package com.rrajath.grove.ui.screens.settings
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -26,11 +30,15 @@ import com.rrajath.grove.ui.vault.WHOLE_FILE_LINE_LIMIT
 @Composable
 fun SettingsRoamScreen(
     settings: GroveSettings,
+    directories: List<String>,
     onBack: () -> Unit,
     onSetRoamFeaturesEnabled: (Boolean) -> Unit,
     onSetRoamShowBacklinks: (Boolean) -> Unit,
     onSetRoamShowSuggestions: (Boolean) -> Unit,
     onSetRoamOpenWholeFile: (Boolean) -> Unit,
+    onSetDailiesDirectory: (String) -> Unit,
+    onSetDailiesFilenamePattern: (String) -> Unit,
+    onSetDailiesHeaderTemplate: (String) -> Unit,
 ) {
     val c = MaterialTheme.grove
     SettingsPageScaffold(title = "Roam Features", onBack = onBack) {
@@ -80,6 +88,61 @@ fun SettingsRoamScreen(
                     labelBadge = { NewDot(NewAnchors.SETTINGS_ROAM_WHOLE_FILE, Modifier.padding(start = 6.dp)) },
                     onToggle = onSetRoamOpenWholeFile,
                 )
+                RowDivider()
+                SettingsRow(label = "Dailies location", description = "Where daily notes are created; blank = vault root.") {}
+                Box(Modifier.fillMaxWidth().padding(horizontal = 15.dp, vertical = 0.dp)) {
+                    com.rrajath.grove.ui.components.DirectoryField(
+                        value = settings.dailiesDirectory,
+                        onValueChange = onSetDailiesDirectory,
+                        directories = directories,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                RowDivider()
+                SettingsRow(label = "File name pattern", description = "FilenamePattern tokens, e.g. %<%Y-%m-%d>.org.") {}
+                Box(Modifier.fillMaxWidth().padding(horizontal = 15.dp)) {
+                    val patternError = com.rrajath.grove.capture.FilenamePattern.errorFor(settings.dailiesFilenamePattern)
+                    androidx.compose.material3.OutlinedTextField(
+                        value = settings.dailiesFilenamePattern,
+                        onValueChange = onSetDailiesFilenamePattern,
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        isError = patternError != null,
+                        supportingText = {
+                            if (patternError != null) {
+                                Text(patternError, color = c.red, fontFamily = PlexSans, fontSize = 12.sp)
+                            }
+                        },
+                        textStyle = androidx.compose.ui.text.TextStyle(fontFamily = com.rrajath.grove.ui.theme.PlexMono),
+                    )
+                }
+                RowDivider()
+                SettingsRow(label = "Header template", description = "Expanded into a new day's file. %? marks the cursor.") {}
+                Box(Modifier.fillMaxWidth().padding(horizontal = 15.dp, vertical = 6.dp)) {
+                    val headerInvalid = remember(settings.dailiesHeaderTemplate) {
+                        com.rrajath.grove.capture.PlaceholderExpander.findInvalid(settings.dailiesHeaderTemplate)
+                            .map { it.token }.distinct()
+                    }
+                    Column {
+                        androidx.compose.material3.OutlinedTextField(
+                            value = settings.dailiesHeaderTemplate,
+                            onValueChange = onSetDailiesHeaderTemplate,
+                            modifier = Modifier.fillMaxWidth().height(120.dp),
+                            isError = headerInvalid.isNotEmpty(),
+                            textStyle = androidx.compose.ui.text.TextStyle(
+                                fontFamily = com.rrajath.grove.ui.theme.PlexMono, fontSize = 13.5.sp,
+                            ),
+                        )
+                        if (headerInvalid.isNotEmpty()) {
+                            Text(
+                                "Unsupported placeholder${if (headerInvalid.size > 1) "s" else ""}: " +
+                                    headerInvalid.joinToString(", "),
+                                fontFamily = PlexSans, fontSize = 12.sp, color = c.red,
+                                modifier = Modifier.padding(top = 4.dp),
+                            )
+                        }
+                    }
+                }
             }
         }
     }
