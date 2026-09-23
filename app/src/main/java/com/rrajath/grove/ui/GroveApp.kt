@@ -876,6 +876,7 @@ private fun GroveNavigation(
                     onOpenAgenda = { navController.navigate(Routes.SETTINGS_AGENDA) },
                     onOpenWidget = { navController.navigate(Routes.SETTINGS_WIDGET) },
                     onOpenReminders = { navController.navigate(Routes.SETTINGS_REMINDERS) },
+                    onOpenRoam = { navController.navigate(Routes.SETTINGS_ROAM) },
                     onOpenSharing = { navController.navigate(Routes.SETTINGS_SHARING) },
                     onOpenBackup = { navController.navigate(Routes.SETTINGS_BACKUP) },
                     onOpenBugReport = { navController.navigate(Routes.SETTINGS_BUG_REPORT) },

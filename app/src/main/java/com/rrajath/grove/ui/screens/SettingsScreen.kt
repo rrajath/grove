@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.rrajath.grove.R
 import com.rrajath.grove.ui.components.GroveTopBar
+import com.rrajath.grove.ui.components.Pill
 import com.rrajath.grove.ui.newbadge.NewAnchors
 import com.rrajath.grove.ui.newbadge.NewDot
 import com.rrajath.grove.ui.screens.settings.RowDivider
@@ -54,6 +55,7 @@ fun SettingsScreen(
     onOpenAgenda: () -> Unit,
     onOpenWidget: () -> Unit,
     onOpenReminders: () -> Unit,
+    onOpenRoam: () -> Unit,
     onOpenSharing: () -> Unit,
     onOpenBackup: () -> Unit,
     onOpenBugReport: () -> Unit,
@@ -101,6 +103,15 @@ fun SettingsScreen(
             "Notifications for SCHEDULED/DEADLINE",
             onClick = onOpenReminders,
             badge = { NewDot(NewAnchors.SETTINGS_REMINDERS) },
+        ),
+        SettingsPage(
+            "Roam Features",
+            "Backlinks and link suggestions while typing",
+            onClick = onOpenRoam,
+            badge = {
+                Pill(text = "Experimental", fg = c.amber, bg = c.amberSoft)
+                NewDot(NewAnchors.SETTINGS_ROAM, Modifier.padding(start = 6.dp))
+            },
         ),
         SettingsPage("Sharing", "Where shared content lands", onOpenSharing),
         SettingsPage("Backup", "Export/import your preferences", onOpenBackup),
