@@ -249,6 +249,22 @@ class EditorViewModelIntegrationTest {
     }
 
     @Test
+    fun `loadNewWholeFile seeds a dirty buffer and save creates the file`() = runTest {
+        val vm = editor()
+
+        vm.loadNewWholeFile("roam/daily/2026-09-23.org", ":PROPERTIES:\n:ID: X\n:END:\n#+title: 2026-09-23\n", cursor = 10)
+        assertTrue(vm.state.value.dirty)
+        assertEquals(EditRegion.WHOLE_FILE, vm.state.value.region)
+        assertFalse("roam/daily/2026-09-23.org shouldn't exist until the first save", store.snapshot().containsKey("roam/daily/2026-09-23.org"))
+
+        vm.save()
+        advanceUntilIdle()
+
+        assertFalse(vm.state.value.dirty)
+        assertTrue(store.snapshot().getValue("roam/daily/2026-09-23.org").startsWith(":PROPERTIES:"))
+    }
+
+    @Test
     fun `changeKeyword to a done state writes DONE to the file and requests a sync`() = runTest {
         val line = headlineLine("projects.org", "Ship v2")
         val vm = editor()

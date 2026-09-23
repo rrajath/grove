@@ -347,6 +347,27 @@ class EditorViewModel(
         }
     }
 
+    /**
+     * Seed a brand-new whole-file editing session for [fileName], which does not
+     * exist on disk yet: the buffer starts dirty (there is nothing on disk to
+     * compare against) with [seedText] and a cursor at [cursor]. The first
+     * [save] (auto or manual) creates the file — see [writeBuffer]'s WHOLE_FILE
+     * branch, which no longer requires [Vault.open] to succeed.
+     */
+    fun loadNewWholeFile(fileName: String, seedText: String, cursor: Int) {
+        _state.value = EditorUiState(
+            loading = false,
+            fileName = fileName,
+            lineIndex = 0,
+            region = EditRegion.WHOLE_FILE,
+            regionRange = IntRange.EMPTY,
+            buffer = seedText,
+            loadedRevision = null,
+            keywords = keywords.value,
+            dirty = true,
+        )
+    }
+
     /** The text field reporting the user's own typing; never echoed back to it. */
     fun onBufferChange(text: String) {
         _state.update { it.copy(buffer = text, dirty = true) }
@@ -567,7 +588,12 @@ class EditorViewModel(
         // Parsing and the subtree splice are pure CPU on a whole file; keep them
         // off the main thread so a large notebook can't stall the keyboard
         // mid-keystroke while an auto-save runs.
-        val newText = withContext(dispatchers.default) {
+        val newText = if (s.region == EditRegion.WHOLE_FILE) {
+            // The buffer *is* the file: nothing to open, nothing to splice —
+            // and, for a brand-new file (see loadNewWholeFile), there is
+            // nothing to open yet either.
+            savedBuffer
+        } else withContext(dispatchers.default) {
             val doc = vault.open(s.fileName) ?: return@withContext null
             // Extreme edge case for every branch below: the region/note vanished
             // from the file (heavy external edit) and no stored range survives;
@@ -596,12 +622,13 @@ class EditorViewModel(
                     val range = s.regionRange?.first?.let { OrgMutations.blockRange(doc, it) } ?: s.regionRange
                     if (range != null) OrgMutations.replaceLines(doc, range, savedBuffer) else appendFallback
                 }
-                // The buffer *is* the file: no range to re-resolve, nothing to splice.
-                EditRegion.WHOLE_FILE -> savedBuffer
                 null -> {
                     val headline = doc.headlines.firstOrNull { it.lineIndex == s.lineIndex }
                     if (headline != null) OrgMutations.replaceSubtree(doc, headline, savedBuffer) else appendFallback
                 }
+                // Unreachable: handled by the outer `if` above, before this
+                // withContext block (and its vault.open) ever runs.
+                EditRegion.WHOLE_FILE -> error("WHOLE_FILE is handled before this withContext block")
             }
         } ?: return false
         vault.save(s.fileName, newText)

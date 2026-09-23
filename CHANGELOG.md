@@ -62,6 +62,7 @@ re-uploads the APKs to the existing release instead of failing.
 ### Added
 - Add Dailies settings under Roam Features: location, file name pattern, and header template, with import/export support.
 - Reverse-parse dates from filenames to identify existing daily notes.
+- Editor can seed and save a brand-new daily note whose file doesn't exist yet.
 
 ### Changed
 - Read/Edit mode toggles now show eye and pencil icons instead of text labels, and shrink to fit them.
