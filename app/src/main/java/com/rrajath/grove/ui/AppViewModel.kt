@@ -27,8 +27,10 @@ import com.rrajath.grove.settings.SyncMode
 import com.rrajath.grove.settings.ThemePreference
 import com.rrajath.grove.sync.SyncTrigger
 import com.rrajath.grove.ui.newbadge.NewBadgeState
+import com.rrajath.grove.ui.vault.NotebookItem
 import com.rrajath.grove.ui.vault.RefileNotebook
 import com.rrajath.grove.ui.vault.RefileUiState
+import com.rrajath.grove.ui.vault.allFolderDirs
 import com.rrajath.grove.ui.vault.headlineAtLine
 import com.rrajath.grove.vault.Vault
 import kotlinx.collections.immutable.persistentListOf
@@ -66,6 +68,11 @@ class AppViewModel(
     val settings: StateFlow<GroveSettings?> = settingsRepository.settings
         .map { it as GroveSettings? }
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    /** Existing vault directories, for the Dailies location field. */
+    val directories: StateFlow<List<String>> = database.indexDao().notebooksFlow()
+        .map { list -> allFolderDirs(list.map { NotebookItem(it.fileName, 0, 0, false) }).sorted() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     val savedSearches: StateFlow<List<SavedSearch>> = searchRepository.savedSearches
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
@@ -330,6 +337,15 @@ class AppViewModel(
 
     fun setRoamOpenWholeFile(enabled: Boolean) =
         viewModelScope.launch { settingsRepository.setRoamOpenWholeFile(enabled) }
+
+    fun setDailiesDirectory(dir: String) =
+        viewModelScope.launch { settingsRepository.setDailiesDirectory(dir) }
+
+    fun setDailiesFilenamePattern(pattern: String) =
+        viewModelScope.launch { settingsRepository.setDailiesFilenamePattern(pattern) }
+
+    fun setDailiesHeaderTemplate(template: String) =
+        viewModelScope.launch { settingsRepository.setDailiesHeaderTemplate(template) }
 
     // --- archive location picker (Settings § Notes): same drill-down flow as RefileSheet,
     // just picking a default destination instead of moving an actual note. ---
