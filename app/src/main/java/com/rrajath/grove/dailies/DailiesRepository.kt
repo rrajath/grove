@@ -1,0 +1,69 @@
+package com.rrajath.grove.dailies
+
+import com.rrajath.grove.capture.CaptureContext
+import com.rrajath.grove.capture.ExpandedTemplate
+import com.rrajath.grove.capture.FilenamePattern
+import com.rrajath.grove.capture.PlaceholderExpander
+import com.rrajath.grove.org.newOrgId
+import com.rrajath.grove.vault.FileStore
+import java.time.LocalDate
+import java.time.LocalDateTime
+
+/** How far back [DailiesRepository.previousExistingDate]'s day-by-day fallback
+ *  (used only when the configured pattern can't be reverse-parsed) will walk
+ *  before giving up. Fixed, not a setting — same precedent as WHOLE_FILE_LINE_LIMIT. */
+private const val FALLBACK_WALK_YEARS = 5L
+
+/** Date/filename resolution for Dailies: where a given day's note lives, whether
+ *  it exists, and the sorted set of days that have one. Pure aside from the
+ *  [FileStore] it's handed — no ViewModel/Compose dependencies. */
+class DailiesRepository(private val store: FileStore) {
+
+    fun resolveFileName(directory: String, pattern: String, date: LocalDate): String {
+        val leaf = FilenamePattern.expand(pattern, date.atStartOfDay(), slug = "")
+        return if (directory.isBlank()) leaf else "${directory.trim('/')}/$leaf"
+    }
+
+    suspend fun existsForDate(directory: String, pattern: String, date: LocalDate): Boolean =
+        store.exists(resolveFileName(directory, pattern, date))
+
+    /** Every date under [directory] with a file matching [pattern], ascending.
+     *  Empty (not an error) when the pattern can't be reverse-parsed, the
+     *  directory has nothing, or nothing matches. */
+    suspend fun existingDates(directory: String, pattern: String): List<LocalDate> {
+        val regex = FilenamePattern.toDateRegex(pattern) ?: return emptyList()
+        val prefix = if (directory.isBlank()) "" else "${directory.trim('/')}/"
+        return store.list()
+            .asSequence()
+            .filter { it.name.startsWith(prefix) }
+            .mapNotNull { entry ->
+                val leaf = entry.name.removePrefix(prefix)
+                if (leaf.contains('/')) null else FilenamePattern.parseDate(leaf, pattern)
+            }
+            .distinct()
+            .sorted()
+            .toList()
+    }
+
+    /** Nearest date before [before] with a file, or the absolute previous day if none. */
+    suspend fun previousExistingDate(directory: String, pattern: String, before: LocalDate): LocalDate {
+        val existing = existingDates(directory, pattern)
+        if (existing.isNotEmpty()) {
+            existing.lastOrNull { it < before }?.let { return it }
+        } else if (FilenamePattern.toDateRegex(pattern) == null) {
+            // Unparseable pattern: fall back to generating candidates day by day
+            // and checking existence directly, bounded so a sparse/empty
+            // directory can't spin forever.
+            val floor = before.minusYears(FALLBACK_WALK_YEARS)
+            var candidate = before.minusDays(1)
+            while (candidate >= floor) {
+                if (existsForDate(directory, pattern, candidate)) return candidate
+                candidate = candidate.minusDays(1)
+            }
+        }
+        return before.minusDays(1)
+    }
+
+    fun expandHeaderTemplate(template: String, date: LocalDate): ExpandedTemplate =
+        PlaceholderExpander.expand(template, CaptureContext(now = date.atStartOfDay(), id = newOrgId()))
+}
