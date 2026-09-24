@@ -108,6 +108,100 @@ class SafFileStore(
         return entries.sortedBy { it.name }
     }
 
+    /**
+     * One children query for [dir] (plus one per path segment whose id isn't
+     * cached yet), instead of [list]'s query per directory in the vault. Warms
+     * [docIds] for the files found, so a follow-up [stat]/[read] of one of them
+     * doesn't fall back to a full walk either, and drops cached ids of direct
+     * children that have since disappeared. Deliberately not under [listMutex]:
+     * waiting out a concurrent full walk is exactly the cost this avoids.
+     */
+    override suspend fun listDir(dir: String): List<FileEntry> = withContext(Dispatchers.IO) {
+        val trimmed = dir.trim('/')
+        val cached = dirDocIds[trimmed]
+        val entries = cached?.let { queryDir(trimmed, it) }
+            ?: run {
+                // Not cached, or the cached id went stale (folder moved/deleted
+                // outside Grove): resolve it afresh, segment by segment.
+                if (cached != null) dirDocIds.remove(trimmed)
+                val docId = lookupDir(trimmed) ?: return@withContext emptyList()
+                queryDir(trimmed, docId) ?: emptyList()
+            }
+        entries.sortedBy { it.name }
+    }
+
+    /** Direct children files of the directory [docId] (at relative path [dir]),
+     *  or null if the provider rejects the id. */
+    private fun queryDir(dir: String, docId: String): List<FileEntry>? {
+        val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, docId)
+        val entries = mutableListOf<FileEntry>()
+        val seenFiles = mutableSetOf<String>()
+        val seenDirs = mutableSetOf<String>()
+        val cursor = runCatching { resolver.query(childrenUri, projection, null, null, null) }.getOrNull()
+            ?: return null
+        cursor.use {
+            while (it.moveToNext()) {
+                val childDocId = it.getString(0)
+                val name = it.getString(1) ?: continue
+                val path = if (dir.isEmpty()) name else "$dir/$name"
+                if (it.getString(4) == DocumentsContract.Document.MIME_TYPE_DIR) {
+                    if (isSkippedVaultDir(name) || ignore.isDirIgnored(name, path)) continue
+                    dirDocIds[path] = childDocId
+                    seenDirs += path
+                } else {
+                    if (ignore.isFileIgnored(name, path)) continue
+                    docIds[path] = childDocId
+                    seenFiles += path
+                    entries.add(FileEntry(path, it.getLong(2), it.getLong(3)))
+                }
+            }
+        }
+        val prefix = if (dir.isEmpty()) "" else "$dir/"
+        fun isDirectChild(path: String) = path.startsWith(prefix) && '/' !in path.removePrefix(prefix)
+        docIds.keys.removeAll { isDirectChild(it) && it !in seenFiles }
+        // A vanished subdirectory takes its cached descendants with it.
+        val goneDirs = dirDocIds.keys.filter { isDirectChild(it) && it !in seenDirs }
+        dirDocIds.keys.removeAll { key -> goneDirs.any { key == it || key.startsWith("$it/") } }
+        docIds.keys.removeAll { key -> goneDirs.any { key.startsWith("$it/") } }
+        return entries
+    }
+
+    /**
+     * Document id for an existing relative directory, found one segment at a
+     * time from the nearest cached ancestor (one query per uncached segment),
+     * never via a full [list]. Null if any segment is missing, skipped, or
+     * ignored, matching what [list] would surface.
+     */
+    private fun lookupDir(dir: String): String? {
+        if (dir.isEmpty()) return rootDocId
+        var currentPath = ""
+        var currentDocId = rootDocId
+        for (segment in dir.split('/')) {
+            val nextPath = if (currentPath.isEmpty()) segment else "$currentPath/$segment"
+            if (isSkippedVaultDir(segment) || ignore.isDirIgnored(segment, nextPath)) return null
+            currentDocId = dirDocIds[nextPath]
+                ?: findChildDir(currentDocId, segment)?.also { dirDocIds[nextPath] = it }
+                ?: return null
+            currentPath = nextPath
+        }
+        return currentDocId
+    }
+
+    private fun findChildDir(parentDocId: String, name: String): String? {
+        val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, parentDocId)
+        val cursor = runCatching { resolver.query(childrenUri, projection, null, null, null) }.getOrNull()
+            ?: return null
+        return cursor.use {
+            var found: String? = null
+            while (found == null && it.moveToNext()) {
+                if (it.getString(1) == name && it.getString(4) == DocumentsContract.Document.MIME_TYPE_DIR) {
+                    found = it.getString(0)
+                }
+            }
+            found
+        }
+    }
+
     override suspend fun stat(name: String): FileEntry? = withContext(Dispatchers.IO) {
         val uri = documentUri(name) ?: return@withContext null
         resolver.query(

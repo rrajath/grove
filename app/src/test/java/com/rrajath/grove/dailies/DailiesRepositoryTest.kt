@@ -54,6 +54,27 @@ class DailiesRepositoryTest {
     }
 
     @Test
+    fun `existingDates ignores dated files in subdirectories of the dailies directory`() = runTest {
+        val store = FakeFileStore(
+            mapOf(
+                "roam/daily/2026-09-23.org" to "",
+                "roam/daily/archive/2026-01-01.org" to "",
+            ),
+        )
+        val repo = DailiesRepository(store)
+        assertEquals(listOf(LocalDate.of(2026, 9, 23)), repo.existingDates("roam/daily/", "%<%Y-%m-%d>.org"))
+    }
+
+    @Test
+    fun `existingDates with a blank directory reads only the vault root`() = runTest {
+        val store = FakeFileStore(
+            mapOf("2026-09-22.org" to "", "roam/daily/2026-09-23.org" to ""),
+        )
+        val repo = DailiesRepository(store)
+        assertEquals(listOf(LocalDate.of(2026, 9, 22)), repo.existingDates("", "%<%Y-%m-%d>.org"))
+    }
+
+    @Test
     fun `existingDates on an empty or nonexistent directory is empty, not an error`() = runTest {
         val repo = DailiesRepository(FakeFileStore())
         assertEquals(emptyList<LocalDate>(), repo.existingDates("roam/daily", "%<%Y-%m-%d>.org"))

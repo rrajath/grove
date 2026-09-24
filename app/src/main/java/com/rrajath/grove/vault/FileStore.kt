@@ -25,6 +25,19 @@ interface FileStore {
     suspend fun list(): List<FileEntry>
 
     /**
+     * Files directly inside [dir] (a vault-relative directory, "" for the root),
+     * not descending into subdirectories. Names are still vault-relative paths.
+     * Empty when [dir] doesn't exist. For callers that care about one folder
+     * (Dailies): implementations should answer without walking the whole vault;
+     * the default falls back to [list] for stores where that's already cheap.
+     */
+    suspend fun listDir(dir: String): List<FileEntry> {
+        val trimmed = dir.trim('/')
+        val prefix = if (trimmed.isEmpty()) "" else "$trimmed/"
+        return list().filter { it.name.startsWith(prefix) && '/' !in it.name.removePrefix(prefix) }
+    }
+
+    /**
      * Metadata for a single file, or null if it doesn't exist. Implementations
      * should avoid enumerating the whole vault when only one file is needed; the
      * default falls back to [list] for stores where that's already cheap.

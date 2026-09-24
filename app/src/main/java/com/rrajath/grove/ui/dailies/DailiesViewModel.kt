@@ -33,8 +33,8 @@ data class DailiesNavState(
  * screen instance, one ViewModel) rather than re-navigating per date.
  *
  * Day-to-day switching has to feel instant, so nothing on that path touches the
- * disk: the sorted list of existing days is built once by [refresh] (a full vault
- * listing, which takes seconds on a large SAF tree) and every [select] derives the
+ * disk: the sorted list of existing days is built once by [refresh] (a listing of
+ * the dailies folder only, see FileStore.listDir) and every [select] derives the
  * new [DailiesNavState] from it synchronously. The documents for the selected day
  * and both of its neighbours are parsed ahead of time into [docCache], so the screen
  * can render the next/previous day from memory the moment it's selected.

@@ -354,9 +354,8 @@ fun DailyNoteScreen(
                 // 3. EditorToolbar (if present) sits inside this same swipeable content Box, so a
                 //    finger dragging across it can trigger day-navigation instead of a toolbar
                 //    action.
-                // 4. Swipes silently no-op while nav == null -- each date navigation creates a
-                //    fresh DailiesViewModel that does a full vault listing, so on a large
-                //    SAF-backed vault, rapid swiping may feel unresponsive until that completes.
+                // 4. Swipes silently no-op while nav == null, i.e. until the first listing of
+                //    the dailies folder lands (DailiesViewModel.refresh) on opening the screen.
                 .pointerInput(nav?.date) {
                     var totalDrag = 0f
                     val velocityTracker = androidx.compose.ui.input.pointer.util.VelocityTracker()

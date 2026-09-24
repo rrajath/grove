@@ -31,15 +31,14 @@ class DailiesRepository(private val store: FileStore) {
      *  Empty (not an error) when the pattern can't be reverse-parsed, the
      *  directory has nothing, or nothing matches. */
     suspend fun existingDates(directory: String, pattern: String): List<LocalDate> {
-        val regex = FilenamePattern.toDateRegex(pattern) ?: return emptyList()
-        val prefix = if (directory.isBlank()) "" else "${directory.trim('/')}/"
-        return store.list()
+        FilenamePattern.toDateRegex(pattern) ?: return emptyList()
+        val dir = directory.trim('/')
+        val prefix = if (dir.isEmpty()) "" else "$dir/"
+        // Only the dailies folder itself: a whole-vault listing here was the ~1s
+        // first-open delay on a large SAF tree.
+        return store.listDir(dir)
             .asSequence()
-            .filter { it.name.startsWith(prefix) }
-            .mapNotNull { entry ->
-                val leaf = entry.name.removePrefix(prefix)
-                if (leaf.contains('/')) null else FilenamePattern.parseDate(leaf, pattern)
-            }
+            .mapNotNull { entry -> FilenamePattern.parseDate(entry.name.removePrefix(prefix), pattern) }
             .distinct()
             .sorted()
             .toList()
