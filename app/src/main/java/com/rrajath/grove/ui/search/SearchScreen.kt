@@ -83,6 +83,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.rrajath.grove.org.INTRO_LINE_INDEX
 import com.rrajath.grove.org.PlanningKind
 import com.rrajath.grove.search.QuickStartOverrides
 import com.rrajath.grove.search.SavedSearch
@@ -839,40 +840,54 @@ private fun GroupedResultsList(
             stickyHeader(key = "file-${group.fileName}") {
                 FileGroupHeader(
                     fileName = group.fileName,
-                    count = group.results.size,
-                    isNameMatch = group.nameMatch != null,
+                    count = group.rows.size,
+                    isNameMatch = group.hasFileRow,
                     collapsed = collapsed,
                     onToggle = { collapsedFiles[group.fileName] = !collapsed },
                 )
             }
-            group.nameMatch?.let { nameMatch ->
+            if (group.hasFileRow) {
                 // Stays visible even when the group is collapsed: it is the
                 // file itself matching, not one of the line matches.
                 item(key = "filematch-${group.fileName}", contentType = "filematch") {
                     FileMatchRow(
                         fileName = group.fileName,
-                        nameMatch = nameMatch,
-                        showDivider = group.results.isNotEmpty() && !collapsed,
+                        nameMatch = group.nameMatch,
+                        showDivider = group.rows.isNotEmpty() && !collapsed,
                         onOpen = { onOpenOutline(group.fileName) },
                     )
                 }
             }
             if (!collapsed) {
-                itemsIndexed(group.results, key = { _, r -> "${group.fileName}-${r.lineIndex}" }, contentType = { _, _ -> "result" }) { index, result ->
+                itemsIndexed(
+                    group.rows,
+                    key = { _, row -> "${group.fileName}-${row.key}" },
+                    contentType = { _, row -> if (row is SearchRow.Heading) "heading" else "text" },
+                ) { index, row ->
                     if (index > 0) HorizontalDivider(color = MaterialTheme.grove.line)
-                    SwipeCommitRow(
-                        // Swipe left-to-right: cycle the TODO state via a bottom sheet.
-                        leftAction = SwipeAction("⟳", "State", c.amber, c.amberSoft) { onOpenStatePicker(result) },
-                        // Swipe right-to-left: schedule this task.
-                        rightAction = SwipeAction(
-                            label = "Schedule",
-                            fg = c.blue,
-                            bg = c.blueSoft,
-                            icon = Icons.Outlined.CalendarMonth,
-                        ) { onOpenSchedulePicker(result) },
-                        onTap = { onOpenNote(NoteRef(group.fileName, result.lineIndex)) },
-                    ) {
-                        SearchResultRow(result, matchedTerms)
+                    when (row) {
+                        // Only a heading can take a TODO state or a date, so only
+                        // heading rows get the swipe actions.
+                        is SearchRow.Heading -> SwipeCommitRow(
+                            // Swipe left-to-right: cycle the TODO state via a bottom sheet.
+                            leftAction = SwipeAction("⟳", "State", c.amber, c.amberSoft) { onOpenStatePicker(row.result) },
+                            // Swipe right-to-left: schedule this task.
+                            rightAction = SwipeAction(
+                                label = "Schedule",
+                                fg = c.blue,
+                                bg = c.blueSoft,
+                                icon = Icons.Outlined.CalendarMonth,
+                            ) { onOpenSchedulePicker(row.result) },
+                            onTap = { onOpenNote(NoteRef(group.fileName, row.result.lineIndex)) },
+                        ) {
+                            SearchResultRow(row.result, matchedTerms)
+                        }
+                        // Text before the first heading has no note of its own to
+                        // open, so it opens the file.
+                        is SearchRow.Text -> TextMatchRow(row.snippet, matchedTerms) {
+                            if (row.lineIndex == INTRO_LINE_INDEX) onOpenOutline(group.fileName)
+                            else onOpenNote(NoteRef(group.fileName, row.lineIndex))
+                        }
                     }
                 }
             }
@@ -936,7 +951,8 @@ private fun FileGroupHeader(
 @Composable
 private fun FileMatchRow(
     fileName: String,
-    nameMatch: FilenameMatch,
+    /** Null when the file matched on a filter (e.g. its `#+filetags:`), not its name. */
+    nameMatch: FilenameMatch?,
     showDivider: Boolean,
     onOpen: () -> Unit,
 ) {
@@ -959,14 +975,14 @@ private fun FileMatchRow(
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
                 Text(
-                    highlightedFileName(fileName, nameMatch.ranges, c),
+                    highlightedFileName(fileName, nameMatch?.ranges.orEmpty(), c),
                     fontFamily = PlexMono,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 13.sp,
                     color = c.ink,
                 )
                 Text(
-                    "Notebook name match",
+                    if (nameMatch != null) "Notebook name match" else "Notebook-level match",
                     fontFamily = PlexSans,
                     fontSize = 11.5.sp,
                     color = c.ink3,
@@ -1058,13 +1074,42 @@ private fun highlightedOrgText(text: String, terms: List<String>, c: com.rrajath
     }
 }
 
+/**
+ * A full-text hit: just the matched words with a few words of context (see
+ * [com.rrajath.grove.search.Snippets.windows]), no title and no swipe actions.
+ */
+@Composable
+private fun TextMatchRow(snippet: String, matchedTerms: List<String>, onTap: () -> Unit) {
+    val c = MaterialTheme.grove
+    val text = remember(snippet, matchedTerms, c) { highlightedPlainText(snippet, matchedTerms, c) }
+    Text(
+        text,
+        fontFamily = PlexSans, fontSize = 13.5.sp, lineHeight = 1.5.em, color = c.ink2,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onTap)
+            .testTag("search_result_row")
+            .padding(start = 16.dp, top = 10.dp, end = 11.dp, bottom = 10.dp),
+    )
+}
+
+/** [text] with every occurrence of [terms] in the match highlight. */
+private fun highlightedPlainText(text: String, terms: List<String>, c: com.rrajath.grove.ui.theme.GroveColors): AnnotatedString =
+    buildAnnotatedString {
+        append(text)
+        Snippets.highlightRanges(text, terms).forEach { range ->
+            addStyle(
+                SpanStyle(color = c.amber, background = c.amberSoft, fontWeight = FontWeight.SemiBold),
+                range.first, (range.last + 1).coerceAtMost(text.length),
+            )
+        }
+    }
+
 @Composable
 private fun SearchResultRow(result: SearchResult, matchedTerms: List<String>) {
     val c = MaterialTheme.grove
     val titleText = remember(result.title, matchedTerms, c) { highlightedOrgText(result.title, matchedTerms, c) }
-    val snippetText = if (result.snippet.text.isNotEmpty()) {
-        remember(result.snippet.text, matchedTerms, c) { highlightedOrgText(result.snippet.text, matchedTerms, c) }
-    } else null
     // A done-type item's dates are no longer actionable, so they're not worth
     // surfacing in results (unlike the still-open items these pills exist for).
     val showDates = !result.isDone
@@ -1075,7 +1120,8 @@ private fun SearchResultRow(result: SearchResult, matchedTerms: List<String>) {
         isDone = result.isDone,
         priority = result.priority,
         titleText = titleText,
-        snippetText = snippetText,
+        snippetText = null,
+        titleWeight = FontWeight.Normal,
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))

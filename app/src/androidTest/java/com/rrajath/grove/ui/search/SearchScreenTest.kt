@@ -74,7 +74,7 @@ class SearchScreenTest {
                 .fetchSemanticsNodes().isNotEmpty()
         }
         composeRule.onNodeWithTag("search_results_list").assertIsDisplayed()
-        composeRule.onNodeWithText("How leaves work", substring = true).assertIsDisplayed()
+        composeRule.onNodeWithText("converts light into chemical energy", substring = true).assertIsDisplayed()
     }
 
     @Test
@@ -96,7 +96,7 @@ class SearchScreenTest {
             composeRule.onAllNodesWithTag("search_result_row", useUnmergedTree = true)
                 .fetchSemanticsNodes().isNotEmpty()
         }
-        composeRule.onNodeWithText("How leaves work", substring = true).performClick()
+        composeRule.onNodeWithText("converts light into chemical energy", substring = true).performClick()
 
         composeRule.waitUntil(timeoutMillis = 3_000) { opened != null }
         assertEquals("reading-list.org", opened?.fileName)

@@ -68,6 +68,18 @@ object QueryMatcher {
     }
 
     /**
+     * The AND-groups [note] satisfies (empty when it doesn't match at all). A
+     * query with no groups counts as one empty group, so a filter-only search
+     * still reports why each note matched. Search uses this to decide which of
+     * a note's lines to show as snippets.
+     */
+    fun satisfiedGroups(note: NoteMeta, query: SearchQuery, today: LocalDate): List<List<Term>> {
+        if (!matchesAgendaWindow(note, query, today)) return emptyList()
+        if (query.groups.isEmpty()) return listOf(emptyList())
+        return query.groups.filter { group -> group.all { term -> matchesTerm(note, term, today) } }
+    }
+
+    /**
      * `ad.N` (PRD §5.5): besides switching the results to a day-grouped agenda
      * view, it narrows to notes scheduled or with deadline within the next N
      * days (or overdue, same "on or before the pivot" rule [withinFuture] uses

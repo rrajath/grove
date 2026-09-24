@@ -41,6 +41,7 @@ fun ResultRowContent(
     titleText: AnnotatedString,
     snippetText: AnnotatedString?,
     modifier: Modifier = Modifier,
+    titleWeight: FontWeight = FontWeight.SemiBold,
     metaContent: (@Composable ColumnScope.() -> Unit)? = null,
 ) {
     val c = MaterialTheme.grove
@@ -58,7 +59,7 @@ fun ResultRowContent(
                 Spacer(Modifier.width(7.dp))
             }
             Text(
-                titleText, fontFamily = PlexSans, fontWeight = FontWeight.SemiBold, fontSize = 14.5.sp,
+                titleText, fontFamily = PlexSans, fontWeight = titleWeight, fontSize = 14.5.sp,
                 color = if (isDone) c.ink3 else c.ink,
                 textDecoration = if (isDone) TextDecoration.LineThrough else null,
             )

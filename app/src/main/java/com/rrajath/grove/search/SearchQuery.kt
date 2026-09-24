@@ -23,6 +23,10 @@ data class SearchQuery(
 
 data class Term(val condition: Condition, val negated: Boolean)
 
+/** The non-negated plain-text terms of one AND-group. */
+fun List<Term>.textTerms(): List<String> =
+    filter { !it.negated && it.condition is Condition.Text }.map { (it.condition as Condition.Text).term }
+
 sealed class Condition {
     data class Text(val term: String) : Condition()
 

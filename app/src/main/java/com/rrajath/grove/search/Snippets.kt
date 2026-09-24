@@ -1,28 +1,36 @@
 package com.rrajath.grove.search
 
-/** Builds the truncated result snippet a search result shows under its title. */
+/** Builds the match-in-context snippets a full-text search result shows. */
 object Snippets {
 
-    data class Snippet(val text: String)
+    /** Words of context kept on each side of a match. */
+    const val CONTEXT_WORDS = 10
 
-    private const val CONTEXT = 40
-    private const val MAX_LEN = 120
-
-    fun build(body: String, terms: List<String>): Snippet {
-        if (body.isEmpty()) return Snippet("")
-        val anchor = terms.firstNotNullOfOrNull { term ->
-            val at = body.indexOf(term, ignoreCase = true)
-            if (at >= 0) at to term else null
+    /**
+     * One snippet per cluster of matches in [line]: each match gets [radius]
+     * words either side, and a later match that falls inside the current
+     * window is shown there rather than opening a snippet of its own. Words are
+     * whitespace-separated; the original spacing inside a window is kept, and
+     * `…` marks a cut at either end.
+     */
+    fun windows(line: String, terms: List<String>, radius: Int = CONTEXT_WORDS): List<String> {
+        val words = Regex("""\S+""").findAll(line).map { it.range }.toList()
+        if (words.isEmpty()) return emptyList()
+        val matchWords = highlightRanges(line, terms)
+            .map { r -> words.indexOfFirst { r.first <= it.last && it.first <= r.first }.coerceAtLeast(0) }
+            .distinct()
+            .sorted()
+        val out = mutableListOf<String>()
+        var windowEnd = -1
+        for (w in matchWords) {
+            if (w <= windowEnd) continue
+            val from = (w - radius).coerceAtLeast(0)
+            windowEnd = (w + radius).coerceAtMost(words.lastIndex)
+            val prefix = if (from > 0) "…" else ""
+            val suffix = if (windowEnd < words.lastIndex) "…" else ""
+            out += prefix + line.substring(words[from].first, words[windowEnd].last + 1) + suffix
         }
-        if (anchor == null) {
-            return Snippet(body.take(MAX_LEN) + if (body.length > MAX_LEN) "…" else "")
-        }
-        val (at, term) = anchor
-        val start = (at - CONTEXT).coerceAtLeast(0)
-        val end = (at + term.length + CONTEXT * 2).coerceAtMost(body.length)
-        val prefix = if (start > 0) "…" else ""
-        val suffix = if (end < body.length) "…" else ""
-        return Snippet(prefix + body.substring(start, end) + suffix)
+        return out
     }
 
     /** Every occurrence of every term within [text], case-insensitive. */

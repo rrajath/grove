@@ -82,6 +82,7 @@ re-uploads the APKs to the existing release instead of failing.
 - Link and roam-node suggestion strips now show only while the keyboard is up.
 - Read/Edit toggle is one shared component; tapping anywhere on it switches mode.
 - Whole-file Edit-to-Read no longer saves; Read shows unsaved text and leaving asks to save.
+- Search text matches show the matched line with ten words of context; only heading results swipe.
 
 ### Fixed
 - Search file headers show folder and match count on a second line; long file names no longer break layout.

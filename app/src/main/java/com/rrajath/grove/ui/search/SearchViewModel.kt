@@ -15,6 +15,8 @@ import com.rrajath.grove.data.NoteEntity
 import com.rrajath.grove.data.NoteFacetRow
 import com.rrajath.grove.data.rawQuery
 import com.rrajath.grove.data.toNoteMeta
+import com.rrajath.grove.org.INTRO_LINE_INDEX
+import com.rrajath.grove.org.InlineTokenizer
 import com.rrajath.grove.org.OrgKeywords
 import com.rrajath.grove.org.OrgMutations
 import com.rrajath.grove.org.OrgTimestamp
@@ -30,6 +32,8 @@ import com.rrajath.grove.search.QuickStartOverrides
 import com.rrajath.grove.search.SavedSearch
 import com.rrajath.grove.search.SearchQuery
 import com.rrajath.grove.search.Snippets
+import com.rrajath.grove.search.Term
+import com.rrajath.grove.search.textTerms
 import com.rrajath.grove.ui.vault.OutlineSnack
 import com.rrajath.grove.ui.vault.factory
 import com.rrajath.grove.ui.vault.headlineAtLine
@@ -142,7 +146,6 @@ data class SearchResult(
     val keyword: String?,
     val isDone: Boolean,
     val priority: String?,
-    val snippet: Snippets.Snippet,
     val scheduledLabel: String?,
     val scheduledOverdue: Boolean,
     val deadlineLabel: String?,
@@ -157,14 +160,51 @@ data class SearchResult(
     val activeTs: ImmutableList<OrgTimestamp> = persistentListOf(),
 )
 
+/**
+ * One row under a file group: a [Heading] the query/filters selected (the only
+ * kind that gets the swipe-to-state/schedule actions), or a [Text] snippet of a
+ * body line the query's words appear on.
+ */
+@Immutable
+sealed interface SearchRow {
+    val key: String
+
+    @Immutable
+    data class Heading(val result: SearchResult) : SearchRow {
+        override val key: String get() = "h-${result.lineIndex}"
+    }
+
+    @Immutable
+    data class Text(
+        val fileName: String,
+        /** The heading the line sits under, or [INTRO_LINE_INDEX] for text before the first heading. */
+        val lineIndex: Int,
+        /** Up to [Snippets.CONTEXT_WORDS] words either side of the match, as plain text. */
+        val snippet: String,
+        /** Position among the file's snippets, to keep [key] unique. */
+        val ordinal: Int,
+    ) : SearchRow {
+        override val key: String get() = "t-$lineIndex-$ordinal"
+    }
+}
+
 @Immutable
 data class SearchFileGroup(
     val fileName: String,
-    val results: ImmutableList<SearchResult>,
+    val rows: ImmutableList<SearchRow>,
     /** Set when the query's text also matched this notebook's file name: the
      *  group floats above content-only groups and shows a tappable file row. */
     val nameMatch: FilenameMatch? = null,
-)
+    /** The file itself (not one of its headings) satisfied a filter-only part of
+     *  the query, e.g. a `#+filetags:` tag: shows the same tappable file row. */
+    val fileLevelMatch: Boolean = false,
+) {
+    /** The heading rows, for callers that only care about headings. */
+    val headings: List<SearchResult> get() = rows.filterIsInstance<SearchRow.Heading>().map { it.result }
+
+    /** Whether the group shows a file row above its [rows]. */
+    val hasFileRow: Boolean get() = nameMatch != null || fileLevelMatch
+}
 
 /** The file-name hit behind a [SearchFileGroup.nameMatch]. */
 @Immutable
@@ -614,11 +654,21 @@ class SearchViewModel(
             val terms = textQuery?.textTerms ?: emptyList()
             val filtered = textMatched.filter { matchesFilters(it, filters, today) }
 
-            // Group by file, preserving first-seen file order.
-            val byFile = LinkedHashMap<String, MutableList<SearchResult>>()
+            // Group by file, preserving first-seen file order. A note with
+            // nothing to show (its words only meet across lines) is dropped.
+            val byFile = LinkedHashMap<String, MutableList<SearchRow>>()
+            val fileLevel = mutableSetOf<String>()
             filtered.forEach { note ->
-                byFile.getOrPut(note.fileName) { mutableListOf() }.add(toResult(note, terms, today))
+                val groups = textQuery?.let { QueryMatcher.satisfiedGroups(note, it, today) } ?: listOf(emptyList())
+                val rows = byFile.getOrPut(note.fileName) { mutableListOf() }
+                if (note.lineIndex == INTRO_LINE_INDEX) {
+                    if (groups.any { it.textTerms().isEmpty() }) fileLevel += note.fileName
+                } else if (groups.any { g -> g.textTerms().all { note.title.contains(it, ignoreCase = true) } }) {
+                    rows += SearchRow.Heading(toResult(note, today))
+                }
+                rows += lineSnippets(note, groups, ordinalFrom = rows.size)
             }
+            byFile.entries.removeAll { (file, rows) -> rows.isEmpty() && file !in fileLevel }
 
             // Additive pass: a file whose *name* matches the query's text floats
             // above every content-only group and gets its own tappable file row,
@@ -646,17 +696,18 @@ class SearchViewModel(
             val groups = orderedFiles.map { file ->
                 SearchFileGroup(
                     fileName = file,
-                    results = byFile[file].orEmpty().toImmutableList(),
+                    rows = byFile[file].orEmpty().toImmutableList(),
                     nameMatch = hitByFile[file]?.let { hit ->
                         FilenameMatch(hit.ranges.toImmutableList(), hit.quality.ordinal)
                     },
+                    fileLevelMatch = file in fileLevel,
                 )
             }.toImmutableList()
 
             _state.value = _state.value.copy(
                 filters = filters,
                 groups = groups,
-                resultCount = filtered.size + nameHits.count { it.fileName !in byFile },
+                resultCount = groups.sumOf { it.rows.size + if (it.hasFileRow) 1 else 0 },
                 notebookCount = groups.size,
                 isBlank = false,
                 matchedTerms = terms.toImmutableList(),
@@ -777,7 +828,30 @@ class SearchViewModel(
         }
     }
 
-    private fun toResult(meta: NoteMeta, terms: List<String>, today: LocalDate): SearchResult {
+    /**
+     * A snippet per match cluster on each body line that carries every word of
+     * one of the note's satisfied AND-groups. Lines are rendered to plain text
+     * first (links show their label), so the words and window are what you'd
+     * read, not org syntax.
+     */
+    private fun lineSnippets(note: NoteMeta, groups: List<List<Term>>, ordinalFrom: Int): List<SearchRow.Text> {
+        val groupTerms = groups.map { it.textTerms() }.filter { it.isNotEmpty() }
+        if (groupTerms.isEmpty()) return emptyList()
+        var ordinal = ordinalFrom
+        return note.searchText.substringAfter('\n', "").lineSequence()
+            .map { line -> InlineTokenizer.tokenize(line).joinToString("") { it.text }.trim() }
+            .flatMap { line ->
+                val lineTerms = groupTerms
+                    .filter { terms -> terms.all { line.contains(it, ignoreCase = true) } }
+                    .flatten()
+                    .distinct()
+                if (lineTerms.isEmpty()) emptySequence() else Snippets.windows(line, lineTerms).asSequence()
+            }
+            .map { SearchRow.Text(note.fileName, note.lineIndex, it, ordinal++) }
+            .toList()
+    }
+
+    private fun toResult(meta: NoteMeta, today: LocalDate): SearchResult {
         val (scheduledLabel, scheduledOverdue) = dateLabel(meta.scheduledDate, today)
         val (deadlineLabel, deadlineOverdue) = dateLabel(meta.deadlineDate, today)
         return SearchResult(
@@ -787,7 +861,6 @@ class SearchViewModel(
             keyword = meta.keyword,
             isDone = meta.isDoneKeyword,
             priority = meta.priority,
-            snippet = Snippets.build(meta.searchText.substringAfter('\n', ""), terms),
             scheduledLabel = scheduledLabel,
             scheduledOverdue = scheduledOverdue,
             deadlineLabel = deadlineLabel,

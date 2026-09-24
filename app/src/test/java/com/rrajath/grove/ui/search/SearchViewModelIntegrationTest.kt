@@ -98,7 +98,51 @@ class SearchViewModelIntegrationTest {
 
         val files = vm.state.value.groups.map { it.fileName }
         assertEquals(listOf("reading-list.org"), files)
-        assertTrue(vm.state.value.resultCount >= 1)
+        // A body hit shows only the matched line in context, not its heading.
+        val rows = vm.state.value.groups.single().rows
+        assertEquals(
+            listOf(
+                SearchRow.Text(
+                    fileName = "reading-list.org",
+                    lineIndex = headlineLine("reading-list.org", "How leaves work"),
+                    snippet = "The process of photosynthesis converts light into chemical energy.",
+                    ordinal = 0,
+                ),
+            ),
+            rows,
+        )
+        assertEquals(1, vm.state.value.resultCount)
+    }
+
+    @Test
+    fun `a query matching a heading title shows the heading row`() = runTest {
+        TestVaultSeeder.index(db, store)
+        advanceUntilIdle()
+        val vm = search()
+        advanceUntilIdle()
+
+        vm.onQueryChange("leaves")
+        advanceTimeBy(400)
+        advanceUntilIdle()
+
+        val rows = vm.state.value.groups.flatMap { it.rows }
+        assertEquals(1, rows.size)
+        assertEquals("How leaves work", (rows.single() as SearchRow.Heading).result.title)
+    }
+
+    @Test
+    fun `words that only meet across lines drop the note`() = runTest {
+        TestVaultSeeder.index(db, store)
+        advanceUntilIdle()
+        val vm = search()
+        advanceUntilIdle()
+
+        // "leaves" is in the title, "photosynthesis" in the body: no single line has both.
+        vm.onQueryChange("leaves photosynthesis")
+        advanceTimeBy(400)
+        advanceUntilIdle()
+
+        assertTrue(vm.state.value.groups.isEmpty())
     }
 
     @Test
@@ -147,7 +191,7 @@ class SearchViewModelIntegrationTest {
         vm.applyQuickFilter(SearchFilters(states = setOf("TODO")))
         advanceUntilIdle()
 
-        val titles = vm.state.value.groups.flatMap { g -> g.results.map { it.title } }
+        val titles = vm.state.value.groups.flatMap { g -> g.headings.map { it.title } }
         assertTrue("expected an open TODO", titles.contains("Ship v2 release"))
         assertFalse("a DONE heading must be filtered out", titles.contains("Cut the changelog"))
         assertFalse("an IN-PROGRESS heading must be filtered out", titles.contains("Write the store listing"))

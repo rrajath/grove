@@ -189,11 +189,35 @@ class QueryMatcherTest {
     }
 
     @Test
-    fun `snippet truncates around the matched term`() {
-        val snippet = Snippets.build("some long body with the magic word inside of it", listOf("magic"))
-        assertTrue(snippet.text.contains("magic"))
-        val plain = Snippets.build("no match here", listOf("absent"))
-        assertEquals("no match here", plain.text)
+    fun `snippet keeps ten words either side of the match`() {
+        val line = (1..30).joinToString(" ") { "w$it" }.replace("w15", "magic")
+        val snippets = Snippets.windows(line, listOf("magic"))
+        assertEquals(listOf("…w5 w6 w7 w8 w9 w10 w11 w12 w13 w14 magic w16 w17 w18 w19 w20 w21 w22 w23 w24 w25…"), snippets)
+    }
+
+    @Test
+    fun `a short line is shown whole with no ellipsis`() {
+        assertEquals(listOf("the magic word"), Snippets.windows("the magic word", listOf("magic")))
+    }
+
+    @Test
+    fun `a second match inside the window does not open another snippet`() {
+        val snippets = Snippets.windows("magic one two magic three", listOf("magic"))
+        assertEquals(listOf("magic one two magic three"), snippets)
+    }
+
+    @Test
+    fun `matches further apart than the window get their own snippets`() {
+        val line = (1..40).joinToString(" ") { "w$it" }.replace("w1 ", "magic ").replace("w30", "magic")
+        val snippets = Snippets.windows(line, listOf("magic"))
+        assertEquals(2, snippets.size)
+        assertTrue(snippets[0].startsWith("magic w2"))
+        assertTrue(snippets[1].startsWith("…w20") && snippets[1].contains("magic"))
+    }
+
+    @Test
+    fun `a line without the term yields no snippet`() {
+        assertTrue(Snippets.windows("no match here", listOf("absent")).isEmpty())
     }
 
     @Test
