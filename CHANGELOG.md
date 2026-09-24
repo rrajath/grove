@@ -67,6 +67,7 @@ re-uploads the APKs to the existing release instead of failing.
 
 ### Changed
 - Read/Edit mode toggles now show eye and pencil icons instead of text labels, and shrink to fit them.
+- Expose FileContent as internal for Dailies cross-package reuse.
 
 ### Fixed
 - Vault.save() now creates missing files before writing (required by SAF backend).
