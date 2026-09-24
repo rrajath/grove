@@ -269,7 +269,7 @@ fun ReadFileScreen(
  * body, then one [ReadHeadingRow] per visible heading, sized by its absolute level.
  */
 @Composable
-private fun FileContent(
+internal fun FileContent(
     doc: OrgDocument,
     fileName: String,
     listState: LazyListState,
