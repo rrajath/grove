@@ -70,6 +70,7 @@ re-uploads the APKs to the existing release instead of failing.
 - Add Dailies Linked References bottom bar and floating prev/next date navigation pills.
 - Add the Dailies route, drawer icon, and a gated drawer row; Dailies is now reachable from the drawer.
 - Add swipe-to-navigate between days on the Dailies screen, in both Read and Edit mode.
+- Add a long-press calendar sheet on the Dailies Today button to jump to any date.
 
 ### Changed
 - Read/Edit mode toggles now show eye and pencil icons instead of text labels, and shrink to fit them.

@@ -568,9 +568,6 @@ private fun GroveNavigation(
                     },
                     onOpenNote = { target -> navController.navigate(Routes.note(target.encode())) },
                     onOpenOutline = { target -> navController.navigate(Routes.outline(target)) },
-                    // Long-press calendar picker sheet ships in Milestone 5 (Task 19);
-                    // no-op until then, matching the plan's milestone boundary.
-                    onOpenDatePicker = {},
                     showBacklinks = settings.roamFeaturesEnabled && settings.roamShowBacklinks,
                     showPreface = settings.showPreface,
                     showPropertyDrawers = settings.showPropertyDrawers,

@@ -79,7 +79,6 @@ fun DailyNoteScreen(
     onNavigateDate: (LocalDate) -> Unit,
     onOpenNote: (NoteRef) -> Unit,
     onOpenOutline: (fileName: String) -> Unit,
-    onOpenDatePicker: () -> Unit,
     showBacklinks: Boolean,
     showPreface: Boolean,
     showPropertyDrawers: Boolean,
@@ -104,6 +103,7 @@ fun DailyNoteScreen(
     var confirmLeave by remember { mutableStateOf(false) }
     var pendingAction by remember { mutableStateOf<(() -> Unit)?>(null) }
     var linkedRefsOpen by remember { mutableStateOf(false) }
+    var datePickerOpen by rememberSaveable { mutableStateOf(false) }
 
     fun runGuarded(action: () -> Unit) {
         if (mode == "edit" && editState.dirty) {
@@ -206,7 +206,7 @@ fun DailyNoteScreen(
                                     onClick = { runGuarded { onNavigateDate(LocalDate.now()) } },
                                     onLongClick = {
                                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        onOpenDatePicker()
+                                        datePickerOpen = true
                                     },
                                 )
                                 .padding(10.dp)
@@ -395,6 +395,15 @@ fun DailyNoteScreen(
                 ) { DateNavPill(label = shortLabel(n2.nextDate), leading = false) { runGuarded { onNavigateDate(n2.nextDate) } } }
             }
         }
+    }
+
+    if (datePickerOpen) {
+        DailyDatePickerSheet(
+            initialMonth = date,
+            existingDates = nav?.existingDates.orEmpty(),
+            onPick = { picked -> datePickerOpen = false; onNavigateDate(picked) },
+            onDismiss = { datePickerOpen = false },
+        )
     }
 
     if (confirmLeave) {
