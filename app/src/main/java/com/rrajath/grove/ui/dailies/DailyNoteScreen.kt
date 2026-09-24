@@ -43,6 +43,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rrajath.grove.settings.FontSizePreference
 import com.rrajath.grove.ui.components.GroveTopBar
+import com.rrajath.grove.ui.components.LinkedReferencesBar
 import com.rrajath.grove.ui.components.Pill
 import com.rrajath.grove.ui.components.SegmentedControl
 import com.rrajath.grove.ui.editor.EditRegion
@@ -153,6 +154,12 @@ fun DailyNoteScreen(
                 },
             )
         },
+        bottomBar = {
+            if (showBacklinks && nav?.exists == true) {
+                val linked by documentViewModel.linkedReferences.collectAsStateWithLifecycle()
+                LinkedReferencesBar(linkedCount = linked.linkedCount, unlinkedCount = linked.unlinkedCount, onClick = {})
+            }
+        },
     ) { padding ->
         val n = nav
         Box(Modifier.fillMaxSize().padding(padding)) {
@@ -254,6 +261,16 @@ fun DailyNoteScreen(
                     )
                 }
             }
+            nav?.let { n ->
+                Box(
+                    Modifier.align(androidx.compose.ui.Alignment.BottomStart)
+                        .padding(start = 16.dp, bottom = if (showBacklinks && n.exists) 74.dp else 16.dp),
+                ) { DateNavPill(label = shortLabel(n.previousDate), leading = true) { onNavigateDate(n.previousDate) } }
+                Box(
+                    Modifier.align(androidx.compose.ui.Alignment.BottomEnd)
+                        .padding(end = 16.dp, bottom = if (showBacklinks && n.exists) 74.dp else 16.dp),
+                ) { DateNavPill(label = shortLabel(n.nextDate), leading = false) { onNavigateDate(n.nextDate) } }
+            }
         }
     }
 }
@@ -273,6 +290,27 @@ private fun DailyEmptyState(fileName: String, onStartTyping: () -> Unit) {
                 "Long-press the calendar icon to create a note for another date.",
             fontFamily = PlexSans, fontSize = 14.sp, color = c.ink2,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+        )
+    }
+}
+
+private fun shortLabel(date: LocalDate): String =
+    date.format(DateTimeFormatter.ofPattern("EEE d"))
+
+@Composable
+private fun DateNavPill(label: String, leading: Boolean, onClick: () -> Unit) {
+    val c = MaterialTheme.grove
+    Box(
+        Modifier
+            .clip(RoundedCornerShape(20.dp))
+            .background(c.surface)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 9.dp),
+    ) {
+        Text(
+            if (leading) "‹ $label" else "$label ›",
+            fontFamily = PlexSans, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+            fontSize = 13.sp, color = c.ink,
         )
     }
 }
