@@ -84,7 +84,8 @@ re-uploads the APKs to the existing release instead of failing.
 - Fix Dailies file name patterns containing `%(slug)` never matching existing daily notes.
 - Swipe navigation on the Dailies screen now respects the unsaved-changes confirm dialog.
 - Calendar date-picker selection on the Dailies screen now respects the unsaved-changes confirm dialog.
-- Dailies day switching is now instant; date pills sit above the editor toolbar and have a soft shadow.
+- Dailies day switching is now instant; date pills have a soft shadow and hide while the keyboard is up.
+- Double-tapping a Dailies note in Read mode now switches to Edit mode, including on blank space.
 - The Dailies calendar/date-picker button now always shows in the top bar, including on today's own empty day; picking the currently-viewed date in the date picker no longer triggers a pointless re-navigation; the date picker's today-cell highlight now matches the design spec's accent outline instead of a filled background.
 
 ## [1.7.1] - 2026-09-22

@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.WindowInsets
@@ -378,7 +379,7 @@ fun DailyNoteScreen(
                                     showPreface = showPreface,
                                     showPropertyDrawers = showPropertyDrawers,
                                     favorites = emptyList(),
-                                    onEdit = { mode = "edit" },
+                                    onEdit = { startEditing(n) },
                                     onOpenLink = { target -> documentViewModel.openOrgLink(target, n.fileName, onOpenNote, onOpenOutline) },
                                     onOpenDrawer = { _, _ -> },
                                     onOpenBlock = {},
@@ -388,7 +389,14 @@ fun DailyNoteScreen(
                                         if (longPress) documentViewModel.toggleChecklistProgress(line)
                                         else documentViewModel.toggleChecklistDone(line)
                                     },
-                                    modifier = Modifier.fillMaxSize(),
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        // Fallback, as on ReadFileScreen: FileContent handles a
+                                        // double-tap over a text run itself; this catches one on
+                                        // blank space, which is most of a short daily note.
+                                        .pointerInput(Unit) {
+                                            detectTapGestures(onDoubleTap = { startEditing(n) })
+                                        },
                                 )
                             }
                         }
@@ -458,10 +466,6 @@ fun DailyNoteScreen(
                         imeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0,
                         onLink = {},
                         modifier = Modifier.fillMaxSize(),
-                        // In Edit mode the pills ride inside the editor's text area, so they
-                        // sit above the formatting toolbar (below that area) whenever the
-                        // keyboard brings it up, instead of on top of it.
-                        overlay = { DateNavPills(n, ::navigateDate) },
                     )
                 }
             } }
@@ -469,7 +473,9 @@ fun DailyNoteScreen(
             // height (the LinkedReferencesBar, when shown), so the content Box's bottom
             // edge already sits flush above it -- a further bump here would double-count
             // that space and float the pills far higher than intended.
-            if (mode == "read") nav?.let { DateNavPills(it, ::navigateDate) }
+            // Hidden while typing: with the keyboard up the bottom of this Box is the
+            // formatting toolbar's row, and the pills would only crowd it.
+            if (WindowInsets.ime.getBottom(LocalDensity.current) == 0) nav?.let { DateNavPills(it, ::navigateDate) }
         }
     }
 

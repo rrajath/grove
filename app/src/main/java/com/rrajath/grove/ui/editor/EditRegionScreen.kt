@@ -5,7 +5,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -487,9 +486,6 @@ internal fun WholeFileEditorBody(
     imeVisible: Boolean,
     onLink: () -> Unit,
     modifier: Modifier = Modifier,
-    /** Drawn last inside the text area's Box, so anything aligned to its bottom sits
-     *  just above the toolbar (which lives below that Box in this Column). */
-    overlay: @Composable BoxScope.() -> Unit = {},
 ) {
     val c = MaterialTheme.grove
     val scrollButtonThresholdPx = with(LocalDensity.current) { (13.5f * 1.85f * 5).sp.toPx() }
@@ -543,7 +539,6 @@ internal fun WholeFileEditorBody(
                         .padding(16.dp),
                 )
             }
-            overlay()
         }
         // Hidden while the keyboard is up: the bar and the toolbar both sit at
         // the bottom of this Column, and only one of them should own that row
