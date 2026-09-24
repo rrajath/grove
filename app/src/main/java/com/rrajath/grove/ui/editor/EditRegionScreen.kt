@@ -537,9 +537,11 @@ internal fun WholeFileEditorBody(
                         }
                         onClearAutoLinkTrigger()
                     },
+                    // Hugs the bottom edge (just above the toolbar row below this Box)
+                    // rather than floating a full 16dp gutter up into the text.
                     modifier = Modifier
                         .align(Alignment.BottomStart)
-                        .padding(16.dp),
+                        .padding(start = 16.dp, end = 16.dp, bottom = 6.dp),
                 )
             }
         }
