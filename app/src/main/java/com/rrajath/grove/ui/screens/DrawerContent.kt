@@ -1,6 +1,7 @@
 package com.rrajath.grove.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
@@ -43,6 +44,7 @@ import com.rrajath.grove.data.FavoriteNote
 import com.rrajath.grove.search.SavedSearch
 import com.rrajath.grove.ui.components.BrandMark
 import com.rrajath.grove.ui.components.agendaIcon
+import com.rrajath.grove.ui.components.dailiesIcon
 import com.rrajath.grove.ui.components.favoriteIcon
 import com.rrajath.grove.ui.components.notebookIcon
 import com.rrajath.grove.ui.components.savedSearchIcon
@@ -66,6 +68,10 @@ fun GroveDrawerContent(
     favorites: List<FavoriteNote> = emptyList(),
     /** When false, the header logo stays the default light mark regardless of the active theme. */
     logoFollowsTheme: Boolean = true,
+    /** Settings § Roam Features master switch: the Dailies row only shows when this is on. */
+    roamFeaturesEnabled: Boolean = false,
+    /** Today's date, short form ("Wed 23"), shown as the Dailies row's trailing label. */
+    todayShortLabel: String = "",
     onNavigate: (String) -> Unit,
     onDeleteSavedSearch: (SavedSearch) -> Unit,
     onRenameSavedSearch: (String, String) -> Unit = { _, _ -> },
@@ -153,6 +159,9 @@ fun GroveDrawerContent(
             }
 
             HorizontalDivider(color = c.line, modifier = Modifier.padding(vertical = 8.dp))
+            if (roamFeaturesEnabled) {
+                DailiesDrawerRow(todayShortLabel = todayShortLabel) { onNavigate(Routes.dailies()) }
+            }
             DrawerItem(icon = agendaIcon(), label = "Agenda", active = false) { onNavigate(Routes.AGENDA) }
             DrawerItem(
                 icon = settingsIcon(),
@@ -256,6 +265,39 @@ private fun SectionLabel(text: String) {
         color = MaterialTheme.grove.ink3,
         modifier = Modifier.padding(start = 22.dp, top = 16.dp, bottom = 6.dp),
     )
+}
+
+/**
+ * The Dailies drawer row: like [DrawerItem] but with a trailing short-date label
+ * and a permanent accent inset border (1c mockup) rather than the active-route
+ * filled background every other row uses.
+ */
+@Composable
+private fun DailiesDrawerRow(todayShortLabel: String, onClick: () -> Unit) {
+    val c = MaterialTheme.grove
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 2.dp)
+            .clip(RoundedCornerShape(11.dp))
+            .border(1.dp, c.accent.copy(alpha = 0.35f), RoundedCornerShape(11.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 11.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.width(30.dp)) {
+            androidx.compose.material3.Icon(
+                dailiesIcon(),
+                contentDescription = null,
+                tint = c.ink2,
+                modifier = Modifier.size(24.dp),
+            )
+        }
+        Text("Dailies", fontFamily = PlexSans, fontSize = 14.5.sp, color = c.ink, modifier = Modifier.weight(1f))
+        if (todayShortLabel.isNotBlank()) {
+            Text(todayShortLabel, fontFamily = PlexMono, fontSize = 12.sp, color = c.ink3)
+        }
+    }
 }
 
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)

@@ -360,6 +360,10 @@ private fun GroveNavigation(
                     savedSearches = viewModel.savedSearches.collectAsStateWithLifecycle().value,
                     favorites = favorites,
                     logoFollowsTheme = settings.syncAppIconWithTheme,
+                    roamFeaturesEnabled = settings.roamFeaturesEnabled,
+                    todayShortLabel = remember {
+                        java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("EEE d"))
+                    },
                     onNavigate = { route -> closeDrawerAnd { navController.navigate(route) } },
                     onDeleteSavedSearch = { viewModel.deleteSavedSearch(it.id) },
                     onRenameSavedSearch = { id, name -> viewModel.renameSavedSearch(id, name) },
