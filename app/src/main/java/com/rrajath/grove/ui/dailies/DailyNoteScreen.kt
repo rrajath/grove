@@ -39,6 +39,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -75,9 +76,8 @@ import java.time.format.DateTimeFormatter
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun DailyNoteScreen(
-    date: LocalDate,
+    initialDate: LocalDate,
     onBack: () -> Unit,
-    onNavigateDate: (LocalDate) -> Unit,
     onOpenNote: (NoteRef) -> Unit,
     onOpenOutline: (fileName: String) -> Unit,
     showBacklinks: Boolean,
@@ -93,6 +93,10 @@ fun DailyNoteScreen(
     val haptic = LocalHapticFeedback.current
     val nav by dailiesViewModel.state.collectAsStateWithLifecycle()
     val vaultMissing by dailiesViewModel.vaultMissing.collectAsStateWithLifecycle()
+    // The day being shown. Switching days happens in place on this one screen (not a
+    // route per date), so the ViewModels, their day index and prefetched neighbours
+    // survive every swipe -- see DailiesViewModel.
+    var date by rememberSaveable { mutableStateOf(initialDate) }
     var mode by rememberSaveable(date) { mutableStateOf("read") }
     val editState by editorViewModel.state.collectAsStateWithLifecycle()
     val docState by documentViewModel.state.collectAsStateWithLifecycle()
@@ -115,6 +119,27 @@ fun DailyNoteScreen(
         }
     }
     fun leave() = runGuarded(onBack)
+
+    // Everything here runs synchronously in the tap/swipe handler, so the new day's
+    // nav state and (when prefetched) its document land in the very next frame.
+    fun goTo(newDate: LocalDate) {
+        val edit = editorViewModel.state.value
+        if (edit.lastSavedAt != null && edit.fileName.isNotEmpty()) {
+            // Saved (e.g. via the leave dialog) in the same frame as this switch, so the
+            // lastSavedAt effect below may never see it: record it here instead.
+            dailiesViewModel.noteSaved(date, edit.fileName)
+        }
+        (documentViewModel.state.value as? DocumentUiState.Loaded)?.let {
+            dailiesViewModel.rememberDocument(it.fileName, it.document)
+        }
+        // Past runGuarded, so any unsaved buffer was either saved or discarded on
+        // purpose; clear it so the idle auto-save can't resurrect a discarded one.
+        editorViewModel.reset()
+        date = newDate
+        val n = dailiesViewModel.select(newDate) ?: return
+        if (n.exists) dailiesViewModel.cachedDocument(n.fileName)?.let { documentViewModel.show(n.fileName, it) }
+    }
+    fun navigateDate(newDate: LocalDate) = runGuarded { goTo(newDate) }
     androidx.activity.compose.BackHandler { leave() }
 
     // Shared by the empty-day tap-to-type affordance and the top-right Read/Edit
@@ -128,7 +153,15 @@ fun DailyNoteScreen(
         mode = "edit"
     }
 
-    LaunchedEffect(date) { dailiesViewModel.load(date) }
+    val latestDate by androidx.compose.runtime.rememberUpdatedState(date)
+    // Every resume (first open, and coming back from a linked note or another app)
+    // shows the current day from the in-memory index at once, then re-lists the vault
+    // in the background in case a sync added or removed days meanwhile.
+    androidx.lifecycle.compose.LifecycleResumeEffect(Unit) {
+        dailiesViewModel.select(latestDate)
+        dailiesViewModel.refresh()
+        onPauseOrDispose {}
+    }
     LaunchedEffect(nav?.fileName, nav?.exists) {
         val n = nav ?: return@LaunchedEffect
         if (n.exists) {
@@ -148,8 +181,8 @@ fun DailyNoteScreen(
     // Refresh both the date-navigation state (so nav.exists stops being stale
     // for a brand-new file) and the Read-mode document after every save.
     LaunchedEffect(editState.lastSavedAt) {
-        if (editState.lastSavedAt != null) {
-            dailiesViewModel.load(date)
+        if (editState.lastSavedAt != null && editState.fileName.isNotEmpty()) {
+            dailiesViewModel.noteSaved(date, editState.fileName)
             documentViewModel.load(editState.fileName)
         }
     }
@@ -214,7 +247,7 @@ fun DailyNoteScreen(
                         Modifier
                             .clip(RoundedCornerShape(10.dp))
                             .combinedClickable(
-                                onClick = { runGuarded { onNavigateDate(LocalDate.now()) } },
+                                onClick = { navigateDate(LocalDate.now()) },
                                 onLongClick = {
                                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                     datePickerOpen = true
@@ -305,15 +338,18 @@ fun DailyNoteScreen(
                             val navState = nav ?: return@detectHorizontalDragGestures
                             val velocity = velocityTracker.calculateVelocity().x
                             when (isDeliberateSwipe(totalDrag, velocity, size.width.toFloat())) {
-                                SwipeDirection.PREVIOUS -> runGuarded { onNavigateDate(navState.previousDate) }
-                                SwipeDirection.NEXT -> runGuarded { onNavigateDate(navState.nextDate) }
+                                SwipeDirection.PREVIOUS -> navigateDate(navState.previousDate)
+                                SwipeDirection.NEXT -> navigateDate(navState.nextDate)
                                 null -> {}
                             }
                         },
                     )
                 },
         ) {
-            when {
+            // Keyed on the day so per-day UI state (read-mode scroll position, the edit
+            // field and its load bookkeeping) starts fresh on every switch instead of
+            // carrying over from the previous day.
+            androidx.compose.runtime.key(n?.date) { when {
                 n == null -> {
                     if (vaultMissing) {
                         Box(Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.Center) {
@@ -327,7 +363,9 @@ fun DailyNoteScreen(
                     onStartTyping = { startEditing(n) },
                 )
                 mode == "read" -> {
-                    when (val s = docState) {
+                    // Still the previous day's document: render nothing for the frame or two
+                    // until this day's arrives, rather than the wrong day's content.
+                    when (val s = docState.takeUnless { it is DocumentUiState.Loaded && it.fileName != n.fileName }) {
                         is DocumentUiState.Error -> Box(Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.Center) {
                             Text(s.message, fontFamily = PlexSans, color = c.ink2)
                         }
@@ -377,7 +415,7 @@ fun DailyNoteScreen(
                         }
                     }
                     LaunchedEffect(editState.loading, editState.bufferRevision) {
-                        if (!editState.loading && editState.error == null) {
+                        if (!editState.loading && editState.error == null && editState.fileName == n.fileName) {
                             val cursor = if (!fieldLoaded) (editState.cursor ?: editState.buffer.length) else textState.selection.start
                             echoToSkip = editState.buffer
                             textState.edit {
@@ -420,23 +458,18 @@ fun DailyNoteScreen(
                         imeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0,
                         onLink = {},
                         modifier = Modifier.fillMaxSize(),
+                        // In Edit mode the pills ride inside the editor's text area, so they
+                        // sit above the formatting toolbar (below that area) whenever the
+                        // keyboard brings it up, instead of on top of it.
+                        overlay = { DateNavPills(n, ::navigateDate) },
                     )
                 }
-            }
-            nav?.let { n2 ->
-                // Scaffold's own content padding already reserves exactly the bottomBar's
-                // height (the LinkedReferencesBar, when shown), so the content Box's bottom
-                // edge already sits flush above it -- a further bump here would double-count
-                // that space and float the pills far higher than intended.
-                Box(
-                    Modifier.align(androidx.compose.ui.Alignment.BottomStart)
-                        .padding(start = 16.dp, bottom = 16.dp),
-                ) { DateNavPill(label = shortLabel(n2.previousDate), leading = true) { runGuarded { onNavigateDate(n2.previousDate) } } }
-                Box(
-                    Modifier.align(androidx.compose.ui.Alignment.BottomEnd)
-                        .padding(end = 16.dp, bottom = 16.dp),
-                ) { DateNavPill(label = shortLabel(n2.nextDate), leading = false) { runGuarded { onNavigateDate(n2.nextDate) } } }
-            }
+            } }
+            // Scaffold's own content padding already reserves exactly the bottomBar's
+            // height (the LinkedReferencesBar, when shown), so the content Box's bottom
+            // edge already sits flush above it -- a further bump here would double-count
+            // that space and float the pills far higher than intended.
+            if (mode == "read") nav?.let { DateNavPills(it, ::navigateDate) }
         }
     }
 
@@ -449,7 +482,7 @@ fun DailyNoteScreen(
                 // Picking the date already being viewed just closes the sheet -- a full
                 // re-navigation would reset Edit mode back to Read and lose scroll position
                 // for no reason.
-                if (picked != date) runGuarded { onNavigateDate(picked) }
+                if (picked != date) navigateDate(picked)
             },
             onDismiss = { datePickerOpen = false },
         )
@@ -528,11 +561,27 @@ private fun shortLabel(date: LocalDate): String =
     date.format(DateTimeFormatter.ofPattern("EEE d"))
 
 @Composable
+private fun androidx.compose.foundation.layout.BoxScope.DateNavPills(n: DailiesNavState, onNavigate: (LocalDate) -> Unit) {
+    Box(
+        Modifier.align(androidx.compose.ui.Alignment.BottomStart)
+            .padding(start = 16.dp, bottom = 16.dp),
+    ) { DateNavPill(label = shortLabel(n.previousDate), leading = true) { onNavigate(n.previousDate) } }
+    Box(
+        Modifier.align(androidx.compose.ui.Alignment.BottomEnd)
+            .padding(end = 16.dp, bottom = 16.dp),
+    ) { DateNavPill(label = shortLabel(n.nextDate), leading = false) { onNavigate(n.nextDate) } }
+}
+
+@Composable
 private fun DateNavPill(label: String, leading: Boolean, onClick: () -> Unit) {
     val c = MaterialTheme.grove
+    val shape = RoundedCornerShape(20.dp)
     Box(
         Modifier
-            .clip(RoundedCornerShape(20.dp))
+            // Floats over note text, so it needs a lift to read as a control
+            // (DESIGN_SYSTEM.md › Elevation & Shadow).
+            .shadow(6.dp, shape, clip = false)
+            .clip(shape)
             .background(c.surface)
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 9.dp),

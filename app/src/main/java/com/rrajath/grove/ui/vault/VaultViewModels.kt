@@ -815,6 +815,12 @@ class DocumentViewModel(
         sync.requestReindex(fileName, newText, syncReason)
     }
 
+    /** Show an already-parsed [document] immediately, with no disk round-trip; a
+     *  following [load] still refreshes it (and is a no-op if nothing changed). */
+    fun show(fileName: String, document: OrgDocument) {
+        _state.value = DocumentUiState.Loaded(fileName, document)
+    }
+
     fun load(fileName: String) {
         viewModelScope.launch {
             val vault = vaultFlow.value

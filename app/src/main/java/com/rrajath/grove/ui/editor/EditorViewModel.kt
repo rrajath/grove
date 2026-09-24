@@ -375,6 +375,16 @@ class EditorViewModel(
         )
     }
 
+    /**
+     * Drop the current session without saving, back to a fresh not-yet-loaded state.
+     * For a screen that reuses this ViewModel across files (Dailies switches days in
+     * place): without it, a buffer the user chose to discard would stay dirty and the
+     * idle auto-save below would still write it 5s later.
+     */
+    fun reset() {
+        _state.value = EditorUiState()
+    }
+
     /** The text field reporting the user's own typing; never echoed back to it. */
     fun onBufferChange(text: String) {
         _state.update { it.copy(buffer = text, dirty = true) }

@@ -35,9 +35,9 @@ private const val MIN_VELOCITY_PX_PER_SEC = 600f
 //    swallow the swipe.
 // 3. The EditorToolbar row (if present) sits inside the same swipeable content Box, so
 //    a finger dragging across it can trigger day-navigation instead of a toolbar action.
-// 4. Swipes silently do nothing while `nav == null` -- each date navigation creates a
-//    fresh DailiesViewModel that does a full vault listing; on a large SAF-backed
-//    vault, rapid swiping may feel unresponsive until that listing completes.
+// 4. Swipes silently do nothing while `nav == null`, which is only until the screen's
+//    first day-index listing completes (seconds on a large SAF-backed vault). After
+//    that, date changes are resolved in memory by DailiesViewModel.select.
 fun isDeliberateSwipe(totalDragPx: Float, velocityPxPerSec: Float, screenWidthPx: Float): SwipeDirection? {
     val minDistance = screenWidthPx * MIN_DISTANCE_FRACTION
     if (kotlin.math.abs(totalDragPx) < minDistance) return null

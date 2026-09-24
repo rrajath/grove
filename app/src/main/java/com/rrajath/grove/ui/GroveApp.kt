@@ -1,7 +1,5 @@
 package com.rrajath.grove.ui
 
-import androidx.compose.animation.EnterTransition
-import androidx.compose.animation.ExitTransition
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -556,37 +554,16 @@ private fun GroveNavigation(
                     )
                 }
             }
-            composable(
-                Routes.DAILIES,
-                // Date-to-date navigation (swipe / nav pill / Today / date picker) replaces
-                // this same route with itself -- the global fade-through+scale (450ms) reads
-                // as a jarring crossfade between two nearly-identical screens there, so skip
-                // it entirely when both sides of the transition are DAILIES; every other
-                // entry into/out of Dailies keeps the normal app-wide transition.
-                enterTransition = {
-                    if (initialState.destination.route == Routes.DAILIES) EnterTransition.None else navEnterTransition()
-                },
-                exitTransition = {
-                    if (targetState.destination.route == Routes.DAILIES) ExitTransition.None else navExitTransition()
-                },
-                popEnterTransition = {
-                    if (initialState.destination.route == Routes.DAILIES) EnterTransition.None else navPopEnterTransition()
-                },
-                popExitTransition = {
-                    if (targetState.destination.route == Routes.DAILIES) ExitTransition.None else navPopExitTransition()
-                },
-            ) { entry ->
+            // Date-to-date navigation (swipe / nav pill / Today / date picker) happens
+            // inside DailyNoteScreen, not by re-navigating this route, so the route's
+            // {date} is only the day it opens on.
+            composable(Routes.DAILIES) { entry ->
                 val dateArg = entry.arguments?.getString("date")
                 val date = dateArg?.let { runCatching { java.time.LocalDate.parse(it) }.getOrNull() }
                     ?: java.time.LocalDate.now()
                 com.rrajath.grove.ui.dailies.DailyNoteScreen(
-                    date = date,
+                    initialDate = date,
                     onBack = { navController.popBackStack() },
-                    onNavigateDate = { newDate ->
-                        navController.navigate(Routes.dailies(newDate.toString())) {
-                            popUpTo(Routes.DAILIES) { inclusive = true }
-                        }
-                    },
                     onOpenNote = { target -> navController.navigate(Routes.note(target.encode())) },
                     onOpenOutline = { target -> navController.navigate(Routes.outline(target)) },
                     showBacklinks = settings.roamFeaturesEnabled && settings.roamShowBacklinks,
