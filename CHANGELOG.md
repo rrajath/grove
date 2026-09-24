@@ -77,6 +77,7 @@ re-uploads the APKs to the existing release instead of failing.
 - Expose FileContent as internal for Dailies cross-package reuse.
 - Extract WholeFileEditorBody out of EditRegionScreen for Dailies reuse.
 - Backlink scans and suggestion loading no longer run while their Roam Features toggles are off.
+- Dailies drops the TODAY pill; the calendar icon turns accent-colored when viewing another day.
 
 ### Fixed
 - Vault.save() now creates missing files before writing (required by SAF backend).

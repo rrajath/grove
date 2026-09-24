@@ -56,7 +56,6 @@ import com.rrajath.grove.settings.FontSizePreference
 import com.rrajath.grove.ui.components.GroveTopBar
 import com.rrajath.grove.ui.components.LinkedReferencesBar
 import com.rrajath.grove.ui.components.LinkedReferencesSheet
-import com.rrajath.grove.ui.components.Pill
 import com.rrajath.grove.ui.components.SegmentedControl
 import com.rrajath.grove.org.OrgTimestamp
 import com.rrajath.grove.ui.components.InsertTimestampScreen
@@ -274,14 +273,6 @@ fun DailyNoteScreen(
                             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f, fill = false),
                         )
-                        if (nav?.isToday == true) {
-                            Box(Modifier.padding(start = 6.dp)) {
-                                // A tight title area (leading/actions crowding it out) must
-                                // shrink or clip this pill's own single line, never wrap it
-                                // into two -- there's no room for a second line here.
-                                Pill(text = "TODAY", fg = c.accentInk, bg = c.accent, maxLines = 1)
-                            }
-                        }
                     }
                 },
                 subtitle = {
@@ -313,10 +304,13 @@ fun DailyNoteScreen(
                             .testTag("dailies_today_button"),
                         contentAlignment = androidx.compose.ui.Alignment.Center,
                     ) {
+                        // Accent while viewing any other day, as the cue that a tap jumps
+                        // back to today; neutral on today itself (replaces a TODAY pill).
+                        val todayTint = if (date == LocalDate.now()) c.ink2 else c.accent
                         androidx.compose.material3.Icon(
                             Icons.Filled.CalendarToday,
                             contentDescription = "Today",
-                            tint = c.ink2,
+                            tint = todayTint,
                             modifier = Modifier.size(24.dp),
                         )
                         // Mirrors the day-number overlay real calendar-app icons use, so the
@@ -324,7 +318,7 @@ fun DailyNoteScreen(
                         Text(
                             LocalDate.now().dayOfMonth.toString(),
                             fontFamily = PlexSans, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-                            fontSize = 9.sp, color = c.ink2,
+                            fontSize = 9.sp, color = todayTint,
                             modifier = Modifier.padding(top = 5.dp),
                         )
                     }
