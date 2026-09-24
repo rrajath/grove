@@ -62,6 +62,9 @@ import com.rrajath.grove.ui.editor.EditRegion
 import com.rrajath.grove.ui.editor.EditorViewModel
 import com.rrajath.grove.ui.editor.OrgSyntaxHighlight
 import com.rrajath.grove.ui.editor.WholeFileEditorBody
+import com.rrajath.grove.ui.editor.WordAtCursor
+import com.rrajath.grove.ui.editor.filterAutoLinkSuggestions
+import com.rrajath.grove.ui.editor.wordAtCursor
 import com.rrajath.grove.ui.screens.FileContent
 import com.rrajath.grove.ui.screens.IconGlyph
 import com.rrajath.grove.ui.screens.ReadModeBreadcrumb
@@ -82,6 +85,8 @@ fun DailyNoteScreen(
     onOpenNote: (NoteRef) -> Unit,
     onOpenOutline: (fileName: String) -> Unit,
     showBacklinks: Boolean,
+    /** Settings § Roam Features: file/heading link suggestions while typing in Edit mode. */
+    showSuggestions: Boolean,
     showPreface: Boolean,
     showPropertyDrawers: Boolean,
     readModeFontSize: FontSizePreference,
@@ -121,6 +126,14 @@ fun DailyNoteScreen(
     }
     fun leave() = runGuarded(onBack)
 
+    // Same as the Read side of the toggle: saves first if there's anything unsaved.
+    fun switchToRead() {
+        if (editState.dirty) editorViewModel.save(onSaved = { mode = "read" }) else mode = "read"
+    }
+    // Back out of Edit lands in Read, where the user came from (as on a regular note,
+    // whose editor sits on top of its Read screen); only Back from Read leaves Dailies.
+    fun back() = if (mode == "edit") switchToRead() else leave()
+
     // Everything here runs synchronously in the tap/swipe handler, so the new day's
     // nav state and (when prefetched) its document land in the very next frame.
     fun goTo(newDate: LocalDate) {
@@ -141,7 +154,7 @@ fun DailyNoteScreen(
         if (n.exists) dailiesViewModel.cachedDocument(n.fileName)?.let { documentViewModel.show(n.fileName, it) }
     }
     fun navigateDate(newDate: LocalDate) = runGuarded { goTo(newDate) }
-    androidx.activity.compose.BackHandler { leave() }
+    androidx.activity.compose.BackHandler { back() }
 
     // Shared by the empty-day tap-to-type affordance and the top-right Read/Edit
     // toggle: both are ways into Edit mode, and a brand-new (not-yet-existing)
@@ -194,7 +207,7 @@ fun DailyNoteScreen(
         topBar = {
             GroveTopBar(
                 leading = {
-                    IconGlyph("←", onClick = ::leave)
+                    IconGlyph("←", onClick = ::back)
                     if (mode == "edit" && (editState.dirty || editState.lastSavedAt != null)) {
                         androidx.compose.material3.Icon(
                             Icons.Outlined.Save,
@@ -279,7 +292,7 @@ fun DailyNoteScreen(
                         selectedIndex = if (mode == "edit") 1 else 0,
                         onSelect = { idx ->
                             if (idx == 0) {
-                                if (editState.dirty) editorViewModel.save(onSaved = { mode = "read" }) else mode = "read"
+                                switchToRead()
                             } else {
                                 nav?.let { startEditing(it) }
                             }
@@ -412,6 +425,27 @@ fun DailyNoteScreen(
                     val highlight = remember(c, editState.keywords) {
                         OrgSyntaxHighlight(c, editState.keywords)
                     }
+                    // Link suggestions while typing: same mechanism as EditNoteScreen /
+                    // EditRegionScreen -- an index loaded once, and a trigger word
+                    // recomputed on every text/selection change.
+                    val autoLinkIndex by editorViewModel.autoLinkIndex.collectAsStateWithLifecycle()
+                    var autoLinkTrigger by remember { mutableStateOf<WordAtCursor?>(null) }
+                    var expandedChipKeys by remember(autoLinkTrigger?.range) { mutableStateOf(emptySet<String>()) }
+                    val autoLinkSuggestions = remember(autoLinkTrigger?.text, autoLinkIndex) {
+                        val idx = autoLinkIndex
+                        val word = autoLinkTrigger?.text
+                        if (idx == null || word == null) emptyList() else filterAutoLinkSuggestions(idx, word)
+                    }
+                    LaunchedEffect(showSuggestions) {
+                        if (!showSuggestions) {
+                            autoLinkTrigger = null
+                            return@LaunchedEffect
+                        }
+                        editorViewModel.loadAutoLinkIndex()
+                        snapshotFlow { textState.text.toString() to textState.selection }.collect { (text, selection) ->
+                            autoLinkTrigger = wordAtCursor(text, selection)?.takeIf { it.text.length >= 3 }
+                        }
+                    }
 
                     LaunchedEffect(n.fileName, n.exists) {
                         // A file that already exists but is being opened straight
@@ -447,11 +481,11 @@ fun DailyNoteScreen(
                         scrollState = scrollState,
                         highlight = highlight,
                         focusRequester = focusRequester,
-                        autoLinkSuggestions = emptyList(),
-                        expandedChipKeys = emptySet(),
-                        autoLinkTriggerRange = null,
-                        onToggleExpandChip = {},
-                        onClearAutoLinkTrigger = {},
+                        autoLinkSuggestions = autoLinkSuggestions,
+                        expandedChipKeys = expandedChipKeys,
+                        autoLinkTriggerRange = autoLinkTrigger?.range,
+                        onToggleExpandChip = { key -> expandedChipKeys = expandedChipKeys + key },
+                        onClearAutoLinkTrigger = { autoLinkTrigger = null },
                         onOverwriteStale = { editorViewModel.save(force = true) },
                         onReloadStale = {
                             editorViewModel.dismissStale()
@@ -466,6 +500,7 @@ fun DailyNoteScreen(
                         imeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0,
                         onLink = {},
                         modifier = Modifier.fillMaxSize(),
+                        bottomClearance = 80.dp,
                     )
                 }
             } }

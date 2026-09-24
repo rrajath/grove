@@ -486,6 +486,9 @@ internal fun WholeFileEditorBody(
     imeVisible: Boolean,
     onLink: () -> Unit,
     modifier: Modifier = Modifier,
+    /** Empty room below the last line. Dailies passes EditNoteScreen's 80dp so the
+     *  suggestion strip gets its own row under the text instead of covering it. */
+    bottomClearance: androidx.compose.ui.unit.Dp = 18.dp,
 ) {
     val c = MaterialTheme.grove
     val scrollButtonThresholdPx = with(LocalDensity.current) { (13.5f * 1.85f * 5).sp.toPx() }
@@ -509,7 +512,7 @@ internal fun WholeFileEditorBody(
                     scrollState = scrollState,
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(18.dp)
+                        .padding(start = 18.dp, top = 18.dp, end = 18.dp, bottom = bottomClearance)
                         .focusRequester(focusRequester),
                 )
             }

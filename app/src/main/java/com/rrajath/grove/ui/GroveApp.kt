@@ -567,6 +567,7 @@ private fun GroveNavigation(
                     onOpenNote = { target -> navController.navigate(Routes.note(target.encode())) },
                     onOpenOutline = { target -> navController.navigate(Routes.outline(target)) },
                     showBacklinks = settings.roamFeaturesEnabled && settings.roamShowBacklinks,
+                    showSuggestions = settings.roamFeaturesEnabled && settings.roamShowSuggestions,
                     showPreface = settings.showPreface,
                     showPropertyDrawers = settings.showPropertyDrawers,
                     readModeFontSize = settings.readModeFontSize,
