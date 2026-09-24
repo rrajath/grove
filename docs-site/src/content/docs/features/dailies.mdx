@@ -1,0 +1,38 @@
+---
+title: Dailies
+description: A dedicated per-day note screen for journaling, distinct from browsing the vault notebook-by-notebook.
+---
+
+Dailies gives you one note per calendar day, separate from browsing notebook-by-notebook. Where the Notebooks list is organized by file and the Outline by heading, Dailies is organized by date: open it and you land on today's note, with the whole vault's days one swipe away in either direction.
+
+## Enabling Dailies
+
+Dailies lives under Settings → Roam Features → Dailies, and only appears once Roam Features are turned on. Three fields configure it:
+
+- **Dailies location** — the vault-relative folder new daily notes are created in. Leave it blank to create them at the vault root.
+- **File name pattern** — the `FilenamePattern` tokens used to name each day's file, for example `%<%Y-%m-%d>.org`.
+- **Header template** — the content a brand-new day's file is seeded with, expanded through the same placeholder syntax as capture templates. `%?` marks where the cursor lands after creation.
+
+## Opening Dailies
+
+With Roam Features and Dailies both configured, a **Dailies** row appears in the nav drawer, positioned just above Agenda. Unlike every other drawer row, which fills solid when it's the active route, the Dailies row always carries a thin accent border rather than a fill — it opens a different note every day, so there's no single fixed destination to mark "active." The row's trailing edge shows today's date in short form.
+
+## Navigating between days
+
+Inside Dailies, move between days three ways:
+
+- **Swipe left or right** on the note body, in both Read and Edit mode, to move to the next or previous day.
+- **Prev / next pills** below the note give the same navigation with an explicit tap target, each labeled with its date.
+- **Tap the calendar icon** in the top bar to jump straight back to today.
+- **Long-press the calendar icon** to open a date-picker sheet and jump to any date directly.
+
+If you're mid-edit with unsaved changes, navigating away with a swipe, a pill, the calendar icon, or the date picker all route through the same dirty-edit leave-confirmation guard as backing out of the screen, so a swipe can never silently discard changes.
+
+## Empty days
+
+A day with no note yet renders an empty state instead of a blank editor: "Nothing here yet. Tap to start typing and create `<filename>`." Tapping it creates the file, seeded from the header template, and drops you straight into editing. The empty state also reminds you that long-pressing the calendar icon opens the date picker, in case you meant to land on a different day.
+
+## Related
+
+- [Agenda](/features/agenda): the cross-vault view of scheduled and overdue tasks, complementary to Dailies' per-day journaling
+- [Settings Overview](/features/settings-overview): where Roam Features and the Dailies fields live
