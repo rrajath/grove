@@ -249,19 +249,29 @@ class EditorViewModelIntegrationTest {
     }
 
     @Test
-    fun `loadNewWholeFile seeds a dirty buffer and save creates the file`() = runTest {
+    fun `loadNewWholeFile seeds a clean buffer that save leaves uncreated until actually edited`() = runTest {
         val vm = editor()
+        val seed = ":PROPERTIES:\n:ID: X\n:END:\n#+title: 2026-09-23\n"
 
-        vm.loadNewWholeFile("roam/daily/2026-09-23.org", ":PROPERTIES:\n:ID: X\n:END:\n#+title: 2026-09-23\n", cursor = 10)
-        assertTrue(vm.state.value.dirty)
+        vm.loadNewWholeFile("roam/daily/2026-09-23.org", seed, cursor = 10)
+        assertFalse("the seed template alone is not a user edit", vm.state.value.dirty)
         assertEquals(EditRegion.WHOLE_FILE, vm.state.value.region)
-        assertFalse("roam/daily/2026-09-23.org shouldn't exist until the first save", store.snapshot().containsKey("roam/daily/2026-09-23.org"))
+
+        // A save before any real typing (e.g. the user exits within the idle
+        // auto-save window) must be a no-op: creating the file with nothing but
+        // the seed's preamble would silently discard whatever they typed next.
+        vm.save()
+        advanceUntilIdle()
+        assertFalse("roam/daily/2026-09-23.org shouldn't exist without a real edit", store.snapshot().containsKey("roam/daily/2026-09-23.org"))
+
+        vm.onBufferChange(seed + "Actual note text\n")
+        assertTrue(vm.state.value.dirty)
 
         vm.save()
         advanceUntilIdle()
 
         assertFalse(vm.state.value.dirty)
-        assertTrue(store.snapshot().getValue("roam/daily/2026-09-23.org").startsWith(":PROPERTIES:"))
+        assertTrue(store.snapshot().getValue("roam/daily/2026-09-23.org").endsWith("Actual note text\n"))
     }
 
     @Test

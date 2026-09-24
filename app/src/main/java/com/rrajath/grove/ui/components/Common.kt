@@ -63,6 +63,7 @@ fun Pill(
     modifier: Modifier = Modifier,
     outline: Boolean = false,
     onClick: (() -> Unit)? = null,
+    maxLines: Int = Int.MAX_VALUE,
 ) {
     val clickMod = if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier
     Box(
@@ -78,6 +79,8 @@ fun Pill(
             fontFamily = PlexSans,
             fontWeight = FontWeight.SemiBold,
             fontSize = 11.sp,
+            maxLines = maxLines,
+            overflow = if (maxLines < Int.MAX_VALUE) androidx.compose.ui.text.style.TextOverflow.Clip else androidx.compose.ui.text.style.TextOverflow.Visible,
         )
     }
 }

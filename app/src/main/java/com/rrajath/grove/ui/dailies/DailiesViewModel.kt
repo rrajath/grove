@@ -84,12 +84,22 @@ class DailiesViewModel(
                     } else {
                         date.minusDays(1)
                     }
+                // Forward from today always lands on tomorrow, existing or not -- today is
+                // the one date the user is always actively adding to, so skip-to-next-existing
+                // would trap them on today's own note. From any other date (including a future
+                // one already reached this way), forward instead jumps to the nearest existing
+                // entry ahead of it, only falling back to a plain +1 day when there isn't one.
+                val next = if (date == LocalDate.now()) {
+                    date.plusDays(1)
+                } else {
+                    existingList.firstOrNull { it > date } ?: date.plusDays(1)
+                }
                 DailiesNavState(
                     date = date,
                     fileName = fileName,
                     exists = exists,
                     isToday = date == LocalDate.now(),
-                    nextDate = date.plusDays(1),
+                    nextDate = next,
                     previousDate = previous,
                     existingDates = existing,
                 )

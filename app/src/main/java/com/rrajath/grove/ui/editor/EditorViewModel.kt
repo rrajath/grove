@@ -353,10 +353,12 @@ class EditorViewModel(
 
     /**
      * Seed a brand-new whole-file editing session for [fileName], which does not
-     * exist on disk yet: the buffer starts dirty (there is nothing on disk to
-     * compare against) with [seedText] and a cursor at [cursor]. The first
-     * [save] (auto or manual) creates the file — see [writeBuffer]'s WHOLE_FILE
-     * branch, which no longer requires [Vault.open] to succeed.
+     * exist on disk yet, with [seedText] and a cursor at [cursor]. Starts clean
+     * (not dirty): the seed is just a template, not something the user asked to
+     * save, so nothing should hit disk -- and the idle auto-save timer shouldn't
+     * even start -- until [onBufferChange] reports a real edit. The first [save]
+     * (auto or manual) after that creates the file — see [writeBuffer]'s
+     * WHOLE_FILE branch, which no longer requires [Vault.open] to succeed.
      */
     fun loadNewWholeFile(fileName: String, seedText: String, cursor: Int) {
         _state.value = EditorUiState(
@@ -369,7 +371,7 @@ class EditorViewModel(
             cursor = cursor,
             loadedRevision = null,
             keywords = keywords.value,
-            dirty = true,
+            dirty = false,
         )
     }
 

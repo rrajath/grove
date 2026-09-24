@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -168,7 +169,7 @@ fun DailyNoteScreen(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(10.dp))
                                 .clickable { if (editState.dirty) editorViewModel.save() }
-                                .padding(10.dp),
+                                .padding(6.dp),
                         )
                     }
                 },
@@ -180,10 +181,16 @@ fun DailyNoteScreen(
                             date.format(DateTimeFormatter.ofPattern("EEE, MMM d")),
                             fontFamily = PlexSans, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
                             fontSize = 17.sp, color = c.ink,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false),
                         )
                         if (nav?.isToday == true) {
-                            Box(Modifier.padding(start = 8.dp)) {
-                                Pill(text = "TODAY", fg = c.accentInk, bg = c.accent)
+                            Box(Modifier.padding(start = 6.dp)) {
+                                // A tight title area (leading/actions crowding it out) must
+                                // shrink or clip this pill's own single line, never wrap it
+                                // into two -- there's no room for a second line here.
+                                Pill(text = "TODAY", fg = c.accentInk, bg = c.accent, maxLines = 1)
                             }
                         }
                     }
@@ -215,8 +222,22 @@ fun DailyNoteScreen(
                             )
                             .padding(10.dp)
                             .testTag("dailies_today_button"),
+                        contentAlignment = androidx.compose.ui.Alignment.Center,
                     ) {
-                        androidx.compose.material3.Icon(Icons.Filled.CalendarToday, contentDescription = "Today", tint = c.ink2)
+                        androidx.compose.material3.Icon(
+                            Icons.Filled.CalendarToday,
+                            contentDescription = "Today",
+                            tint = c.ink2,
+                            modifier = Modifier.size(24.dp),
+                        )
+                        // Mirrors the day-number overlay real calendar-app icons use, so the
+                        // glyph reads as "jump to today" rather than a generic date picker.
+                        Text(
+                            LocalDate.now().dayOfMonth.toString(),
+                            fontFamily = PlexSans, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                            fontSize = 9.sp, color = c.ink2,
+                            modifier = Modifier.padding(top = 5.dp),
+                        )
                     }
                     SegmentedControl(
                         options = listOf("Read", "Edit"),
@@ -403,13 +424,17 @@ fun DailyNoteScreen(
                 }
             }
             nav?.let { n2 ->
+                // Scaffold's own content padding already reserves exactly the bottomBar's
+                // height (the LinkedReferencesBar, when shown), so the content Box's bottom
+                // edge already sits flush above it -- a further bump here would double-count
+                // that space and float the pills far higher than intended.
                 Box(
                     Modifier.align(androidx.compose.ui.Alignment.BottomStart)
-                        .padding(start = 16.dp, bottom = if (showBacklinks && isRoamFile) 74.dp else 16.dp),
+                        .padding(start = 16.dp, bottom = 16.dp),
                 ) { DateNavPill(label = shortLabel(n2.previousDate), leading = true) { runGuarded { onNavigateDate(n2.previousDate) } } }
                 Box(
                     Modifier.align(androidx.compose.ui.Alignment.BottomEnd)
-                        .padding(end = 16.dp, bottom = if (showBacklinks && isRoamFile) 74.dp else 16.dp),
+                        .padding(end = 16.dp, bottom = 16.dp),
                 ) { DateNavPill(label = shortLabel(n2.nextDate), leading = false) { runGuarded { onNavigateDate(n2.nextDate) } } }
             }
         }
