@@ -71,6 +71,7 @@ re-uploads the APKs to the existing release instead of failing.
 ### Fixed
 - Vault.save() now creates missing files before writing (required by SAF backend).
 - Dailies settings moved into their own section; editing stopped resetting to defaults; keyboard no longer covers the field being edited.
+- Fix Dailies file name patterns containing `%(slug)` never matching existing daily notes.
 
 ## [1.7.1] - 2026-09-22
 

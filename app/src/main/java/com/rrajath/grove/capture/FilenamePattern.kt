@@ -30,6 +30,7 @@ object FilenamePattern {
      * for instance, can't distinguish which day a file belongs to).
      */
     fun toDateRegex(pattern: String): Regex? {
+        if (pattern.contains(SLUG_TOKEN)) return null
         var hasYear = false
         var hasMonth = false
         var hasDay = false

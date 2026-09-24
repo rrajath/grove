@@ -82,13 +82,14 @@ class DailiesRepositoryTest {
 
     @Test
     fun `previousExistingDate falls back to a bounded day-by-day walk for an unparseable pattern`() = runTest {
-        // No day token: existingDates can't reverse-parse this, so the walk must
-        // still find an existing file by generating and checking candidates.
-        val store = FakeFileStore(mapOf("roam/daily/standup-2026-09-18.org" to ""))
+        // No year token: toDateRegex returns null for this pattern, so existingDates
+        // can't reverse-parse it and the walk must still find an existing file by
+        // generating and checking candidates day by day.
+        val store = FakeFileStore(mapOf("roam/daily/standup-09-18.org" to ""))
         val repo = DailiesRepository(store)
         assertEquals(
             LocalDate.of(2026, 9, 18),
-            repo.previousExistingDate("roam/daily", "standup-%<%Y-%m-%d>.org", LocalDate.of(2026, 9, 23)),
+            repo.previousExistingDate("roam/daily", "standup-%<%m-%d>.org", LocalDate.of(2026, 9, 23)),
         )
     }
 

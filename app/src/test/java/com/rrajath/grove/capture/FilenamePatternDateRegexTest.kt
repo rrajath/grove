@@ -46,4 +46,9 @@ class FilenamePatternDateRegexTest {
         assertEquals(LocalDate.of(2026, 9, 23), FilenamePattern.parseDate("2026-09-23+notes.org", "%<%Y-%m-%d>+notes.org"))
         assertNull(regex?.find("2026-09-23Xnotes.org"))
     }
+
+    @Test
+    fun `toDateRegex is null when the pattern contains the slug token`() {
+        assertNull(FilenamePattern.toDateRegex("%<%Y-%m-%d>-%(slug).org"))
+    }
 }
