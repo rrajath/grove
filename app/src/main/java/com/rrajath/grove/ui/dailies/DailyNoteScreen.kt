@@ -58,7 +58,18 @@ import com.rrajath.grove.ui.components.LinkedReferencesBar
 import com.rrajath.grove.ui.components.LinkedReferencesSheet
 import com.rrajath.grove.ui.components.Pill
 import com.rrajath.grove.ui.components.SegmentedControl
+import com.rrajath.grove.org.OrgTimestamp
+import com.rrajath.grove.ui.components.InsertTimestampScreen
 import com.rrajath.grove.ui.editor.EditRegion
+import com.rrajath.grove.ui.editor.LinkIdChoice
+import com.rrajath.grove.ui.editor.LinkIdChoiceDialog
+import com.rrajath.grove.ui.editor.LinkPick
+import com.rrajath.grove.ui.editor.LinkPickerSheet
+import com.rrajath.grove.ui.editor.applyEdit
+import com.rrajath.grove.ui.editor.applyToolbarLink
+import com.rrajath.grove.ui.editor.insertAtCursor
+import com.rrajath.grove.ui.editor.resolveLinkPick
+import com.rrajath.grove.ui.vault.headlineAtLine
 import com.rrajath.grove.ui.editor.EditorViewModel
 import com.rrajath.grove.ui.editor.OrgSyntaxHighlight
 import com.rrajath.grove.ui.editor.WholeFileEditorBody
@@ -449,6 +460,25 @@ fun DailyNoteScreen(
                 }
                 else -> {
                     val textState = rememberTextFieldState()
+                    val clipboard = androidx.compose.ui.platform.LocalClipboard.current
+                    val linkPicker by editorViewModel.linkPicker.collectAsStateWithLifecycle()
+                    // Selection captured when the link picker opens, so the pick
+                    // replaces it (and uses it as the description) on return.
+                    var pendingLinkSel by remember { mutableStateOf<TextRange?>(null) }
+                    var pendingLinkDesc by remember { mutableStateOf<String?>(null) }
+                    var linkIdChoice by remember { mutableStateOf<LinkIdChoice?>(null) }
+                    var timestampPickerOpen by remember { mutableStateOf(false) }
+                    fun spliceLink(linkText: String) {
+                        val sel = pendingLinkSel ?: textState.selection
+                        val lo = sel.min.coerceIn(0, textState.text.length)
+                        val hi = sel.max.coerceIn(lo, textState.text.length)
+                        textState.edit {
+                            replace(lo, hi, linkText)
+                            selection = TextRange(lo + linkText.length)
+                        }
+                        pendingLinkSel = null
+                        pendingLinkDesc = null
+                    }
                     var fieldLoaded by remember(n.fileName) { mutableStateOf(false) }
                     var echoToSkip by remember { mutableStateOf<String?>(null) }
                     val focusRequester = remember { FocusRequester() }
@@ -529,10 +559,68 @@ fun DailyNoteScreen(
                         unlinkedCount = 0,
                         onOpenLinkedRefs = {},
                         imeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0,
-                        onLink = {},
+                        onLink = { textState.applyToolbarLink(clipboard) },
+                        onLinkLongPress = {
+                            val sel = textState.selection
+                            pendingLinkSel = sel
+                            pendingLinkDesc = if (sel.collapsed) null else textState.text.substring(sel.min, sel.max)
+                            editorViewModel.startLinkPicker()
+                        },
+                        onTimestampLongPress = { timestampPickerOpen = true },
                         modifier = Modifier.fillMaxSize(),
                         bottomClearance = 80.dp,
                     )
+
+                    // Toolbar long-press pickers, as in EditNoteScreen: the file/heading
+                    // link picker and the Insert Timestamp screen (active/inactive toggle).
+                    linkPicker?.let { r ->
+                        fun confirm(doc: com.rrajath.grove.org.OrgDocument, file: String, heading: com.rrajath.grove.org.OrgHeadline?) {
+                            editorViewModel.linkPickerCancel()
+                            when (val pick = resolveLinkPick(n.fileName, doc, file, heading, pendingLinkDesc)) {
+                                is LinkPick.Direct -> spliceLink(pick.link)
+                                is LinkPick.AskId -> linkIdChoice = pick.choice
+                            }
+                        }
+                        LinkPickerSheet(
+                            state = r,
+                            onQueryChange = editorViewModel::linkPickerQueryChange,
+                            onPickNotebook = editorViewModel::linkPickerPickNotebook,
+                            onDrillInto = editorViewModel::linkPickerDrillInto,
+                            onBack = editorViewModel::linkPickerBack,
+                            onCancel = editorViewModel::linkPickerCancel,
+                            onConfirmFileOrHeading = {
+                                val doc = r.pickedDoc
+                                val file = r.pickedFile
+                                if (doc != null && file != null) {
+                                    confirm(doc, file, r.path.lastOrNull()?.let { doc.headlineAtLine(it) })
+                                }
+                            },
+                            onSelectSearchResult = editorViewModel::linkPickerSelectSearchResult,
+                            onConfirmHeading = { doc, file, heading -> confirm(doc, file, heading) },
+                        )
+                    }
+                    linkIdChoice?.let { choice ->
+                        LinkIdChoiceDialog(
+                            choice = choice,
+                            onUseId = { linkIdChoice = null; spliceLink(choice.withId) },
+                            onUsePlain = { linkIdChoice = null; spliceLink(choice.withPlain) },
+                            onDismiss = { linkIdChoice = null },
+                        )
+                    }
+                    if (timestampPickerOpen) {
+                        InsertTimestampScreen(
+                            title = date.format(DateTimeFormatter.ofPattern("EEE, MMM d")),
+                            initial = remember {
+                                val now = java.time.LocalDateTime.now()
+                                OrgTimestamp(now.toLocalDate(), time = now.toLocalTime().withSecond(0).withNano(0), active = false)
+                            },
+                            onDismiss = { timestampPickerOpen = false },
+                            onConfirm = { ts ->
+                                textState.applyEdit { insertAtCursor(it, ts.format()) }
+                                timestampPickerOpen = false
+                            },
+                        )
+                    }
                 }
             } }
             // Scaffold's own content padding already reserves exactly the bottomBar's

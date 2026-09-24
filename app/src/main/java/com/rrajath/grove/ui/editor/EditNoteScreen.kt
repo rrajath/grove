@@ -229,46 +229,9 @@ fun EditNoteScreen(
     /** Turn the picked file (top level) or heading into a link, asking about an ID first when there is one. */
     fun confirmLinkPick(doc: OrgDocument, file: String, heading: OrgHeadline?) {
         viewModel.linkPickerCancel()
-
-        // With text selected the selection is the description; with nothing
-        // selected the link falls back to naming its target (the heading title,
-        // or the file's #+TITLE: / base name).
-        val desc = pendingLinkDesc ?: if (heading != null) {
-            heading.title
-        } else {
-            doc.preambleKeywords
-                .firstOrNull { it.first.equals("#+TITLE:", ignoreCase = true) }
-                ?.second?.takeIf { it.isNotBlank() }
-                ?: file.substringAfterLast('/').removeSuffix(".org")
-        }
-        if (heading == null) {
-            // File-level link. A file:-link is always relative to the editing
-            // file's directory (just the name for a link into the same file).
-            val relPath = relativeOrgPath(state.fileName, file)
-            val fileId = doc.fileId
-            if (fileId != null) {
-                linkIdChoice = LinkIdChoice(
-                    withId = formatHeadingLink(HeadingLinkTarget.ById(fileId), desc),
-                    withPlain = formatFileLink(relPath, desc),
-                    subject = "file",
-                )
-            } else {
-                spliceLink(formatFileLink(relPath, desc))
-            }
-            return
-        }
-
-        // Heading link. Drop the file: qualifier when the heading is in this note.
-        val relPath = if (file == state.fileName) null else relativeOrgPath(state.fileName, file)
-        val hasId = heading.id != null || heading.customId != null
-        if (!hasId) {
-            spliceLink(formatHeadingLink(HeadingLinkTarget.ByName(heading.title, relPath), desc))
-        } else {
-            linkIdChoice = LinkIdChoice(
-                withId = formatHeadingLink(resilientHeadingTarget(heading.id, heading.customId, relPath), desc),
-                withPlain = formatHeadingLink(HeadingLinkTarget.ByName(heading.title, relPath), desc),
-                subject = "heading",
-            )
+        when (val pick = resolveLinkPick(state.fileName, doc, file, heading, pendingLinkDesc)) {
+            is LinkPick.Direct -> spliceLink(pick.link)
+            is LinkPick.AskId -> linkIdChoice = pick.choice
         }
     }
 
@@ -718,40 +681,11 @@ fun EditNoteScreen(
     }
 
     linkIdChoice?.let { choice ->
-        androidx.compose.material3.AlertDialog(
-            onDismissRequest = { linkIdChoice = null },
-            containerColor = c.surface,
-            title = {
-                Text(
-                    "Use the ${choice.subject}'s ID?",
-                    fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
-                    fontSize = 16.sp, color = c.ink,
-                )
-            },
-            text = {
-                Text(
-                    "This ${choice.subject} has an ID. An ID link keeps working if it is later " +
-                        "renamed or moved to another file.",
-                    fontFamily = PlexSans, fontSize = 14.sp, color = c.ink2,
-                )
-            },
-            confirmButton = {
-                androidx.compose.material3.TextButton(onClick = {
-                    linkIdChoice = null
-                    spliceLink(choice.withId)
-                }) { Text("Use ID", color = c.accent, fontWeight = FontWeight.SemiBold) }
-            },
-            dismissButton = {
-                androidx.compose.material3.TextButton(onClick = {
-                    linkIdChoice = null
-                    spliceLink(choice.withPlain)
-                }) {
-                    Text(
-                        if (choice.subject == "file") "Use file link" else "Use heading name",
-                        color = c.ink2,
-                    )
-                }
-            },
+        LinkIdChoiceDialog(
+            choice = choice,
+            onUseId = { linkIdChoice = null; spliceLink(choice.withId) },
+            onUsePlain = { linkIdChoice = null; spliceLink(choice.withPlain) },
+            onDismiss = { linkIdChoice = null },
         )
     }
 
@@ -886,13 +820,6 @@ fun EditNoteScreen(
         )
     }
 }
-
-/**
- * A picked link target that carries an ID: the "Use the …'s ID?" dialog lets the
- * user commit either [withId] (resilient) or [withPlain]. [subject] is `"file"`
- * or `"heading"` and drives the dialog copy.
- */
-private data class LinkIdChoice(val withId: String, val withPlain: String, val subject: String)
 
 /**
  * Char offset of the start of absolute doc line [targetLineIndex] within

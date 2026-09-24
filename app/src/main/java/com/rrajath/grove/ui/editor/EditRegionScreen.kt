@@ -486,6 +486,10 @@ internal fun WholeFileEditorBody(
     imeVisible: Boolean,
     onLink: () -> Unit,
     modifier: Modifier = Modifier,
+    /** Toolbar `[[]]` long-press (link picker); null keeps the button tap-only. */
+    onLinkLongPress: (() -> Unit)? = null,
+    /** Toolbar clock long-press (Insert Timestamp picker); null inserts a stamp directly. */
+    onTimestampLongPress: (() -> Unit)? = null,
     /** Empty room below the last line. Dailies passes EditNoteScreen's 80dp so the
      *  suggestion strip gets its own row under the text instead of covering it. */
     bottomClearance: androidx.compose.ui.unit.Dp = 18.dp,
@@ -567,6 +571,8 @@ internal fun WholeFileEditorBody(
                         ?.let { edit -> TextFieldValue(edit.text, TextRange(edit.cursor)) }
                 }
             },
+            onLinkLongPress = onLinkLongPress,
+            onTimestampLongPress = onTimestampLongPress,
         )
     }
 }

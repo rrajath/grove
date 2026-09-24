@@ -49,13 +49,13 @@ fun EditorToolbar(
     onHeading: () -> Unit,
     onIndent: (Int) -> Unit,
     /**
-     * Long-press on the `[[]]` button. Supplied only by the main note editor,
+     * Long-press on the `[[]]` button. Supplied by the note editor and Dailies,
      * where it opens the file/heading link picker; null elsewhere (the button is
      * then tap-only).
      */
     onLinkLongPress: (() -> Unit)? = null,
     /**
-     * Long-press on the clock button. Supplied only by the main note editor,
+     * Long-press on the clock button. Supplied by the note editor and Dailies,
      * where it opens the Insert Timestamp picker instead of inserting directly;
      * null elsewhere (the button falls back to inserting a date+time stamp).
      */
