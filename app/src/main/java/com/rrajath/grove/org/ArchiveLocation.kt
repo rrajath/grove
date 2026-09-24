@@ -13,14 +13,22 @@ object ArchiveLocation {
      * Parses `<relative-path>[::* <heading>[/<heading>...]]` (a `./` prefix on
      * the path is stripped; nested heading segments are `/`-separated). Returns
      * null for a blank value.
+     *
+     * With [sourceFile] (the vault-relative path of the file being archived
+     * from), `%s` in the path expands to it, as in Emacs (`%s_archive` →
+     * `agenda.org_archive`), and an empty path (`::* Heading`) means that same
+     * file. A path that already has an extension (`agenda.org_archive`) is used
+     * exactly as written; only a bare name (`archive`) gets `.org` appended.
      */
-    fun parse(raw: String): ArchiveTarget? {
+    fun parse(raw: String, sourceFile: String? = null): ArchiveTarget? {
         val trimmed = raw.trim()
         if (trimmed.isEmpty()) return null
         val parts = trimmed.split("::", limit = 2)
-        val filePart = parts[0].trim().removePrefix("./")
-        if (filePart.isEmpty()) return null
-        val fileName = if (filePart.endsWith(".org")) filePart else "$filePart.org"
+        var filePart = parts[0].trim().removePrefix("./")
+        if (sourceFile != null) filePart = filePart.replace("%s", sourceFile)
+        if (filePart.isEmpty()) filePart = sourceFile ?: return null
+        val hasExtension = '.' in filePart.substringAfterLast('/').drop(1)
+        val fileName = if (hasExtension) filePart else "$filePart.org"
         val headingPath = if (parts.size > 1) {
             parts[1].trim().removePrefix("*").trim()
                 .split("/").map { it.trim() }.filter { it.isNotEmpty() }
@@ -33,17 +41,32 @@ object ArchiveLocation {
     /**
      * Nearest-ancestor-wins resolution, org-property-inheritance style: a
      * heading's own `:ARCHIVE:` wins, else the closest ancestor's, else the
-     * file-level `#+ARCHIVE:` keyword, else (when the doc/file chain names
-     * nothing) [settingsFallback] — the app-wide default archive location.
+     * file-level `:PROPERTIES:` drawer's `:ARCHIVE:`, else the file-level
+     * `#+ARCHIVE:` keyword, else (only when the file names nothing)
+     * [settingsFallback], the app-wide default archive location. Keys match
+     * case-insensitively, like org; a blank value doesn't stop the search.
+     * [sourceFile] feeds [parse]'s `%s` / same-file handling.
      */
-    fun resolve(doc: OrgDocument, headline: OrgHeadline, settingsFallback: ArchiveTarget? = null): ArchiveTarget? {
+    fun resolve(
+        doc: OrgDocument,
+        headline: OrgHeadline,
+        settingsFallback: ArchiveTarget? = null,
+        sourceFile: String? = null,
+    ): ArchiveTarget? {
         var current: OrgHeadline? = headline
         while (current != null) {
-            current.properties["ARCHIVE"]?.let { return parse(it) }
+            current.properties.entries.firstOrNull { it.key.equals("ARCHIVE", ignoreCase = true) }
+                ?.let { parse(it.value, sourceFile) }
+                ?.let { return it }
             current = doc.parent(current)
         }
-        val fileLevel = doc.preambleKeywords.firstOrNull { it.first == "#+ARCHIVE:" }?.second
-        return fileLevel?.let { parse(it) } ?: settingsFallback
+        doc.filePropertyDrawer.firstOrNull { it.first.equals(":ARCHIVE:", ignoreCase = true) }
+            ?.let { parse(it.second, sourceFile) }
+            ?.let { return it }
+        doc.preambleKeywords.firstOrNull { it.first.equals("#+ARCHIVE:", ignoreCase = true) }
+            ?.let { parse(it.second, sourceFile) }
+            ?.let { return it }
+        return settingsFallback
     }
 
     /**

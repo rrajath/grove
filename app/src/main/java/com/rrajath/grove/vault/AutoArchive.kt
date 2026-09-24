@@ -80,7 +80,7 @@ object AutoArchive {
             movedHeadline.keyword != null && doc.keywords.isDone(movedHeadline.keyword)
         if (!shouldArchive) return plain()
 
-        val target = ArchiveLocation.resolve(plainDoc, movedHeadline, settingsFallback(settings)) ?: return plain()
+        val target = ArchiveLocation.resolve(plainDoc, movedHeadline, settingsFallback(settings), fileName) ?: return plain()
         val write = refileSubtree(vault, plainDoc, fileName, movedHeadline, target) ?: return plain()
 
         return StateChangeResult.Archived(
@@ -122,7 +122,7 @@ object AutoArchive {
         var destDoc = vault.open(target.fileName)
         if (destDoc == null) {
             if (!createFileIfMissing) return null
-            vault.createNotebook(target.fileName)
+            vault.createFile(target.fileName)
             destDoc = vault.open(target.fileName) ?: return null
         }
         val destTextBefore = destDoc.text

@@ -71,6 +71,7 @@ re-uploads the APKs to the existing release instead of failing.
 - Add the Dailies route, drawer icon, and a gated drawer row; Dailies is now reachable from the drawer.
 - Add swipe-to-navigate between days on the Dailies screen, in both Read and Edit mode.
 - Add a long-press calendar sheet on the Dailies Today button to jump to any date.
+- Archive locations support `%s` for the current file name, as in Emacs; see Tips & Tricks.
 
 ### Changed
 - Read/Edit mode toggles now show eye and pencil icons instead of text labels, and shrink to fit them.
@@ -104,6 +105,7 @@ re-uploads the APKs to the existing release instead of failing.
 - Dailies toolbar: link tap works; long-press opens the link picker, clock long-press opens the timestamp picker.
 - Dailies date picker keeps a fixed height across months; month arrows have square ripples.
 - Dailies drawer icon uses weight 200 to match the other drawer icons.
+- Refile archive location now honors the file-level ARCHIVE property before Settings; archive files keep their exact name.
 
 ## [1.7.1] - 2026-09-22
 

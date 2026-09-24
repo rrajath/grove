@@ -114,6 +114,68 @@ class ArchiveLocationTest {
     }
 
     @Test
+    fun `parse keeps a non-org extension as written`() {
+        assertEquals(ArchiveTarget("agenda.org_archive", emptyList()), ArchiveLocation.parse("agenda.org_archive"))
+        assertEquals(ArchiveTarget("old/notes.txt", listOf("Done")), ArchiveLocation.parse("./old/notes.txt::* Done"))
+        assertEquals(ArchiveTarget("dir.v2/archive.org", emptyList()), ArchiveLocation.parse("dir.v2/archive"))
+    }
+
+    @Test
+    fun `parse expands percent-s to the source file and empty path to the same file`() {
+        assertEquals(
+            ArchiveTarget("work/agenda.org_archive", emptyList()),
+            ArchiveLocation.parse("%s_archive::", "work/agenda.org"),
+        )
+        assertEquals(
+            ArchiveTarget("agenda.org", listOf("Archive")),
+            ArchiveLocation.parse("::* Archive", "agenda.org"),
+        )
+        assertNull(ArchiveLocation.parse("::* Archive"))
+    }
+
+    @Test
+    fun `resolve reads the file-level property drawer before the keyword and the settings fallback`() {
+        val fallback = ArchiveTarget("default-archive.org", listOf("Done"))
+        val doc = OrgParser.parse(
+            """
+            :PROPERTIES:
+            :ARCHIVE: agenda.org_archive::* From drawer
+            :END:
+            #+archive: ./keyword.org::* From keyword
+
+            * Parent
+            ** Child
+            """.trimIndent() + "\n"
+        )
+        assertEquals(
+            ArchiveTarget("agenda.org_archive", listOf("From drawer")),
+            ArchiveLocation.resolve(doc, doc.findByTitle("Child")!!, fallback),
+        )
+
+        val keywordOnly = OrgParser.parse("#+archive: ./keyword.org::* From keyword\n\n* Heading\n")
+        assertEquals(
+            ArchiveTarget("keyword.org", listOf("From keyword")),
+            ArchiveLocation.resolve(keywordOnly, keywordOnly.findByTitle("Heading")!!, fallback),
+        )
+    }
+
+    @Test
+    fun `resolve matches a lowercase heading ARCHIVE property`() {
+        val doc = OrgParser.parse(
+            """
+            * Heading
+            :PROPERTIES:
+            :archive: %s_archive::
+            :END:
+            """.trimIndent() + "\n"
+        )
+        assertEquals(
+            ArchiveTarget("todo.org_archive", emptyList()),
+            ArchiveLocation.resolve(doc, doc.findByTitle("Heading")!!, sourceFile = "todo.org"),
+        )
+    }
+
+    @Test
     fun `findOrCreateHeadingPath reuses an existing heading`() {
         val doc = OrgParser.parse(
             """

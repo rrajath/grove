@@ -214,6 +214,8 @@ open class GroveApplication : Application() {
     }
 
     suspend fun reindexNow(fileName: String, text: String) {
+        // Non-.org files (an `agenda.org_archive` archive target) stay out of the index, like a full sync.
+        if (!fileName.endsWith(".org")) return
         val store = fileStore.value
             ?: return run { android.util.Log.w("GroveWidget", "reindexNow: fileStore null for $fileName") }
         val stat = store.stat(fileName)

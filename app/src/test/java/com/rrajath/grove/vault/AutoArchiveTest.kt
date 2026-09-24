@@ -88,6 +88,35 @@ class AutoArchiveTest {
     }
 
     @Test
+    fun `file-level drawer ARCHIVE beats the Settings fallback and creates the file without adding org`() = runTest {
+        tmp.newFile("agenda.org").writeText(
+            """
+            :PROPERTIES:
+            :ARCHIVE: %s_archive::* Done
+            :END:
+            * TODO Task
+            """.trimIndent() + "\n"
+        )
+        val v = vault()
+        val doc = v.open("agenda.org")!!
+        val headline = doc.headlines.first { it.title == "Task" }
+        val settings = GroveSettings(
+            autoArchiveDoneItems = true,
+            autoArchiveFile = "archive.org",
+            autoArchiveHeadingPath = "Settings",
+        )
+
+        val result = AutoArchive.apply(v, settings, doc, "agenda.org", headline, "DONE", now)
+
+        assertTrue(result is StateChangeResult.Archived)
+        result as StateChangeResult.Archived
+        assertEquals("agenda.org_archive", result.destFile)
+        assertTrue(java.io.File(tmp.root, "agenda.org_archive").exists())
+        assertTrue(!java.io.File(tmp.root, "agenda.org_archive.org").exists())
+        assertTrue(result.destText.contains("* Done"))
+    }
+
+    @Test
     fun `archives cross-file using the Settings fallback, creating the destination file`() = runTest {
         tmp.newFile("todo.org").writeText("* TODO Task\n")
         val v = vault()

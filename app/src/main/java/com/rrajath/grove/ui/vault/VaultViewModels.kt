@@ -1473,7 +1473,7 @@ class DocumentViewModel(
                 .toImmutableList()
             val settings = settingsRepository.settings.first()
             val archiveTarget = (_state.value as? DocumentUiState.Loaded)?.let {
-                ArchiveLocation.resolve(it.document, headline, AutoArchive.settingsFallback(settings))
+                ArchiveLocation.resolve(it.document, headline, AutoArchive.settingsFallback(settings), it.fileName)
             }
             val lastUsedTarget = settings.lastRefileFile?.let { fileName ->
                 ArchiveTarget(fileName, settings.lastRefileHeadingPath.split('/').filter { it.isNotEmpty() })

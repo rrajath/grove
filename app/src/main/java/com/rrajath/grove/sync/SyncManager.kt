@@ -140,6 +140,8 @@ class SyncManager(
      * safe to call once a store is attached.
      */
     override fun requestReindex(fileName: String, text: String, reason: String) {
+        // Non-.org files (an `agenda.org_archive` archive target) stay out of the index, like a full sync.
+        if (!fileName.endsWith(".org")) return
         val engine = engine ?: return
         scope.launch {
             mutex.withLock {

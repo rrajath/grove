@@ -26,6 +26,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddLink
 import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.Archive
+import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Autorenew
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckBox
@@ -253,14 +254,16 @@ private fun TipRow(tip: Tip, open: Boolean, onToggle: () -> Unit) {
 // which renders the word "link" the way read mode paints a link; the two drawer
 // names; a bare checkbox literal (`[ ]` / `[-]` / `[X]`); and bare org link
 // syntax — a `https://` scheme or a `[[target]]` / `[[target][description]]`
-// bracket pair.
+// bracket pair; a backtick code span; and a `{{file:name}}` file name.
 private val TIP_MARKUP_RE = Regex(
     "\\{\\{(check|save|clock|star|link)\\}\\}" +
         "|\\{\\{readlink\\}\\}" +
         "|:PROPERTIES:|:LOGBOOK:" +
         "|\\[ \\]|\\[-\\]|\\[X\\]" +
         "|https://" +
-        "|\\[\\[[^\\[\\]]*\\](?:\\[[^\\[\\]]*\\])?\\]",
+        "|\\[\\[[^\\[\\]]*\\](?:\\[[^\\[\\]]*\\])?\\]" +
+        "|`[^`]+`" +
+        "|\\{\\{file:[^\\}]+\\}\\}",
 )
 
 /**
@@ -273,12 +276,14 @@ private val TIP_MARKUP_RE = Regex(
  * (`[ ]` / `[-]` / `[X]`) is set in `PlexMono` at the paragraph color so the
  * brackets align and read cleanly; and bare link syntax (`https://`, `[[link]]`,
  * `[[link][description]]`) is set in `PlexMono` `synLink`, matching how the
- * editor colors it.
+ * editor colors it. A backtick code span (`` `#+ARCHIVE:` ``) drops its
+ * backticks and is set in `PlexMono` at the paragraph color; `{{file:name}}`
+ * renders `name` in `PlexMono` `synTag`, so file names stand apart from syntax.
  */
 @Composable
 private fun TipText(text: String, color: Color, lineHeight: TextUnit) {
     val c = MaterialTheme.grove
-    val annotated = remember(text, c.synProp, c.synLink) {
+    val annotated = remember(text, c.synProp, c.synLink, c.synTag) {
         buildAnnotatedString {
             var last = 0
             TIP_MARKUP_RE.findAll(text).forEach { m ->
@@ -295,6 +300,12 @@ private fun TipText(text: String, color: Color, lineHeight: TextUnit) {
                         }
                     m.value.startsWith(":") ->
                         withStyle(SpanStyle(fontFamily = PlexMono, color = c.synProp)) { append(m.value) }
+                    m.value.startsWith("`") ->
+                        withStyle(SpanStyle(fontFamily = PlexMono)) { append(m.value.trim('`')) }
+                    m.value.startsWith("{{file:") ->
+                        withStyle(SpanStyle(fontFamily = PlexMono, color = c.synTag)) {
+                            append(m.value.removePrefix("{{file:").removeSuffix("}}"))
+                        }
                     m.value == "[ ]" || m.value == "[-]" || m.value == "[X]" ->
                         withStyle(SpanStyle(fontFamily = PlexMono)) { append(m.value) }
                     else ->
@@ -518,6 +529,13 @@ private fun tipGroups(): List<TipGroup> = listOf(
                 "archive", Icons.Default.Archive, "Auto-archive tasks when they're done",
                 "Turn on auto-archive in Settings › Notes and a task refiles itself to your archive location the moment " +
                     "it's marked done, unless the file or heading already points somewhere else.",
+            ),
+            Tip(
+                "archive-location", Icons.Default.Inventory2, "Choose where a file archives to",
+                "Set an `ARCHIVE` property on a heading or in the file's top properties drawer, or a `#+ARCHIVE:` line. " +
+                    "`%s` stands for the current file, so `%s_archive::` archives {{file:agenda.org}} into " +
+                    "{{file:agenda.org_archive}}. " +
+                    "The nearest one wins over the Settings location.",
             ),
         ),
     ),

@@ -124,6 +124,16 @@ class Vault(
     }
 
     /**
+     * Create an empty file at exactly [path] (vault-relative), with no `.org`
+     * appended, e.g. an Emacs-style `agenda.org_archive` archive target.
+     * Returns false if the path is already taken.
+     */
+    suspend fun createFile(path: String): Boolean {
+        if (pathTaken(path)) return false
+        return store.create(path)
+    }
+
+    /**
      * Whether [path] already names a file in the vault, compared
      * case-insensitively. SAF providers over FAT/exFAT (and the stock Documents
      * provider) treat file names case-insensitively, so the exact-name
