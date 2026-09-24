@@ -22,6 +22,22 @@ private const val MIN_VELOCITY_PX_PER_SEC = 600f
  * reveals the previous day, matching how a page peels back from the left;
  * leftward reveals the next.
  */
+// On-device swipe-testing checklist: risk scenarios no automated (JVM/Robolectric)
+// test can exercise, so a manual pass on a real device must specifically check them.
+// DailyNoteScreen.kt's pointerInput block carries a shorter pointer back to this list.
+//
+// 1. A rightward swipe starting at the screen's left edge can be intercepted by the
+//    system's edge-swipe-back gesture (gesture navigation mode) instead of navigating
+//    to the previous day -- there's no reliable way to exclude just that edge across
+//    the full screen height with this implementation.
+// 2. Horizontal-scrolling children (e.g. org-mode tables in Read mode, or any wide
+//    content with its own horizontal scroll) will claim the gesture themselves and
+//    swallow the swipe.
+// 3. The EditorToolbar row (if present) sits inside the same swipeable content Box, so
+//    a finger dragging across it can trigger day-navigation instead of a toolbar action.
+// 4. Swipes silently do nothing while `nav == null` -- each date navigation creates a
+//    fresh DailiesViewModel that does a full vault listing; on a large SAF-backed
+//    vault, rapid swiping may feel unresponsive until that listing completes.
 fun isDeliberateSwipe(totalDragPx: Float, velocityPxPerSec: Float, screenWidthPx: Float): SwipeDirection? {
     val minDistance = screenWidthPx * MIN_DISTANCE_FRACTION
     if (kotlin.math.abs(totalDragPx) < minDistance) return null

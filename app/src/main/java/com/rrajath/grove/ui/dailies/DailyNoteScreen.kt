@@ -198,22 +198,25 @@ fun DailyNoteScreen(
                     }
                 },
                 actions = {
-                    if (nav?.isToday == false) {
-                        Box(
-                            Modifier
-                                .clip(RoundedCornerShape(10.dp))
-                                .combinedClickable(
-                                    onClick = { runGuarded { onNavigateDate(LocalDate.now()) } },
-                                    onLongClick = {
-                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        datePickerOpen = true
-                                    },
-                                )
-                                .padding(10.dp)
-                                .testTag("dailies_today_button"),
-                        ) {
-                            androidx.compose.material3.Icon(Icons.Filled.CalendarToday, contentDescription = "Today", tint = c.ink2)
-                        }
+                    // Always visible, regardless of isToday: the empty-day hint text
+                    // ("Long-press the calendar icon...") and the docs both assume this
+                    // button is always present, including on today's own empty day (the
+                    // drawer's default entry point). A tap while already on today is a
+                    // harmless same-date re-navigation, not worth special-casing.
+                    Box(
+                        Modifier
+                            .clip(RoundedCornerShape(10.dp))
+                            .combinedClickable(
+                                onClick = { runGuarded { onNavigateDate(LocalDate.now()) } },
+                                onLongClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    datePickerOpen = true
+                                },
+                            )
+                            .padding(10.dp)
+                            .testTag("dailies_today_button"),
+                    ) {
+                        androidx.compose.material3.Icon(Icons.Filled.CalendarToday, contentDescription = "Today", tint = c.ink2)
                     }
                     SegmentedControl(
                         options = listOf("Read", "Edit"),
@@ -248,6 +251,20 @@ fun DailyNoteScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .windowInsetsPadding(WindowInsets.navigationBars.union(WindowInsets.ime).only(WindowInsetsSides.Bottom))
+                // On-device swipe-gesture risk checklist (no automated test can cover these --
+                // see DailySwipeGesture.kt's KDoc for the authoritative, expanded list):
+                // 1. A rightward swipe starting at the screen's left edge can be intercepted by
+                //    the system's edge-swipe-back gesture (gesture nav mode) instead of reaching
+                //    this handler -- there's no reliable way to exclude just that edge across the
+                //    full screen height with this implementation.
+                // 2. Horizontal-scrolling children (org tables in Read mode, or any wide content
+                //    with its own horizontal scroll) claim the gesture themselves and swallow it.
+                // 3. EditorToolbar (if present) sits inside this same swipeable content Box, so a
+                //    finger dragging across it can trigger day-navigation instead of a toolbar
+                //    action.
+                // 4. Swipes silently no-op while nav == null -- each date navigation creates a
+                //    fresh DailiesViewModel that does a full vault listing, so on a large
+                //    SAF-backed vault, rapid swiping may feel unresponsive until that completes.
                 .pointerInput(nav?.date) {
                     var totalDrag = 0f
                     val velocityTracker = androidx.compose.ui.input.pointer.util.VelocityTracker()
@@ -256,11 +273,12 @@ fun DailyNoteScreen(
                         onHorizontalDrag = { change, dragAmount ->
                             totalDrag += dragAmount
                             velocityTracker.addPosition(change.uptimeMillis, change.position)
-                            // Only consume the gesture once it's already past the
-                            // distance threshold — a short drag (a tap, a cursor
-                            // placement, the start of a text selection) is left
-                            // completely alone by not calling change.consume().
-                            if (kotlin.math.abs(totalDrag) >= size.width * 0.20f) change.consume()
+                            // No explicit change.consume() here: Compose Foundation's
+                            // detectHorizontalDragGestures already consumes the gesture
+                            // internally once it crosses touch-slop, independent of any
+                            // distance threshold of ours. This callback only needs to
+                            // accumulate distance/velocity for onDragEnd's
+                            // isDeliberateSwipe() check below.
                         },
                         onDragEnd = {
                             val navState = nav ?: return@detectHorizontalDragGestures
@@ -401,7 +419,13 @@ fun DailyNoteScreen(
         DailyDatePickerSheet(
             initialMonth = date,
             existingDates = nav?.existingDates.orEmpty(),
-            onPick = { picked -> datePickerOpen = false; runGuarded { onNavigateDate(picked) } },
+            onPick = { picked ->
+                datePickerOpen = false
+                // Picking the date already being viewed just closes the sheet -- a full
+                // re-navigation would reset Edit mode back to Read and lose scroll position
+                // for no reason.
+                if (picked != date) runGuarded { onNavigateDate(picked) }
+            },
             onDismiss = { datePickerOpen = false },
         )
     }

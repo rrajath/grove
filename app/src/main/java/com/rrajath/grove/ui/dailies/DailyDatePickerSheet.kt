@@ -1,6 +1,7 @@
 package com.rrajath.grove.ui.dailies
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -51,12 +52,18 @@ fun DailyDatePickerSheet(
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = c.surface) {
         Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween) {
-                Text("‹", fontSize = 20.sp, color = c.ink2, modifier = Modifier.clickable { month = month.minusMonths(1) }.padding(10.dp))
+                Text(
+                    "‹", fontFamily = PlexSans, fontSize = 20.sp, color = c.ink2,
+                    modifier = Modifier.clickable { month = month.minusMonths(1) }.padding(10.dp),
+                )
                 Text(
                     month.month.getDisplayName(TextStyle.FULL, Locale.ENGLISH) + " " + month.year,
                     fontFamily = PlexSans, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = c.ink,
                 )
-                Text("›", fontSize = 20.sp, color = c.ink2, modifier = Modifier.clickable { month = month.plusMonths(1) }.padding(10.dp))
+                Text(
+                    "›", fontFamily = PlexSans, fontSize = 20.sp, color = c.ink2,
+                    modifier = Modifier.clickable { month = month.plusMonths(1) }.padding(10.dp),
+                )
             }
             val firstOfMonth = month.atDay(1)
             val leadingBlanks = (firstOfMonth.dayOfWeek.value + 6) % 7 // Monday-first grid, per the mockup
@@ -73,7 +80,13 @@ fun DailyDatePickerSheet(
                                 .aspectRatio(1f)
                                 .padding(2.dp)
                                 .clip(RoundedCornerShape(10.dp))
-                                .then(if (date == today) Modifier.background(c.accentSoft) else Modifier)
+                                .then(
+                                    if (date == today) {
+                                        Modifier.border(1.dp, c.accent.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
+                                    } else {
+                                        Modifier
+                                    },
+                                )
                                 .clickable { onPick(date) },
                             contentAlignment = Alignment.Center,
                         ) {
