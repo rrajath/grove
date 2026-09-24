@@ -85,6 +85,7 @@ re-uploads the APKs to the existing release instead of failing.
 
 ### Fixed
 - Search file headers show folder and match count on a second line; long file names no longer break layout.
+- Linked References sheet file headers also wrap long names, with folder and count on a second line.
 - Dailies opens without waiting on a folder listing: today's note is looked up directly, prewarmed when the drawer opens.
 - Vault.save() now creates missing files before writing (required by SAF backend).
 - Dailies settings moved into their own section; editing stopped resetting to defaults; keyboard no longer covers the field being edited.

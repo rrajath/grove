@@ -193,16 +193,30 @@ private fun LinkedFileGroupSection(
     Column(Modifier.padding(bottom = 14.dp)) {
         Row(
             Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
+            // Top, not CenterVertically: the icon sits level with the file name,
+            // not between it and the folder/count line.
+            verticalAlignment = Alignment.Top,
         ) {
-            Icon(notebookIcon(), contentDescription = null, tint = c.accent, modifier = Modifier.size(15.dp))
-            Spacer(Modifier.width(8.dp))
-            Text(
-                group.fileName, fontFamily = PlexMono, fontWeight = FontWeight.SemiBold,
-                fontSize = 12.5.sp, color = c.ink,
+            Icon(
+                notebookIcon(), contentDescription = null, tint = c.accent,
+                modifier = Modifier.padding(top = 1.dp).size(15.dp),
             )
             Spacer(Modifier.width(8.dp))
-            Text(pluralCount(group.hits.size, "reference"), fontFamily = PlexSans, fontSize = 11.5.sp, color = c.ink3)
+            // Two lines so a long (e.g. timestamped roam) name wraps on its own line
+            // instead of squeezing the count into a one-letter-wide column.
+            Column(Modifier.weight(1f)) {
+                val folder = group.fileName.substringBeforeLast('/', missingDelimiterValue = "")
+                val count = pluralCount(group.hits.size, "reference")
+                Text(
+                    group.fileName.substringAfterLast('/'), fontFamily = PlexMono, fontWeight = FontWeight.SemiBold,
+                    fontSize = 12.5.sp, color = c.ink,
+                )
+                Text(
+                    if (folder.isEmpty()) count else "$folder/ · $count",
+                    fontFamily = PlexSans, fontSize = 11.5.sp, color = c.ink3,
+                    modifier = Modifier.padding(top = 1.dp),
+                )
+            }
         }
         Column(
             Modifier
@@ -249,14 +263,20 @@ private fun UnlinkedMentionRow(
             .clickable { onOpen(hit.fileName, hit.lineIndex, hit.orgId ?: hit.customId) }
             .padding(horizontal = 18.dp, vertical = 12.dp),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(hit.fileName, fontFamily = PlexMono, fontWeight = FontWeight.SemiBold, fontSize = 12.sp, color = c.ink)
-            if (hit.crumb.isNotEmpty()) {
-                Text(
-                    " › ${hit.crumb}", fontFamily = PlexMono, fontSize = 11.5.sp, color = c.ink3,
-                    maxLines = 1, overflow = TextOverflow.Ellipsis,
-                )
-            }
+        // File name on its own (wrapping) line; folder and heading crumb beneath,
+        // so a long roam file name can't squeeze the crumb into a sliver.
+        Text(
+            hit.fileName.substringAfterLast('/'),
+            fontFamily = PlexMono, fontWeight = FontWeight.SemiBold, fontSize = 12.sp, color = c.ink,
+        )
+        val folder = hit.fileName.substringBeforeLast('/', missingDelimiterValue = "")
+        val context = listOf(if (folder.isEmpty()) "" else "$folder/", hit.crumb).filter { it.isNotEmpty() }
+        if (context.isNotEmpty()) {
+            Text(
+                context.joinToString(" · "), fontFamily = PlexMono, fontSize = 11.5.sp, color = c.ink3,
+                maxLines = 1, overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(top = 1.dp),
+            )
         }
         Spacer(Modifier.height(6.dp))
         Text(
