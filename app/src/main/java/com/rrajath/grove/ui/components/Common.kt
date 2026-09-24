@@ -110,6 +110,10 @@ fun savedSearchIcon(): ImageVector = ImageVector.vectorResource(id = R.drawable.
 @Composable
 fun notebookIcon(): ImageVector = ImageVector.vectorResource(id = R.drawable.ic_book)
 
+/** The Dailies icon (design/icons/note_stack_add_48px.xml), tinted per call site. */
+@Composable
+fun dailiesIcon(): ImageVector = ImageVector.vectorResource(id = R.drawable.ic_note_stack_add)
+
 /**
  * Amber filled star marking a favorited heading (outline rows, read-mode headings).
  *
