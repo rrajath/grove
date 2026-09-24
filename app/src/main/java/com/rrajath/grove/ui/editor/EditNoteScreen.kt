@@ -550,7 +550,8 @@ fun EditNoteScreen(
                         )
                         EditorMenuFab(onClick = { metadataOpen = true })
                     }
-                    if (autoLinkSuggestions.isNotEmpty()) {
+                    // Suggestions only while typing: with the keyboard down they'd just cover the note.
+                    if (imeVisible && autoLinkSuggestions.isNotEmpty()) {
                         AutoLinkSuggestionStrip(
                             suggestions = autoLinkSuggestions,
                             expandedKeys = expandedChipKeys,
@@ -571,7 +572,7 @@ fun EditNoteScreen(
                                 .align(Alignment.CenterStart)
                                 .padding(end = 88.dp),
                         )
-                    } else if (roamNodeSuggestionActive) {
+                    } else if (imeVisible && roamNodeSuggestionActive) {
                         val (selectedText, selectedRange) = roamNodeSelection!!
                         RoamNodeSuggestionStrip(
                             templates = roamNodeTemplates,

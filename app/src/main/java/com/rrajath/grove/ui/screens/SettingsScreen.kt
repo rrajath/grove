@@ -65,7 +65,7 @@ fun SettingsScreen(
     whatsNewHasUnseen: Boolean = false,
 ) {
     val c = MaterialTheme.grove
-    val pages = listOf(
+    val pages = listOfNotNull(
         SettingsPage(
             "Look and Feel",
             "Theme, app icon, text size",
@@ -104,7 +104,8 @@ fun SettingsScreen(
             onClick = onOpenReminders,
             badge = { NewDot(NewAnchors.SETTINGS_REMINDERS) },
         ),
-        SettingsPage(
+        // Debug builds only, like every Roam surface (see SettingsRepository's load).
+        if (!com.rrajath.grove.BuildConfig.DEBUG) null else SettingsPage(
             "Roam Features",
             "Backlinks and link suggestions while typing",
             onClick = onOpenRoam,

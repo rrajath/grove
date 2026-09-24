@@ -37,9 +37,13 @@ The app version is shown at the bottom of the hub screen.
 
 ## Roam Features (experimental)
 
+Roam Features are currently available only in debug builds. Release builds hide this page and treat every Roam feature as off: Dailies, Linked References, link suggestions, and roam node templates.
+
 An opt-in page, badged **Experimental** in the hub, for features that are still settling: the Linked References bar (backlinks), inline auto-link suggestions while typing, and **Open roam files directly in read mode**. A master toggle enables the feature area; the sub-toggles then choose which of them are active, each also requiring the master toggle to be on. Backlinks and typing-suggestions default off; **Open roam files directly in read mode** defaults on.
 
 Turning a feature off also stops its background work, not just its UI: with backlinks off, Grove never scans the vault for references when you open a note, and with typing suggestions off, editors don't load the file and heading list used for suggestions. The search index is unaffected, since search, the agenda, and link following use it too.
+
+Suggestion strips only appear while the keyboard is up; lowering the keyboard hides them.
 
 **Show suggestions while typing** also governs a second, selection-based suggestion: in a roam file, selecting a run of text offers to turn it into a link to a new or existing roam node — see [Roam node templates](/features/capture-templates#roam-node-templates-experimental).
 

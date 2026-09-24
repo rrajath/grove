@@ -655,7 +655,8 @@ fun CaptureEditorScreen(
                         .padding(bottom = 16.dp),
                 ) {
                     if (roamAppendState !is RoamAppendState.Checking) {
-                        if (autoLinkSuggestions.isNotEmpty()) {
+                        // Suggestions only while typing: with the keyboard down they'd just cover the draft.
+                        if (imeVisible && autoLinkSuggestions.isNotEmpty()) {
                             AutoLinkSuggestionStrip(
                                 suggestions = autoLinkSuggestions,
                                 expandedKeys = expandedChipKeys,
@@ -681,7 +682,7 @@ fun CaptureEditorScreen(
                                     .offset(y = 10.dp)
                                     .padding(start = 16.dp, end = 100.dp),
                             )
-                        } else if (roamNodeSuggestionActive) {
+                        } else if (imeVisible && roamNodeSuggestionActive) {
                             val (selectedText, selectedRange) = roamNodeSelection!!
                             RoamNodeSuggestionStrip(
                                 templates = roamNodeTemplates,

@@ -468,7 +468,10 @@ class SettingsRepository(
             agendaWidgetFontSize = FontSizePreference.fromStorage(prefs[Keys.agendaWidgetFontSize]),
             expandedFolders = decodeFolderSet(prefs[Keys.expandedFolders]),
             notebooksTreeDefaultsApplied = prefs[Keys.notebooksTreeDefaultsApplied] ?: false,
-            roamFeaturesEnabled = prefs[Keys.roamFeaturesEnabled] ?: false,
+            // Roam Features are debug-only for now: a release build reads the master
+            // switch as off (the stored value is left alone), which hides every Roam
+            // surface keyed off it -- Dailies, backlinks, suggestions, roam templates.
+            roamFeaturesEnabled = com.rrajath.grove.BuildConfig.DEBUG && (prefs[Keys.roamFeaturesEnabled] ?: false),
             roamShowBacklinks = prefs[Keys.roamShowBacklinks] ?: false,
             roamShowSuggestions = prefs[Keys.roamShowSuggestions] ?: false,
             roamOpenWholeFile = prefs[Keys.roamOpenWholeFile] ?: true,

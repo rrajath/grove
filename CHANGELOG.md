@@ -78,6 +78,8 @@ re-uploads the APKs to the existing release instead of failing.
 - Extract WholeFileEditorBody out of EditRegionScreen for Dailies reuse.
 - Backlink scans and suggestion loading no longer run while their Roam Features toggles are off.
 - Dailies drops the TODAY pill; the calendar icon turns accent-colored when viewing another day.
+- Roam Features, including Dailies, backlinks, and link suggestions, are now debug-build only.
+- Link and roam-node suggestion strips now show only while the keyboard is up.
 
 ### Fixed
 - Vault.save() now creates missing files before writing (required by SAF backend).
@@ -93,6 +95,7 @@ re-uploads the APKs to the existing release instead of failing.
 - The Dailies calendar/date-picker button now always shows in the top bar, including on today's own empty day; picking the currently-viewed date in the date picker no longer triggers a pointless re-navigation; the date picker's today-cell highlight now matches the design spec's accent outline instead of a filled background.
 - Dailies Edit-to-Read no longer saves; Read shows unsaved text, and leaving asks to save.
 - Dailies toolbar: link tap works; long-press opens the link picker, clock long-press opens the timestamp picker.
+- Dailies date picker keeps a fixed height across months; month arrows have square ripples.
 
 ## [1.7.1] - 2026-09-22
 

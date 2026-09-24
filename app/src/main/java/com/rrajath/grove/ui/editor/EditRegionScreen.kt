@@ -527,7 +527,8 @@ internal fun WholeFileEditorBody(
                     .align(Alignment.BottomEnd)
                     .padding(16.dp),
             )
-            if (autoLinkSuggestions.isNotEmpty()) {
+            // Suggestions only while typing: with the keyboard down they'd just cover the text.
+            if (imeVisible && autoLinkSuggestions.isNotEmpty()) {
                 AutoLinkSuggestionStrip(
                     suggestions = autoLinkSuggestions,
                     expandedKeys = expandedChipKeys,
