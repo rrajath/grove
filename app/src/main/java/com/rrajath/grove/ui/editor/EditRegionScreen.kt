@@ -20,11 +20,13 @@ import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Edit
@@ -291,7 +293,6 @@ fun EditRegionScreen(
     // EditorViewModel now, so it isn't a per-keystroke Compose effect here.
 
     val scrollState = rememberScrollState()
-    val scrollButtonThresholdPx = with(LocalDensity.current) { (13.5f * 1.85f * 5).sp.toPx() }
 
     Scaffold(
         containerColor = c.bg,
@@ -382,85 +383,28 @@ fun EditRegionScreen(
                 }
                 return@Column
             }
-            if (state.staleFile) {
-                StaleFileBanner(
-                    onOverwrite = { viewModel.save(force = true) },
-                    onReload = { viewModel.dismissStale(); viewModel.loadRegion(fileName, noteId, region, blockLine) },
-                )
-            }
-            Box(Modifier.weight(1f).fillMaxWidth()) {
-                ContentFontScale(editModeFontSize) {
-                    BasicTextField(
-                        state = textState,
-                        inputTransformation = remember(state.keywords) { orgInputTransformation(state.keywords) },
-                        outputTransformation = highlight,
-                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-                        lineLimits = TextFieldLineLimits.MultiLine(),
-                        textStyle = TextStyle(
-                            fontFamily = PlexMono, fontSize = 13.5.sp,
-                            lineHeight = 1.85.em, color = c.ink,
-                        ),
-                        cursorBrush = SolidColor(c.accent),
-                        scrollState = scrollState,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(18.dp)
-                            .focusRequester(focusRequester),
-                    )
-                }
-                ScrollJumpButtons(
-                    scrollState = scrollState,
-                    minScrollDeltaPx = scrollButtonThresholdPx,
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(16.dp),
-                )
-                if (autoLinkSuggestions.isNotEmpty()) {
-                    AutoLinkSuggestionStrip(
-                        suggestions = autoLinkSuggestions,
-                        expandedKeys = expandedChipKeys,
-                        onToggleExpand = { key -> expandedChipKeys = expandedChipKeys + key },
-                        onPick = { suggestion ->
-                            val range = autoLinkTrigger?.range ?: return@AutoLinkSuggestionStrip
-                            val linkText = formatAutoLinkInsertion(suggestion)
-                            textState.edit {
-                                replace(range.start, range.end, linkText)
-                                selection = TextRange(range.start + linkText.length)
-                            }
-                            autoLinkTrigger = null
-                        },
-                        modifier = Modifier
-                            .align(Alignment.BottomStart)
-                            .padding(16.dp),
-                    )
-                }
-            }
-            // Hidden while the keyboard is up: the bar and the toolbar both sit at
-            // the bottom of this Column, and only one of them should own that row
-            // at a time -- the toolbar takes it while typing (see EditNoteScreen).
-            if (showBacklinks && region == EditRegion.WHOLE_FILE && wholeFileMeta?.first != null && !imeVisible) {
-                LinkedReferencesBar(
-                    linkedCount = linkedReferences.linkedCount,
-                    unlinkedCount = linkedReferences.unlinkedCount,
-                    onClick = { linkedRefsOpen = true },
-                )
-            }
-            if (imeVisible) EditorToolbar(
-                onWrap = { marker -> textState.applyEdit { wrapSelection(it, marker) } },
-                onInsert = { snippet -> textState.applyEdit { insertAtCursor(it, snippet) } },
+            WholeFileEditorBody(
+                state = state,
+                textState = textState,
+                scrollState = scrollState,
+                highlight = highlight,
+                focusRequester = focusRequester,
+                autoLinkSuggestions = autoLinkSuggestions,
+                expandedChipKeys = expandedChipKeys,
+                autoLinkTriggerRange = autoLinkTrigger?.range,
+                onToggleExpandChip = { key -> expandedChipKeys = expandedChipKeys + key },
+                onClearAutoLinkTrigger = { autoLinkTrigger = null },
+                onOverwriteStale = { viewModel.save(force = true) },
+                onReloadStale = { viewModel.dismissStale(); viewModel.loadRegion(fileName, noteId, region, blockLine) },
+                editModeFontSize = editModeFontSize,
+                showBacklinks = showBacklinks,
+                isRoamFile = region == EditRegion.WHOLE_FILE && wholeFileMeta?.first != null,
+                linkedCount = linkedReferences.linkedCount,
+                unlinkedCount = linkedReferences.unlinkedCount,
+                onOpenLinkedRefs = { linkedRefsOpen = true },
+                imeVisible = imeVisible,
                 onLink = { textState.applyToolbarLink(clipboard) },
-                onHeading = {
-                    textState.applyEdit {
-                        val edit = LineEditing.insertHeadingStar(it.text, it.selection.start)
-                        TextFieldValue(edit.text, TextRange(edit.cursor))
-                    }
-                },
-                onIndent = { delta ->
-                    textState.applyEdit {
-                        LineEditing.changeListIndent(it.text, it.selection.start, delta)
-                            ?.let { edit -> TextFieldValue(edit.text, TextRange(edit.cursor)) }
-                    }
-                },
+                modifier = Modifier.fillMaxSize(),
             )
         }
     }
@@ -508,6 +452,116 @@ fun EditRegionScreen(
                 openNote(NoteRef(refFileName, lineIndex, id))
             },
             onDismiss = { linkedRefsOpen = false },
+        )
+    }
+}
+
+/**
+ * The whole-file editor's content area (text field, toolbar, stale-file banner,
+ * scroll jump buttons, auto-link suggestions, Linked References bar) -- everything
+ * [EditRegionScreen] puts inside its `Scaffold`'s content padding, minus the
+ * `Scaffold`/`GroveTopBar` wrapper itself. Shared with `com.rrajath.grove.ui.dailies.DailyNoteScreen`,
+ * which supplies its own top bar around the same body.
+ */
+@Composable
+internal fun WholeFileEditorBody(
+    state: EditorUiState,
+    textState: TextFieldState,
+    scrollState: ScrollState,
+    highlight: OrgSyntaxHighlight,
+    focusRequester: FocusRequester,
+    autoLinkSuggestions: List<AutoLinkSuggestion>,
+    expandedChipKeys: Set<String>,
+    autoLinkTriggerRange: TextRange?,
+    onToggleExpandChip: (String) -> Unit,
+    onClearAutoLinkTrigger: () -> Unit,
+    onOverwriteStale: () -> Unit,
+    onReloadStale: () -> Unit,
+    editModeFontSize: FontSizePreference,
+    showBacklinks: Boolean,
+    isRoamFile: Boolean,
+    linkedCount: Int,
+    unlinkedCount: Int,
+    onOpenLinkedRefs: () -> Unit,
+    imeVisible: Boolean,
+    onLink: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val c = MaterialTheme.grove
+    val scrollButtonThresholdPx = with(LocalDensity.current) { (13.5f * 1.85f * 5).sp.toPx() }
+    Column(modifier) {
+        if (state.staleFile) {
+            StaleFileBanner(onOverwrite = onOverwriteStale, onReload = onReloadStale)
+        }
+        Box(Modifier.weight(1f).fillMaxWidth()) {
+            ContentFontScale(editModeFontSize) {
+                BasicTextField(
+                    state = textState,
+                    inputTransformation = remember(state.keywords) { orgInputTransformation(state.keywords) },
+                    outputTransformation = highlight,
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                    lineLimits = TextFieldLineLimits.MultiLine(),
+                    textStyle = TextStyle(
+                        fontFamily = PlexMono, fontSize = 13.5.sp,
+                        lineHeight = 1.85.em, color = c.ink,
+                    ),
+                    cursorBrush = SolidColor(c.accent),
+                    scrollState = scrollState,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(18.dp)
+                        .focusRequester(focusRequester),
+                )
+            }
+            ScrollJumpButtons(
+                scrollState = scrollState,
+                minScrollDeltaPx = scrollButtonThresholdPx,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(16.dp),
+            )
+            if (autoLinkSuggestions.isNotEmpty()) {
+                AutoLinkSuggestionStrip(
+                    suggestions = autoLinkSuggestions,
+                    expandedKeys = expandedChipKeys,
+                    onToggleExpand = onToggleExpandChip,
+                    onPick = { suggestion ->
+                        val range = autoLinkTriggerRange ?: return@AutoLinkSuggestionStrip
+                        val linkText = formatAutoLinkInsertion(suggestion)
+                        textState.edit {
+                            replace(range.start, range.end, linkText)
+                            selection = TextRange(range.start + linkText.length)
+                        }
+                        onClearAutoLinkTrigger()
+                    },
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(16.dp),
+                )
+            }
+        }
+        // Hidden while the keyboard is up: the bar and the toolbar both sit at
+        // the bottom of this Column, and only one of them should own that row
+        // at a time -- the toolbar takes it while typing (see EditNoteScreen).
+        if (showBacklinks && isRoamFile && !imeVisible) {
+            LinkedReferencesBar(linkedCount = linkedCount, unlinkedCount = unlinkedCount, onClick = onOpenLinkedRefs)
+        }
+        if (imeVisible) EditorToolbar(
+            onWrap = { marker -> textState.applyEdit { wrapSelection(it, marker) } },
+            onInsert = { snippet -> textState.applyEdit { insertAtCursor(it, snippet) } },
+            onLink = { onLink() },
+            onHeading = {
+                textState.applyEdit {
+                    val edit = LineEditing.insertHeadingStar(it.text, it.selection.start)
+                    TextFieldValue(edit.text, TextRange(edit.cursor))
+                }
+            },
+            onIndent = { delta ->
+                textState.applyEdit {
+                    LineEditing.changeListIndent(it.text, it.selection.start, delta)
+                        ?.let { edit -> TextFieldValue(edit.text, TextRange(edit.cursor)) }
+                }
+            },
         )
     }
 }
