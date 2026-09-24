@@ -39,6 +39,11 @@ class DailiesViewModel(
     private val _state = MutableStateFlow<DailiesNavState?>(null)
     val state: StateFlow<DailiesNavState?> = _state
 
+    /** True once [load] has observed a null [vaultFlow]: distinguishes "no sync folder
+     *  configured" from "still loading" for a [state] that is null either way. */
+    private val _vaultMissing = MutableStateFlow(false)
+    val vaultMissing: StateFlow<Boolean> = _vaultMissing
+
     private var lastRepo: DailiesRepository? = null
     private var lastSettings: com.rrajath.grove.settings.GroveSettings? = null
 
@@ -53,7 +58,12 @@ class DailiesViewModel(
 
     fun load(date: LocalDate) {
         viewModelScope.launch {
-            val vault = vaultFlow.value ?: run { _state.value = null; return@launch }
+            val vault = vaultFlow.value ?: run {
+                _vaultMissing.value = true
+                _state.value = null
+                return@launch
+            }
+            _vaultMissing.value = false
             val s = settings.settings.first()
             val repo = DailiesRepository(vault.fileStore())
             lastRepo = repo
@@ -61,8 +71,19 @@ class DailiesViewModel(
             withContext(dispatchers.default) {
                 val fileName = repo.resolveFileName(s.dailiesDirectory, s.dailiesFilenamePattern, date)
                 val exists = repo.existsForDate(s.dailiesDirectory, s.dailiesFilenamePattern, date)
-                val existing = repo.existingDates(s.dailiesDirectory, s.dailiesFilenamePattern).toSet()
-                val previous = repo.previousExistingDate(s.dailiesDirectory, s.dailiesFilenamePattern, date)
+                val existingList = repo.existingDates(s.dailiesDirectory, s.dailiesFilenamePattern)
+                val existing = existingList.toSet()
+                // Reuse the list already walked above instead of calling
+                // previousExistingDate() (which would re-walk the whole vault via
+                // its own existingDates() call) -- replicate its branching from
+                // the already-fetched list, only re-walking in the rare case
+                // where the list is genuinely empty.
+                val previous = existingList.lastOrNull { it < date }
+                    ?: if (existingList.isEmpty()) {
+                        repo.previousExistingDate(s.dailiesDirectory, s.dailiesFilenamePattern, date)
+                    } else {
+                        date.minusDays(1)
+                    }
                 DailiesNavState(
                     date = date,
                     fileName = fileName,
