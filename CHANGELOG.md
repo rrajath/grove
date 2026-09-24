@@ -84,6 +84,7 @@ re-uploads the APKs to the existing release instead of failing.
 - Whole-file Edit-to-Read no longer saves; Read shows unsaved text and leaving asks to save.
 
 ### Fixed
+- Search file headers show folder and match count on a second line; long file names no longer break layout.
 - Dailies opens without waiting on a folder listing: today's note is looked up directly, prewarmed when the drawer opens.
 - Vault.save() now creates missing files before writing (required by SAF backend).
 - Dailies settings moved into their own section; editing stopped resetting to defaults; keyboard no longer covers the field being edited.

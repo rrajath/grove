@@ -896,21 +896,34 @@ private fun FileGroupHeader(
             .background(c.bg)
             .clickable(onClick = onToggle)
             .padding(vertical = 9.dp, horizontal = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
+        // Top, not CenterVertically: the caret sits level with the file name,
+        // not between it and the folder/count line.
+        verticalAlignment = Alignment.Top,
     ) {
         Text(
-            "▾", fontSize = 11.sp, color = c.ink3,
-            modifier = Modifier.graphicsLayer { rotationZ = angle },
+            "▾", fontFamily = PlexSans, fontSize = 11.sp, color = c.ink3,
+            modifier = Modifier.padding(top = 1.dp).graphicsLayer { rotationZ = angle },
         )
         Spacer(Modifier.width(9.dp))
-        Text(fileName, fontFamily = PlexMono, fontWeight = FontWeight.SemiBold, fontSize = 12.5.sp, color = c.ink)
-        Spacer(Modifier.width(9.dp))
-        val label = when {
-            count == 0 && isNameMatch -> "file match"
-            count == 1 -> "1 match"
-            else -> "$count matches"
+        // Two lines so a long (e.g. timestamped roam) name wraps on its own line
+        // instead of squeezing the count into a one-letter-wide column.
+        Column(Modifier.weight(1f)) {
+            val folder = fileName.substringBeforeLast('/', missingDelimiterValue = "")
+            val label = when {
+                count == 0 && isNameMatch -> "file match"
+                count == 1 -> "1 match"
+                else -> "$count matches"
+            }
+            Text(
+                fileName.substringAfterLast('/'),
+                fontFamily = PlexMono, fontWeight = FontWeight.SemiBold, fontSize = 12.5.sp, color = c.ink,
+            )
+            Text(
+                if (folder.isEmpty()) label else "$folder/ · $label",
+                fontFamily = PlexSans, fontSize = 11.5.sp, color = c.ink3,
+                modifier = Modifier.padding(top = 1.dp),
+            )
         }
-        Text(label, fontFamily = PlexSans, fontSize = 11.5.sp, color = c.ink3)
     }
 }
 
