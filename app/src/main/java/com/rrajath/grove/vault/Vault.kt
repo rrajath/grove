@@ -79,6 +79,10 @@ class Vault(
     // read+parse. Only ever touched under [cacheMutex].
     private val inFlight = mutableMapOf<CacheKey, CompletableDeferred<OrgDocument>>()
 
+    /** The [FileStore] backing this vault, for callers (e.g. Dailies) that need
+     *  it directly rather than going through a `Vault`-level method. */
+    fun fileStore(): FileStore = store
+
     suspend fun notebooks(): List<Notebook> =
         listOrgFiles().map { entry ->
             val doc = document(entry)

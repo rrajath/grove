@@ -64,6 +64,7 @@ re-uploads the APKs to the existing release instead of failing.
 - Reverse-parse dates from filenames to identify existing daily notes.
 - DailiesRepository resolves dates to filenames and lists existing daily notes.
 - Editor can seed and save a brand-new daily note whose file doesn't exist yet.
+- Add DailiesViewModel resolving a day's file name, existence, and neighboring dates as StateFlow.
 
 ### Changed
 - Read/Edit mode toggles now show eye and pencil icons instead of text labels, and shrink to fit them.
