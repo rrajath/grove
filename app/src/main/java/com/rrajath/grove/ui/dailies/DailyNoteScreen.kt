@@ -6,9 +6,12 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material.icons.Icons
@@ -25,9 +28,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextRange
@@ -41,6 +47,7 @@ import com.rrajath.grove.ui.components.Pill
 import com.rrajath.grove.ui.components.SegmentedControl
 import com.rrajath.grove.ui.editor.EditRegion
 import com.rrajath.grove.ui.editor.EditorViewModel
+import com.rrajath.grove.ui.editor.OrgSyntaxHighlight
 import com.rrajath.grove.ui.editor.WholeFileEditorBody
 import com.rrajath.grove.ui.screens.FileContent
 import com.rrajath.grove.ui.screens.IconGlyph
@@ -154,11 +161,8 @@ fun DailyNoteScreen(
                 !n.exists && mode == "read" -> DailyEmptyState(
                     fileName = n.fileName,
                     onStartTyping = {
-                        editorViewModel.loadNewWholeFile(
-                            n.fileName,
-                            "", // seeded below once the header template is expanded (Task 16 wires the real settings-backed template)
-                            0,
-                        )
+                        val expanded = dailiesViewModel.expandedHeaderFor(date)
+                        editorViewModel.loadNewWholeFile(n.fileName, expanded.text, expanded.cursorOffset)
                         mode = "edit"
                     },
                 )
@@ -184,12 +188,70 @@ fun DailyNoteScreen(
                     }
                 }
                 else -> {
-                    LaunchedEffect(n.fileName, n.exists) {
-                        if (n.exists) editorViewModel.load(NoteRef(n.fileName, 0)) // placeholder load path — replaced below
+                    val editState by editorViewModel.state.collectAsStateWithLifecycle()
+                    val textState = rememberTextFieldState()
+                    var fieldLoaded by remember(n.fileName) { mutableStateOf(false) }
+                    var echoToSkip by remember { mutableStateOf<String?>(null) }
+                    val focusRequester = remember { FocusRequester() }
+                    val scrollState = rememberScrollState()
+                    val highlight = remember(c, editState.keywords) {
+                        OrgSyntaxHighlight(c, editState.keywords)
                     }
-                    // Edit-mode body wired fully in Task 16 alongside the prev/next
-                    // pills and bottom bar; this task establishes the mode switch
-                    // and the Read-mode + empty-day states only.
+
+                    LaunchedEffect(n.fileName, n.exists) {
+                        // A file that already exists but is being opened straight
+                        // into Edit (toggle tapped from Read) loads normally; a
+                        // brand-new file was already seeded by loadNewWholeFile
+                        // above and must not be clobbered by a fresh load here.
+                        if (n.exists && editorViewModel.state.value.fileName != n.fileName) {
+                            editorViewModel.loadRegion(n.fileName, null, EditRegion.WHOLE_FILE)
+                        }
+                    }
+                    LaunchedEffect(editState.loading, editState.bufferRevision) {
+                        if (!editState.loading && editState.error == null) {
+                            val cursor = if (!fieldLoaded) (editState.cursor ?: editState.buffer.length) else textState.selection.start
+                            echoToSkip = editState.buffer
+                            textState.edit {
+                                replace(0, length, editState.buffer)
+                                selection = TextRange(cursor.coerceIn(0, editState.buffer.length))
+                            }
+                            fieldLoaded = true
+                        }
+                    }
+                    LaunchedEffect(Unit) {
+                        snapshotFlow { textState.text.toString() }.collect { text ->
+                            if (!fieldLoaded) return@collect
+                            if (text == echoToSkip) { echoToSkip = null; return@collect }
+                            editorViewModel.onBufferChange(text)
+                        }
+                    }
+
+                    WholeFileEditorBody(
+                        state = editState,
+                        textState = textState,
+                        scrollState = scrollState,
+                        highlight = highlight,
+                        focusRequester = focusRequester,
+                        autoLinkSuggestions = emptyList(),
+                        expandedChipKeys = emptySet(),
+                        autoLinkTriggerRange = null,
+                        onToggleExpandChip = {},
+                        onClearAutoLinkTrigger = {},
+                        onOverwriteStale = { editorViewModel.save(force = true) },
+                        onReloadStale = {
+                            editorViewModel.dismissStale()
+                            editorViewModel.loadRegion(n.fileName, null, EditRegion.WHOLE_FILE)
+                        },
+                        editModeFontSize = editModeFontSize,
+                        showBacklinks = false, // this screen's own bottom bar owns Linked References (Task 17)
+                        isRoamFile = false,
+                        linkedCount = 0,
+                        unlinkedCount = 0,
+                        onOpenLinkedRefs = {},
+                        imeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0,
+                        onLink = {},
+                        modifier = Modifier.fillMaxSize(),
+                    )
                 }
             }
         }

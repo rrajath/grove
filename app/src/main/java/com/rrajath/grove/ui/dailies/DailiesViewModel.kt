@@ -39,11 +39,25 @@ class DailiesViewModel(
     private val _state = MutableStateFlow<DailiesNavState?>(null)
     val state: StateFlow<DailiesNavState?> = _state
 
+    private var lastRepo: DailiesRepository? = null
+    private var lastSettings: com.rrajath.grove.settings.GroveSettings? = null
+
+    /** Delegates to the [DailiesRepository]/settings snapshot [load] last resolved, so the
+     *  empty-day "start typing" affordance can seed the header template without this screen
+     *  needing its own [Vault] access. */
+    fun expandedHeaderFor(date: LocalDate): com.rrajath.grove.capture.ExpandedTemplate {
+        val repo = lastRepo ?: return com.rrajath.grove.capture.ExpandedTemplate("", 0)
+        val template = lastSettings?.dailiesHeaderTemplate ?: return com.rrajath.grove.capture.ExpandedTemplate("", 0)
+        return repo.expandHeaderTemplate(template, date)
+    }
+
     fun load(date: LocalDate) {
         viewModelScope.launch {
             val vault = vaultFlow.value ?: run { _state.value = null; return@launch }
             val s = settings.settings.first()
             val repo = DailiesRepository(vault.fileStore())
+            lastRepo = repo
+            lastSettings = s
             withContext(dispatchers.default) {
                 val fileName = repo.resolveFileName(s.dailiesDirectory, s.dailiesFilenamePattern, date)
                 val exists = repo.existsForDate(s.dailiesDirectory, s.dailiesFilenamePattern, date)

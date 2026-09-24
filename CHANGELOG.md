@@ -66,6 +66,7 @@ re-uploads the APKs to the existing release instead of failing.
 - Editor can seed and save a brand-new daily note whose file doesn't exist yet.
 - Add DailiesViewModel resolving a day's file name, existence, and neighboring dates as StateFlow.
 - Add DailyNoteScreen top bar with Read/Edit toggle, breadcrumb, Today button, and Read-mode/empty-day content.
+- Wire DailyNoteScreen's empty-day header seed and Edit-mode body to the real editor.
 
 ### Changed
 - Read/Edit mode toggles now show eye and pencil icons instead of text labels, and shrink to fit them.

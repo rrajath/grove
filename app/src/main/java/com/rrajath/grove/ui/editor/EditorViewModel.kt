@@ -77,6 +77,10 @@ data class EditorUiState(
     val regionRange: IntRange? = null,
     /** The note's subtree text being edited (or the scoped region's raw text, when [region] is set). */
     val buffer: String = "",
+    /** Explicit initial cursor offset into [buffer], set only by [EditorViewModel.loadNewWholeFile]'s
+     *  `%?`-placeholder seed; every other load path leaves this null and the field falls back to
+     *  end-of-buffer on first load. */
+    val cursor: Int? = null,
     val loadedRevision: String? = null,
     val keywords: OrgKeywords = OrgKeywords.DEFAULT,
     val dirty: Boolean = false,
@@ -362,6 +366,7 @@ class EditorViewModel(
             region = EditRegion.WHOLE_FILE,
             regionRange = IntRange.EMPTY,
             buffer = seedText,
+            cursor = cursor,
             loadedRevision = null,
             keywords = keywords.value,
             dirty = true,
