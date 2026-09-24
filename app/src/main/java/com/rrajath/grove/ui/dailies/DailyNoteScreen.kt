@@ -4,6 +4,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.WindowInsets
@@ -39,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
@@ -245,7 +247,32 @@ fun DailyNoteScreen(
             Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .windowInsetsPadding(WindowInsets.navigationBars.union(WindowInsets.ime).only(WindowInsetsSides.Bottom)),
+                .windowInsetsPadding(WindowInsets.navigationBars.union(WindowInsets.ime).only(WindowInsetsSides.Bottom))
+                .pointerInput(nav?.date) {
+                    var totalDrag = 0f
+                    val velocityTracker = androidx.compose.ui.input.pointer.util.VelocityTracker()
+                    detectHorizontalDragGestures(
+                        onDragStart = { totalDrag = 0f; velocityTracker.resetTracking() },
+                        onHorizontalDrag = { change, dragAmount ->
+                            totalDrag += dragAmount
+                            velocityTracker.addPosition(change.uptimeMillis, change.position)
+                            // Only consume the gesture once it's already past the
+                            // distance threshold — a short drag (a tap, a cursor
+                            // placement, the start of a text selection) is left
+                            // completely alone by not calling change.consume().
+                            if (kotlin.math.abs(totalDrag) >= size.width * 0.20f) change.consume()
+                        },
+                        onDragEnd = {
+                            val navState = nav ?: return@detectHorizontalDragGestures
+                            val velocity = velocityTracker.calculateVelocity().x
+                            when (isDeliberateSwipe(totalDrag, velocity, size.width.toFloat())) {
+                                SwipeDirection.PREVIOUS -> onNavigateDate(navState.previousDate)
+                                SwipeDirection.NEXT -> onNavigateDate(navState.nextDate)
+                                null -> {}
+                            }
+                        },
+                    )
+                },
         ) {
             when {
                 n == null -> {
