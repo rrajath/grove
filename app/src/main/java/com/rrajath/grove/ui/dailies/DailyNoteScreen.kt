@@ -74,6 +74,7 @@ import com.rrajath.grove.ui.theme.grove
 import com.rrajath.grove.ui.vault.DocumentUiState
 import com.rrajath.grove.ui.vault.DocumentViewModel
 import com.rrajath.grove.ui.vault.NoteRef
+import com.rrajath.grove.ui.vault.PendingEdit
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -116,8 +117,19 @@ fun DailyNoteScreen(
     var linkedRefsOpen by remember { mutableStateOf(false) }
     var datePickerOpen by rememberSaveable { mutableStateOf(false) }
 
+    // The Read/Edit toggle never writes, so an unsaved buffer can outlive Edit mode:
+    // Read mode renders it from memory (see the pendingEdit effect below), and it
+    // stays unsaved until the idle auto-save, the save icon, or the leave dialog.
+    val pendingEdit = if (
+        editState.dirty && editState.region == EditRegion.WHOLE_FILE && editState.fileName == nav?.fileName
+    ) {
+        PendingEdit(editState.fileName, 0, editState.buffer, wholeFile = true)
+    } else {
+        null
+    }
+
     fun runGuarded(action: () -> Unit) {
-        if (mode == "edit" && editState.dirty) {
+        if (editState.dirty) {
             pendingAction = action
             confirmLeave = true
         } else {
@@ -126,9 +138,9 @@ fun DailyNoteScreen(
     }
     fun leave() = runGuarded(onBack)
 
-    // Same as the Read side of the toggle: saves first if there's anything unsaved.
+    // Never saves, as on a regular note: Read mode shows the unsaved buffer as-is.
     fun switchToRead() {
-        if (editState.dirty) editorViewModel.save(onSaved = { mode = "read" }) else mode = "read"
+        mode = "read"
     }
     // Back out of Edit lands in Read, where the user came from (as on a regular note,
     // whose editor sits on top of its Read screen); only Back from Read leaves Dailies.
@@ -192,6 +204,23 @@ fun DailyNoteScreen(
             ?.second ?: loaded.fileName.removeSuffix(".org")
         documentViewModel.loadLinkedReferences(loaded.fileName, com.rrajath.grove.org.INTRO_LINE_INDEX, doc.fileId, title)
     }
+    // Read mode over an unsaved buffer: render the buffer, not the file (which may
+    // not even exist yet for a new day), and let Read-mode mutations such as a
+    // checkbox tap fold back into that buffer instead of writing to disk. Keyed on
+    // the buffer only in Read mode, so typing in Edit mode doesn't restart it.
+    LaunchedEffect(if (mode == "read") pendingEdit else null, mode) {
+        documentViewModel.setPendingEdit(
+            pendingEdit,
+            onBufferChanged = editorViewModel::onBufferChangedExternally,
+            onPersisted = editorViewModel::onBufferPersistedElsewhere,
+        )
+        if (mode == "read" && pendingEdit != null) {
+            val doc = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+                com.rrajath.grove.org.OrgParser.parse(pendingEdit.text, editState.keywords)
+            }
+            documentViewModel.show(pendingEdit.fileName, doc)
+        }
+    }
     // Refresh both the date-navigation state (so nav.exists stops being stale
     // for a brand-new file) and the Read-mode document after every save.
     LaunchedEffect(editState.lastSavedAt) {
@@ -208,7 +237,9 @@ fun DailyNoteScreen(
             GroveTopBar(
                 leading = {
                     IconGlyph("←", onClick = ::back)
-                    if (mode == "edit" && (editState.dirty || editState.lastSavedAt != null)) {
+                    if ((mode == "edit" && (editState.dirty || editState.lastSavedAt != null)) ||
+                        (mode == "read" && pendingEdit != null)
+                    ) {
                         androidx.compose.material3.Icon(
                             Icons.Outlined.Save,
                             contentDescription = if (editState.dirty) "Unsaved changes, tap to save" else "Saved",
@@ -372,7 +403,7 @@ fun DailyNoteScreen(
                     }
                     // else: still loading -- render nothing, a brief transient state.
                 }
-                !n.exists && mode == "read" -> DailyEmptyState(
+                !n.exists && mode == "read" && pendingEdit == null -> DailyEmptyState(
                     fileName = n.fileName,
                     onStartTyping = { startEditing(n) },
                 )

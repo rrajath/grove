@@ -649,8 +649,10 @@ data class RefileUiState(
  *
  * @param lineIndex the edited headline's line in the on-disk file.
  * @param text the editor's current subtree text for that headline.
+ * @param wholeFile [text] is the whole file (Dailies' whole-file editor), not one
+ *   subtree; [lineIndex] is then ignored and read mode renders [text] outright.
  */
-data class PendingEdit(val fileName: String, val lineIndex: Int, val text: String)
+data class PendingEdit(val fileName: String, val lineIndex: Int, val text: String, val wholeFile: Boolean = false)
 
 class DocumentViewModel(
     private val vaultFlow: StateFlow<Vault?>,
@@ -771,6 +773,7 @@ class DocumentViewModel(
     private suspend fun withPending(fileName: String, doc: OrgDocument): OrgDocument {
         val p = pending?.takeIf { it.fileName == fileName } ?: return doc
         return withContext(dispatchers.default) {
+            if (p.wholeFile) return@withContext OrgParser.parse(p.text, doc.keywords)
             val headline = doc.headlines.firstOrNull { it.lineIndex == p.lineIndex }
                 ?: return@withContext doc
             if (OrgMutations.subtreeText(doc, headline) == p.text) return@withContext doc
@@ -797,6 +800,12 @@ class DocumentViewModel(
     private suspend fun saveDoc(fileName: String, newText: String, syncReason: String, newDoc: OrgDocument? = null) {
         val vault = vaultFlow.value ?: return
         val p = pending?.takeIf { it.fileName == fileName }
+        if (p != null && p.wholeFile) {
+            // The whole file is the buffer, so every mutation folds back into it.
+            pending = p.copy(text = newText)
+            onPendingBufferChanged(newText)
+            return
+        }
         if (p != null) {
             val subtree = withContext(dispatchers.default) {
                 val doc = OrgParser.parse(newText, keywordsFlow.value)

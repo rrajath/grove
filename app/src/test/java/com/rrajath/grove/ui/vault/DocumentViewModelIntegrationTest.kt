@@ -552,6 +552,30 @@ class DocumentViewModelIntegrationTest {
         assertTrue("no sync for a buffered edit", sync.syncRequests.isEmpty())
     }
 
+    @Test
+    fun `a whole-file pending buffer is rendered by load and absorbs read-mode edits`() = runTest {
+        val diskBefore = store.read("projects.org")
+        val buffer = "* TODO Unsaved daily entry\n- [ ] pick up milk\n"
+        val vm = documentVm()
+        var folded: String? = null
+        vm.setPendingEdit(
+            PendingEdit("projects.org", 0, buffer, wholeFile = true),
+            onBufferChanged = { folded = it },
+        )
+        vm.load("projects.org")
+        advanceUntilIdle()
+
+        assertEquals("Unsaved daily entry", loadedDoc(vm).headlines.single().title)
+
+        vm.toggleChecklistDone(1)
+        advanceUntilIdle()
+
+        assertEquals("disk must be untouched while the editor holds the file", diskBefore, store.read("projects.org"))
+        assertNotNull(folded)
+        assertTrue(folded!!.contains("- [X] pick up milk"))
+        assertTrue("no sync for a buffered edit", sync.syncRequests.isEmpty())
+    }
+
     // --- refile ------------------------------------------------------
 
     @Test

@@ -89,6 +89,7 @@ re-uploads the APKs to the existing release instead of failing.
 - Back from Dailies Edit mode returns to Read mode; the editor shows link suggestions in a bottom gap.
 - Link-suggestion chips in the whole-file, Dailies, and capture editors now sit lower, just above the formatting toolbar.
 - The Dailies calendar/date-picker button now always shows in the top bar, including on today's own empty day; picking the currently-viewed date in the date picker no longer triggers a pointless re-navigation; the date picker's today-cell highlight now matches the design spec's accent outline instead of a filled background.
+- Dailies Edit-to-Read no longer saves; Read shows unsaved text, and leaving asks to save.
 
 ## [1.7.1] - 2026-09-22
 
