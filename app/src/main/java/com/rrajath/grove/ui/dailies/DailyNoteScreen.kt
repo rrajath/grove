@@ -401,7 +401,7 @@ fun DailyNoteScreen(
         DailyDatePickerSheet(
             initialMonth = date,
             existingDates = nav?.existingDates.orEmpty(),
-            onPick = { picked -> datePickerOpen = false; onNavigateDate(picked) },
+            onPick = { picked -> datePickerOpen = false; runGuarded { onNavigateDate(picked) } },
             onDismiss = { datePickerOpen = false },
         )
     }
