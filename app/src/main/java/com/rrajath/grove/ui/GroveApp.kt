@@ -344,6 +344,13 @@ private fun GroveNavigation(
     // hasn't opened the screen for; opening it stamps the build seen (also killing the launch modal).
     val whatsNewHasUnseen = settings.lastSeenChangelogBuild != com.rrajath.grove.BuildConfig.VERSION_CODE
     LaunchedEffect(Unit) { viewModel.loadWhatsNewHistory() }
+    // Resolve today's daily note while the drawer is opening, so a tap on its Dailies
+    // row finds the note already parsed (DailyNoteLookup) and renders at once.
+    LaunchedEffect(drawerState.targetValue, settings.roamFeaturesEnabled) {
+        if (drawerState.targetValue == DrawerValue.Open && settings.roamFeaturesEnabled) {
+            app.dailyNoteLookup.warm()
+        }
+    }
 
     CompositionLocalProvider(LocalNewBadges provides newBadges) {
     ModalNavigationDrawer(

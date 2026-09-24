@@ -187,6 +187,47 @@ class SafFileStore(
         return currentDocId
     }
 
+    private sealed interface DirectLookup {
+        /** This provider's document ids aren't paths: only a listing can answer. */
+        data object Unsupported : DirectLookup
+        data object Missing : DirectLookup
+        data class Found(val docId: String) : DirectLookup
+    }
+
+    /**
+     * Answers "is [name] a file in the vault" with one query, no listing, on the
+     * local-storage provider (what a Syncthing folder is), whose document ids are
+     * `<volume>:<path>`: the file's id is then the tree root's id plus [name].
+     * Applies the same skip/ignore rules as [list], and defers to a listing when
+     * the provider's name differs in case, so the answer always matches [list]'s.
+     */
+    private fun directLookup(name: String): DirectLookup {
+        if (treeUri.authority != EXTERNAL_STORAGE_AUTHORITY) return DirectLookup.Unsupported
+        val root = rootDocId
+        if (':' !in root) return DirectLookup.Unsupported
+        val segments = name.split('/')
+        var path = ""
+        for (dir in segments.dropLast(1)) {
+            path = if (path.isEmpty()) dir else "$path/$dir"
+            if (isSkippedVaultDir(dir) || ignore.isDirIgnored(dir, path)) return DirectLookup.Missing
+        }
+        if (ignore.isFileIgnored(segments.last(), name)) return DirectLookup.Missing
+        val docId = if (root.endsWith(':')) "$root$name" else "$root/$name"
+        val uri = DocumentsContract.buildDocumentUriUsingTree(treeUri, docId)
+        // A missing file surfaces as a null cursor or a thrown FileNotFoundException,
+        // depending on the platform version.
+        val cursor = runCatching { resolver.query(uri, projection, null, null, null) }.getOrNull()
+            ?: return DirectLookup.Missing
+        return cursor.use {
+            when {
+                !it.moveToFirst() -> DirectLookup.Missing
+                it.getString(4) == DocumentsContract.Document.MIME_TYPE_DIR -> DirectLookup.Missing
+                it.getString(1) != segments.last() -> DirectLookup.Unsupported
+                else -> DirectLookup.Found(it.getString(0) ?: docId)
+            }
+        }
+    }
+
     private fun findChildDir(parentDocId: String, name: String): String? {
         val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, parentDocId)
         val cursor = runCatching { resolver.query(childrenUri, projection, null, null, null) }.getOrNull()
@@ -368,7 +409,15 @@ class SafFileStore(
         // Only re-walk the tree if we have never listed it; once listed, a miss
         // is authoritative (see [listed]). This is what keeps exists()/create()/
         // rename() on an absent name from triggering a full recursive walk.
-        if (name !in docIds && !listed) list()
+        // Before the first walk, a path-id provider answers with one direct
+        // query instead (Dailies opening today's note on a cold store).
+        if (name !in docIds && !listed) {
+            when (val direct = directLookup(name)) {
+                DirectLookup.Unsupported -> list()
+                DirectLookup.Missing -> return null
+                is DirectLookup.Found -> docIds[name] = direct.docId
+            }
+        }
         val docId = docIds[name] ?: return null
         return DocumentsContract.buildDocumentUriUsingTree(treeUri, docId)
     }
@@ -405,3 +454,6 @@ class SafFileStore(
         return if (i < 0) "" to path else path.substring(0, i) to path.substring(i + 1)
     }
 }
+
+/** The platform's local-storage documents provider, whose document ids are paths. */
+private const val EXTERNAL_STORAGE_AUTHORITY = "com.android.externalstorage.documents"

@@ -198,6 +198,11 @@ fun DailyNoteScreen(
     LaunchedEffect(nav?.fileName, nav?.exists) {
         val n = nav ?: return@LaunchedEffect
         if (n.exists) {
+            // Render the already-parsed note (prewarmed from the drawer, or prefetched)
+            // at once; load() then re-checks the file and only swaps in a newer parse.
+            if ((documentViewModel.state.value as? DocumentUiState.Loaded)?.fileName != n.fileName) {
+                dailiesViewModel.cachedDocument(n.fileName)?.let { documentViewModel.show(n.fileName, it) }
+            }
             documentViewModel.load(n.fileName)
         }
     }

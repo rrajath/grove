@@ -180,6 +180,11 @@ open class GroveApplication : Application() {
             .stateIn(appScope, SharingStarted.Eagerly, null)
     }
 
+    /** Today's daily note, warmed when the drawer opens so Dailies renders at once. */
+    val dailyNoteLookup: com.rrajath.grove.dailies.DailyNoteLookup by lazy {
+        com.rrajath.grove.dailies.DailyNoteLookup(vault, settingsRepository, appScope, dispatchers.io)
+    }
+
     private suspend fun reconcileFileReminders(fileName: String, doc: com.rrajath.grove.org.OrgDocument) {
         val settings = settingsRepository.settings.first()
         reminderReconciler.reconcileFile(

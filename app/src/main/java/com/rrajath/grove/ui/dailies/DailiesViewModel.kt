@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.rrajath.grove.AppDispatchers
 import com.rrajath.grove.capture.FilenamePattern
 import com.rrajath.grove.dailies.DailiesRepository
+import com.rrajath.grove.dailies.DailyNoteLookup
 import com.rrajath.grove.org.OrgDocument
 import com.rrajath.grove.settings.GroveSettings
 import com.rrajath.grove.settings.SettingsSource
@@ -38,11 +39,17 @@ data class DailiesNavState(
  * new [DailiesNavState] from it synchronously. The documents for the selected day
  * and both of its neighbours are parsed ahead of time into [docCache], so the screen
  * can render the next/previous day from memory the moment it's selected.
+ *
+ * Before that index exists (opening the screen), [select] doesn't wait for it: a
+ * [DailyNoteLookup] answers for the one requested day (warmed from the drawer, or a
+ * single-file lookup), and a provisional [DailiesNavState] with plain ±1-day
+ * neighbours and no date-picker dots is published until the index replaces it.
  */
 class DailiesViewModel(
     private val vaultFlow: StateFlow<Vault?>,
     private val settings: SettingsSource,
     private val dispatchers: AppDispatchers,
+    private val lookup: DailyNoteLookup? = null,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<DailiesNavState?>(null)
@@ -69,6 +76,7 @@ class DailiesViewModel(
     private var currentDate: LocalDate? = null
     private var refreshJob: Job? = null
     private var slowJob: Job? = null
+    private var quickJob: Job? = null
 
     /** fileName -> parsed document, for the selected day and its neighbours. Only touched
      *  on the main thread (the prefetch writes back after its IO hop). */
@@ -89,13 +97,15 @@ class DailiesViewModel(
 
     /**
      * Make [date] the current day. Returns its [DailiesNavState] synchronously once the
-     * day index exists (always, after the first [refresh]); null only before that, in
-     * which case [state] updates when the index lands. Never starts a listing itself:
+     * day index exists (always, after the first [refresh]). Before that, returns the
+     * provisional state when [lookup] already holds [date], else null and [state]
+     * updates when the lookup (or the index) lands. Never starts a listing itself:
      * the screen calls [refresh] on every resume, including the first.
      */
     fun select(date: LocalDate): DailiesNavState? {
         currentDate = date
-        val idx = index ?: return null
+        val idx = index ?: return selectProvisional(date)
+        quickJob?.cancel()
         if (!idx.parseable) {
             resolveSlow(idx, date)
             return null
@@ -179,6 +189,33 @@ class DailiesViewModel(
         )
     }
 
+    private fun selectProvisional(date: LocalDate): DailiesNavState? {
+        quickJob?.cancel()
+        val lookup = lookup ?: return null
+        lookup.cached(date)?.let { return publishProvisional(it) }
+        quickJob = viewModelScope.launch {
+            val result = lookup.resolve(date) ?: return@launch
+            // The index may have landed (it wins) or the user moved on meanwhile.
+            if (index == null && currentDate == date) publishProvisional(result)
+        }
+        return null
+    }
+
+    private fun publishProvisional(r: DailyNoteLookup.Result): DailiesNavState {
+        r.document?.let { docCache[r.fileName] = it }
+        val nav = DailiesNavState(
+            date = r.date,
+            fileName = r.fileName,
+            exists = r.exists,
+            isToday = r.date == LocalDate.now(),
+            nextDate = r.date.plusDays(1),
+            previousDate = r.date.minusDays(1),
+            existingDates = if (r.exists) setOf(r.date) else emptySet(),
+        )
+        _state.value = nav
+        return nav
+    }
+
     /** Unparseable-pattern fallback: there's no index to derive from, so existence and
      *  the previous day come from direct (bounded) lookups instead. */
     private fun resolveSlow(idx: DayIndex, date: LocalDate) {
@@ -219,7 +256,7 @@ class DailiesViewModel(
 
     companion object {
         val Factory = factory {
-            DailiesViewModel(it.vault, it.settingsRepository, it.dispatchers)
+            DailiesViewModel(it.vault, it.settingsRepository, it.dispatchers, it.dailyNoteLookup)
         }
     }
 }

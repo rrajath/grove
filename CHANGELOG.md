@@ -84,7 +84,7 @@ re-uploads the APKs to the existing release instead of failing.
 - Whole-file Edit-to-Read no longer saves; Read shows unsaved text and leaving asks to save.
 
 ### Fixed
-- Dailies opens faster: it lists only the dailies folder instead of walking the whole vault.
+- Dailies opens without waiting on a folder listing: today's note is looked up directly, prewarmed when the drawer opens.
 - Vault.save() now creates missing files before writing (required by SAF backend).
 - Dailies settings moved into their own section; editing stopped resetting to defaults; keyboard no longer covers the field being edited.
 - DailyNoteScreen now saves and guards unsaved edits, seeds new-day text on either entry, and shows working Linked References.
