@@ -17,8 +17,6 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.union
-import androidx.compose.foundation.layout.IntrinsicSize
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.rememberScrollState
@@ -29,9 +27,7 @@ import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Save
-import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -52,7 +48,6 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -67,11 +62,11 @@ import com.rrajath.grove.org.INTRO_LINE_INDEX
 import com.rrajath.grove.org.LineEditing
 import com.rrajath.grove.org.OrgParser
 import com.rrajath.grove.settings.FontSizePreference
+import com.rrajath.grove.ui.components.ReadEditToggle
 import com.rrajath.grove.ui.components.GroveTopBar
 import com.rrajath.grove.ui.components.LinkedReferencesBar
 import com.rrajath.grove.ui.components.LinkedReferencesSheet
 import com.rrajath.grove.ui.components.ScrollJumpButtons
-import com.rrajath.grove.ui.components.SegmentedControl
 import com.rrajath.grove.ui.screens.IconGlyph
 import com.rrajath.grove.ui.theme.ContentFontScale
 import com.rrajath.grove.ui.theme.PlexMono
@@ -167,10 +162,10 @@ fun EditRegionScreen(
     /** Settings § Notes: font-size lever for the editor field. App chrome is unaffected. */
     editModeFontSize: FontSizePreference = FontSizePreference.MEDIUM,
     /**
-     * When set, the top bar carries the Read/Edit [SegmentedControl] (Edit selected)
-     * and picking Read calls this. A dirty buffer is saved first: the whole-file Read
-     * view renders the file from disk, so switching with unsaved text would show
-     * stale content (unlike note Read mode, which renders the editor's buffer).
+     * When set, the top bar carries the [ReadEditToggle] (Edit selected), and both it
+     * and Back call this. Neither saves: the FILE route hoists [viewModel] so its
+     * Read view renders the unsaved buffer from memory (as note Read mode does), and
+     * leaving that Read view is what asks to save.
      */
     onSwitchToRead: (() -> Unit)? = null,
     /**
@@ -237,7 +232,13 @@ fun EditRegionScreen(
     }
 
     fun leave() {
-        if (state.dirty) confirmLeave = true else onBack()
+        when {
+            // Back from the whole-file editor lands in its Read view, which keeps
+            // showing the unsaved buffer; only leaving that view asks to save.
+            onSwitchToRead != null -> onSwitchToRead()
+            state.dirty -> confirmLeave = true
+            else -> onBack()
+        }
     }
     fun openNote(target: NoteRef) {
         if (state.dirty) {
@@ -249,7 +250,15 @@ fun EditRegionScreen(
     }
     androidx.activity.compose.BackHandler { leave() }
 
-    LaunchedEffect(fileName, noteId, region) { viewModel.loadRegion(fileName, noteId, region, blockLine) }
+    // Coming back from the whole-file Read view with unsaved changes: the buffer
+    // survived in the hoisted view model, and re-reading the file would drop it.
+    val resumedDirty = remember(fileName, region) {
+        val s = viewModel.state.value
+        s.dirty && s.region == region && s.fileName == fileName
+    }
+    LaunchedEffect(fileName, noteId, region) {
+        if (!resumedDirty) viewModel.loadRegion(fileName, noteId, region, blockLine)
+    }
     LaunchedEffect(Unit) { if (region == EditRegion.WHOLE_FILE) viewModel.loadAutoLinkIndex() }
     // Recomputed on every text/selection change so it tracks whatever word is
     // being typed right now; see EditNoteScreen's identical wiring.
@@ -347,20 +356,9 @@ fun EditRegionScreen(
                 },
                 actions = {
                     if (onSwitchToRead != null) {
-                        SegmentedControl(
-                            options = listOf("Read", "Edit"),
-                            optionIcons = listOf(Icons.Outlined.Visibility, Icons.Outlined.Edit),
-                            selectedIndex = 1,
-                            onSelect = { index ->
-                                if (index == 0) {
-                                    if (state.dirty) viewModel.save(onSaved = onSwitchToRead)
-                                    else onSwitchToRead()
-                                }
-                            },
-                            // 16dp + the top bar's 8dp = the 24dp read gutter, so the
-                            // toggle lines up with the Read view's (see ReadNoteScreen).
-                            modifier = Modifier.padding(end = 16.dp).width(IntrinsicSize.Min).testTag("read_edit_toggle"),
-                        )
+                        // Never saves: the FILE route's Read view renders this buffer
+                        // from memory (PendingEdit), as note Read mode does.
+                        ReadEditToggle(isEditing = true, onToggle = onSwitchToRead)
                     }
                 },
             )
@@ -437,6 +435,9 @@ fun EditRegionScreen(
                 androidx.compose.material3.TextButton(onClick = {
                     confirmLeave = false
                     val target = pendingOpenNote.also { pendingOpenNote = null }
+                    // Drop the buffer: a hoisted view model (whole-file editor) would
+                    // otherwise bring the discarded text back on return.
+                    viewModel.reset()
                     if (target != null) onOpenNote(target) else onBack()
                 }) { Text("Discard", color = c.red) }
             },

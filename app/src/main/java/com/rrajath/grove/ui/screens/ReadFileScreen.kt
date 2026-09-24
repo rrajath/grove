@@ -9,16 +9,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.IntrinsicSize
-import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.outlined.Save
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -51,13 +50,13 @@ import com.rrajath.grove.data.FavoriteNote
 import com.rrajath.grove.org.INTRO_LINE_INDEX
 import com.rrajath.grove.org.OrgDocument
 import com.rrajath.grove.settings.FontSizePreference
+import com.rrajath.grove.ui.components.ReadEditToggle
 import com.rrajath.grove.ui.components.CollapsibleKvSection
 import com.rrajath.grove.ui.components.GroveToast
 import com.rrajath.grove.ui.components.GroveTopBar
 import com.rrajath.grove.ui.components.LinkedReferencesBar
 import com.rrajath.grove.ui.components.LinkedReferencesSheet
 import com.rrajath.grove.ui.components.ScrollJumpButtons
-import com.rrajath.grove.ui.components.SegmentedControl
 import com.rrajath.grove.ui.newbadge.MarkNewFeatureSeen
 import com.rrajath.grove.ui.newbadge.NewAnchors
 import com.rrajath.grove.ui.theme.ContentFontScale
@@ -66,6 +65,7 @@ import com.rrajath.grove.ui.theme.grove
 import com.rrajath.grove.ui.util.IntSetSaver
 import com.rrajath.grove.ui.vault.DocumentUiState
 import com.rrajath.grove.ui.vault.DocumentViewModel
+import com.rrajath.grove.ui.vault.PendingEdit
 import com.rrajath.grove.ui.vault.NoteRef
 
 /**
@@ -110,6 +110,14 @@ fun ReadFileScreen(
     readModeFontSize: FontSizePreference = FontSizePreference.MEDIUM,
     /** Favorited headlines in this file, matched per-heading by customId, marked with a ★. */
     favorites: List<FavoriteNote> = emptyList(),
+    /** The whole-file editor's unsaved buffer, rendered in place of the file on disk. */
+    pendingEdit: PendingEdit? = null,
+    /** A Read-mode mutation was folded into [pendingEdit]; the arg is the new file text. */
+    onPendingBufferChanged: (String) -> Unit = {},
+    /** [pendingEdit] went to disk with a mutation; the editor should let it go. */
+    onPendingPersisted: () -> Unit = {},
+    /** Tapping the unsaved-changes indicator: write [pendingEdit] to disk now. */
+    onSavePending: () -> Unit = {},
     viewModel: DocumentViewModel = viewModel(factory = DocumentViewModel.Factory),
 ) {
     val c = MaterialTheme.grove
@@ -146,7 +154,12 @@ fun ReadFileScreen(
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
-    LaunchedEffect(fileName) { viewModel.load(fileName) }
+    // Registered before the load below so the first read already renders the
+    // editor's unsaved buffer (see ReadNoteScreen).
+    androidx.compose.runtime.SideEffect {
+        viewModel.setPendingEdit(pendingEdit, onPendingBufferChanged, onPendingPersisted)
+    }
+    LaunchedEffect(fileName, pendingEdit) { viewModel.load(fileName) }
 
     // Reaching this screen retires the NEW badge on the Outline's "View file" item.
     MarkNewFeatureSeen(NewAnchors.OUTLINE_VIEW_FILE)
@@ -155,17 +168,23 @@ fun ReadFileScreen(
         containerColor = c.bg,
         topBar = {
             GroveTopBar(
-                leading = { IconGlyph("←", onClick = onBack) },
+                leading = {
+                    IconGlyph("←", onClick = onBack)
+                    // Green: what's rendered is the editor's unsaved buffer; a tap writes it.
+                    if (pendingEdit != null) {
+                        androidx.compose.material3.Icon(
+                            Icons.Outlined.Save,
+                            contentDescription = "Unsaved changes, tap to save",
+                            tint = c.green,
+                            modifier = Modifier
+                                .clip(androidx.compose.foundation.shape.RoundedCornerShape(10.dp))
+                                .clickable(onClick = onSavePending)
+                                .padding(10.dp),
+                        )
+                    }
+                },
                 actions = {
-                    SegmentedControl(
-                        options = listOf("Read", "Edit"),
-                        optionIcons = listOf(Icons.Outlined.Visibility, Icons.Outlined.Edit),
-                        selectedIndex = 0,
-                        onSelect = { if (it == 1) onEdit() },
-                        // 16dp here + the top bar's own 8dp = the 24dp read gutter,
-                        // so the toggle lines up with the body (see ReadNoteScreen).
-                        modifier = Modifier.padding(end = 16.dp).width(IntrinsicSize.Min).testTag("read_edit_toggle"),
-                    )
+                    ReadEditToggle(isEditing = false, onToggle = onEdit)
                 },
                 subtitle = {
                     // No heading to crumb to -- just the file segment, like Read

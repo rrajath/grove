@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.clickable
@@ -34,9 +33,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarMonth
-import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Save
-import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.filled.Circle
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material3.Icon
@@ -99,6 +96,7 @@ import com.rrajath.grove.org.OrgMutations
 import com.rrajath.grove.org.OrgTimestamp
 import com.rrajath.grove.org.newOrgId
 import com.rrajath.grove.settings.FontSizePreference
+import com.rrajath.grove.ui.components.ReadEditToggle
 import com.rrajath.grove.ui.components.CollapsibleBlockSection
 import com.rrajath.grove.ui.components.CollapsibleKvSection
 import com.rrajath.grove.ui.components.CollapsibleLogSection
@@ -111,7 +109,6 @@ import com.rrajath.grove.ui.components.LinkedReferencesSheet
 import com.rrajath.grove.ui.editor.MetadataSheet
 import com.rrajath.grove.ui.components.OrgTableView
 import com.rrajath.grove.ui.components.Pill
-import com.rrajath.grove.ui.components.SegmentedControl
 import com.rrajath.grove.ui.components.annotateOrgInline
 import com.rrajath.grove.ui.components.doubleTapToEdit
 import com.rrajath.grove.ui.components.EditorMenuFab
@@ -307,16 +304,7 @@ fun ReadNoteScreen(
                     }
                 },
                 actions = {
-                    SegmentedControl(
-                        options = listOf("Read", "Edit"),
-                        optionIcons = listOf(Icons.Outlined.Visibility, Icons.Outlined.Edit),
-                        selectedIndex = 0,
-                        onSelect = { if (it == 1) onEdit(null) },
-                        // 16dp here + the top bar's own 8dp = the 24dp read-note
-                        // gutter, so the toggle's right edge lines up with the
-                        // back arrow's optical left edge and the note body.
-                        modifier = Modifier.padding(end = 16.dp).width(IntrinsicSize.Min).testTag("read_edit_toggle"),
-                    )
+                    ReadEditToggle(isEditing = false, onToggle = { onEdit(null) })
                 },
                 subtitle = {
                     (state as? DocumentUiState.Loaded)?.document?.let { doc ->

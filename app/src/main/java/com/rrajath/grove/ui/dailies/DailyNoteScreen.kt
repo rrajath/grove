@@ -7,7 +7,6 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
@@ -24,9 +23,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarToday
-import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Save
-import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -53,10 +50,10 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rrajath.grove.settings.FontSizePreference
+import com.rrajath.grove.ui.components.ReadEditToggle
 import com.rrajath.grove.ui.components.GroveTopBar
 import com.rrajath.grove.ui.components.LinkedReferencesBar
 import com.rrajath.grove.ui.components.LinkedReferencesSheet
-import com.rrajath.grove.ui.components.SegmentedControl
 import com.rrajath.grove.org.OrgTimestamp
 import com.rrajath.grove.ui.components.InsertTimestampScreen
 import com.rrajath.grove.ui.editor.EditRegion
@@ -322,18 +319,9 @@ fun DailyNoteScreen(
                             modifier = Modifier.padding(top = 5.dp),
                         )
                     }
-                    SegmentedControl(
-                        options = listOf("Read", "Edit"),
-                        optionIcons = listOf(Icons.Outlined.Visibility, Icons.Outlined.Edit),
-                        selectedIndex = if (mode == "edit") 1 else 0,
-                        onSelect = { idx ->
-                            if (idx == 0) {
-                                switchToRead()
-                            } else {
-                                nav?.let { startEditing(it) }
-                            }
-                        },
-                        modifier = Modifier.padding(end = 16.dp).width(IntrinsicSize.Min).testTag("read_edit_toggle"),
+                    ReadEditToggle(
+                        isEditing = mode == "edit",
+                        onToggle = { if (mode == "edit") switchToRead() else nav?.let { startEditing(it) } },
                     )
                 },
             )

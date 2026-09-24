@@ -21,7 +21,6 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.union
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
@@ -33,9 +32,7 @@ import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Save
-import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -90,9 +87,9 @@ import com.rrajath.grove.org.OrgMutations
 import com.rrajath.grove.org.OrgParser
 import com.rrajath.grove.org.OrgTimestamp
 import com.rrajath.grove.org.newOrgId
+import com.rrajath.grove.ui.components.ReadEditToggle
 import com.rrajath.grove.ui.components.GroveTopBar
 import com.rrajath.grove.ui.components.Pill
-import com.rrajath.grove.ui.components.SegmentedControl
 import com.rrajath.grove.ui.components.annotateOrgInline
 import com.rrajath.grove.ui.editor.AutoLinkSuggestionStrip
 import com.rrajath.grove.ui.editor.AutoSaveTimestamp
@@ -534,13 +531,7 @@ fun CaptureEditorScreen(
                 },
                 actions = {
                     IconGlyph("☰", onClick = { metadataOpen = true })
-                    SegmentedControl(
-                        options = listOf("Read", "Edit"),
-                        optionIcons = listOf(Icons.Outlined.Visibility, Icons.Outlined.Edit),
-                        selectedIndex = if (readMode) 0 else 1,
-                        onSelect = { readMode = it == 0 },
-                        modifier = Modifier.width(IntrinsicSize.Min),
-                    )
+                    ReadEditToggle(isEditing = !readMode, onToggle = { readMode = !readMode })
                 },
             )
         },

@@ -515,6 +515,39 @@ private fun GroveNavigation(
                 var mode by rememberSaveable(fileName) {
                     mutableStateOf(entry.arguments?.getString("mode") ?: "read")
                 }
+                // Hoisted, as on NOTE: the Read/Edit toggle never saves, so the
+                // editor's unsaved buffer must outlive Edit mode for Read to render it.
+                val editorViewModel: EditorViewModel = viewModel(factory = EditorViewModel.Factory)
+                // Only this key at route scope, so typing doesn't recompose the route.
+                val pendingKeyFlow = remember(editorViewModel) {
+                    editorViewModel.state
+                        .map { PendingEditKey(it.dirty, it.region, it.fileName, it.lineIndex) }
+                        .distinctUntilChanged()
+                }
+                val pendingKey by pendingKeyFlow.collectAsStateWithLifecycle(
+                    initialValue = PendingEditKey(dirty = false, region = null, fileName = "", lineIndex = -1),
+                )
+                val hasPendingEdit = pendingKey.dirty && pendingKey.region == EditRegion.WHOLE_FILE &&
+                    pendingKey.fileName == fileName
+                var confirmLeavePending by remember(fileName) { mutableStateOf(false) }
+                val leaveRead: () -> Unit = {
+                    if (hasPendingEdit) confirmLeavePending = true else navController.popBackStack()
+                }
+                androidx.activity.compose.BackHandler(enabled = mode == "read" && hasPendingEdit) { leaveRead() }
+                if (confirmLeavePending) {
+                    UnsavedNoteDialog(
+                        message = "This file has unsaved changes.",
+                        onSave = {
+                            confirmLeavePending = false
+                            editorViewModel.save { navController.popBackStack() }
+                        },
+                        onDiscard = {
+                            confirmLeavePending = false
+                            navController.popBackStack()
+                        },
+                        onDismiss = { confirmLeavePending = false },
+                    )
+                }
                 if (mode == "edit") {
                     // The whole buffer in one editor. Back returns to the file's
                     // Read view (mirroring the intro editor), never straight out.
@@ -528,11 +561,19 @@ private fun GroveNavigation(
                         showBacklinks = settings.roamFeaturesEnabled && settings.roamShowBacklinks,
                         showSuggestions = settings.roamFeaturesEnabled && settings.roamShowSuggestions,
                         onOpenNote = { target -> navController.navigate(Routes.note(target.encode())) },
+                        viewModel = editorViewModel,
                     )
                 } else {
+                    // The buffer itself only here, where Read renders it.
+                    val editorState by editorViewModel.state.collectAsStateWithLifecycle()
+                    val pendingEdit = if (hasPendingEdit) {
+                        PendingEdit(editorState.fileName, 0, editorState.buffer, wholeFile = true)
+                    } else {
+                        null
+                    }
                     ReadFileScreen(
                         fileName = fileName,
-                        onBack = { navController.popBackStack() },
+                        onBack = leaveRead,
                         onEdit = { mode = "edit" },
                         onOpenNote = { target -> navController.navigate(Routes.note(target.encode())) },
                         // Explicit outline (no autoOpen): the filename tap must land
@@ -551,6 +592,10 @@ private fun GroveNavigation(
                         showBacklinks = settings.roamFeaturesEnabled && settings.roamShowBacklinks,
                         readModeFontSize = settings.readModeFontSize,
                         favorites = remember(favorites, fileName) { favoritesFor(favorites, fileName) },
+                        pendingEdit = pendingEdit,
+                        onPendingBufferChanged = editorViewModel::onBufferChangedExternally,
+                        onPendingPersisted = editorViewModel::onBufferPersistedElsewhere,
+                        onSavePending = { editorViewModel.save() },
                     )
                 }
             }

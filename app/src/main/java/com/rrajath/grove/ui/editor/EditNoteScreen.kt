@@ -19,8 +19,6 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.union
-import androidx.compose.foundation.layout.IntrinsicSize
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -29,9 +27,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Save
-import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -73,6 +69,7 @@ import com.rrajath.grove.org.OrgHeadline
 import com.rrajath.grove.org.OrgTimestamp
 import com.rrajath.grove.settings.FontSizePreference
 import com.rrajath.grove.settings.NewNoteCursor
+import com.rrajath.grove.ui.components.ReadEditToggle
 import com.rrajath.grove.ui.components.EditorMenuFab
 import com.rrajath.grove.ui.components.GroveTopBar
 import com.rrajath.grove.ui.components.GroveUndoSnackbar
@@ -80,7 +77,6 @@ import com.rrajath.grove.ui.components.InsertTimestampScreen
 import com.rrajath.grove.ui.components.LinkedReferencesBar
 import com.rrajath.grove.ui.components.LinkedReferencesSheet
 import com.rrajath.grove.ui.components.ScrollJumpButtons
-import com.rrajath.grove.ui.components.SegmentedControl
 import com.rrajath.grove.ui.screens.IconGlyph
 import com.rrajath.grove.ui.screens.RefileSheet
 import com.rrajath.grove.ui.theme.ContentFontScale
@@ -452,20 +448,11 @@ fun EditNoteScreen(
                 },
                 title = {},
                 actions = {
-                    SegmentedControl(
-                        options = listOf("Read", "Edit"),
-                        optionIcons = listOf(Icons.Outlined.Visibility, Icons.Outlined.Edit),
-                        selectedIndex = 1,
-                        // Switching to read mode never writes and never validates:
-                        // read mode renders this buffer as-is (see PendingEdit). The
-                        // note route's own leave path (back from read) is what checks
-                        // for a blank heading before the file can actually change.
-                        onSelect = { if (it == 0) onSwitchToRead() },
-                        // 16dp here + the top bar's own 8dp = the 24dp note
-                        // gutter, so the toggle's right edge lines up with the
-                        // back arrow's optical left edge.
-                        modifier = Modifier.padding(end = 16.dp).width(IntrinsicSize.Min),
-                    )
+                    // Switching to read mode never writes and never validates:
+                    // read mode renders this buffer as-is (see PendingEdit). The
+                    // note route's own leave path (back from read) is what checks
+                    // for a blank heading before the file can actually change.
+                    ReadEditToggle(isEditing = true, onToggle = onSwitchToRead)
                 },
             )
         },
@@ -959,6 +946,7 @@ fun UnsavedNoteDialog(
     onSave: () -> Unit,
     onDiscard: () -> Unit,
     onDismiss: () -> Unit,
+    message: String = "This note has unsaved changes.",
 ) {
     val c = MaterialTheme.grove
     androidx.compose.material3.AlertDialog(
@@ -973,7 +961,7 @@ fun UnsavedNoteDialog(
         },
         text = {
             Text(
-                "This note has unsaved changes.",
+                message,
                 fontFamily = PlexSans, fontSize = 14.sp, color = c.ink2,
             )
         },

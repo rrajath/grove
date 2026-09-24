@@ -80,6 +80,8 @@ re-uploads the APKs to the existing release instead of failing.
 - Dailies drops the TODAY pill; the calendar icon turns accent-colored when viewing another day.
 - Roam Features, including Dailies, backlinks, and link suggestions, are now debug-build only.
 - Link and roam-node suggestion strips now show only while the keyboard is up.
+- Read/Edit toggle is one shared component; tapping anywhere on it switches mode.
+- Whole-file Edit-to-Read no longer saves; Read shows unsaved text and leaving asks to save.
 
 ### Fixed
 - Vault.save() now creates missing files before writing (required by SAF backend).

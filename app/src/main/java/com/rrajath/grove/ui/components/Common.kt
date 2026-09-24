@@ -31,6 +31,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -149,12 +156,54 @@ fun SegmentedControl(
     onSelect: (Int) -> Unit,
     modifier: Modifier = Modifier,
     optionIcons: List<ImageVector?>? = null,
+) = SegmentedControlImpl(options, selectedIndex, onSelect, modifier, optionIcons, onControlClick = null)
+
+/**
+ * The Read/Edit mode switch every note, file, Dailies and capture top bar carries:
+ * a two-option [SegmentedControl] with eye/pencil icons. The whole control is one
+ * tap target that flips the mode, since the icon segments alone are small. It
+ * owns the shared 16dp end gutter (plus the top bar's own 8dp, the 24dp read
+ * gutter) so every screen's toggle lines up the same way.
+ *
+ * Mode-switch policy (never saving, seeding a new file, ...) stays with the
+ * caller's [onToggle].
+ */
+@Composable
+fun ReadEditToggle(
+    isEditing: Boolean,
+    onToggle: () -> Unit,
+    modifier: Modifier = Modifier,
+) = SegmentedControlImpl(
+    options = listOf("Read", "Edit"),
+    selectedIndex = if (isEditing) 1 else 0,
+    onSelect = {},
+    modifier = modifier
+        .padding(end = 16.dp)
+        .width(IntrinsicSize.Min)
+        .testTag("read_edit_toggle")
+        .semantics(mergeDescendants = true) {
+            stateDescription = if (isEditing) "Edit mode" else "Read mode"
+        },
+    optionIcons = listOf(Icons.Outlined.Visibility, Icons.Outlined.Edit),
+    onControlClick = onToggle,
+)
+
+/** [onControlClick] non-null makes the whole control one click target instead of per-segment ones. */
+@Composable
+private fun SegmentedControlImpl(
+    options: List<String>,
+    selectedIndex: Int,
+    onSelect: (Int) -> Unit,
+    modifier: Modifier,
+    optionIcons: List<ImageVector?>?,
+    onControlClick: (() -> Unit)?,
 ) {
     val c = MaterialTheme.grove
     Row(
         modifier
             .clip(RoundedCornerShape(10.dp))
             .background(c.surface2)
+            .then(if (onControlClick != null) Modifier.clickable(onClick = onControlClick) else Modifier)
             .padding(3.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -167,7 +216,7 @@ fun SegmentedControl(
                     .weight(1f)
                     .clip(RoundedCornerShape(8.dp))
                     .background(if (active) c.accent else Color.Transparent)
-                    .clickable { onSelect(i) }
+                    .then(if (onControlClick == null) Modifier.clickable { onSelect(i) } else Modifier)
                     .padding(horizontal = 14.dp, vertical = 6.dp),
                 contentAlignment = Alignment.Center,
             ) {
