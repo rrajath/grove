@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.only
@@ -645,10 +646,8 @@ fun CaptureEditorScreen(
                         }
                     }
                 }
-                // Bottom bar: the suggestion strip (if any) and the Save pill share
-                // this row's own vertical center -- they're independently sized, so
-                // Alignment.Center rather than Alignment.Bottom keeps them lined up
-                // regardless of the strip's or pill's exact rendered height.
+                // Bottom bar: the suggestion strip (if any, bottom-aligned to sit just
+                // above the toolbar) and the Save pill (centred in the row).
                 Box(
                     Modifier
                         .align(Alignment.BottomStart)
@@ -675,7 +674,11 @@ fun CaptureEditorScreen(
                                 // stops short of the pill instead of running chips
                                 // behind it.
                                 modifier = Modifier
-                                    .align(Alignment.CenterStart)
+                                    .align(Alignment.BottomStart)
+                                    // Hug the bottom edge (6dp above the formatting toolbar),
+                                    // same as the whole-file editor's strip: cancels 10dp of
+                                    // this row's 16dp bottom padding, which the Save pill keeps.
+                                    .offset(y = 10.dp)
                                     .padding(start = 16.dp, end = 100.dp),
                             )
                         } else if (roamNodeSuggestionActive) {
@@ -709,7 +712,11 @@ fun CaptureEditorScreen(
                                     }
                                 },
                                 modifier = Modifier
-                                    .align(Alignment.CenterStart)
+                                    .align(Alignment.BottomStart)
+                                    // Hug the bottom edge (6dp above the formatting toolbar),
+                                    // same as the whole-file editor's strip: cancels 10dp of
+                                    // this row's 16dp bottom padding, which the Save pill keeps.
+                                    .offset(y = 10.dp)
                                     .padding(start = 16.dp, end = 100.dp),
                             )
                         }
