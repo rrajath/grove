@@ -103,6 +103,7 @@ re-uploads the APKs to the existing release instead of failing.
 - Dailies Edit-to-Read no longer saves; Read shows unsaved text, and leaving asks to save.
 - Dailies toolbar: link tap works; long-press opens the link picker, clock long-press opens the timestamp picker.
 - Dailies date picker keeps a fixed height across months; month arrows have square ripples.
+- Dailies drawer icon uses weight 200 to match the other drawer icons.
 
 ## [1.7.1] - 2026-09-22
 
