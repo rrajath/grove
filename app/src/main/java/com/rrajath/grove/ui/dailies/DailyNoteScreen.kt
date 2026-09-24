@@ -266,8 +266,8 @@ fun DailyNoteScreen(
                             val navState = nav ?: return@detectHorizontalDragGestures
                             val velocity = velocityTracker.calculateVelocity().x
                             when (isDeliberateSwipe(totalDrag, velocity, size.width.toFloat())) {
-                                SwipeDirection.PREVIOUS -> onNavigateDate(navState.previousDate)
-                                SwipeDirection.NEXT -> onNavigateDate(navState.nextDate)
+                                SwipeDirection.PREVIOUS -> runGuarded { onNavigateDate(navState.previousDate) }
+                                SwipeDirection.NEXT -> runGuarded { onNavigateDate(navState.nextDate) }
                                 null -> {}
                             }
                         },

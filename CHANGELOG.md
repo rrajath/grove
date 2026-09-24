@@ -81,6 +81,7 @@ re-uploads the APKs to the existing release instead of failing.
 - Dailies settings moved into their own section; editing stopped resetting to defaults; keyboard no longer covers the field being edited.
 - DailyNoteScreen now saves and guards unsaved edits, seeds new-day text on either entry, and shows working Linked References.
 - Fix Dailies file name patterns containing `%(slug)` never matching existing daily notes.
+- Swipe navigation on the Dailies screen now respects the unsaved-changes confirm dialog.
 
 ## [1.7.1] - 2026-09-22
 
