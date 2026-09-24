@@ -146,6 +146,12 @@ class EditorViewModel(
     /** See `DocumentViewModel.loadLinkedReferences` -- identical computation, own copy of the state. */
     fun loadLinkedReferences(fileName: String, lineIndex: Int, targetId: String?, title: String) {
         viewModelScope.launch {
+            // A vault-wide body scan that only the Linked References bar uses: skip it
+            // entirely while that bar can't show.
+            if (!settings.settings.first().roamBacklinksActive) {
+                _linkedReferences.value = LinkedReferencesResult.EMPTY
+                return@launch
+            }
             _linkedReferences.value = withContext(dispatchers.default) {
                 val dao = database.indexDao()
                 val selfKey = fileName to lineIndex
@@ -710,12 +716,18 @@ class EditorViewModel(
     private val _autoLinkIndex = MutableStateFlow<ImmutableList<AutoLinkSuggestion>?>(null)
     val autoLinkIndex: StateFlow<ImmutableList<AutoLinkSuggestion>?> = _autoLinkIndex
 
+    /** Eager load for the typing suggester; a no-op unless Roam suggestions are on. */
     fun loadAutoLinkIndex() {
         viewModelScope.launch {
-            val notebooks = database.indexDao().notebooks()
-            val headings = database.indexDao().allHeadingOutlines()
-            _autoLinkIndex.value = buildAutoLinkIndex(notebooks, headings)
+            if (!settings.settings.first().roamSuggestionsActive) return@launch
+            _autoLinkIndex.value = fetchAutoLinkIndex()
         }
+    }
+
+    private suspend fun fetchAutoLinkIndex(): ImmutableList<AutoLinkSuggestion> {
+        val notebooks = database.indexDao().notebooks()
+        val headings = database.indexDao().allHeadingOutlines()
+        return buildAutoLinkIndex(notebooks, headings)
     }
 
     // --- selection-triggered roam-node suggestions ---
@@ -741,10 +753,13 @@ class EditorViewModel(
      */
     suspend fun createOrLinkRoamNode(template: CaptureTemplate, selectedTitle: String): RoamNodeResult? {
         val vault = vaultFlow.value ?: return null
+        // With suggestions off the index was never loaded eagerly; build it now, on
+        // the one tap that needs it, so an existing same-titled node still matches.
+        val index = autoLinkIndex.value ?: fetchAutoLinkIndex()
         val result = RoamNodeCreator.createOrLink(
-            vault, sync, template, selectedTitle, autoLinkIndex.value.orEmpty(), LocalDateTime.now(),
+            vault, sync, template, selectedTitle, index, LocalDateTime.now(),
         )
-        if (result is RoamNodeResult.Created) loadAutoLinkIndex()
+        if (result is RoamNodeResult.Created) _autoLinkIndex.value = fetchAutoLinkIndex()
         return result
     }
 

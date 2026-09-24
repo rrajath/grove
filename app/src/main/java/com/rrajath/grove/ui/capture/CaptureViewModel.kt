@@ -94,12 +94,18 @@ class CaptureViewModel(
     private val _autoLinkIndex = MutableStateFlow<ImmutableList<AutoLinkSuggestion>?>(null)
     val autoLinkIndex: StateFlow<ImmutableList<AutoLinkSuggestion>?> = _autoLinkIndex
 
+    /** Eager load for the typing suggester; a no-op unless Roam suggestions are on. */
     fun loadAutoLinkIndex() {
         viewModelScope.launch {
-            val notebooks = database.indexDao().notebooks()
-            val headings = database.indexDao().allHeadingOutlines()
-            _autoLinkIndex.value = buildAutoLinkIndex(notebooks, headings)
+            if (!settings.settings.first().roamSuggestionsActive) return@launch
+            _autoLinkIndex.value = fetchAutoLinkIndex()
         }
+    }
+
+    private suspend fun fetchAutoLinkIndex(): ImmutableList<AutoLinkSuggestion> {
+        val notebooks = database.indexDao().notebooks()
+        val headings = database.indexDao().allHeadingOutlines()
+        return buildAutoLinkIndex(notebooks, headings)
     }
 
     // Selection-triggered roam-node suggestions inside a Roam-kind capture
@@ -118,10 +124,12 @@ class CaptureViewModel(
     /** Selection-triggered chip tap inside the capture draft; see EditorViewModel.createOrLinkRoamNode. */
     suspend fun createOrLinkRoamNode(template: CaptureTemplate, selectedTitle: String): RoamNodeResult? {
         val vault = vaultFlow.value ?: return null
+        // See EditorViewModel.createOrLinkRoamNode: built on demand when suggestions are off.
+        val index = autoLinkIndex.value ?: fetchAutoLinkIndex()
         val result = RoamNodeCreator.createOrLink(
-            vault, sync, template, selectedTitle, autoLinkIndex.value.orEmpty(), LocalDateTime.now(),
+            vault, sync, template, selectedTitle, index, LocalDateTime.now(),
         )
-        if (result is RoamNodeResult.Created) loadAutoLinkIndex()
+        if (result is RoamNodeResult.Created) _autoLinkIndex.value = fetchAutoLinkIndex()
         return result
     }
 

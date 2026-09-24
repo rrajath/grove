@@ -697,6 +697,12 @@ class DocumentViewModel(
      */
     fun loadLinkedReferences(fileName: String, lineIndex: Int, targetId: String?, title: String) {
         viewModelScope.launch {
+            // A vault-wide body scan that only the Linked References bar uses: skip it
+            // entirely while that bar can't show.
+            if (!settingsRepository.settings.first().roamBacklinksActive) {
+                _linkedReferences.value = LinkedReferencesResult.EMPTY
+                return@launch
+            }
             _linkedReferences.value = withContext(dispatchers.default) {
                 val dao = database.indexDao()
                 val selfKey = fileName to lineIndex

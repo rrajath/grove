@@ -576,6 +576,39 @@ class DocumentViewModelIntegrationTest {
         assertTrue("no sync for a buffered edit", sync.syncRequests.isEmpty())
     }
 
+    // --- linked references: gated on Roam Features ------------------
+
+    private suspend fun TestScope.linkedRefsForShipRelease(): LinkedReferencesResult {
+        store.write("mentions.org", "* Weekly notes\nTalked about Ship v2 release today.\n")
+        TestVaultSeeder.index(db, store)
+        val vm = loaded("projects.org")
+        val ship = headline(vm, "Ship v2 release")
+        vm.loadLinkedReferences("projects.org", ship.lineIndex, ship.id, ship.title)
+        advanceUntilIdle()
+        return vm.linkedReferences.value
+    }
+
+    @Test
+    fun `linked references are not computed while Roam Features are off`() = runTest {
+        settingsRepository.setRoamFeaturesEnabled(false)
+        settingsRepository.setRoamShowBacklinks(true)
+        assertEquals(LinkedReferencesResult.EMPTY, linkedRefsForShipRelease())
+    }
+
+    @Test
+    fun `linked references are not computed while the backlinks toggle is off`() = runTest {
+        settingsRepository.setRoamFeaturesEnabled(true)
+        settingsRepository.setRoamShowBacklinks(false)
+        assertEquals(LinkedReferencesResult.EMPTY, linkedRefsForShipRelease())
+    }
+
+    @Test
+    fun `linked references are computed when Roam Features and backlinks are on`() = runTest {
+        settingsRepository.setRoamFeaturesEnabled(true)
+        settingsRepository.setRoamShowBacklinks(true)
+        assertTrue(linkedRefsForShipRelease().unlinkedCount > 0)
+    }
+
     // --- refile ------------------------------------------------------
 
     @Test

@@ -268,6 +268,14 @@ data class GroveSettings(
     val pinnedFolders: List<String>
         get() = pinnedItems.filter { it.kind == PinKind.FOLDER }.map { it.path }
 
+    /** Backlinks are both enabled and visible; the Linked References scan runs only then. */
+    val roamBacklinksActive: Boolean
+        get() = roamFeaturesEnabled && roamShowBacklinks
+
+    /** Typing suggestions are both enabled and visible; the suggestion index loads eagerly only then. */
+    val roamSuggestionsActive: Boolean
+        get() = roamFeaturesEnabled && roamShowSuggestions
+
     companion object {
         const val DEFAULT_TODO_KEYWORDS = "TODO IN-PROGRESS | DONE CANCELLED"
         const val DEFAULT_SHARE_TARGET = "inbox.org"
