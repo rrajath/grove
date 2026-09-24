@@ -51,6 +51,8 @@ object Routes {
     const val SETTINGS_SHARING = "settings/sharing"
     /** Experimental Roam-style features: backlinks bar, auto-link suggestions while typing. */
     const val SETTINGS_ROAM = "settings/roam"
+    /** A daily journal note; [date] is ISO yyyy-MM-dd, absent = today. */
+    const val DAILIES = "dailies?date={date}"
     const val SETTINGS_BACKUP = "settings/backup"
     const val SETTINGS_BUG_REPORT = "settings/bug"
     const val SETTINGS_TIPS = "settings/tips"
@@ -120,4 +122,5 @@ object Routes {
                 (if (notebook.isNullOrBlank()) "" else "&notebook=${encode(notebook)}")
     fun reminder(fileName: String, headingPath: String, level: Int) =
         "reminder/${encode(fileName)}?headingPath=${encode(headingPath)}&level=$level"
+    fun dailies(date: String? = null) = "dailies" + (date?.let { "?date=${encode(it)}" } ?: "")
 }
