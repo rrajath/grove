@@ -220,6 +220,7 @@ private fun LinkedFileGroupSection(
         }
         Column(
             Modifier
+                .fillMaxWidth()
                 .padding(horizontal = 14.dp)
                 .clip(RoundedCornerShape(14.dp))
                 .background(c.surface)
@@ -229,6 +230,7 @@ private fun LinkedFileGroupSection(
                 if (index > 0) HorizontalDivider(color = c.line)
                 Column(
                     Modifier
+                        .fillMaxWidth()
                         .clickable { onOpen(hit.fileName, hit.lineIndex, hit.orgId ?: hit.customId) }
                         .padding(horizontal = 14.dp, vertical = 12.dp),
                 ) {
