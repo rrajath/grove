@@ -60,63 +60,19 @@ re-uploads the APKs to the existing release instead of failing.
 ## [Unreleased]
 
 ### Added
-- Add Dailies settings under Roam Features: location, file name pattern, and header template, with import/export support.
-- Reverse-parse dates from filenames to identify existing daily notes.
-- DailiesRepository resolves dates to filenames and lists existing daily notes.
-- Editor can seed and save a brand-new daily note whose file doesn't exist yet.
-- Add DailiesViewModel resolving a day's file name, existence, and neighboring dates as StateFlow.
-- Add DailyNoteScreen top bar with Read/Edit toggle, breadcrumb, Today button, and Read-mode/empty-day content.
-- Wire DailyNoteScreen's empty-day header seed and Edit-mode body to the real editor.
-- Add Dailies Linked References bottom bar and floating prev/next date navigation pills.
-- Add the Dailies route, drawer icon, and a gated drawer row; Dailies is now reachable from the drawer.
-- Add swipe-to-navigate between days on the Dailies screen, in both Read and Edit mode.
-- Add a long-press calendar sheet on the Dailies Today button to jump to any date.
 - Archive locations support `%s` for the current file name, as in Emacs; see Tips & Tricks.
 
 ### Changed
-- Editor suggestion strip slot is always reserved while typing; only roam suggestions stay behind Show suggestions.
-- CI now names APKs grove-<version>-<variant>.apk, e.g. grove-v1.2.3-release.apk.
 - Read/Edit mode toggles now show eye and pencil icons instead of text labels, and shrink to fit them.
-- Expose FileContent as internal for Dailies cross-package reuse.
-- Extract WholeFileEditorBody out of EditRegionScreen for Dailies reuse.
-- Backlink scans and suggestion loading no longer run while their Roam Features toggles are off.
-- Dailies drops the TODAY pill; the calendar icon turns accent-colored when viewing another day.
-- Roam Features, including Dailies, backlinks, and link suggestions, are now debug-build only.
-- Link and roam-node suggestion strips now show only while the keyboard is up.
 - Read/Edit toggle is one shared component; tapping anywhere on it switches mode.
 - Whole-file Edit-to-Read no longer saves; Read shows unsaved text and leaving asks to save.
 - Search text matches show the matched line with ten words of context; only heading results swipe.
-- Dailies builds its day index faster: the filename date pattern is compiled once, not per file.
-- Editors and Dailies no longer recompose every frame while the keyboard opens or closes.
 - Capture editor parses the draft once per edit instead of up to three times.
-- Linked References reloads only when a note's ID or title changes, cancels stale loads, and skips files without an ID.
-- Dailies saves no longer re-list the folder or rescan backlinks unless the day is new or its ID/title changed.
-- Roam link and roam node suggestions no longer trigger while the cursor is in the preface.
 
 ### Fixed
 - Edit screens no longer leave a blank strip under the top bar; scrolled text reaches it like Read mode.
-- Roam captures no longer go blank in Read mode, and drop the headline-only metadata (☰) button.
-- Changelog test no longer fails every push between releases; it only requires versionName not lag the newest release.
-- Roam-node chips appear on selection in whole-file, Dailies, and existing-file capture editors; suggestion chips no longer cover text.
 - Search file headers show folder and match count on a second line; long file names no longer break layout.
-- Linked References sheet file headers also wrap long names, with folder and count on a second line.
-- Linked reference cards now span the sheet width instead of shrinking to their text.
-- Dailies opens without waiting on a folder listing: today's note is looked up directly, prewarmed when the drawer opens.
 - Vault.save() now creates missing files before writing (required by SAF backend).
-- Dailies settings moved into their own section; editing stopped resetting to defaults; keyboard no longer covers the field being edited.
-- DailyNoteScreen now saves and guards unsaved edits, seeds new-day text on either entry, and shows working Linked References.
-- Fix Dailies file name patterns containing `%(slug)` never matching existing daily notes.
-- Swipe navigation on the Dailies screen now respects the unsaved-changes confirm dialog.
-- Calendar date-picker selection on the Dailies screen now respects the unsaved-changes confirm dialog.
-- Dailies day switching is now instant; date pills have a soft shadow and hide while the keyboard is up.
-- Double-tapping a Dailies note in Read mode now switches to Edit mode, including on blank space.
-- Back from Dailies Edit mode returns to Read mode; the editor shows link suggestions in a bottom gap.
-- Link-suggestion chips in the whole-file, Dailies, and capture editors now sit lower, just above the formatting toolbar.
-- The Dailies calendar/date-picker button now always shows in the top bar, including on today's own empty day; picking the currently-viewed date in the date picker no longer triggers a pointless re-navigation; the date picker's today-cell highlight now matches the design spec's accent outline instead of a filled background.
-- Dailies Edit-to-Read no longer saves; Read shows unsaved text, and leaving asks to save.
-- Dailies toolbar: link tap works; long-press opens the link picker, clock long-press opens the timestamp picker.
-- Dailies date picker keeps a fixed height across months; month arrows have square ripples.
-- Dailies drawer icon uses weight 200 to match the other drawer icons.
 - Refile archive location now honors the file-level ARCHIVE property before Settings; archive files keep their exact name.
 - The Settings archive location is ignored while auto-archive is off.
 
