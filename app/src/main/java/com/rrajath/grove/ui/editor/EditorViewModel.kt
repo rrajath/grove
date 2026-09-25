@@ -24,9 +24,7 @@ import com.rrajath.grove.ui.vault.LinkedReferencesResult
 import com.rrajath.grove.ui.vault.NoteRef
 import com.rrajath.grove.ui.vault.OutlineSnack
 import com.rrajath.grove.ui.vault.RefileNotebook
-import com.rrajath.grove.ui.vault.buildOwnPathCrumbs
-import com.rrajath.grove.ui.vault.computeLinkedReferences
-import com.rrajath.grove.ui.vault.escapeLikeNeedle
+import com.rrajath.grove.ui.vault.LinkedReferencesLoader
 import com.rrajath.grove.ui.vault.factory
 import com.rrajath.grove.ui.vault.headlineAtLine
 import com.rrajath.grove.ui.vault.headlineFor
@@ -140,33 +138,15 @@ class EditorViewModel(
     private var eventId = 0L
 
     /** Backlinks/mentions for the Linked References bar+sheet; refreshed by [loadLinkedReferences]. */
-    private val _linkedReferences = MutableStateFlow(LinkedReferencesResult.EMPTY)
-    val linkedReferences: StateFlow<LinkedReferencesResult> = _linkedReferences
+    private val linkedRefs = LinkedReferencesLoader(viewModelScope, database, settings, dispatchers)
+    val linkedReferences: StateFlow<LinkedReferencesResult> = linkedRefs.result
 
-    /** See `DocumentViewModel.loadLinkedReferences` -- identical computation, own copy of the state. */
-    fun loadLinkedReferences(fileName: String, lineIndex: Int, targetId: String?, title: String) {
-        viewModelScope.launch {
-            // A vault-wide body scan that only the Linked References bar uses: skip it
-            // entirely while that bar can't show.
-            if (!settings.settings.first().roamBacklinksActive) {
-                _linkedReferences.value = LinkedReferencesResult.EMPTY
-                return@launch
-            }
-            _linkedReferences.value = withContext(dispatchers.default) {
-                val dao = database.indexDao()
-                val selfKey = fileName to lineIndex
-                val linkCandidates = targetId
-                    ?.let { dao.notesWithBodyContaining(escapeLikeNeedle("id:$it")) }
-                    .orEmpty()
-                val mentionCandidates = title
-                    .takeIf { it.isNotBlank() }
-                    ?.let { dao.notesWithBodyContaining(escapeLikeNeedle(it)) }
-                    .orEmpty()
-                val crumbs = buildOwnPathCrumbs(dao.allHeadingOutlines())
-                computeLinkedReferences(targetId, title, selfKey, linkCandidates, mentionCandidates, crumbs)
-            }
-        }
-    }
+    /** See [LinkedReferencesLoader.load] -- same loader as `DocumentViewModel`, own copy of the state. */
+    fun loadLinkedReferences(fileName: String, lineIndex: Int, targetId: String?, title: String) =
+        linkedRefs.load(fileName, lineIndex, targetId, title)
+
+    /** Empties Linked References (and cancels a pending load) for a target whose bar can't show. */
+    fun clearLinkedReferences() = linkedRefs.clear()
 
     /** Everything needed to put the buffer back where [changeKeyword]'s auto-archive found it. */
     private data class ArchiveUndo(

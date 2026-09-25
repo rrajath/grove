@@ -127,11 +127,20 @@ fun ReadFileScreen(
     val isRoamFile = loadedDoc?.fileId != null
     val linkedReferences by viewModel.linkedReferences.collectAsStateWithLifecycle()
     var linkedRefsOpen by remember { mutableStateOf(false) }
-    LaunchedEffect(fileName, loadedDoc) {
-        val doc = loadedDoc ?: return@LaunchedEffect
-        val fileTitle = doc.preambleKeywords.firstOrNull { it.first.equals("#+TITLE:", ignoreCase = true) }
+    // Keyed on (fileId, title), not the document: edits re-parse the file but can't
+    // change what links here. No file :ID: means no bar, so no scan.
+    val fileTitle = loadedDoc?.let { doc ->
+        doc.preambleKeywords.firstOrNull { it.first.equals("#+TITLE:", ignoreCase = true) }
             ?.second ?: fileName.removeSuffix(".org")
-        viewModel.loadLinkedReferences(fileName, INTRO_LINE_INDEX, doc.fileId, fileTitle)
+    }
+    LaunchedEffect(fileName, loadedDoc?.fileId, fileTitle) {
+        val title = fileTitle ?: return@LaunchedEffect
+        val fileId = loadedDoc?.fileId
+        if (fileId != null) {
+            viewModel.loadLinkedReferences(fileName, INTRO_LINE_INDEX, fileId, title)
+        } else {
+            viewModel.clearLinkedReferences()
+        }
     }
     // Resolves a tapped org link (heading/id: → Read mode, whole file → outline,
     // external scheme → OS, unresolved → toast). See DocumentViewModel.openOrgLink.

@@ -240,17 +240,20 @@ fun ReadNoteScreen(
         }
     }
     val currentHeadline = (state as? DocumentUiState.Loaded)?.document?.headlineFor(noteRef)
-    LaunchedEffect(noteRef, currentHeadline, (state as? DocumentUiState.Loaded)?.document) {
-        val doc = (state as? DocumentUiState.Loaded)?.document ?: return@LaunchedEffect
+    // Keyed on the target's identity, not the document: a checkbox tap or keyword change
+    // re-parses the file but can't change what links here.
+    val linkedRefsTarget: Triple<Int, String?, String>? = (state as? DocumentUiState.Loaded)?.document?.let { doc ->
         if (noteRef.isIntro) {
             val introTitle = doc.preambleKeywords.firstOrNull { it.first.equals("#+TITLE:", ignoreCase = true) }
                 ?.second ?: noteRef.fileName.removeSuffix(".org")
-            viewModel.loadLinkedReferences(noteRef.fileName, noteRef.lineIndex, doc.fileId, introTitle)
+            Triple(noteRef.lineIndex, doc.fileId, introTitle)
         } else {
-            currentHeadline?.let {
-                viewModel.loadLinkedReferences(noteRef.fileName, it.lineIndex, it.id, it.title)
-            }
+            currentHeadline?.let { Triple(it.lineIndex, it.id, it.title) }
         }
+    }
+    LaunchedEffect(noteRef.fileName, linkedRefsTarget) {
+        val (lineIndex, targetId, title) = linkedRefsTarget ?: return@LaunchedEffect
+        viewModel.loadLinkedReferences(noteRef.fileName, lineIndex, targetId, title)
     }
     // Reload whenever the screen comes back to the foreground (e.g. returning
     // from the editor) so saved edits show immediately. The ON_RESUME right

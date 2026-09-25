@@ -229,11 +229,20 @@ fun OutlineScreen(
     // subtree doesn't change which file's backlinks/mentions are being shown.
     val linkedReferences by viewModel.linkedReferences.collectAsStateWithLifecycle()
     var linkedRefsOpen by remember { mutableStateOf(false) }
-    LaunchedEffect(notebookId, loadedDoc) {
-        val doc = loadedDoc ?: return@LaunchedEffect
-        val fileTitle = doc.preambleKeywords.firstOrNull { it.first.equals("#+TITLE:", ignoreCase = true) }
+    // Keyed on (fileId, title), not the document: edits re-parse the file but can't
+    // change what links here. No file :ID: means no bar, so no scan.
+    val fileTitle = loadedDoc?.let { doc ->
+        doc.preambleKeywords.firstOrNull { it.first.equals("#+TITLE:", ignoreCase = true) }
             ?.second ?: notebookId.removeSuffix(".org")
-        viewModel.loadLinkedReferences(notebookId, INTRO_LINE_INDEX, doc.fileId, fileTitle)
+    }
+    LaunchedEffect(notebookId, loadedDoc?.fileId, fileTitle) {
+        val title = fileTitle ?: return@LaunchedEffect
+        val fileId = loadedDoc?.fileId
+        if (fileId != null) {
+            viewModel.loadLinkedReferences(notebookId, INTRO_LINE_INDEX, fileId, title)
+        } else {
+            viewModel.clearLinkedReferences()
+        }
     }
     // Resolved once here (not separately in the top bar and the body) so both
     // stay in sync. Falls back to the full outline if the target heading no

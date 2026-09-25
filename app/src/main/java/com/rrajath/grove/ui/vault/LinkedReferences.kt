@@ -72,6 +72,19 @@ fun buildOwnPathCrumbs(headings: List<NoteOutlineRow>): Map<Pair<String, Int>, S
     return out
 }
 
+/** Every file that produced at least one hit in [result], sorted. */
+fun hitFiles(result: LinkedReferencesResult): List<String> =
+    (result.linkedByFile.map { it.fileName } + result.unlinked.map { it.fileName }).distinct().sorted()
+
+/** [result] with each hit's crumb filled in from [crumbs] (see [buildOwnPathCrumbs]). */
+fun withCrumbs(result: LinkedReferencesResult, crumbs: Map<Pair<String, Int>, String>): LinkedReferencesResult =
+    LinkedReferencesResult(
+        linkedByFile = result.linkedByFile.map { group ->
+            group.copy(hits = group.hits.map { it.copy(crumb = crumbs[it.fileName to it.lineIndex].orEmpty()) })
+        },
+        unlinked = result.unlinked.map { it.copy(crumb = crumbs[it.fileName to it.lineIndex].orEmpty()) },
+    )
+
 /** Escapes `%`, `_`, and `\` in [s] so it can be passed as a literal LIKE needle with `ESCAPE '\\'`. */
 fun escapeLikeNeedle(s: String): String =
     s.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")

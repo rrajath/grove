@@ -686,38 +686,15 @@ class DocumentViewModel(
     val allTags: StateFlow<List<String>> = _allTags
 
     /** Backlinks/mentions for the Linked References bar+sheet; refreshed by [loadLinkedReferences]. */
-    private val _linkedReferences = MutableStateFlow(LinkedReferencesResult.EMPTY)
-    val linkedReferences: StateFlow<LinkedReferencesResult> = _linkedReferences
+    private val linkedRefs = LinkedReferencesLoader(viewModelScope, database, settingsRepository, dispatchers)
+    val linkedReferences: StateFlow<LinkedReferencesResult> = linkedRefs.result
 
-    /**
-     * Loads what elsewhere in the vault links to (or plainly mentions) this
-     * note: [targetId] is the heading's own `:ID:` (or the file's, for the
-     * intro), null when it has none yet -- the linked half is then always
-     * empty, but the unlinked-mentions scan by [title] still runs.
-     */
-    fun loadLinkedReferences(fileName: String, lineIndex: Int, targetId: String?, title: String) {
-        viewModelScope.launch {
-            // A vault-wide body scan that only the Linked References bar uses: skip it
-            // entirely while that bar can't show.
-            if (!settingsRepository.settings.first().roamBacklinksActive) {
-                _linkedReferences.value = LinkedReferencesResult.EMPTY
-                return@launch
-            }
-            _linkedReferences.value = withContext(dispatchers.default) {
-                val dao = database.indexDao()
-                val selfKey = fileName to lineIndex
-                val linkCandidates = targetId
-                    ?.let { dao.notesWithBodyContaining(escapeLikeNeedle("id:$it")) }
-                    .orEmpty()
-                val mentionCandidates = title
-                    .takeIf { it.isNotBlank() }
-                    ?.let { dao.notesWithBodyContaining(escapeLikeNeedle(it)) }
-                    .orEmpty()
-                val crumbs = buildOwnPathCrumbs(dao.allHeadingOutlines())
-                computeLinkedReferences(targetId, title, selfKey, linkCandidates, mentionCandidates, crumbs)
-            }
-        }
-    }
+    /** See [LinkedReferencesLoader.load]. */
+    fun loadLinkedReferences(fileName: String, lineIndex: Int, targetId: String?, title: String) =
+        linkedRefs.load(fileName, lineIndex, targetId, title)
+
+    /** Empties Linked References (and cancels a pending load) for a target whose bar can't show. */
+    fun clearLinkedReferences() = linkedRefs.clear()
 
     /**
      * Set to the line of the blank heading [withIntroHeading] just inserted, so

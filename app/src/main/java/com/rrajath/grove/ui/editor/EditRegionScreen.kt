@@ -288,7 +288,12 @@ fun EditRegionScreen(
                 val title = doc.preambleKeywords.firstOrNull { it.first.equals("#+TITLE:", ignoreCase = true) }
                     ?.second ?: fileName.removeSuffix(".org")
                 wholeFileMeta = doc.fileId to title
-                viewModel.loadLinkedReferences(fileName, INTRO_LINE_INDEX, doc.fileId, title)
+                // No file :ID: means no bar, so no scan.
+                if (doc.fileId != null) {
+                    viewModel.loadLinkedReferences(fileName, INTRO_LINE_INDEX, doc.fileId, title)
+                } else {
+                    viewModel.clearLinkedReferences()
+                }
             }
         }
     }

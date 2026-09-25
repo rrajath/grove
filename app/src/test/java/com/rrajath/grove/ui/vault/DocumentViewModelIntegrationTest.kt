@@ -606,7 +606,10 @@ class DocumentViewModelIntegrationTest {
     fun `linked references are computed when Roam Features and backlinks are on`() = runTest {
         settingsRepository.setRoamFeaturesEnabled(true)
         settingsRepository.setRoamShowBacklinks(true)
-        assertTrue(linkedRefsForShipRelease().unlinkedCount > 0)
+        val result = linkedRefsForShipRelease()
+        assertTrue(result.unlinkedCount > 0)
+        // Crumbs come from the hit files' own outlines.
+        assertEquals("Weekly notes", result.unlinked.first { it.fileName == "mentions.org" }.crumb)
     }
 
     // --- refile ------------------------------------------------------

@@ -325,6 +325,10 @@ abstract class IndexDao {
     @Query("SELECT fileName, lineIndex, level, title, orgId FROM notes WHERE lineIndex >= 0 ORDER BY fileName, lineIndex")
     abstract suspend fun allHeadingOutlines(): List<NoteOutlineRow>
 
+    /** [allHeadingOutlines] narrowed to [files], for breadcrumbs over a handful of hit files. */
+    @Query("SELECT fileName, lineIndex, level, title, orgId FROM notes WHERE fileName IN (:files) AND lineIndex >= 0 ORDER BY fileName, lineIndex")
+    abstract suspend fun headingOutlinesFor(files: List<String>): List<NoteOutlineRow>
+
     /** Where a heading with this `:ID:` lives, for resolving `[[id:…]]` links vault-wide. */
     @Query("SELECT fileName, lineIndex FROM notes WHERE orgId = :id LIMIT 1")
     abstract suspend fun noteLocationByOrgId(id: String): NoteKey?

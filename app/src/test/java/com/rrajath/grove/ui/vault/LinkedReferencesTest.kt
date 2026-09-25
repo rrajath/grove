@@ -118,6 +118,31 @@ class LinkedReferencesTest {
     }
 
     @Test
+    fun `crumbs built from only the hit files fill every hit`() {
+        val linkedRow = note("journal.org", 1, "Jun 11", "See [[id:ABC123][Kyoto]].")
+        val mentionRow = note("notes.org", 0, "Misc", "Kyoto was lovely.")
+        val bare = computeLinkedReferences(
+            targetId = "ABC123",
+            title = "Kyoto",
+            selfKey = "kyoto.org" to 0,
+            linkCandidates = listOf(linkedRow),
+            mentionCandidates = listOf(linkedRow, mentionRow),
+            crumbs = emptyMap(),
+        )
+        assertEquals(listOf("journal.org", "notes.org"), hitFiles(bare))
+
+        val outlines = listOf(
+            NoteOutlineRow("journal.org", 0, level = 1, title = "June", orgId = null),
+            NoteOutlineRow("journal.org", 1, level = 2, title = "Jun 11", orgId = null),
+            NoteOutlineRow("notes.org", 0, level = 1, title = "Misc", orgId = null),
+        )
+        val result = withCrumbs(bare, buildOwnPathCrumbs(outlines))
+
+        assertEquals("June › Jun 11", result.linkedByFile.single().hits.single().crumb)
+        assertEquals("Misc", result.unlinked.single().crumb)
+    }
+
+    @Test
     fun `escapeLikeNeedle escapes percent underscore and backslash`() {
         assertEquals("50\\% off", escapeLikeNeedle("50% off"))
         assertEquals("a\\_b", escapeLikeNeedle("a_b"))
