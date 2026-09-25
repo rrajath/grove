@@ -336,4 +336,20 @@ val NEW_FEATURES: List<NewFeature> = listOf(
         ),
         destination = NewAnchors.tipsItem("writing", "drawer-shorthand"),
     ),
+    NewFeature(
+        // Archive locations accept `%s` for the current file name, as in Emacs.
+        // Points at the Tips & Tricks entry that explains ARCHIVE / #+ARCHIVE:.
+        // `since` is the versionCode of the release that ships it: bump it to
+        // match `gradle.properties` versionName when cutting the release.
+        id = "archive-location-tip",
+        since = 10800,
+        anchors = setOf(
+            NewAnchors.TOPBAR_MENU,
+            NewAnchors.DRAWER_SETTINGS,
+            NewAnchors.SETTINGS_TIPS,
+            NewAnchors.tipsGroup("capture-automation"),
+            NewAnchors.tipsItem("capture-automation", "archive-location"),
+        ),
+        destination = NewAnchors.tipsItem("capture-automation", "archive-location"),
+    ),
 )

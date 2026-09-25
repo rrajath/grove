@@ -64,6 +64,7 @@ re-uploads the APKs to the existing release instead of failing.
 - Archive locations support `%s` for the current file name, as in Emacs; see Tips & Tricks.
 - Typing `<q`, `<e`, `<s`, `:PRO` or `:LOG` (any case) offers a chip inserting that block or drawer.
 - Tips & Tricks explains the block and drawer shorthand chips.
+- A NEW dot marks the "Choose where a file archives to" tip.
 
 ### Changed
 - The editor suggestion strip has a hairline top border, separating it from the text above.

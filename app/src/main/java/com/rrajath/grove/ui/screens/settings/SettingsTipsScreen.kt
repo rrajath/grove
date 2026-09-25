@@ -556,6 +556,7 @@ private fun tipGroups(): List<TipGroup> = listOf(
                     "`%s` stands for the current file, so `%s_archive::` archives {{file:agenda.org}} into " +
                     "{{file:agenda.org_archive}}. " +
                     "The nearest one wins over the Settings location.",
+                newAnchor = NewAnchors.tipsItem("capture-automation", "archive-location"),
             ),
         ),
     ),
