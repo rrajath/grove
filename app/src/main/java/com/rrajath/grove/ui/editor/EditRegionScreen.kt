@@ -581,10 +581,12 @@ internal fun WholeFileEditorBody(
                     scrollState = scrollState,
                     modifier = Modifier
                         .fillMaxSize()
+                        // Scrolls away like Read mode's top contentPadding (see EditNoteScreen).
+                        .scrollAwareTopInset(scrollState, 18.dp)
                         // With the suggestion slot below, the strip's own 8dp top padding is
                         // the gap under the last line (matching its 8dp bottom), so no more here.
                         .padding(
-                            start = 18.dp, top = 18.dp, end = 18.dp,
+                            start = 18.dp, end = 18.dp,
                             bottom = if (suggestionSlotShown) 0.dp else bottomClearance,
                         )
                         .focusRequester(focusRequester),

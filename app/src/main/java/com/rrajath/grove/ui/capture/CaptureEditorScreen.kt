@@ -99,6 +99,7 @@ import com.rrajath.grove.ui.editor.MetadataSheet
 import com.rrajath.grove.ui.editor.RoamNodeSuggestionStrip
 import com.rrajath.grove.ui.editor.SuggestionSlot
 import com.rrajath.grove.ui.editor.WordAtCursor
+import com.rrajath.grove.ui.editor.scrollAwareTopInset
 import com.rrajath.grove.ui.editor.filterAutoLinkSuggestions
 import com.rrajath.grove.ui.editor.formatAutoLinkInsertion
 import com.rrajath.grove.ui.editor.wordAtCursor
@@ -657,7 +658,9 @@ fun CaptureEditorScreen(
                                 scrollState = scrollState,
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .padding(start = 20.dp, top = 20.dp, end = 20.dp, bottom = 80.dp)
+                                    // Scrolls away like Read mode's top contentPadding.
+                                    .scrollAwareTopInset(scrollState, 20.dp)
+                                    .padding(start = 20.dp, end = 20.dp, bottom = 80.dp)
                                     .testTag("capture_body_field")
                                     .focusRequester(focusRequester),
                             )

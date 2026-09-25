@@ -508,10 +508,13 @@ fun EditNoteScreen(
                         scrollState = scrollState,
                         modifier = Modifier
                             .fillMaxSize()
+                            // Scrolls away like Read mode's top contentPadding, so
+                            // scrolled text reaches the top bar (no dead strip).
+                            .scrollAwareTopInset(scrollState, 18.dp)
                             // Extra bottom room so the last lines scroll clear of the
                             // floating EditorMenuFab (54dp + 16dp inset) instead of
                             // sitting under it. Mirrors CaptureEditorScreen's field.
-                            .padding(start = 18.dp, top = 18.dp, end = 18.dp, bottom = 80.dp)
+                            .padding(start = 18.dp, end = 18.dp, bottom = 80.dp)
                             .focusRequester(focusRequester)
                             .testTag("edit_note_field"),
                     )
