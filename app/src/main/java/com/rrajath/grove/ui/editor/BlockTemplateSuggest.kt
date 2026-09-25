@@ -3,46 +3,86 @@ package com.rrajath.grove.ui.editor
 import androidx.compose.ui.text.TextRange
 
 /**
- * Org block templates offered as a suggestion chip when the matching `<x` shorthand
- * (after Emacs org-tempo) is typed: `<q` quote, `<e` example, `<s` src.
+ * Org snippets offered as a suggestion chip when their shorthand is typed (all
+ * case-insensitive): the blocks `<q` quote, `<e` example, `<s` src (after Emacs
+ * org-tempo), and the drawers `:PRO…` properties and `:LOG…` logbook.
  */
-enum class BlockTemplate(val trigger: Char, val keyword: String, val label: String) {
-    QUOTE('q', "QUOTE", "quote"),
-    EXAMPLE('e', "EXAMPLE", "example"),
-    SRC('s', "SRC", "src"),
+enum class BlockTemplate(val keyword: String, val label: String) {
+    QUOTE("QUOTE", "quote"),
+    EXAMPLE("EXAMPLE", "example"),
+    SRC("SRC", "src"),
+    PROPERTIES("PROPERTIES", "properties drawer"),
+    LOGBOOK("LOGBOOK", "logbook drawer");
+
+    val isDrawer: Boolean get() = this == PROPERTIES || this == LOGBOOK
+
+    /** Opening line, without indentation. Src keeps a trailing space for the language. */
+    val beginLine: String get() = when {
+        isDrawer -> ":$keyword:"
+        this == SRC -> "#+BEGIN_$keyword "
+        else -> "#+BEGIN_$keyword"
+    }
+
+    val endLine: String get() = if (isDrawer) ":END:" else "#+END_$keyword"
 }
 
-/** A typed `<x` shorthand and the range it occupies in the buffer. */
+/** A typed shorthand and the range it occupies in the buffer. */
 data class BlockTrigger(val template: BlockTemplate, val range: TextRange)
 
 /** A [BlockTrigger] expanded: replace [start]..[end] with [replacement], caret at [cursor]. */
 data class BlockInsertion(val start: Int, val end: Int, val replacement: String, val cursor: Int)
 
+/** Longest shorthand worth scanning back for: `:PROPERTIES:`. */
+private const val MAX_TRIGGER_LENGTH = 12
+
+private val BLOCK_SHORTHANDS = mapOf(
+    'q' to BlockTemplate.QUOTE,
+    'e' to BlockTemplate.EXAMPLE,
+    's' to BlockTemplate.SRC,
+)
+
 /**
- * The `<q` / `<e` / `<s` just typed at a collapsed cursor, or null. The `<` must
- * start the line or follow whitespace, and nothing but whitespace (or the end of
- * the buffer) may follow the cursor, so `a<q`, `<qu` and `<q|x` don't trigger.
- * Never fires in the preface ([isInPreface]), whose `#+KEY:` lines aren't body text.
+ * The shorthand just typed at a collapsed cursor, or null. The shorthand must start
+ * the line or follow whitespace, and nothing but whitespace (or the end of the buffer)
+ * may follow the cursor, so `a<q`, `<qu`, `<q|x` and `id:pro` don't trigger.
+ *
+ * - Blocks: exactly `<q` / `<e` / `<s`. Never in the preface ([isInPreface]), whose
+ *   `#+KEY:` lines aren't body text.
+ * - Drawers: `:` plus at least `PRO` / `LOG`, up to the full `:PROPERTIES:` /
+ *   `:LOGBOOK:`, so the chip survives typing a few more letters. Allowed anywhere,
+ *   the preface included.
  */
 fun blockTemplateTriggerAt(text: CharSequence, selection: TextRange): BlockTrigger? {
     if (!selection.collapsed) return null
     val cursor = selection.start
     if (cursor < 2 || cursor > text.length) return null
-    if (text[cursor - 2] != '<') return null
-    val template = BlockTemplate.entries.firstOrNull { it.trigger == text[cursor - 1] } ?: return null
-    if (cursor > 2 && !text[cursor - 3].isWhitespace()) return null
     if (cursor < text.length && !text[cursor].isWhitespace()) return null
-    if (isInPreface(text, cursor)) return null
-    return BlockTrigger(template, TextRange(cursor - 2, cursor))
+    var start = cursor
+    while (start > 0 && !text[start - 1].isWhitespace()) {
+        start--
+        if (cursor - start > MAX_TRIGGER_LENGTH) return null
+    }
+    val token = text.substring(start, cursor)
+    val range = TextRange(start, cursor)
+    if (token.length == 2 && token[0] == '<') {
+        val template = BLOCK_SHORTHANDS[token[1].lowercaseChar()] ?: return null
+        if (isInPreface(text, cursor)) return null
+        return BlockTrigger(template, range)
+    }
+    if (token.length >= 4) {
+        val template = BlockTemplate.entries.firstOrNull { it.isDrawer && it.beginLine.startsWith(token, ignoreCase = true) }
+        if (template != null) return BlockTrigger(template, range)
+    }
+    return null
 }
 
 /**
- * Expands [trigger] into its `#+BEGIN_x`/`#+END_x` block, indented like the line it
- * was typed on (so a block typed in a list item stays in that item). The shorthand
- * is removed; if that leaves the line blank the block takes its place, otherwise the
- * rest of the line is kept as is and the block starts on the next line. The caret
- * lands on the block's empty body line, except for src, where it lands after
- * `#+BEGIN_SRC ` so the language can be typed first.
+ * Expands [trigger] into its block or drawer, indented like the line it was typed on
+ * (so one typed in a list item stays in that item). The shorthand is removed; if that
+ * leaves the line blank the snippet takes its place, otherwise the rest of the line
+ * is kept as is and the snippet starts on the next line. The caret lands on the empty
+ * body line, except for src, where it lands after `#+BEGIN_SRC ` so the language can
+ * be typed first.
  */
 fun expandBlockTemplate(text: String, trigger: BlockTrigger): BlockInsertion {
     val start = trigger.range.min
@@ -58,10 +98,10 @@ fun expandBlockTemplate(text: String, trigger: BlockTrigger): BlockInsertion {
         before.isBlank() -> indent + after
         else -> "$before $after"
     }
-    val kw = trigger.template.keyword
-    val begin = if (trigger.template == BlockTemplate.SRC) "$indent#+BEGIN_$kw " else "$indent#+BEGIN_$kw"
-    val block = "$begin\n$indent\n$indent#+END_$kw"
+    val template = trigger.template
+    val begin = indent + template.beginLine
+    val block = "$begin\n$indent\n$indent${template.endLine}"
     val prefix = if (rest.isBlank()) "" else "$rest\n"
-    val caretInBlock = if (trigger.template == BlockTemplate.SRC) begin.length else begin.length + 1 + indent.length
+    val caretInBlock = if (template == BlockTemplate.SRC) begin.length else begin.length + 1 + indent.length
     return BlockInsertion(lineStart, lineEnd, prefix + block, lineStart + prefix.length + caretInBlock)
 }

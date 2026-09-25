@@ -61,7 +61,7 @@ re-uploads the APKs to the existing release instead of failing.
 
 ### Added
 - Archive locations support `%s` for the current file name, as in Emacs; see Tips & Tricks.
-- Typing `<q`, `<e` or `<s` in an editor offers a chip that inserts a quote, example or src block.
+- Typing `<q`, `<e`, `<s`, `:PRO` or `:LOG` (any case) offers a chip inserting that block or drawer.
 
 ### Changed
 - Read/Edit mode toggles now show eye and pencil icons instead of text labels, and shrink to fit them.

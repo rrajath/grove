@@ -34,12 +34,55 @@ class BlockTemplateSuggestTest {
     @Test
     fun `no trigger for other letters, glued text, longer words or a selection`() {
         assertNull(triggerAt("<x|"))
-        assertNull(triggerAt("<Q|"))
         assertNull(triggerAt("a<q|"))
         assertNull(triggerAt("<qu|"))
         assertNull(triggerAt("<q|x"))
         assertNull(triggerAt("<|q"))
         assertNull(blockTemplateTriggerAt("<q", TextRange(0, 2)))
+    }
+
+    @Test
+    fun `block shorthands are case insensitive`() {
+        assertEquals(BlockTemplate.QUOTE, triggerAt("<Q|")?.template)
+        assertEquals(BlockTemplate.EXAMPLE, triggerAt("<E|")?.template)
+        assertEquals(BlockTemplate.SRC, triggerAt("<S|")?.template)
+        assertEquals("#+BEGIN_SRC |\n\n#+END_SRC", expand("<S|"))
+    }
+
+    @Test
+    fun `drawer shorthands match from three letters up to the full keyword, any case`() {
+        for (typed in listOf(":PRO", ":pro", ":Prop", ":PROPERTIES", ":properties:")) {
+            assertEquals(typed, BlockTemplate.PROPERTIES, triggerAt("$typed|")?.template)
+        }
+        for (typed in listOf(":LOG", ":log", ":LogB", ":LOGBOOK:")) {
+            assertEquals(typed, BlockTemplate.LOGBOOK, triggerAt("$typed|")?.template)
+        }
+        assertEquals(TextRange(2, 6), triggerAt("a :PRO|")?.range)
+    }
+
+    @Test
+    fun `no drawer trigger for too short, wrong or glued shorthands`() {
+        assertNull(triggerAt(":PR|"))
+        assertNull(triggerAt(":LO|"))
+        assertNull(triggerAt(":PROX|"))
+        assertNull(triggerAt(":PROPERTIESX|"))
+        assertNull(triggerAt(":PROPERTIES::|"))
+        assertNull(triggerAt("PRO|"))
+        assertNull(triggerAt("id:pro|"))
+        assertNull(triggerAt("https://proton|"))
+        assertNull(triggerAt(":PRO|x"))
+    }
+
+    @Test
+    fun `drawer triggers work in the preface`() {
+        assertEquals(BlockTemplate.PROPERTIES, triggerAt("#+title: x\n:PRO|\n\nbody")?.template)
+    }
+
+    @Test
+    fun `drawers expand with caret on the body line`() {
+        assertEquals(":PROPERTIES:\n|\n:END:", expand(":pro|"))
+        assertEquals("* H\n  :LOGBOOK:\n  |\n  :END:\nx", expand("* H\n  :LOGBOOK:|\nx"))
+        assertEquals("* H\n:PROPERTIES:\n|\n:END:", expand("* H :Prop|"))
     }
 
     @Test
