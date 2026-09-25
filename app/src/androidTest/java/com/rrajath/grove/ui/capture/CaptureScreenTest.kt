@@ -2,6 +2,7 @@ package com.rrajath.grove.ui.capture
 
 import androidx.activity.ComponentActivity
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
@@ -12,6 +13,8 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.rrajath.grove.capture.CaptureTemplate
+import com.rrajath.grove.capture.TargetLocation
+import com.rrajath.grove.capture.TemplateKind
 import com.rrajath.grove.ui.support.ScreenTestEnv
 import com.rrajath.grove.ui.support.setGroveContent
 import kotlinx.coroutines.runBlocking
@@ -147,5 +150,40 @@ class CaptureScreenTest {
                 composeRule.onAllNodesWithText("Add a heading").fetchSemanticsNodes().isNotEmpty()
         }
         assertFalse(saved)
+    }
+
+    @Test
+    fun roamCaptureReadModeRendersHeadlinelessDraftAndHidesHamburger() {
+        val roamTemplateId = "test-roam-node"
+        runBlocking {
+            env.templatesRepository.upsert(
+                CaptureTemplate(
+                    id = roamTemplateId,
+                    name = "Roam Node",
+                    targetFile = "",
+                    location = TargetLocation.BottomOfFile,
+                    template = "",
+                    kind = TemplateKind.ROAM_NODE,
+                ),
+            )
+        }
+        editor(roamTemplateId)
+
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.onAllNodesWithTag("capture_body_field").fetchSemanticsNodes().isNotEmpty()
+        }
+        // A roam draft's newFileTemplate has no leading "* " headline (just
+        // file-level :PROPERTIES:/#+title:), so the metadata sheet's hamburger
+        // trigger -- which edits a headline -- has nothing to act on here.
+        composeRule.onAllNodesWithText("☰").assertCountEquals(0)
+
+        composeRule.onNodeWithTag("capture_body_field").performTextInput("My roam title")
+        composeRule.onNodeWithTag("read_edit_toggle").performClick()
+
+        // Read mode must render the draft's title, not blank out (the
+        // headline-less draft has no OrgHeadline for the old preview to key off).
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.onAllNodesWithText("My roam title", substring = true).fetchSemanticsNodes().isNotEmpty()
+        }
     }
 }

@@ -92,6 +92,7 @@ re-uploads the APKs to the existing release instead of failing.
 - Dailies saves no longer re-list the folder or rescan backlinks unless the day is new or its ID/title changed.
 
 ### Fixed
+- Roam captures no longer go blank in Read mode, and drop the headline-only metadata (☰) button.
 - Changelog test no longer fails every push between releases; it only requires versionName not lag the newest release.
 - Roam-node chips appear on selection in whole-file, Dailies, and existing-file capture editors; suggestion chips no longer cover text.
 - Search file headers show folder and match count on a second line; long file names no longer break layout.

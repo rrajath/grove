@@ -91,6 +91,7 @@ import com.rrajath.grove.ui.components.GroveTopBar
 import com.rrajath.grove.ui.components.Pill
 import com.rrajath.grove.ui.components.annotateOrgInline
 import com.rrajath.grove.ui.components.rememberImeVisible
+import com.rrajath.grove.ui.screens.BodyBlocks
 import com.rrajath.grove.ui.editor.AutoLinkSuggestionStrip
 import com.rrajath.grove.ui.editor.AutoSaveTimestamp
 import com.rrajath.grove.ui.editor.EditorToolbar
@@ -539,7 +540,13 @@ fun CaptureEditorScreen(
                     )
                 },
                 actions = {
-                    IconGlyph("☰", onClick = { metadataOpen = true })
+                    // The metadata sheet edits keyword/priority/tags/planning on the
+                    // draft's single headline, which a Roam-node draft doesn't have
+                    // (it starts headline-less: file-level :PROPERTIES:/#+title: plus
+                    // body). Hidden for that kind rather than shown-but-inert.
+                    if (template.kind != TemplateKind.ROAM_NODE) {
+                        IconGlyph("☰", onClick = { metadataOpen = true })
+                    }
                     ReadEditToggle(isEditing = !readMode, onToggle = { readMode = !readMode })
                 },
             )
@@ -575,6 +582,14 @@ fun CaptureEditorScreen(
                         DraftPreview(
                             doc = draftDoc,
                             headline = draftHeadline,
+                            modifier = Modifier.fillMaxSize().padding(bottom = 80.dp),
+                        )
+                    } else {
+                        // A Roam-node draft starts headline-less (file-level
+                        // :PROPERTIES:/#+title: plus body, no leading "* " yet), so
+                        // there's no OrgHeadline for DraftPreview to key off of.
+                        DraftIntroPreview(
+                            doc = draftDoc,
                             modifier = Modifier.fillMaxSize().padding(bottom = 80.dp),
                         )
                     }
@@ -950,6 +965,89 @@ private fun DraftPreview(doc: OrgDocument, headline: OrgHeadline, modifier: Modi
                         fontFamily = PlexSans, fontSize = 14.sp, color = c.ink, lineHeight = 1.5.em,
                         modifier = Modifier.padding(vertical = 2.dp),
                     )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Read mode's inline preview for a headline-less draft: a Roam-node capture
+ * expanded from `newFileTemplate` (file-level `:PROPERTIES:`/`#+title:` plus
+ * body, no leading `* ` headline yet). Renders the `#+title:` in place of a
+ * headline title, then the heading-less content -- what the app elsewhere
+ * calls the "intro" (see [OrgDocument.introBody]) -- via [BodyBlocks], the
+ * same block renderer [com.rrajath.grove.ui.screens.ReadNoteScreen] uses for
+ * a saved file's intro, so lists/tables/code blocks render structured rather
+ * than as plain lines. Links and checkboxes are inert here, same rationale as
+ * [DraftPreview]: a capture draft has no file/vault identity yet to navigate
+ * from or write a checkbox toggle to. Any headlines the user has since typed
+ * into the draft render below the intro, in file order.
+ */
+@Composable
+private fun DraftIntroPreview(doc: OrgDocument, modifier: Modifier = Modifier) {
+    val c = MaterialTheme.grove
+    val title = doc.preambleKeywords.firstOrNull { it.first.equals("#+TITLE:", ignoreCase = true) }?.second
+    Column(
+        modifier
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp, vertical = 16.dp),
+    ) {
+        Text(
+            annotateOrgInline(title?.takeIf { it.isNotBlank() } ?: "(no title yet)", c),
+            fontFamily = PlexSerif, fontWeight = FontWeight.SemiBold,
+            fontSize = 22.sp, color = if (title.isNullOrBlank()) c.ink3 else c.ink, lineHeight = 1.3.em,
+        )
+        if (doc.introBody.any { it.isNotBlank() }) {
+            Spacer(Modifier.height(16.dp))
+            SelectionContainer {
+                Column {
+                    BodyBlocks(
+                        bodyLines = doc.introBody,
+                        lineOffset = doc.introStart,
+                        onToggleCheckbox = { _, _ -> },
+                        openTarget = {},
+                        onLinkLongPress = { _, _, _ -> },
+                        onEditAt = {},
+                    )
+                }
+            }
+        }
+        doc.headlines.forEach { h ->
+            Spacer(Modifier.height(16.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                h.keyword?.let { kw ->
+                    val (fg, bg) = if (doc.keywords.isDone(kw)) c.green to c.greenSoft else c.amber to c.amberSoft
+                    Pill(kw, fg = fg, bg = bg)
+                    Spacer(Modifier.width(8.dp))
+                }
+                h.priority?.let { p ->
+                    Text(
+                        "[#$p]", fontFamily = PlexMono, fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp, color = c.priorityColor(p),
+                    )
+                    Spacer(Modifier.width(8.dp))
+                }
+            }
+            Text(
+                annotateOrgInline(h.title, c),
+                fontFamily = PlexSerif, fontWeight = FontWeight.SemiBold,
+                fontSize = 18.sp, color = c.ink, lineHeight = 1.3.em,
+            )
+            val body = doc.bodyOf(h)
+            if (body.any { it.isNotBlank() }) {
+                Spacer(Modifier.height(8.dp))
+                SelectionContainer {
+                    Column {
+                        BodyBlocks(
+                            bodyLines = body,
+                            lineOffset = h.bodyStart,
+                            onToggleCheckbox = { _, _ -> },
+                            openTarget = {},
+                            onLinkLongPress = { _, _, _ -> },
+                            onEditAt = {},
+                        )
+                    }
                 }
             }
         }
