@@ -86,6 +86,7 @@ re-uploads the APKs to the existing release instead of failing.
 - Whole-file Edit-to-Read no longer saves; Read shows unsaved text and leaving asks to save.
 - Search text matches show the matched line with ten words of context; only heading results swipe.
 - Dailies builds its day index faster: the filename date pattern is compiled once, not per file.
+- Editors and Dailies no longer recompose every frame while the keyboard opens or closes.
 
 ### Fixed
 - Search file headers show folder and match count on a second line; long file names no longer break layout.

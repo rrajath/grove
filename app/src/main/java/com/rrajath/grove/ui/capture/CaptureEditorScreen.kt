@@ -59,7 +59,6 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
@@ -91,6 +90,7 @@ import com.rrajath.grove.ui.components.ReadEditToggle
 import com.rrajath.grove.ui.components.GroveTopBar
 import com.rrajath.grove.ui.components.Pill
 import com.rrajath.grove.ui.components.annotateOrgInline
+import com.rrajath.grove.ui.components.rememberImeVisible
 import com.rrajath.grove.ui.editor.AutoLinkSuggestionStrip
 import com.rrajath.grove.ui.editor.AutoSaveTimestamp
 import com.rrajath.grove.ui.editor.EditorToolbar
@@ -539,7 +539,7 @@ fun CaptureEditorScreen(
         // ime.getBottom > 0 tracks the live keyboard height, unlike isImeVisible's
         // visibility flag, which can get stuck true after a gesture-dismiss that
         // leaves the field focused.
-        val imeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
+        val imeVisible by rememberImeVisible()
         Column(
             Modifier
                 .fillMaxSize()

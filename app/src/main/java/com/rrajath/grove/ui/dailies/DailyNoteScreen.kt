@@ -41,7 +41,6 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextRange
@@ -56,6 +55,7 @@ import com.rrajath.grove.ui.components.LinkedReferencesBar
 import com.rrajath.grove.ui.components.LinkedReferencesSheet
 import com.rrajath.grove.org.OrgTimestamp
 import com.rrajath.grove.ui.components.InsertTimestampScreen
+import com.rrajath.grove.ui.components.rememberImeVisible
 import com.rrajath.grove.ui.editor.EditRegion
 import com.rrajath.grove.ui.editor.LinkIdChoice
 import com.rrajath.grove.ui.editor.LinkIdChoiceDialog
@@ -332,7 +332,7 @@ fun DailyNoteScreen(
             )
         },
         bottomBar = {
-            val imeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
+            val imeVisible by rememberImeVisible()
             if (showBacklinks && isRoamFile && !imeVisible) {
                 LinkedReferencesBar(
                     linkedCount = linkedReferences.linkedCount,
@@ -342,6 +342,7 @@ fun DailyNoteScreen(
             }
         },
     ) { padding ->
+        val contentImeVisible by rememberImeVisible()
         val n = nav
         Box(
             Modifier
@@ -544,7 +545,7 @@ fun DailyNoteScreen(
                         linkedCount = 0,
                         unlinkedCount = 0,
                         onOpenLinkedRefs = {},
-                        imeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0,
+                        imeVisible = contentImeVisible,
                         onLink = { textState.applyToolbarLink(clipboard) },
                         onLinkLongPress = {
                             val sel = textState.selection
@@ -615,7 +616,7 @@ fun DailyNoteScreen(
             // that space and float the pills far higher than intended.
             // Hidden while typing: with the keyboard up the bottom of this Box is the
             // formatting toolbar's row, and the pills would only crowd it.
-            if (WindowInsets.ime.getBottom(LocalDensity.current) == 0) nav?.let { DateNavPills(it, ::navigateDate) }
+            if (!contentImeVisible) nav?.let { DateNavPills(it, ::navigateDate) }
         }
     }
 

@@ -67,6 +67,7 @@ import com.rrajath.grove.ui.components.GroveTopBar
 import com.rrajath.grove.ui.components.LinkedReferencesBar
 import com.rrajath.grove.ui.components.LinkedReferencesSheet
 import com.rrajath.grove.ui.components.ScrollJumpButtons
+import com.rrajath.grove.ui.components.rememberImeVisible
 import com.rrajath.grove.ui.screens.IconGlyph
 import com.rrajath.grove.ui.theme.ContentFontScale
 import com.rrajath.grove.ui.theme.PlexMono
@@ -366,7 +367,7 @@ fun EditRegionScreen(
     ) { padding ->
         // ime.getBottom > 0 tracks the live keyboard height, unlike isImeVisible's
         // visibility flag; see EditNoteScreen's identical wiring.
-        val imeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
+        val imeVisible by rememberImeVisible()
         Column(
             Modifier
                 .fillMaxSize()
