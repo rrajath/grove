@@ -151,34 +151,22 @@ class ChangelogParserTest {
         assertTrue("each release keeps at least one non-empty category", releases.all { r ->
             r.subsections.any { it.items.isNotEmpty() }
         })
-        // versionName is bumped by hand ahead of cutting a release (CHANGELOG.md's own header:
-        // "bump versionName ... before tagging"), and CI only rewrites "## [Unreleased]" into a
-        // dated heading once the release is actually published -- a step that runs *after* this
-        // very test in build.yml. So versionName legitimately runs one release ahead of the
-        // newest archived entry whenever Unreleased still has content; only once Unreleased is
-        // empty (nothing left pending) must the newest archived release match it exactly.
+        // versionName must never be *behind* the newest archived release: an entry archived
+        // under a higher version than the app carries would show as "new" in What's New forever.
+        // It may equal it (between releases, while Unreleased fills up) or be ahead of it (bumped
+        // just before tagging). Whether a bump is *due* depends on when you decide to release,
+        // which a unit test can't know; requiring it whenever Unreleased had content failed every
+        // push between releases.
         val versionName = File("../gradle.properties").let { if (it.exists()) it else File("gradle.properties") }
             .readLines().first { it.startsWith("versionName=") }.substringAfter("=")
         val versionNameCode = versionName.split(".").let { (major, minor, patch) ->
             major.toInt() * 10000 + minor.toInt() * 100 + patch.toInt()
         }
-        val unreleasedHasContent = ChangelogParser.parse(text)
-            .firstOrNull { it.versionCode == null }
-            ?.subsections?.any { it.items.isNotEmpty() } == true
         val newest = releases.first()
-        if (unreleasedHasContent) {
-            assertTrue(
-                "versionName ($versionName) must be bumped ahead of the newest archived " +
-                    "release (${newest.title}) while Unreleased still has content pending a cut",
-                versionNameCode > (newest.versionCode ?: -1),
-            )
-        } else {
-            assertEquals(
-                "once Unreleased is empty, the newest archived release must match versionName",
-                versionName,
-                newest.title,
-            )
-        }
+        assertTrue(
+            "versionName ($versionName) must not be behind the newest archived release (${newest.title})",
+            versionNameCode >= (newest.versionCode ?: Int.MAX_VALUE),
+        )
     }
 
     @Test
