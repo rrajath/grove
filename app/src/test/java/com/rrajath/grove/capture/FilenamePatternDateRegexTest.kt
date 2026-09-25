@@ -51,4 +51,14 @@ class FilenamePatternDateRegexTest {
     fun `toDateRegex is null when the pattern contains the slug token`() {
         assertNull(FilenamePattern.toDateRegex("%<%Y-%m-%d>-%(slug).org"))
     }
+
+    @Test
+    fun `compileDatePattern reuses one parser across many file names`() {
+        val parser = FilenamePattern.compileDatePattern("%<%Y-%m-%d>.org")!!
+        assertEquals(LocalDate.of(2026, 9, 23), parser.parse("2026-09-23.org"))
+        assertEquals(LocalDate.of(2025, 1, 2), parser.parse("2025-01-02.org"))
+        assertNull(parser.parse("notes.org"))
+        assertNull(parser.parse("2026-02-30.org"))
+        assertNull(FilenamePattern.compileDatePattern("%<%Y-%m>.org"))
+    }
 }

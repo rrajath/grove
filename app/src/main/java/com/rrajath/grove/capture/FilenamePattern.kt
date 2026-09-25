@@ -23,9 +23,29 @@ object FilenamePattern {
             .replace(SLUG_TOKEN, slug)
 
     /** [toDateRegex]'s built regex plus which capturing group holds each date part —
-     *  computed together so [parseDate] doesn't need `Matcher`'s by-name group lookup,
-     *  which requires API 26 while this app's minSdk is 23. */
-    private class DateRegex(val regex: Regex, val yearGroup: Int, val monthGroup: Int, val dayGroup: Int)
+     *  computed together so [parse] doesn't need `Matcher`'s by-name group lookup,
+     *  which requires API 26 while this app's minSdk is 23. Build once via
+     *  [compileDatePattern] and reuse it across many file names. */
+    class DateRegex internal constructor(
+        val regex: Regex,
+        private val yearGroup: Int,
+        private val monthGroup: Int,
+        private val dayGroup: Int,
+    ) {
+        /** [fileName] parsed against this pattern, or `null` if it doesn't match
+         *  or the matched digits aren't a real calendar date. */
+        fun parse(fileName: String): LocalDate? {
+            val match = regex.find(fileName) ?: return null
+            val y = match.groupValues.getOrNull(yearGroup)?.toIntOrNull() ?: return null
+            val m = match.groupValues.getOrNull(monthGroup)?.toIntOrNull() ?: return null
+            val d = match.groupValues.getOrNull(dayGroup)?.toIntOrNull() ?: return null
+            return runCatching { LocalDate.of(y, m, d) }.getOrNull()
+        }
+    }
+
+    /** [pattern] compiled into a reusable [DateRegex], or `null` when it can't be
+     *  reverse-parsed (see [toDateRegex]). */
+    fun compileDatePattern(pattern: String): DateRegex? = buildDateRegex(pattern)
 
     private fun buildDateRegex(pattern: String): DateRegex? {
         if (pattern.contains(SLUG_TOKEN)) return null
@@ -77,17 +97,18 @@ object FilenamePattern {
 
     /** [fileName] parsed against [pattern] via [toDateRegex], or `null` if it doesn't match
      *  or the matched digits aren't a real calendar date. */
-    fun parseDate(fileName: String, pattern: String): LocalDate? {
-        val built = buildDateRegex(pattern) ?: return null
-        val match = built.regex.find(fileName) ?: return null
-        val y = match.groupValues.getOrNull(built.yearGroup)?.toIntOrNull() ?: return null
-        val m = match.groupValues.getOrNull(built.monthGroup)?.toIntOrNull() ?: return null
-        val d = match.groupValues.getOrNull(built.dayGroup)?.toIntOrNull() ?: return null
-        return runCatching { java.time.LocalDate.of(y, m, d) }.getOrNull()
-    }
+    fun parseDate(fileName: String, pattern: String): LocalDate? =
+        buildDateRegex(pattern)?.parse(fileName)
 
-    private fun expandStrftime(spec: String, now: LocalDateTime): String {
-        val javaPattern = STRFTIME_TOKEN.replace(spec) { m ->
+    /** Formatter per strftime spec: Dailies resolves the same pattern on every
+     *  date switch and prefetch, so build each one once. */
+    private val FORMATTERS = java.util.concurrent.ConcurrentHashMap<String, DateTimeFormatter>()
+
+    private fun expandStrftime(spec: String, now: LocalDateTime): String =
+        now.format(FORMATTERS.getOrPut(spec) { DateTimeFormatter.ofPattern(toJavaPattern(spec)) })
+
+    private fun toJavaPattern(spec: String): String =
+        STRFTIME_TOKEN.replace(spec) { m ->
             when (m.value) {
                 "%Y" -> "yyyy"
                 "%m" -> "MM"
@@ -98,8 +119,6 @@ object FilenamePattern {
                 else -> m.value
             }
         }
-        return now.format(DateTimeFormatter.ofPattern(javaPattern))
-    }
 
     /** Trims, lowercases, and collapses whitespace runs to `_`; no char-stripping. Blank title → blank slug. */
     fun slugFromTitle(title: String): String {
