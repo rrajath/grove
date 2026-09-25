@@ -403,6 +403,7 @@ fun EditNoteScreen(
                 ?.takeIf { (selected, _) -> !selected.contains('\n') }
         }
     }
+    val blockTrigger by rememberBlockTrigger(textState)
     val highlight = remember(c, state.keywords) { OrgSyntaxHighlight(c, state.keywords) }
 
     // Idle auto-save (Settings § Notes → Auto-save notes) runs inside
@@ -554,7 +555,14 @@ fun EditNoteScreen(
                             .align(Alignment.CenterStart)
                             .padding(end = 88.dp),
                     ) {
-                        if (autoLinkSuggestions.isNotEmpty()) {
+                        val block = blockTrigger
+                        if (block != null) {
+                            BlockTemplateSuggestionStrip(
+                                template = block.template,
+                                onPick = { textState.applyBlockTemplate(block) },
+                                modifier = Modifier.align(Alignment.CenterStart),
+                            )
+                        } else if (autoLinkSuggestions.isNotEmpty()) {
                             AutoLinkSuggestionStrip(
                                 suggestions = autoLinkSuggestions,
                                 expandedKeys = expandedChipKeys,

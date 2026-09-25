@@ -94,6 +94,9 @@ import com.rrajath.grove.ui.components.rememberImeVisible
 import com.rrajath.grove.ui.screens.BodyBlocks
 import com.rrajath.grove.ui.editor.AutoLinkSuggestionStrip
 import com.rrajath.grove.ui.editor.AutoSaveTimestamp
+import com.rrajath.grove.ui.editor.BlockTemplateSuggestionStrip
+import com.rrajath.grove.ui.editor.applyBlockTemplate
+import com.rrajath.grove.ui.editor.rememberBlockTrigger
 import com.rrajath.grove.ui.editor.EditorToolbar
 import com.rrajath.grove.ui.editor.MetadataSheet
 import com.rrajath.grove.ui.editor.RoamNodeSuggestionStrip
@@ -405,6 +408,9 @@ fun CaptureEditorScreen(
         }
     }
 
+    // `<q` / `<e` / `<s` block-template chip: every capture kind, no setting gate.
+    val blockTrigger by rememberBlockTrigger(textState)
+
     // The draft is always a single heading (withHeadingStars above guarantees
     // it starts with a "* " line), so this is what the metadata sheet and the
     // read-mode preview both edit/render.
@@ -693,8 +699,15 @@ fun CaptureEditorScreen(
                                 .offset(y = 10.dp)
                                 .padding(start = 16.dp, end = 100.dp),
                         ) {
-                            // Link chips only while typing: with the keyboard down they'd just cover the draft.
-                            if (imeVisible && autoLinkSuggestions.isNotEmpty()) {
+                            // Link and block chips only while typing: with the keyboard down they'd just cover the draft.
+                            val block = blockTrigger
+                            if (imeVisible && block != null) {
+                                BlockTemplateSuggestionStrip(
+                                    template = block.template,
+                                    onPick = { textState.applyBlockTemplate(block) },
+                                    modifier = Modifier.align(Alignment.CenterStart),
+                                )
+                            } else if (imeVisible && autoLinkSuggestions.isNotEmpty()) {
                                 AutoLinkSuggestionStrip(
                                     suggestions = autoLinkSuggestions,
                                     expandedKeys = expandedChipKeys,

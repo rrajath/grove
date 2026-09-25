@@ -419,7 +419,9 @@ fun EditRegionScreen(
                 imeVisible = imeVisible,
                 onLink = { textState.applyToolbarLink(clipboard) },
                 modifier = Modifier.fillMaxSize(),
-                suggestionSlotEnabled = region == EditRegion.WHOLE_FILE,
+                // Intro gets the slot too, for the block-template chip; the Roam
+                // providers below stay whole-file only.
+                suggestionSlotEnabled = region == EditRegion.WHOLE_FILE || region == EditRegion.INTRO,
                 roamNodeEnabled = roamSuggestionsEnabled && region == EditRegion.WHOLE_FILE && wholeFileMeta?.first != null,
                 roamNodeTemplates = roamNodeTemplates,
                 autoLinkIndex = autoLinkIndex,
@@ -552,6 +554,8 @@ internal fun WholeFileEditorBody(
         }
     }
     val roamNodeSuggestionActive = suggestionSlotEnabled && roamNodeSelection != null && roamNodeTemplates.isNotEmpty()
+    // `<q` / `<e` / `<s` block-template chip: on wherever the slot is, no setting gate.
+    val blockTrigger by rememberBlockTrigger(textState)
     // Reserved while typing (so the text never jumps as link chips come and go), and
     // also shown for a selection with the keyboard down: entering Edit doesn't raise
     // the keyboard, so a long-press selection is often made without it, and the
@@ -608,7 +612,14 @@ internal fun WholeFileEditorBody(
         if (suggestionSlotShown) SuggestionSlot {
             // 4dp start + the strip's own 14dp content padding = the text's 18dp gutter.
             val stripModifier = Modifier.fillMaxWidth().align(Alignment.CenterStart).padding(start = 4.dp)
-            if (imeVisible && autoLinkSuggestions.isNotEmpty()) {
+            val block = blockTrigger
+            if (imeVisible && block != null) {
+                BlockTemplateSuggestionStrip(
+                    template = block.template,
+                    onPick = { textState.applyBlockTemplate(block) },
+                    modifier = stripModifier,
+                )
+            } else if (imeVisible && autoLinkSuggestions.isNotEmpty()) {
                 AutoLinkSuggestionStrip(
                     suggestions = autoLinkSuggestions,
                     expandedKeys = expandedChipKeys,

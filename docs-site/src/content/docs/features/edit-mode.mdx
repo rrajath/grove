@@ -67,6 +67,20 @@ Text you have selected when you long-press is kept as the link's description. Wi
 
 **Long-pressing** 🕐 opens a single-day date/time picker, pre-selected to right now: a calendar plus Today/Tomorrow/This weekend/Next week chips and an optional time. **Apply date** inserts the resulting inactive stamp (`[2026-01-15 Thu 14:30]`) at the cursor; a plain logged moment, not a SCHEDULED/DEADLINE/ACTIVE planning line, so it never shows up on the agenda.
 
+### Inserting a block
+
+Type a shorthand at the start of a line or after a space, and a chip appears above the keyboard:
+
+| Type | Chip | Inserts |
+|---|---|---|
+| `<q` | Insert quote? | `#+BEGIN_QUOTE` … `#+END_QUOTE` |
+| `<e` | Insert example? | `#+BEGIN_EXAMPLE` … `#+END_EXAMPLE` |
+| `<s` | Insert src? | `#+BEGIN_SRC` … `#+END_SRC` |
+
+Tapping the chip replaces the shorthand with the block. The cursor lands on the empty line inside the block; for src it lands after `#+BEGIN_SRC ` so you can type the language first. If the line already has other text, that text stays where it is and the block starts on the next line. The block matches the line's indentation, so a block typed in a list item stays in that item. Keep typing instead and the chip goes away.
+
+The chip works in the note editor, the capture editor, Dailies, and the intro and whole-file editors. It never shows in a file's preface (its `#+KEY:` lines).
+
 ## Instant Read ↔ Edit switching
 
 The **Read / Edit** toggle at the top swaps modes in place: no navigation transition, no extra back-stack entry. Tap anywhere on the toggle to switch. **Switching to Read mode never saves**: Read mode shows your unsaved text, marked by a green save icon (tap it to save). Leaving the note with unsaved changes asks whether to save or discard them.
