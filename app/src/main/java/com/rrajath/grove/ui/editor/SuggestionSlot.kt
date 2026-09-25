@@ -38,7 +38,7 @@ internal fun SuggestionSlot(
     Box(
         modifier
             .fillMaxWidth()
-            .drawBehind { drawLine(line, Offset.Zero, Offset(size.width, 0f), strokeWidth = 1f) },
+            .drawBehind { drawLine(line, Offset.Zero, Offset(size.width, 0f), strokeWidth = 2f) },
     ) {
         SuggestionSlotSpacer()
         content()
