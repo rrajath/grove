@@ -60,6 +60,7 @@ re-uploads the APKs to the existing release instead of failing.
 ## [Unreleased]
 
 ### Added
+- A smart suggestions strip that helps inserts some drawers and blocks while typing
 - Archive locations support `%s` for the current file name, as in Emacs; see Tips & Tricks.
 - Typing `<q`, `<e`, `<s`, `:PRO` or `:LOG` (any case) offers a chip inserting that block or drawer.
 - Tips & Tricks explains the block and drawer shorthand chips.
