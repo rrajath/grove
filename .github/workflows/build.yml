@@ -257,6 +257,27 @@ jobs:
           SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
         run: ./gradlew bundleRelease
 
+      # CI-only APK naming: grove-<RELEASE_TAG>-<variant>.apk (e.g.
+      # grove-v1.2.3-release.apk). RELEASE_TAG is the pushed tag for a tag
+      # release and v$VERSION otherwise, so the file name always matches the
+      # GitHub Release it lands in. Local Gradle builds keep AGP's default
+      # app-<variant>.apk names. The release APK is app-release-unsigned.apk
+      # when no keystore secret is set; it gets the same name either way.
+      - name: Rename APKs
+        run: |
+          set -euo pipefail
+          for VARIANT in debug release; do
+            DIR="app/build/outputs/apk/$VARIANT"
+            [ -d "$DIR" ] || continue
+            APKS=("$DIR"/*.apk)
+            if [ "${#APKS[@]}" -ne 1 ]; then
+              echo "::error::Expected exactly one $VARIANT APK, found: ${APKS[*]}"
+              exit 1
+            fi
+            mv "${APKS[0]}" "$DIR/grove-$RELEASE_TAG-$VARIANT.apk"
+          done
+          ls app/build/outputs/apk/*/*.apk
+
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
@@ -303,7 +324,7 @@ jobs:
           TAG="$RELEASE_TAG"
           TITLE="$RELEASE_TAG"
           NOTES="$(printf '%s\n\n_Commit: %s_' "$RELEASE_NOTES" "${GITHUB_SHA:0:7}")"
-          # The release APK is app-release.apk when signed, app-release-unsigned.apk otherwise.
+          # APKs were renamed to grove-<RELEASE_TAG>-<variant>.apk by "Rename APKs" above.
           # The AAB is attached too so a signed one is available to upload to Play Console
           # without a separate local build.
           ASSETS=$(ls app/build/outputs/apk/debug/*.apk app/build/outputs/apk/release/*.apk app/build/outputs/bundle/release/*.aab)
