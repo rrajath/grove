@@ -33,10 +33,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -58,6 +60,9 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.rrajath.grove.capture.CaptureTemplate
+import com.rrajath.grove.capture.RoamNodeResult
+import com.rrajath.grove.capture.formatLink
 import com.rrajath.grove.org.INTRO_LINE_INDEX
 import com.rrajath.grove.org.LineEditing
 import com.rrajath.grove.org.OrgParser
@@ -76,6 +81,7 @@ import com.rrajath.grove.ui.theme.grove
 import com.rrajath.grove.ui.vault.NoteRef
 import com.rrajath.grove.ui.vault.compactFileLabel
 import java.time.LocalTime
+import kotlinx.coroutines.launch
 
 /**
  * Raw org editor scoped to the file's preface: its leading `#+KEY:` lines. Opened by
@@ -204,6 +210,7 @@ fun EditRegionScreen(
     // mechanism as EditNoteScreen: an index loaded once, and a trigger word
     // recomputed on every text/selection change.
     val autoLinkIndex by viewModel.autoLinkIndex.collectAsStateWithLifecycle()
+    val roamNodeTemplates by viewModel.roamNodeSuggestionTemplates.collectAsStateWithLifecycle()
     var autoLinkTrigger by remember { mutableStateOf<WordAtCursor?>(null) }
     var expandedChipKeys by remember(autoLinkTrigger?.range) { mutableStateOf(emptySet<String>()) }
     val autoLinkSuggestions = remember(autoLinkTrigger?.text, autoLinkIndex) {
@@ -404,6 +411,11 @@ fun EditRegionScreen(
                 imeVisible = imeVisible,
                 onLink = { textState.applyToolbarLink(clipboard) },
                 modifier = Modifier.fillMaxSize(),
+                suggestionsEnabled = showSuggestions && region == EditRegion.WHOLE_FILE,
+                roamNodeEnabled = showSuggestions && region == EditRegion.WHOLE_FILE && wholeFileMeta?.first != null,
+                roamNodeTemplates = roamNodeTemplates,
+                autoLinkIndex = autoLinkIndex,
+                createOrLinkRoamNode = viewModel::createOrLinkRoamNode,
             )
         }
     }
@@ -492,12 +504,52 @@ internal fun WholeFileEditorBody(
     onLinkLongPress: (() -> Unit)? = null,
     /** Toolbar clock long-press (Insert Timestamp picker); null inserts a stamp directly. */
     onTimestampLongPress: (() -> Unit)? = null,
-    /** Empty room below the last line. Dailies passes EditNoteScreen's 80dp so the
-     *  suggestion strip gets its own row under the text instead of covering it. */
+    /** Empty room below the last line. Dailies passes 80dp so its floating date
+     *  pills (shown with the keyboard down) don't cover the last line. */
     bottomClearance: androidx.compose.ui.unit.Dp = 18.dp,
+    /** Settings § Roam Features "Show suggestions while typing": reserves the suggestion
+     *  slot above the toolbar while the keyboard is up, chips or not. */
+    suggestionsEnabled: Boolean = false,
+    /** Selection-triggered roam-node chips (as in EditNoteScreen): the caller gates
+     *  this on Settings § Roam Features suggestions and the file having a file-level `:ID:`. */
+    roamNodeEnabled: Boolean = false,
+    roamNodeTemplates: List<CaptureTemplate> = emptyList(),
+    /** For flipping the roam-node prompt to "link" when the selection names an existing node. */
+    autoLinkIndex: List<AutoLinkSuggestion>? = null,
+    createOrLinkRoamNode: suspend (CaptureTemplate, String) -> RoamNodeResult? = { _, _ -> null },
+    /** Whether the suggestion slot is on screen; Dailies hides its floating date pills
+     *  while it is, since with the keyboard down they'd sit on top of the strip. */
+    onSuggestionSlotShownChange: (Boolean) -> Unit = {},
 ) {
     val c = MaterialTheme.grove
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     val scrollButtonThresholdPx = with(LocalDensity.current) { (13.5f * 1.85f * 5).sp.toPx() }
+    // A non-collapsed, single-line selection; the auto-link trigger needs a collapsed
+    // cursor (see wordAtCursor), so the two strips never compete for the same row.
+    var roamNodeSelection by remember { mutableStateOf<Pair<String, TextRange>?>(null) }
+    var roamNodeExpandedKeys by remember(roamNodeSelection?.second) { mutableStateOf(emptySet<String>()) }
+    LaunchedEffect(roamNodeEnabled) {
+        if (!roamNodeEnabled) {
+            roamNodeSelection = null
+            return@LaunchedEffect
+        }
+        snapshotFlow { textState.text.toString() to textState.selection }.collect { (text, selection) ->
+            roamNodeSelection = selection.takeIf { !it.collapsed }
+                ?.let { sel -> text.substring(sel.min, sel.max) to sel }
+                ?.takeIf { (selected, _) -> !selected.contains('\n') }
+        }
+    }
+    val roamNodeSuggestionActive = roamNodeSelection != null && roamNodeTemplates.isNotEmpty()
+    // Reserved while typing (so the text never jumps as link chips come and go), and
+    // also shown for a selection with the keyboard down: entering Edit doesn't raise
+    // the keyboard, so a long-press selection is often made without it, and the
+    // docked strip covers nothing there.
+    val suggestionSlotShown = (imeVisible && suggestionsEnabled) || roamNodeSuggestionActive
+    DisposableEffect(suggestionSlotShown) {
+        onSuggestionSlotShownChange(suggestionSlotShown)
+        onDispose { onSuggestionSlotShownChange(false) }
+    }
     Column(modifier) {
         if (state.staleFile) {
             StaleFileBanner(onOverwrite = onOverwriteStale, onReload = onReloadStale)
@@ -518,7 +570,12 @@ internal fun WholeFileEditorBody(
                     scrollState = scrollState,
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(start = 18.dp, top = 18.dp, end = 18.dp, bottom = bottomClearance)
+                        // With the suggestion slot below, the strip's own 8dp top padding is
+                        // the gap under the last line (matching its 8dp bottom), so no more here.
+                        .padding(
+                            start = 18.dp, top = 18.dp, end = 18.dp,
+                            bottom = if (suggestionSlotShown) 0.dp else bottomClearance,
+                        )
                         .focusRequester(focusRequester),
                 )
             }
@@ -529,7 +586,16 @@ internal fun WholeFileEditorBody(
                     .align(Alignment.BottomEnd)
                     .padding(16.dp),
             )
-            // Suggestions only while typing: with the keyboard down they'd just cover the text.
+        }
+        // Suggestions only while typing: with the keyboard down they'd just cover the text.
+        // Docked in their own slot between the text and the toolbar (not overlaid on the
+        // field), so the line being typed is never hidden behind the chips. The slot stays
+        // reserved (empty) while there are no chips, so the text never jumps up and down
+        // as suggestions come and go with each keystroke.
+        if (suggestionSlotShown) Box(Modifier.fillMaxWidth()) {
+            SuggestionSlotSpacer()
+            // 4dp start + the strip's own 14dp content padding = the text's 18dp gutter.
+            val stripModifier = Modifier.fillMaxWidth().align(Alignment.CenterStart).padding(start = 4.dp)
             if (imeVisible && autoLinkSuggestions.isNotEmpty()) {
                 AutoLinkSuggestionStrip(
                     suggestions = autoLinkSuggestions,
@@ -544,11 +610,38 @@ internal fun WholeFileEditorBody(
                         }
                         onClearAutoLinkTrigger()
                     },
-                    // Hugs the bottom edge (just above the toolbar row below this Box)
-                    // rather than floating a full 16dp gutter up into the text.
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .padding(start = 16.dp, end = 16.dp, bottom = 6.dp),
+                    modifier = stripModifier,
+                )
+            } else if (roamNodeSuggestionActive) {
+                val (selectedText, selectedRange) = roamNodeSelection!!
+                RoamNodeSuggestionStrip(
+                    templates = roamNodeTemplates,
+                    selectedText = selectedText,
+                    matchesExistingNode = remember(selectedText, autoLinkIndex) {
+                        autoLinkIndex?.any { it.titleLower == selectedText.lowercase() } == true
+                    },
+                    expandedKeys = roamNodeExpandedKeys,
+                    onToggleExpand = { key -> roamNodeExpandedKeys = roamNodeExpandedKeys + key },
+                    onPick = { template ->
+                        roamNodeSelection = null
+                        coroutineScope.launch {
+                            val result = createOrLinkRoamNode(template, selectedText) ?: return@launch
+                            val lo = selectedRange.min.coerceIn(0, textState.text.length)
+                            val hi = selectedRange.max.coerceIn(lo, textState.text.length)
+                            val linkText = result.formatLink()
+                            textState.edit {
+                                replace(lo, hi, linkText)
+                                selection = TextRange(lo + linkText.length)
+                            }
+                            val message = when (result) {
+                                is RoamNodeResult.Linked -> "Linked to existing roam node: ${result.title}"
+                                is RoamNodeResult.Created ->
+                                    "A roam node with title \"${result.title}\" has been created."
+                            }
+                            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    modifier = stripModifier,
                 )
             }
         }

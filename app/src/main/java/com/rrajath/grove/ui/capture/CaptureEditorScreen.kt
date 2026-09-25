@@ -369,7 +369,13 @@ fun CaptureEditorScreen(
     // One parse per draft change, shared by this check, draftHeadline, and the
     // Read-mode preview (each used to parse the draft on its own).
     val draftDoc = remember(draftText, keywords) { OrgParser.parse(draftText, keywords) }
-    val draftFileOrgId = draftDoc.fileId
+    // Continuing an existing file (e.g. a Dailies template landing on today's note):
+    // the field holds only the new body, and the file's :ID: lives in the read-only
+    // existing content above it, so check that too. Parsed once per append state.
+    val existingFileOrgId = remember(roamAppendState, keywords) {
+        (roamAppendState as? RoamAppendState.ExistingFile)?.content?.let { OrgParser.parse(it, keywords).fileId }
+    }
+    val draftFileOrgId = draftDoc.fileId ?: existingFileOrgId
     val roamNodeSuggestionActive =
         roamNodeSelection != null && draftFileOrgId != null && roamNodeTemplates.isNotEmpty()
 
@@ -676,7 +682,10 @@ fun CaptureEditorScreen(
                                     .offset(y = 10.dp)
                                     .padding(start = 16.dp, end = 100.dp),
                             )
-                        } else if (imeVisible && roamNodeSuggestionActive) {
+                        } else if (roamNodeSuggestionActive) {
+                            // Unlike link chips, not tied to the keyboard: a long-press
+                            // selection is often made with it down, and the strip sits in
+                            // the field's own 80dp bottom clearance either way.
                             val (selectedText, selectedRange) = roamNodeSelection!!
                             RoamNodeSuggestionStrip(
                                 templates = roamNodeTemplates,

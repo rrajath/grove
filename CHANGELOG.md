@@ -90,6 +90,7 @@ re-uploads the APKs to the existing release instead of failing.
 - Capture editor parses the draft once per edit instead of up to three times.
 
 ### Fixed
+- Roam-node chips appear on selection in whole-file, Dailies, and existing-file capture editors; suggestion chips no longer cover text.
 - Search file headers show folder and match count on a second line; long file names no longer break layout.
 - Linked References sheet file headers also wrap long names, with folder and count on a second line.
 - Linked reference cards now span the sheet width instead of shrinking to their text.

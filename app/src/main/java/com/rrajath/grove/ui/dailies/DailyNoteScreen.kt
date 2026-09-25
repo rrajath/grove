@@ -343,6 +343,10 @@ fun DailyNoteScreen(
         },
     ) { padding ->
         val contentImeVisible by rememberImeVisible()
+        // The editor's suggestion strip docks at the bottom of this Box, right where the
+        // date pills float; with the keyboard down (a selection's roam-node chips) the
+        // pills would cover it.
+        var editorStripShown by remember { mutableStateOf(false) }
         val n = nav
         Box(
             Modifier
@@ -477,6 +481,14 @@ fun DailyNoteScreen(
                     // EditRegionScreen -- an index loaded once, and a trigger word
                     // recomputed on every text/selection change.
                     val autoLinkIndex by editorViewModel.autoLinkIndex.collectAsStateWithLifecycle()
+                    val roamNodeTemplates by editorViewModel.roamNodeSuggestionTemplates.collectAsStateWithLifecycle()
+                    // From the loaded buffer, not docState: a brand-new day has no parsed
+                    // document yet, but its header template usually seeds a file-level :ID:.
+                    // Parsed once per load, not per keystroke (the ID doesn't change mid-edit).
+                    val bufferIsRoamFile = remember(editState.fileName, editState.loading) {
+                        !editState.loading &&
+                            com.rrajath.grove.org.OrgParser.parse(editState.buffer, editState.keywords).fileId != null
+                    }
                     var autoLinkTrigger by remember { mutableStateOf<WordAtCursor?>(null) }
                     var expandedChipKeys by remember(autoLinkTrigger?.range) { mutableStateOf(emptySet<String>()) }
                     val autoLinkSuggestions = remember(autoLinkTrigger?.text, autoLinkIndex) {
@@ -556,6 +568,12 @@ fun DailyNoteScreen(
                         onTimestampLongPress = { timestampPickerOpen = true },
                         modifier = Modifier.fillMaxSize(),
                         bottomClearance = 80.dp,
+                        suggestionsEnabled = showSuggestions,
+                        roamNodeEnabled = showSuggestions && bufferIsRoamFile,
+                        roamNodeTemplates = roamNodeTemplates,
+                        autoLinkIndex = autoLinkIndex,
+                        createOrLinkRoamNode = editorViewModel::createOrLinkRoamNode,
+                        onSuggestionSlotShownChange = { editorStripShown = it },
                     )
 
                     // Toolbar long-press pickers, as in EditNoteScreen: the file/heading
@@ -616,7 +634,7 @@ fun DailyNoteScreen(
             // that space and float the pills far higher than intended.
             // Hidden while typing: with the keyboard up the bottom of this Box is the
             // formatting toolbar's row, and the pills would only crowd it.
-            if (!contentImeVisible) nav?.let { DateNavPills(it, ::navigateDate) }
+            if (!contentImeVisible && !editorStripShown) nav?.let { DateNavPills(it, ::navigateDate) }
         }
     }
 
