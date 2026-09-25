@@ -87,6 +87,7 @@ re-uploads the APKs to the existing release instead of failing.
 - Search text matches show the matched line with ten words of context; only heading results swipe.
 - Dailies builds its day index faster: the filename date pattern is compiled once, not per file.
 - Editors and Dailies no longer recompose every frame while the keyboard opens or closes.
+- Capture editor parses the draft once per edit instead of up to three times.
 
 ### Fixed
 - Search file headers show folder and match count on a second line; long file names no longer break layout.

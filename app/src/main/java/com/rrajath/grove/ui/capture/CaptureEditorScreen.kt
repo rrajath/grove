@@ -366,7 +366,10 @@ fun CaptureEditorScreen(
     // internal/roam-node-from-selection-design.md), so its own #+title:/:ID:
     // is what makes it a roam file here -- checked live against the field's
     // current text, not assumed from the template, since a template can be edited.
-    val draftFileOrgId = remember(draftText, keywords) { OrgParser.parse(draftText, keywords).fileId }
+    // One parse per draft change, shared by this check, draftHeadline, and the
+    // Read-mode preview (each used to parse the draft on its own).
+    val draftDoc = remember(draftText, keywords) { OrgParser.parse(draftText, keywords) }
+    val draftFileOrgId = draftDoc.fileId
     val roamNodeSuggestionActive =
         roamNodeSelection != null && draftFileOrgId != null && roamNodeTemplates.isNotEmpty()
 
@@ -393,7 +396,7 @@ fun CaptureEditorScreen(
     // The draft is always a single heading (withHeadingStars above guarantees
     // it starts with a "* " line), so this is what the metadata sheet and the
     // read-mode preview both edit/render.
-    val draftHeadline = remember(draftText, keywords) { OrgParser.parse(draftText, keywords).headlines.firstOrNull() }
+    val draftHeadline = draftDoc.headlines.firstOrNull()
 
     /** Metadata-sheet edits: parse the draft, apply an [OrgMutations] transform,
      *  write the result back into the field. No auto-archive path (unlike
@@ -564,7 +567,7 @@ fun CaptureEditorScreen(
                 if (readMode) {
                     if (draftHeadline != null) {
                         DraftPreview(
-                            doc = remember(draftText, keywords) { OrgParser.parse(draftText, keywords) },
+                            doc = draftDoc,
                             headline = draftHeadline,
                             modifier = Modifier.fillMaxSize().padding(bottom = 80.dp),
                         )
