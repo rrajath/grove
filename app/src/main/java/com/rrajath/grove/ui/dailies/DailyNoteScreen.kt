@@ -71,6 +71,7 @@ import com.rrajath.grove.ui.editor.OrgSyntaxHighlight
 import com.rrajath.grove.ui.editor.WholeFileEditorBody
 import com.rrajath.grove.ui.editor.WordAtCursor
 import com.rrajath.grove.ui.editor.filterAutoLinkSuggestions
+import com.rrajath.grove.ui.editor.isInPreface
 import com.rrajath.grove.ui.editor.wordAtCursor
 import com.rrajath.grove.ui.screens.FileContent
 import com.rrajath.grove.ui.screens.IconGlyph
@@ -515,7 +516,7 @@ fun DailyNoteScreen(
                         }
                         editorViewModel.loadAutoLinkIndex()
                         snapshotFlow { textState.text.toString() to textState.selection }.collect { (text, selection) ->
-                            autoLinkTrigger = wordAtCursor(text, selection)?.takeIf { it.text.length >= 3 }
+                            autoLinkTrigger = wordAtCursor(text, selection)?.takeIf { it.text.length >= 3 && !isInPreface(text, selection.start) }
                         }
                     }
 

@@ -279,7 +279,7 @@ fun EditRegionScreen(
             return@LaunchedEffect
         }
         snapshotFlow { textState.text.toString() to textState.selection }.collect { (text, selection) ->
-            autoLinkTrigger = wordAtCursor(text, selection)?.takeIf { it.text.length >= 3 }
+            autoLinkTrigger = wordAtCursor(text, selection)?.takeIf { it.text.length >= 3 && !isInPreface(text, selection.start) }
         }
     }
     LaunchedEffect(state.loading) {
@@ -546,7 +546,7 @@ internal fun WholeFileEditorBody(
             return@LaunchedEffect
         }
         snapshotFlow { textState.text.toString() to textState.selection }.collect { (text, selection) ->
-            roamNodeSelection = selection.takeIf { !it.collapsed }
+            roamNodeSelection = selection.takeIf { !it.collapsed && !isInPreface(text, it.min) }
                 ?.let { sel -> text.substring(sel.min, sel.max) to sel }
                 ?.takeIf { (selected, _) -> !selected.contains('\n') }
         }

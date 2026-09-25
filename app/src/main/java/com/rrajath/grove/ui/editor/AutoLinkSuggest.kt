@@ -3,6 +3,8 @@ package com.rrajath.grove.ui.editor
 import androidx.compose.ui.text.TextRange
 import com.rrajath.grove.data.NoteOutlineRow
 import com.rrajath.grove.data.NotebookEntity
+import com.rrajath.grove.org.OrgMutations
+import com.rrajath.grove.org.OrgParser
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 
@@ -133,6 +135,24 @@ private fun isInsideOrgLink(text: CharSequence, pos: Int): Boolean {
     }
     return open
 }
+
+/**
+ * True when [offset] sits on a line of the buffer's preface ([OrgMutations.prefaceRange]):
+ * roam link and roam-node suggestions stay off there, since `#+KEY:` values aren't
+ * body text. Only the lines before the first headline are parsed (the preface can't
+ * reach past them), so this stays cheap enough to run on every keystroke.
+ */
+fun isInPreface(text: CharSequence, offset: Int): Boolean {
+    val cursorLine = (0 until offset.coerceIn(0, text.length)).count { text[it] == '\n' }
+    val preamble = text.lineSequence().takeWhile { !isHeadlineLine(it) }.toList()
+    if (cursorLine >= preamble.size) return false
+    val range = OrgMutations.prefaceRange(OrgParser.parse(preamble.joinToString("\n"))) ?: return false
+    return cursorLine in range
+}
+
+/** Mirrors OrgParser's headline rule: one or more `*` followed by whitespace. */
+private fun isHeadlineLine(line: String): Boolean =
+    line.startsWith('*') && line.trimStart('*').firstOrNull()?.isWhitespace() == true
 
 /**
  * Chip label for the suggestion strip: titles under 10 characters show in

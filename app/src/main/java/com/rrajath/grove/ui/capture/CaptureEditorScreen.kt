@@ -102,6 +102,7 @@ import com.rrajath.grove.ui.editor.WordAtCursor
 import com.rrajath.grove.ui.editor.scrollAwareTopInset
 import com.rrajath.grove.ui.editor.filterAutoLinkSuggestions
 import com.rrajath.grove.ui.editor.formatAutoLinkInsertion
+import com.rrajath.grove.ui.editor.isInPreface
 import com.rrajath.grove.ui.editor.wordAtCursor
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -397,8 +398,8 @@ fun CaptureEditorScreen(
             return@LaunchedEffect
         }
         snapshotFlow { textState.text.toString() to textState.selection }.collect { (text, selection) ->
-            autoLinkTrigger = wordAtCursor(text, selection)?.takeIf { it.text.length >= 3 }
-            roamNodeSelection = selection.takeIf { !it.collapsed }
+            autoLinkTrigger = wordAtCursor(text, selection)?.takeIf { it.text.length >= 3 && !isInPreface(text, selection.start) }
+            roamNodeSelection = selection.takeIf { !it.collapsed && !isInPreface(text, it.min) }
                 ?.let { sel -> text.substring(sel.min, sel.max) to sel }
                 ?.takeIf { (selected, _) -> !selected.contains('\n') }
         }

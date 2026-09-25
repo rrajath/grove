@@ -91,6 +91,7 @@ re-uploads the APKs to the existing release instead of failing.
 - Capture editor parses the draft once per edit instead of up to three times.
 - Linked References reloads only when a note's ID or title changes, cancels stale loads, and skips files without an ID.
 - Dailies saves no longer re-list the folder or rescan backlinks unless the day is new or its ID/title changed.
+- Roam link and roam node suggestions no longer trigger while the cursor is in the preface.
 
 ### Fixed
 - Edit screens no longer leave a blank strip under the top bar; scrolled text reaches it like Read mode.
