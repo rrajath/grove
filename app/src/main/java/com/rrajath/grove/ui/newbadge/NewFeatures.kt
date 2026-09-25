@@ -304,4 +304,36 @@ val NEW_FEATURES: List<NewFeature> = listOf(
         ),
         destination = NewAnchors.SETTINGS_NOTEBOOKS_IGNORE_LIST,
     ),
+    NewFeature(
+        // Editors offer a chip for `<q` / `<e` / `<s` (any case) that swaps the
+        // shorthand for a quote/example/src block. Points at its Tips & Tricks entry.
+        // `since` is the versionCode of the release that ships it: bump it to
+        // match `gradle.properties` versionName when cutting the release.
+        id = "block-shorthand-chips",
+        since = 10800,
+        anchors = setOf(
+            NewAnchors.TOPBAR_MENU,
+            NewAnchors.DRAWER_SETTINGS,
+            NewAnchors.SETTINGS_TIPS,
+            NewAnchors.tipsGroup("writing"),
+            NewAnchors.tipsItem("writing", "block-shorthand"),
+        ),
+        destination = NewAnchors.tipsItem("writing", "block-shorthand"),
+    ),
+    NewFeature(
+        // Editors offer a chip for `:PRO` / `:LOG` (any case) that swaps the
+        // shorthand for a :PROPERTIES: / :LOGBOOK: drawer. Points at its Tips & Tricks entry.
+        // `since` is the versionCode of the release that ships it: bump it to
+        // match `gradle.properties` versionName when cutting the release.
+        id = "drawer-shorthand-chips",
+        since = 10800,
+        anchors = setOf(
+            NewAnchors.TOPBAR_MENU,
+            NewAnchors.DRAWER_SETTINGS,
+            NewAnchors.SETTINGS_TIPS,
+            NewAnchors.tipsGroup("writing"),
+            NewAnchors.tipsItem("writing", "drawer-shorthand"),
+        ),
+        destination = NewAnchors.tipsItem("writing", "drawer-shorthand"),
+    ),
 )

@@ -4,10 +4,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import com.rrajath.grove.ui.theme.grove
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -28,7 +32,14 @@ internal fun SuggestionSlot(
     modifier: Modifier = Modifier,
     content: @Composable BoxScope.() -> Unit = {},
 ) {
-    Box(modifier.fillMaxWidth()) {
+    val line = MaterialTheme.grove.line
+    // A hairline across the top marks the slot off from the text above it, so a tap
+    // there (especially while it's empty) doesn't read as a tap on the text field.
+    Box(
+        modifier
+            .fillMaxWidth()
+            .drawBehind { drawLine(line, Offset.Zero, Offset(size.width, 0f), strokeWidth = 1f) },
+    ) {
         SuggestionSlotSpacer()
         content()
     }

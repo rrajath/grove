@@ -31,6 +31,8 @@ import androidx.compose.material.icons.filled.Autorenew
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckBox
 import androidx.compose.material.icons.filled.CloudDone
+import androidx.compose.material.icons.filled.DataObject
+import androidx.compose.material.icons.filled.FormatQuote
 import androidx.compose.material.icons.filled.EditCalendar
 import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.FormatSize
@@ -445,6 +447,24 @@ private fun tipGroups(): List<TipGroup> = listOf(
                 "drawers", Icons.Default.EditNote, "Edit blocks and drawers in place",
                 "The preface keyword block and any :PROPERTIES: or :LOGBOOK: drawer each open in their own small " +
                     "editor. Double-tap a key/value row to edit just that block.",
+            ),
+            Tip(
+                "block-shorthand", Icons.Default.FormatQuote, "Insert a quote, example or src block",
+                "At the start of a line or after a space, type a shorthand (any case). A chip above the keyboard " +
+                    "offers to swap it for the block, with the cursor inside:",
+                listOf(
+                    "<q for #+BEGIN_QUOTE",
+                    "<e for #+BEGIN_EXAMPLE",
+                    "<s for #+BEGIN_SRC, with the cursor ready for the language",
+                ),
+                newAnchor = NewAnchors.tipsItem("writing", "block-shorthand"),
+            ),
+            Tip(
+                "drawer-shorthand", Icons.Default.DataObject, "Insert a properties or logbook drawer",
+                "Type :PRO or :LOG (any case) and tap the chip above the keyboard to insert a :PROPERTIES: or " +
+                    ":LOGBOOK: drawer, closed by :END:, with the cursor on its empty line. The chip stays up as " +
+                    "you type more of the word.",
+                newAnchor = NewAnchors.tipsItem("writing", "drawer-shorthand"),
             ),
         ),
     ),

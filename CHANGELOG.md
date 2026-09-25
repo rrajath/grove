@@ -62,8 +62,10 @@ re-uploads the APKs to the existing release instead of failing.
 ### Added
 - Archive locations support `%s` for the current file name, as in Emacs; see Tips & Tricks.
 - Typing `<q`, `<e`, `<s`, `:PRO` or `:LOG` (any case) offers a chip inserting that block or drawer.
+- Tips & Tricks explains the block and drawer shorthand chips.
 
 ### Changed
+- The editor suggestion strip has a hairline top border, separating it from the text above.
 - Read/Edit mode toggles now show eye and pencil icons instead of text labels, and shrink to fit them.
 - Read/Edit toggle is one shared component; tapping anywhere on it switches mode.
 - Whole-file Edit-to-Read no longer saves; Read shows unsaved text and leaving asks to save.
