@@ -59,6 +59,8 @@ re-uploads the APKs to the existing release instead of failing.
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-09-25
+
 ### Added
 - A smart suggestions strip that helps inserts some drawers and blocks while typing
 - Archive locations support `%s` for the current file name, as in Emacs; see Tips & Tricks.
