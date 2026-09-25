@@ -143,19 +143,21 @@ class DailiesViewModel(
     /**
      * [fileName] (the note for [date]) was just written. Updates the index in place so
      * the day reads as existing right away (a brand-new note's day would otherwise show
-     * the empty state until the background re-listing lands), drops the stale parse,
-     * then re-lists anyway to pick up anything else that changed.
+     * the empty state until the background re-listing lands) and drops the stale parse.
+     * Re-lists only when the save created the day (or no index exists yet): re-saving an
+     * existing day, which the idle autosave does every few seconds while typing, can't
+     * change the index, and external changes are picked up by the resume refresh.
      */
     fun noteSaved(date: LocalDate, fileName: String) {
         docCache.remove(fileName)
-        index?.let { idx ->
-            if (idx.parseable && date !in idx.existingSet) {
-                val existing = (idx.existing + date).sorted()
-                index = DayIndex(idx.vault, idx.repo, idx.settings, existing, existing.toSet(), true)
-            }
+        val idx = index
+        val newDay = idx == null || (idx.parseable && date !in idx.existingSet)
+        if (idx != null && idx.parseable && date !in idx.existingSet) {
+            val existing = (idx.existing + date).sorted()
+            index = DayIndex(idx.vault, idx.repo, idx.settings, existing, existing.toSet(), true)
         }
         currentDate?.let { select(it) }
-        refresh()
+        if (newDay) refresh()
     }
 
     /** Keep [docCache] current with a document the screen already holds (e.g. after a

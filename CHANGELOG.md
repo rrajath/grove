@@ -89,6 +89,7 @@ re-uploads the APKs to the existing release instead of failing.
 - Editors and Dailies no longer recompose every frame while the keyboard opens or closes.
 - Capture editor parses the draft once per edit instead of up to three times.
 - Linked References reloads only when a note's ID or title changes, cancels stale loads, and skips files without an ID.
+- Dailies saves no longer re-list the folder or rescan backlinks unless the day is new or its ID/title changed.
 
 ### Fixed
 - Roam-node chips appear on selection in whole-file, Dailies, and existing-file capture editors; suggestion chips no longer cover text.

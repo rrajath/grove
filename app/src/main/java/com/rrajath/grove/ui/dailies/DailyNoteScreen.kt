@@ -209,12 +209,22 @@ fun DailyNoteScreen(
     // Linked References needs the document's real fileId/title, so it can only
     // fire once the document has actually loaded -- not eagerly alongside the
     // load() call above (which would race with a null fileId/empty title).
-    LaunchedEffect(docState) {
-        val loaded = docState as? DocumentUiState.Loaded ?: return@LaunchedEffect
-        val doc = loaded.document
-        val title = doc.preambleKeywords.firstOrNull { it.first.equals("#+TITLE:", ignoreCase = true) }
+    // Keyed on (fileName, fileId, title), not the document: every save reloads a new
+    // parse, but backlinks come from other files, so only an :ID: or title change can
+    // move them. No file :ID: means the bar is hidden, so no scan at all.
+    val loadedDaily = docState as? DocumentUiState.Loaded
+    val dailyFileId = loadedDaily?.document?.fileId
+    val dailyTitle = loadedDaily?.let { loaded ->
+        loaded.document.preambleKeywords.firstOrNull { it.first.equals("#+TITLE:", ignoreCase = true) }
             ?.second ?: loaded.fileName.removeSuffix(".org")
-        documentViewModel.loadLinkedReferences(loaded.fileName, com.rrajath.grove.org.INTRO_LINE_INDEX, doc.fileId, title)
+    }
+    LaunchedEffect(loadedDaily?.fileName, dailyFileId, dailyTitle) {
+        val fileName = loadedDaily?.fileName ?: return@LaunchedEffect
+        if (dailyFileId != null && dailyTitle != null) {
+            documentViewModel.loadLinkedReferences(fileName, com.rrajath.grove.org.INTRO_LINE_INDEX, dailyFileId, dailyTitle)
+        } else {
+            documentViewModel.clearLinkedReferences()
+        }
     }
     // Read mode over an unsaved buffer: render the buffer, not the file (which may
     // not even exist yet for a new day), and let Read-mode mutations such as a
