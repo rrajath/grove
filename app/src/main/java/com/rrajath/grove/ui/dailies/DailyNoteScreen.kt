@@ -93,8 +93,10 @@ fun DailyNoteScreen(
     onOpenNote: (NoteRef) -> Unit,
     onOpenOutline: (fileName: String) -> Unit,
     showBacklinks: Boolean,
-    /** Settings § Roam Features: file/heading link suggestions while typing in Edit mode. */
-    showSuggestions: Boolean,
+    /** Settings § Roam Features suggestions ([com.rrajath.grove.settings.GroveSettings.roamSuggestionsActive]):
+     *  gates the Roam providers (file/heading link chips, roam-node chips) in Edit mode. The
+     *  suggestion strip slot itself is always reserved there while the keyboard is up. */
+    roamSuggestionsEnabled: Boolean,
     showPreface: Boolean,
     showPropertyDrawers: Boolean,
     readModeFontSize: FontSizePreference,
@@ -506,8 +508,8 @@ fun DailyNoteScreen(
                         val word = autoLinkTrigger?.text
                         if (idx == null || word == null) emptyList() else filterAutoLinkSuggestions(idx, word)
                     }
-                    LaunchedEffect(showSuggestions) {
-                        if (!showSuggestions) {
+                    LaunchedEffect(roamSuggestionsEnabled) {
+                        if (!roamSuggestionsEnabled) {
                             autoLinkTrigger = null
                             return@LaunchedEffect
                         }
@@ -578,8 +580,8 @@ fun DailyNoteScreen(
                         onTimestampLongPress = { timestampPickerOpen = true },
                         modifier = Modifier.fillMaxSize(),
                         bottomClearance = 80.dp,
-                        suggestionsEnabled = showSuggestions,
-                        roamNodeEnabled = showSuggestions && bufferIsRoamFile,
+                        suggestionSlotEnabled = true,
+                        roamNodeEnabled = roamSuggestionsEnabled && bufferIsRoamFile,
                         roamNodeTemplates = roamNodeTemplates,
                         autoLinkIndex = autoLinkIndex,
                         createOrLinkRoamNode = editorViewModel::createOrLinkRoamNode,

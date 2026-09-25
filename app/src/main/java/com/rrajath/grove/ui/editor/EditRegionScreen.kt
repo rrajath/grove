@@ -182,10 +182,13 @@ fun EditRegionScreen(
      */
     showBacklinks: Boolean = false,
     /**
-     * Settings § Roam Features (experimental): show file/heading link
-     * suggestions while typing. Only wired for [EditRegion.WHOLE_FILE].
+     * Settings § Roam Features (experimental) "Show suggestions while typing"
+     * ([com.rrajath.grove.settings.GroveSettings.roamSuggestionsActive]): gates the
+     * Roam suggestion providers (file/heading link chips and roam-node chips) only.
+     * The suggestion strip slot itself is always present in the [EditRegion.WHOLE_FILE]
+     * editor while the keyboard is up; the other region editors have no strip.
      */
-    showSuggestions: Boolean = false,
+    roamSuggestionsEnabled: Boolean = false,
     /** [EditRegion.WHOLE_FILE] only: the Linked References sheet's "open" action. */
     onOpenNote: (NoteRef) -> Unit = {},
     viewModel: EditorViewModel = viewModel(factory = EditorViewModel.Factory),
@@ -270,8 +273,8 @@ fun EditRegionScreen(
     LaunchedEffect(Unit) { if (region == EditRegion.WHOLE_FILE) viewModel.loadAutoLinkIndex() }
     // Recomputed on every text/selection change so it tracks whatever word is
     // being typed right now; see EditNoteScreen's identical wiring.
-    LaunchedEffect(showSuggestions, region) {
-        if (!showSuggestions || region != EditRegion.WHOLE_FILE) {
+    LaunchedEffect(roamSuggestionsEnabled, region) {
+        if (!roamSuggestionsEnabled || region != EditRegion.WHOLE_FILE) {
             autoLinkTrigger = null
             return@LaunchedEffect
         }
@@ -416,8 +419,8 @@ fun EditRegionScreen(
                 imeVisible = imeVisible,
                 onLink = { textState.applyToolbarLink(clipboard) },
                 modifier = Modifier.fillMaxSize(),
-                suggestionsEnabled = showSuggestions && region == EditRegion.WHOLE_FILE,
-                roamNodeEnabled = showSuggestions && region == EditRegion.WHOLE_FILE && wholeFileMeta?.first != null,
+                suggestionSlotEnabled = region == EditRegion.WHOLE_FILE,
+                roamNodeEnabled = roamSuggestionsEnabled && region == EditRegion.WHOLE_FILE && wholeFileMeta?.first != null,
                 roamNodeTemplates = roamNodeTemplates,
                 autoLinkIndex = autoLinkIndex,
                 createOrLinkRoamNode = viewModel::createOrLinkRoamNode,
@@ -512,11 +515,14 @@ internal fun WholeFileEditorBody(
     /** Empty room below the last line. Dailies passes 80dp so its floating date
      *  pills (shown with the keyboard down) don't cover the last line. */
     bottomClearance: androidx.compose.ui.unit.Dp = 18.dp,
-    /** Settings § Roam Features "Show suggestions while typing": reserves the suggestion
-     *  slot above the toolbar while the keyboard is up, chips or not. */
-    suggestionsEnabled: Boolean = false,
+    /** Whether this editor has the suggestion strip at all. When true, its [SuggestionSlot]
+     *  is reserved above the toolbar whenever the keyboard is up, chips or not, regardless
+     *  of which suggestion providers are on (callers gate those: [autoLinkSuggestions] and
+     *  [roamNodeEnabled]). */
+    suggestionSlotEnabled: Boolean = false,
     /** Selection-triggered roam-node chips (as in EditNoteScreen): the caller gates
-     *  this on Settings § Roam Features suggestions and the file having a file-level `:ID:`. */
+     *  this on Settings § Roam Features suggestions and the file having a file-level `:ID:`.
+     *  Only takes effect with [suggestionSlotEnabled]. */
     roamNodeEnabled: Boolean = false,
     roamNodeTemplates: List<CaptureTemplate> = emptyList(),
     /** For flipping the roam-node prompt to "link" when the selection names an existing node. */
@@ -545,12 +551,12 @@ internal fun WholeFileEditorBody(
                 ?.takeIf { (selected, _) -> !selected.contains('\n') }
         }
     }
-    val roamNodeSuggestionActive = roamNodeSelection != null && roamNodeTemplates.isNotEmpty()
+    val roamNodeSuggestionActive = suggestionSlotEnabled && roamNodeSelection != null && roamNodeTemplates.isNotEmpty()
     // Reserved while typing (so the text never jumps as link chips come and go), and
     // also shown for a selection with the keyboard down: entering Edit doesn't raise
     // the keyboard, so a long-press selection is often made without it, and the
     // docked strip covers nothing there.
-    val suggestionSlotShown = (imeVisible && suggestionsEnabled) || roamNodeSuggestionActive
+    val suggestionSlotShown = (imeVisible && suggestionSlotEnabled) || roamNodeSuggestionActive
     DisposableEffect(suggestionSlotShown) {
         onSuggestionSlotShownChange(suggestionSlotShown)
         onDispose { onSuggestionSlotShownChange(false) }
@@ -595,10 +601,9 @@ internal fun WholeFileEditorBody(
         // Suggestions only while typing: with the keyboard down they'd just cover the text.
         // Docked in their own slot between the text and the toolbar (not overlaid on the
         // field), so the line being typed is never hidden behind the chips. The slot stays
-        // reserved (empty) while there are no chips, so the text never jumps up and down
-        // as suggestions come and go with each keystroke.
-        if (suggestionSlotShown) Box(Modifier.fillMaxWidth()) {
-            SuggestionSlotSpacer()
+        // reserved (empty) while there are no chips, and even with every suggestion
+        // provider off, so the text never jumps up and down as suggestions come and go.
+        if (suggestionSlotShown) SuggestionSlot {
             // 4dp start + the strip's own 14dp content padding = the text's 18dp gutter.
             val stripModifier = Modifier.fillMaxWidth().align(Alignment.CenterStart).padding(start = 4.dp)
             if (imeVisible && autoLinkSuggestions.isNotEmpty()) {

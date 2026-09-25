@@ -111,20 +111,21 @@ class CaptureViewModel(
     // Selection-triggered roam-node suggestions inside a Roam-kind capture
     // draft -- same mechanism as EditorViewModel's, see capture/RoamNodeSuggest.kt.
 
-    /** Roam-kind templates whose title the user actually types (see [hasUserDefinedTitle]),
-     *  same eligibility filter [pickerTemplates] applies for the Roam Features gate. */
+    /** Roam-kind templates whose title the user actually types (see [hasUserDefinedTitle]).
+     *  Empty unless Settings § Roam Features suggestions are on ([com.rrajath.grove.settings.GroveSettings.roamSuggestionsActive]),
+     *  the same gate as the typing-triggered [loadAutoLinkIndex]. */
     val roamNodeSuggestionTemplates: StateFlow<List<CaptureTemplate>> = combine(
         templatesRepository.templates,
-        settings.settings.map { it.roamFeaturesEnabled },
-    ) { all, roamEnabled ->
-        if (!roamEnabled) emptyList()
+        settings.settings.map { it.roamSuggestionsActive },
+    ) { all, suggestionsActive ->
+        if (!suggestionsActive) emptyList()
         else all.filter { it.kind == TemplateKind.ROAM_NODE && it.hasUserDefinedTitle() }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     /** Selection-triggered chip tap inside the capture draft; see EditorViewModel.createOrLinkRoamNode. */
     suspend fun createOrLinkRoamNode(template: CaptureTemplate, selectedTitle: String): RoamNodeResult? {
         val vault = vaultFlow.value ?: return null
-        // See EditorViewModel.createOrLinkRoamNode: built on demand when suggestions are off.
+        // See EditorViewModel.createOrLinkRoamNode: built on demand if the eager load hasn't landed.
         val index = autoLinkIndex.value ?: fetchAutoLinkIndex()
         val result = RoamNodeCreator.createOrLink(
             vault, sync, template, selectedTitle, index, LocalDateTime.now(),

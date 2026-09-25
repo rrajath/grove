@@ -74,6 +74,7 @@ re-uploads the APKs to the existing release instead of failing.
 - Archive locations support `%s` for the current file name, as in Emacs; see Tips & Tricks.
 
 ### Changed
+- Editor suggestion strip slot is always reserved while typing; only roam suggestions stay behind Show suggestions.
 - CI now names APKs grove-<version>-<variant>.apk, e.g. grove-v1.2.3-release.apk.
 - Read/Edit mode toggles now show eye and pencil icons instead of text labels, and shrink to fit them.
 - Expose FileContent as internal for Dailies cross-package reuse.

@@ -566,7 +566,7 @@ private fun GroveNavigation(
                         onSwitchToRead = { mode = "read" },
                         editModeFontSize = settings.editModeFontSize,
                         showBacklinks = settings.roamFeaturesEnabled && settings.roamShowBacklinks,
-                        showSuggestions = settings.roamFeaturesEnabled && settings.roamShowSuggestions,
+                        roamSuggestionsEnabled = settings.roamSuggestionsActive,
                         onOpenNote = { target -> navController.navigate(Routes.note(target.encode())) },
                         viewModel = editorViewModel,
                     )
@@ -619,7 +619,7 @@ private fun GroveNavigation(
                     onOpenNote = { target -> navController.navigate(Routes.note(target.encode())) },
                     onOpenOutline = { target -> navController.navigate(Routes.outline(target)) },
                     showBacklinks = settings.roamFeaturesEnabled && settings.roamShowBacklinks,
-                    showSuggestions = settings.roamFeaturesEnabled && settings.roamShowSuggestions,
+                    roamSuggestionsEnabled = settings.roamSuggestionsActive,
                     showPreface = settings.showPreface,
                     showPropertyDrawers = settings.showPropertyDrawers,
                     readModeFontSize = settings.readModeFontSize,
@@ -762,7 +762,7 @@ private fun GroveNavigation(
                             editModeFontSize = settings.editModeFontSize,
                             newNoteCursor = settings.newNoteCursor,
                             showBacklinks = settings.roamFeaturesEnabled && settings.roamShowBacklinks,
-                            showSuggestions = settings.roamFeaturesEnabled && settings.roamShowSuggestions,
+                            roamSuggestionsEnabled = settings.roamSuggestionsActive,
                             onBack = leaveNote,
                             onSwitchToRead = { editTargetLine = null; mode = "read" },
                             onOpenNote = { target -> navController.navigate(Routes.note(target.encode())) },
@@ -904,7 +904,7 @@ private fun GroveNavigation(
                         if (savedRoamFilePath != null) viewModel.showCaptureSavedSnack(savedRoamFilePath)
                     },
                     editModeFontSize = settings.editModeFontSize,
-                    showSuggestions = settings.roamFeaturesEnabled && settings.roamShowSuggestions,
+                    roamSuggestionsEnabled = settings.roamSuggestionsActive,
                 )
             }
             composable(Routes.TEMPLATE_EDIT) { entry ->

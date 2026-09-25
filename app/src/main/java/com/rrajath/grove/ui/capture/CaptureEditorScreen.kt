@@ -97,6 +97,7 @@ import com.rrajath.grove.ui.editor.AutoSaveTimestamp
 import com.rrajath.grove.ui.editor.EditorToolbar
 import com.rrajath.grove.ui.editor.MetadataSheet
 import com.rrajath.grove.ui.editor.RoamNodeSuggestionStrip
+import com.rrajath.grove.ui.editor.SuggestionSlot
 import com.rrajath.grove.ui.editor.WordAtCursor
 import com.rrajath.grove.ui.editor.filterAutoLinkSuggestions
 import com.rrajath.grove.ui.editor.formatAutoLinkInsertion
@@ -157,11 +158,13 @@ fun CaptureEditorScreen(
     /** Settings § Notes: font-size lever for the editor field. App chrome is unaffected. */
     editModeFontSize: FontSizePreference = FontSizePreference.MEDIUM,
     /**
-     * Settings § Roam Features (experimental): show file/heading link
-     * suggestions while typing. Only ever shows for a [TemplateKind.ROAM_NODE]
-     * capture, same as the whole-file editor.
+     * Settings § Roam Features (experimental) suggestions
+     * ([com.rrajath.grove.settings.GroveSettings.roamSuggestionsActive]): gates the Roam
+     * providers (file/heading link chips, roam-node chips), which only ever apply to a
+     * [TemplateKind.ROAM_NODE] capture. The suggestion strip slot itself is present for
+     * every capture kind while the keyboard is up.
      */
-    showSuggestions: Boolean = false,
+    roamSuggestionsEnabled: Boolean = false,
     viewModel: CaptureViewModel = viewModel(factory = CaptureViewModel.Factory),
 ) {
     val c = MaterialTheme.grove
@@ -344,8 +347,8 @@ fun CaptureEditorScreen(
 
     // Inline auto-link suggestion strip -- same mechanism as EditNoteScreen,
     // gated on the Roam capture flow only.
-    val suggestionsActive = showSuggestions && template.kind == TemplateKind.ROAM_NODE
-    LaunchedEffect(Unit) { if (suggestionsActive) viewModel.loadAutoLinkIndex() }
+    val roamSuggestionsActive = roamSuggestionsEnabled && template.kind == TemplateKind.ROAM_NODE
+    LaunchedEffect(Unit) { if (roamSuggestionsActive) viewModel.loadAutoLinkIndex() }
     val autoLinkIndex by viewModel.autoLinkIndex.collectAsStateWithLifecycle()
     var autoLinkTrigger by remember { mutableStateOf<WordAtCursor?>(null) }
     var expandedChipKeys by remember(autoLinkTrigger?.range) { mutableStateOf(emptySet<String>()) }
@@ -357,7 +360,7 @@ fun CaptureEditorScreen(
 
     // Selection-triggered roam-node suggestions: parallel to the typing-triggered
     // auto-link strip above, but for a non-collapsed selection instead of a word
-    // at a collapsed cursor. Gated the same way suggestionsActive already gates
+    // at a collapsed cursor. Gated the same way roamSuggestionsActive already gates
     // the typing-based strip.
     val coroutineScope = rememberCoroutineScope()
     val roamNodeTemplates by viewModel.roamNodeSuggestionTemplates.collectAsStateWithLifecycle()
@@ -382,12 +385,12 @@ fun CaptureEditorScreen(
 
     // Keyed on textState too: a Roam capture's Checking -> New/ExistingFile
     // transition (below) recreates textState with a fresh TextFieldState, same
-    // as draftText's derivedStateOf above. Keying on suggestionsActive alone
+    // as draftText's derivedStateOf above. Keying on roamSuggestionsActive alone
     // left this permanently watching the abandoned Checking-era instance,
     // so real keystrokes never reached it and the strip never had anything
     // to show.
-    LaunchedEffect(suggestionsActive, textState) {
-        if (!suggestionsActive) {
+    LaunchedEffect(roamSuggestionsActive, textState) {
+        if (!roamSuggestionsActive) {
             autoLinkTrigger = null
             roamNodeSelection = null
             return@LaunchedEffect
@@ -670,74 +673,75 @@ fun CaptureEditorScreen(
                         .padding(bottom = 16.dp),
                 ) {
                     if (roamAppendState !is RoamAppendState.Checking) {
-                        // Suggestions only while typing: with the keyboard down they'd just cover the draft.
-                        if (imeVisible && autoLinkSuggestions.isNotEmpty()) {
-                            AutoLinkSuggestionStrip(
-                                suggestions = autoLinkSuggestions,
-                                expandedKeys = expandedChipKeys,
-                                onToggleExpand = { key -> expandedChipKeys = expandedChipKeys + key },
-                                onPick = { suggestion ->
-                                    val range = autoLinkTrigger?.range ?: return@AutoLinkSuggestionStrip
-                                    val linkText = formatAutoLinkInsertion(suggestion)
-                                    textState.edit {
-                                        replace(range.start, range.end, linkText)
-                                        selection = TextRange(range.start + linkText.length)
-                                    }
-                                    autoLinkTrigger = null
-                                },
-                                // End-padded clear of the Save pill's own 16dp gutter +
-                                // its widest ("Saving…") width, so the scrollable strip
-                                // stops short of the pill instead of running chips
-                                // behind it.
-                                modifier = Modifier
-                                    .align(Alignment.BottomStart)
-                                    // Hug the bottom edge (6dp above the formatting toolbar),
-                                    // same as the whole-file editor's strip: cancels 10dp of
-                                    // this row's 16dp bottom padding, which the Save pill keeps.
-                                    .offset(y = 10.dp)
-                                    .padding(start = 16.dp, end = 100.dp),
-                            )
-                        } else if (roamNodeSuggestionActive) {
-                            // Unlike link chips, not tied to the keyboard: a long-press
-                            // selection is often made with it down, and the strip sits in
-                            // the field's own 80dp bottom clearance either way.
-                            val (selectedText, selectedRange) = roamNodeSelection!!
-                            RoamNodeSuggestionStrip(
-                                templates = roamNodeTemplates,
-                                selectedText = selectedText,
-                                matchesExistingNode = remember(selectedText, autoLinkIndex) {
-                                    autoLinkIndex?.any { it.titleLower == selectedText.lowercase() } == true
-                                },
-                                expandedKeys = roamNodeExpandedKeys,
-                                onToggleExpand = { key -> roamNodeExpandedKeys = roamNodeExpandedKeys + key },
-                                onPick = { template ->
-                                    roamNodeSelection = null
-                                    coroutineScope.launch {
-                                        val result = viewModel.createOrLinkRoamNode(template, selectedText)
-                                        if (result == null) return@launch
-                                        val lo = selectedRange.min.coerceIn(0, textState.text.length)
-                                        val hi = selectedRange.max.coerceIn(lo, textState.text.length)
-                                        val linkText = result.formatLink()
+                        // The suggestion slot: there for every capture kind whenever the keyboard
+                        // is up, chips or not and whichever providers are on (the Roam ones only
+                        // ever fill it for a Roam capture). It floats over the field's own 80dp
+                        // bottom clearance, so it never pushes the field around or covers text.
+                        // End-padded clear of the Save pill's own 16dp gutter + its widest
+                        // ("Saving…") width, so a scrollable strip stops short of the pill
+                        // instead of running chips behind it.
+                        if (imeVisible || roamNodeSuggestionActive) SuggestionSlot(
+                            Modifier
+                                .align(Alignment.BottomStart)
+                                // Hug the bottom edge (6dp above the formatting toolbar),
+                                // same as the whole-file editor's strip: cancels 10dp of
+                                // this row's 16dp bottom padding, which the Save pill keeps.
+                                .offset(y = 10.dp)
+                                .padding(start = 16.dp, end = 100.dp),
+                        ) {
+                            // Link chips only while typing: with the keyboard down they'd just cover the draft.
+                            if (imeVisible && autoLinkSuggestions.isNotEmpty()) {
+                                AutoLinkSuggestionStrip(
+                                    suggestions = autoLinkSuggestions,
+                                    expandedKeys = expandedChipKeys,
+                                    onToggleExpand = { key -> expandedChipKeys = expandedChipKeys + key },
+                                    onPick = { suggestion ->
+                                        val range = autoLinkTrigger?.range ?: return@AutoLinkSuggestionStrip
+                                        val linkText = formatAutoLinkInsertion(suggestion)
                                         textState.edit {
-                                            replace(lo, hi, linkText)
-                                            selection = TextRange(lo + linkText.length)
+                                            replace(range.start, range.end, linkText)
+                                            selection = TextRange(range.start + linkText.length)
                                         }
-                                        val message = when (result) {
-                                            is RoamNodeResult.Linked -> "Linked to existing roam node: ${result.title}"
-                                            is RoamNodeResult.Created ->
-                                                "A roam node with title \"${result.title}\" has been created."
+                                        autoLinkTrigger = null
+                                    },
+                                    modifier = Modifier.align(Alignment.CenterStart),
+                                )
+                            } else if (roamNodeSuggestionActive) {
+                                // Unlike link chips, not tied to the keyboard: a long-press
+                                // selection is often made with it down, and the strip sits in
+                                // the field's own 80dp bottom clearance either way.
+                                val (selectedText, selectedRange) = roamNodeSelection!!
+                                RoamNodeSuggestionStrip(
+                                    templates = roamNodeTemplates,
+                                    selectedText = selectedText,
+                                    matchesExistingNode = remember(selectedText, autoLinkIndex) {
+                                        autoLinkIndex?.any { it.titleLower == selectedText.lowercase() } == true
+                                    },
+                                    expandedKeys = roamNodeExpandedKeys,
+                                    onToggleExpand = { key -> roamNodeExpandedKeys = roamNodeExpandedKeys + key },
+                                    onPick = { template ->
+                                        roamNodeSelection = null
+                                        coroutineScope.launch {
+                                            val result = viewModel.createOrLinkRoamNode(template, selectedText)
+                                            if (result == null) return@launch
+                                            val lo = selectedRange.min.coerceIn(0, textState.text.length)
+                                            val hi = selectedRange.max.coerceIn(lo, textState.text.length)
+                                            val linkText = result.formatLink()
+                                            textState.edit {
+                                                replace(lo, hi, linkText)
+                                                selection = TextRange(lo + linkText.length)
+                                            }
+                                            val message = when (result) {
+                                                is RoamNodeResult.Linked -> "Linked to existing roam node: ${result.title}"
+                                                is RoamNodeResult.Created ->
+                                                    "A roam node with title \"${result.title}\" has been created."
+                                            }
+                                            Toast.makeText(toastContext, message, Toast.LENGTH_SHORT).show()
                                         }
-                                        Toast.makeText(toastContext, message, Toast.LENGTH_SHORT).show()
-                                    }
-                                },
-                                modifier = Modifier
-                                    .align(Alignment.BottomStart)
-                                    // Hug the bottom edge (6dp above the formatting toolbar),
-                                    // same as the whole-file editor's strip: cancels 10dp of
-                                    // this row's 16dp bottom padding, which the Save pill keeps.
-                                    .offset(y = 10.dp)
-                                    .padding(start = 16.dp, end = 100.dp),
-                            )
+                                    },
+                                    modifier = Modifier.align(Alignment.CenterStart),
+                                )
+                            }
                         }
                     }
                     // Save floats bottom-right: above the keyboard while it's up

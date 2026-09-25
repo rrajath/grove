@@ -3,6 +3,10 @@ package com.rrajath.grove.ui.capture
 import android.app.Application
 import androidx.test.core.app.ApplicationProvider
 import com.rrajath.grove.capture.CaptureContext
+import com.rrajath.grove.capture.CaptureTemplate
+import com.rrajath.grove.capture.DefaultTemplates
+import com.rrajath.grove.capture.TargetLocation
+import com.rrajath.grove.capture.TemplateKind
 import com.rrajath.grove.capture.TemplatesRepository
 import com.rrajath.grove.data.GroveDatabase
 import com.rrajath.grove.settings.GroveSettings
@@ -15,6 +19,8 @@ import com.rrajath.grove.testing.support.MainDispatcherRule
 import com.rrajath.grove.vault.Vault
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -173,5 +179,50 @@ class CaptureViewModelRoamIntegrationTest {
 
         assertEquals(SaveState.Failed("Nothing to save"), vm.saveState.value)
         assertEquals(before, store.snapshot())
+    }
+
+    // --- roam-node suggestion gate ---
+
+    private val eligibleRoam = CaptureTemplate(
+        id = "roam-typed-title",
+        name = "Roam",
+        targetFile = "unused.org",
+        location = TargetLocation.BottomOfFile,
+        template = "unused",
+        kind = TemplateKind.ROAM_NODE,
+        newFileTemplate = ":PROPERTIES:\n:ID: %(id)\n:END:\n#+title: %?",
+    )
+    private val fixedTitleRoam = eligibleRoam.copy(id = "roam-fixed-title", newFileTemplate = "#+title: Inbox")
+    private val plain = eligibleRoam.copy(id = "plain", kind = TemplateKind.PLAIN)
+
+    @Test
+    fun `roamNodeSuggestionTemplates needs both Roam Features and its suggestions toggle`() = runTest {
+        settings.update { it.copy(roamFeaturesEnabled = true, roamShowSuggestions = true) }
+        templatesRepository.save(listOf(eligibleRoam, fixedTitleRoam, plain))
+        try {
+            val vm = capture()
+            backgroundScope.launch { vm.roamNodeSuggestionTemplates.collect {} }
+            // The templates DataStore reads on a real IO thread, so wait for it rather
+            // than advanceUntilIdle; only typed-title Roam templates are offered.
+            assertEquals(listOf(eligibleRoam), vm.roamNodeSuggestionTemplates.first { it.isNotEmpty() })
+
+            // Roam Features on but "Show suggestions while typing" off: nothing offered
+            // (this used to key on roamFeaturesEnabled alone).
+            settings.update { it.copy(roamShowSuggestions = false) }
+            advanceUntilIdle()
+            assertEquals(emptyList<CaptureTemplate>(), vm.roamNodeSuggestionTemplates.value)
+
+            // The sub-toggle alone is inert without the Roam Features master switch.
+            settings.update { it.copy(roamFeaturesEnabled = false, roamShowSuggestions = true) }
+            advanceUntilIdle()
+            assertEquals(emptyList<CaptureTemplate>(), vm.roamNodeSuggestionTemplates.value)
+
+            settings.update { it.copy(roamFeaturesEnabled = true) }
+            advanceUntilIdle()
+            assertEquals(listOf(eligibleRoam), vm.roamNodeSuggestionTemplates.value)
+        } finally {
+            // The templates DataStore is process-wide; put the defaults back for later tests.
+            templatesRepository.save(DefaultTemplates.all)
+        }
     }
 }

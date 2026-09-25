@@ -19,7 +19,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.BlendMode
@@ -103,21 +102,6 @@ private fun AutoLinkChip(
             fontSize = 13.sp, color = c.ink,
         )
     }
-}
-
-/**
- * An invisible stand-in exactly as tall as a suggestion strip (8dp strip padding +
- * 8dp chip padding around one 13sp mono line, top and bottom), so an editor can keep
- * the strip's slot reserved while there are no chips and the text above never jumps.
- * Sized from a real text line rather than a hard-coded dp, so it tracks font scale.
- */
-@Composable
-internal fun SuggestionSlotSpacer(modifier: Modifier = Modifier) {
-    Text(
-        " ",
-        fontFamily = PlexMono, fontWeight = FontWeight.Medium, fontSize = 13.sp,
-        modifier = modifier.alpha(0f).padding(vertical = 16.dp),
-    )
 }
 
 /** Shared with [RoamNodeSuggestionStrip], the mutually-exclusive selection-triggered sibling strip. */

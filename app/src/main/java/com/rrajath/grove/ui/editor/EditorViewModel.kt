@@ -715,13 +715,14 @@ class EditorViewModel(
     // turn a non-collapsed selection into a link to a new or existing roam
     // node. See capture/RoamNodeSuggest.kt.
 
-    /** Roam-kind templates whose title the user actually types (see [hasUserDefinedTitle]),
-     *  gated the same way [com.rrajath.grove.ui.capture.CaptureViewModel.pickerTemplates] is. */
+    /** Roam-kind templates whose title the user actually types (see [hasUserDefinedTitle]).
+     *  Empty unless Settings § Roam Features suggestions are on ([com.rrajath.grove.settings.GroveSettings.roamSuggestionsActive]),
+     *  the same gate as the typing-triggered [loadAutoLinkIndex]. */
     val roamNodeSuggestionTemplates: StateFlow<List<CaptureTemplate>> = combine(
         templatesRepository.templates,
-        settings.settings.map { it.roamFeaturesEnabled },
-    ) { all, roamEnabled ->
-        if (!roamEnabled) emptyList()
+        settings.settings.map { it.roamSuggestionsActive },
+    ) { all, suggestionsActive ->
+        if (!suggestionsActive) emptyList()
         else all.filter { it.kind == TemplateKind.ROAM_NODE && it.hasUserDefinedTitle() }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
@@ -733,8 +734,8 @@ class EditorViewModel(
      */
     suspend fun createOrLinkRoamNode(template: CaptureTemplate, selectedTitle: String): RoamNodeResult? {
         val vault = vaultFlow.value ?: return null
-        // With suggestions off the index was never loaded eagerly; build it now, on
-        // the one tap that needs it, so an existing same-titled node still matches.
+        // The eager load may not have landed yet (or the screen never asked for it);
+        // build it now, on the one tap that needs it, so an existing same-titled node still matches.
         val index = autoLinkIndex.value ?: fetchAutoLinkIndex()
         val result = RoamNodeCreator.createOrLink(
             vault, sync, template, selectedTitle, index, LocalDateTime.now(),
