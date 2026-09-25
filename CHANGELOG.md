@@ -106,6 +106,7 @@ re-uploads the APKs to the existing release instead of failing.
 - Dailies date picker keeps a fixed height across months; month arrows have square ripples.
 - Dailies drawer icon uses weight 200 to match the other drawer icons.
 - Refile archive location now honors the file-level ARCHIVE property before Settings; archive files keep their exact name.
+- The Settings archive location is ignored while auto-archive is off.
 
 ## [1.7.1] - 2026-09-22
 

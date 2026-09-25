@@ -88,6 +88,13 @@ class AutoArchiveTest {
     }
 
     @Test
+    fun `settings fallback is null when auto-archive is off`() {
+        val on = GroveSettings(autoArchiveDoneItems = true, autoArchiveFile = "archive.org", autoArchiveHeadingPath = "Done")
+        assertEquals(com.rrajath.grove.org.ArchiveTarget("archive.org", listOf("Done")), AutoArchive.settingsFallback(on))
+        org.junit.Assert.assertNull(AutoArchive.settingsFallback(on.copy(autoArchiveDoneItems = false)))
+    }
+
+    @Test
     fun `file-level drawer ARCHIVE beats the Settings fallback and creates the file without adding org`() = runTest {
         tmp.newFile("agenda.org").writeText(
             """

@@ -51,9 +51,12 @@ data class RefileWrite(
  */
 object AutoArchive {
 
-    /** The Settings-configured default archive location, or null if none is set. */
+    /**
+     * The Settings-configured default archive location, or null if none is set or auto-archive
+     * is off (the location belongs to that setting; `ARCHIVE` properties still resolve without it).
+     */
     fun settingsFallback(settings: GroveSettings): ArchiveTarget? =
-        settings.autoArchiveFile?.let { file ->
+        settings.autoArchiveFile?.takeIf { settings.autoArchiveDoneItems }?.let { file ->
             ArchiveTarget(file, settings.autoArchiveHeadingPath.split('/').filter { it.isNotEmpty() })
         }
 
