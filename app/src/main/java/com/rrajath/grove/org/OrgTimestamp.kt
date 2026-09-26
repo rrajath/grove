@@ -1,10 +1,13 @@
 package com.rrajath.grove.org
 
 import java.time.DayOfWeek
+import java.time.Duration
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
+import java.time.temporal.ChronoUnit
 import java.util.Locale
 
 enum class RepeaterType(val marker: String) {
@@ -226,18 +229,19 @@ data class OrgTimestamp(
 }
 
 /**
- * Advance a repeating timestamp per org rules when its task is marked done.
- * Returns the timestamp unchanged if it has no repeater.
+ * Advance a repeating timestamp per org rules when its task is marked done at
+ * [now]. Returns the timestamp unchanged if it has no repeater.
  */
-fun OrgTimestamp.advanceRepeater(today: LocalDate): OrgTimestamp {
+fun OrgTimestamp.advanceRepeater(now: LocalDateTime): OrgTimestamp {
     val rep = repeater ?: return this
+    if (rep.unit == 'h' && time != null) return advanceHourRepeater(rep, time, now)
+    val today = now.toLocalDate()
     fun LocalDate.plusUnit(n: Long): LocalDate = when (rep.unit) {
-        'h' -> this // hour repeaters shift time, not date; date stays (time handled below)
         'd' -> plusDays(n)
         'w' -> plusWeeks(n)
         'm' -> plusMonths(n)
         'y' -> plusYears(n)
-        else -> this
+        else -> this // an hour repeater on a time-less stamp has no time to shift
     }
 
     val n = rep.value.toLong()
@@ -250,13 +254,38 @@ fun OrgTimestamp.advanceRepeater(today: LocalDate): OrgTimestamp {
         }
         RepeaterType.FUTURE -> today.plusUnit(n)
     }
-    val newTime = if (rep.unit == 'h' && time != null) {
-        val total = when (rep.type) {
-            RepeaterType.CUMULATIVE, RepeaterType.CATCH_UP -> rep.value
-            RepeaterType.FUTURE -> rep.value
+    val dayDelta = ChronoUnit.DAYS.between(date, newDate)
+    return copy(date = newDate, rangeEnd = rangeEnd?.plusDays(dayDelta))
+}
+
+/**
+ * Hour repeaters shift the full date-time, so crossing midnight moves the date:
+ * `+` adds one interval to the old start, `++` adds intervals until the start is
+ * after [now], and `.+` restarts from [now] (Emacs keeps now's minutes too).
+ */
+private fun OrgTimestamp.advanceHourRepeater(rep: Repeater, time: LocalTime, now: LocalDateTime): OrgTimestamp {
+    val hours = rep.value.toLong()
+    val start = LocalDateTime.of(date, time)
+    val newStart = when (rep.type) {
+        RepeaterType.CUMULATIVE -> start.plusHours(hours)
+        RepeaterType.CATCH_UP -> {
+            var t = start.plusHours(hours)
+            // A zero interval would never pass now; stop after one step instead.
+            while (hours > 0 && !t.isAfter(now)) t = t.plusHours(hours)
+            t
         }
-        time.plusHours(total.toLong())
-    } else time
-    val dayDelta = java.time.temporal.ChronoUnit.DAYS.between(date, newDate)
-    return copy(date = newDate, time = newTime, rangeEnd = rangeEnd?.plusDays(dayDelta))
+        RepeaterType.FUTURE -> now.withSecond(0).withNano(0).plusHours(hours)
+    }
+    val delta = Duration.between(start, newStart)
+    val newEnd = endTime?.let { LocalDateTime.of(rangeEnd ?: date, it).plus(delta) }
+    return copy(
+        date = newStart.toLocalDate(),
+        time = newStart.toLocalTime(),
+        endTime = newEnd?.toLocalTime(),
+        rangeEnd = when {
+            rangeEnd == null -> null
+            newEnd != null -> newEnd.toLocalDate()
+            else -> rangeEnd.plusDays(ChronoUnit.DAYS.between(date, newStart.toLocalDate()))
+        },
+    )
 }

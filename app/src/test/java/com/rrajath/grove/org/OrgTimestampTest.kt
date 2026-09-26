@@ -7,6 +7,7 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.LocalTime
 
 class OrgTimestampTest {
@@ -126,14 +127,14 @@ class OrgTimestampTest {
     @Test
     fun `cumulative repeater advances by one interval`() {
         val ts = OrgTimestamp.parse("<2025-04-30 Wed +1w>")!!
-        val advanced = ts.advanceRepeater(today = LocalDate.of(2025, 6, 1))
+        val advanced = ts.advanceRepeater(now = LocalDate.of(2025, 6, 1).atStartOfDay())
         assertEquals(LocalDate.of(2025, 5, 7), advanced.date)
     }
 
     @Test
     fun `catch-up repeater jumps past today`() {
         val ts = OrgTimestamp.parse("<2025-04-30 Wed ++1w>")!!
-        val advanced = ts.advanceRepeater(today = LocalDate.of(2025, 6, 1))
+        val advanced = ts.advanceRepeater(now = LocalDate.of(2025, 6, 1).atStartOfDay())
         assertTrue(advanced.date.isAfter(LocalDate.of(2025, 6, 1)))
         // Stays on the same weekday
         assertEquals(ts.date.dayOfWeek, advanced.date.dayOfWeek)
@@ -143,14 +144,63 @@ class OrgTimestampTest {
     @Test
     fun `future repeater shifts from today`() {
         val ts = OrgTimestamp.parse("<2025-04-30 Wed .+2d>")!!
-        val advanced = ts.advanceRepeater(today = LocalDate.of(2025, 6, 1))
+        val advanced = ts.advanceRepeater(now = LocalDate.of(2025, 6, 1).atStartOfDay())
         assertEquals(LocalDate.of(2025, 6, 3), advanced.date)
+    }
+
+    @Test
+    fun `future hour repeater restarts from the completion time`() {
+        val ts = OrgTimestamp.parse("<2026-09-26 Sat 10:00 .+2h>")!!
+        val advanced = ts.advanceRepeater(now = LocalDateTime.of(2026, 9, 26, 12, 0))
+        assertEquals("<2026-09-26 Sat 14:00 .+2h>", advanced.format())
+    }
+
+    @Test
+    fun `future hour repeater keeps the completion minutes and rolls past midnight`() {
+        val ts = OrgTimestamp.parse("<2026-09-26 Sat 10:00 .+2h>")!!
+        val advanced = ts.advanceRepeater(now = LocalDateTime.of(2026, 9, 26, 23, 17, 42))
+        assertEquals("<2026-09-27 Sun 01:17 .+2h>", advanced.format())
+    }
+
+    @Test
+    fun `cumulative hour repeater adds one interval to the old time`() {
+        val ts = OrgTimestamp.parse("<2026-09-26 Sat 10:00 +2h>")!!
+        val advanced = ts.advanceRepeater(now = LocalDateTime.of(2026, 9, 26, 18, 0))
+        assertEquals("<2026-09-26 Sat 12:00 +2h>", advanced.format())
+    }
+
+    @Test
+    fun `cumulative hour repeater crossing midnight advances the date`() {
+        val ts = OrgTimestamp.parse("<2026-09-26 Sat 23:00 +2h>")!!
+        val advanced = ts.advanceRepeater(now = LocalDateTime.of(2026, 9, 26, 23, 30))
+        assertEquals("<2026-09-27 Sun 01:00 +2h>", advanced.format())
+    }
+
+    @Test
+    fun `catch-up hour repeater jumps past now in whole intervals`() {
+        val ts = OrgTimestamp.parse("<2026-09-26 Sat 10:00 ++2h>")!!
+        val advanced = ts.advanceRepeater(now = LocalDateTime.of(2026, 9, 26, 16, 30))
+        assertEquals("<2026-09-26 Sat 18:00 ++2h>", advanced.format())
+    }
+
+    @Test
+    fun `catch-up hour repeater landing exactly on now moves one more interval`() {
+        val ts = OrgTimestamp.parse("<2026-09-26 Sat 22:00 ++2h>")!!
+        val advanced = ts.advanceRepeater(now = LocalDateTime.of(2026, 9, 27, 2, 0))
+        assertEquals("<2026-09-27 Sun 04:00 ++2h>", advanced.format())
+    }
+
+    @Test
+    fun `hour repeater shifts the end time with the start`() {
+        val ts = OrgTimestamp.parse("<2026-09-26 Sat 10:00-11:30 .+3h>")!!
+        val advanced = ts.advanceRepeater(now = LocalDateTime.of(2026, 9, 26, 12, 0))
+        assertEquals("<2026-09-26 Sat 15:00-16:30 .+3h>", advanced.format())
     }
 
     @Test
     fun `non-repeating timestamp is unchanged`() {
         val ts = OrgTimestamp.parse("<2025-04-30 Wed>")!!
-        assertEquals(ts, ts.advanceRepeater(LocalDate.of(2025, 6, 1)))
+        assertEquals(ts, ts.advanceRepeater(LocalDate.of(2025, 6, 1).atStartOfDay()))
     }
 
     @Test
@@ -251,7 +301,7 @@ class OrgTimestampTest {
     fun `advanceRepeater shifts the range end by the same delta`() {
         val ts = OrgTimestamp.parseAll("<2026-09-08 Mon>--<2026-09-10 Wed>").single()
             .copy(repeater = Repeater(RepeaterType.CUMULATIVE, 1, 'w'))
-        val advanced = ts.advanceRepeater(today = LocalDate.of(2026, 9, 1))
+        val advanced = ts.advanceRepeater(now = LocalDate.of(2026, 9, 1).atStartOfDay())
         assertEquals(LocalDate.of(2026, 9, 15), advanced.date)
         assertEquals(LocalDate.of(2026, 9, 17), advanced.rangeEnd)
     }

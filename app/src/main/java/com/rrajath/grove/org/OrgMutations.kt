@@ -136,12 +136,11 @@ object OrgMutations {
         date: LocalDate,
         now: LocalDateTime,
     ): String? {
-        val today = now.toLocalDate()
         val stamps = h.dedicatedActiveTimestamps
         val idx = stamps.indexOfFirst { it.date == date && it.repeater != null }
         if (idx == -1) return null
         val advanced = stamps.toMutableList()
-        advanced[idx] = advanced[idx].advanceRepeater(today)
+        advanced[idx] = advanced[idx].advanceRepeater(now)
         return setActiveTimestamps(doc, h, advanced)
     }
 
@@ -160,7 +159,6 @@ object OrgMutations {
         kind: PlanningKind,
         now: LocalDateTime,
     ): String? {
-        val today = now.toLocalDate()
         val ts = when (kind) {
             PlanningKind.SCHEDULED -> h.planning.scheduled
             PlanningKind.DEADLINE -> h.planning.deadline
@@ -169,8 +167,8 @@ object OrgMutations {
         return writePlanning(
             doc, h,
             when (kind) {
-                PlanningKind.SCHEDULED -> h.planning.copy(scheduled = ts.advanceRepeater(today))
-                PlanningKind.DEADLINE -> h.planning.copy(deadline = ts.advanceRepeater(today))
+                PlanningKind.SCHEDULED -> h.planning.copy(scheduled = ts.advanceRepeater(now))
+                PlanningKind.DEADLINE -> h.planning.copy(deadline = ts.advanceRepeater(now))
                 PlanningKind.ACTIVE -> return null
             },
         )
@@ -193,8 +191,8 @@ object OrgMutations {
             val advanced = writePlanning(
                 doc, h,
                 h.planning.copy(
-                    scheduled = h.planning.scheduled?.advanceRepeater(today),
-                    deadline = h.planning.deadline?.advanceRepeater(today),
+                    scheduled = h.planning.scheduled?.advanceRepeater(now),
+                    deadline = h.planning.deadline?.advanceRepeater(now),
                 ),
             )
             // The keyword itself stays unchanged for a repeater (org semantics),
