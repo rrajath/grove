@@ -1,0 +1,31 @@
+# Fill a freshly created note's heading AND body in the editor, then leave the
+# keyboard down (caller saves). Env: HEADING, BODY.
+#
+# A new note's heading can't be saved blank, and with the default "New note
+# cursor: Body" setting the cursor starts on the body line, below the "** "
+# heading and its :PROPERTIES: drawer (CREATED, maybe ID). So: type the body
+# where the cursor already is, then walk the cursor up to the end of the
+# heading line with D-pad keys, which BasicTextField handles as cursor moves:
+#   1. Up x10 overshoots the first line, which parks the cursor at offset 0
+#      regardless of how many drawer lines sit in between.
+#   2. Left at offset 0 moves nothing but resets Compose's remembered column
+#      (vertical moves otherwise keep the x of the long body line).
+#   3. Down lands at column 0 of line 2; Left steps back to the end of line 1,
+#      right after "** ", whatever the heading level.
+#
+# UNVERIFIED ON-DEVICE -- confirm the D-pad presses move the editor cursor on
+# the first run.
+appId: com.rrajath.grove.debug
+---
+- tapOn:
+    id: "edit_note_field"
+- inputText: ${BODY}
+- repeat:
+    times: 10
+    commands:
+      - pressKey: Remote Dpad Up
+- pressKey: Remote Dpad Left
+- pressKey: Remote Dpad Down
+- pressKey: Remote Dpad Left
+- inputText: ${HEADING}
+- hideKeyboard

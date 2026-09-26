@@ -2,16 +2,14 @@
 # note, via the outline's left-swipe panel (Above / Below / Sub / Refile).
 #
 # Each action inserts a blank heading immediately (no position dialog) and
-# opens it straight in the editor with the cursor already on the title line,
-# so the flow just types a marker and saves. Reference note: "Tag the
-# release" (projects.org, a leaf TODO with no children of its own).
+# opens it straight in the editor. A blank heading can't be saved, and the
+# default "New note cursor: Body" setting parks the cursor on the body line, so
+# each round types a body marker, moves up to the heading, and types a heading
+# marker there (see subflows/type-new-note-heading-and-body.yaml) before
+# saving. Reference note: "Tag the release" (projects.org, a leaf TODO with no
+# children of its own).
 #
-# ASSUMPTION -- carried over from flow 04's pattern: `inputText` after tapping
-# `edit_note_field` appends right after the pre-filled "* " (this assumes the
-# default "New note cursor: Heading" setting, so the cursor already sits at
-# end-of-title). Flag for on-device verification.
-#
-# SCOPE: this only asserts each marker becomes visible in the outline, not its
+# SCOPE: this only asserts each heading marker becomes visible in the outline, not its
 # exact position/nesting relative to "Tag the release" -- Maestro has no
 # built-in "element A is above/below/indented-under element B" assertion.
 # Confirm ordering/nesting visually on the first on-device run.
@@ -56,10 +54,11 @@ tags:
     visible:
       id: "edit_note_field"
     timeout: 10000
-- tapOn:
-    id: "edit_note_field"
-- inputText: "MAESTRO-ABOVE-MARKER"
-- hideKeyboard
+- runFlow:
+    file: ../subflows/type-new-note-heading-and-body.yaml
+    env:
+      HEADING: "MAESTRO-ABOVE-MARKER"
+      BODY: "MAESTRO-ABOVE-BODY"
 - tapOn:
     id: "edit_note_save"
 - back
@@ -84,10 +83,11 @@ tags:
     visible:
       id: "edit_note_field"
     timeout: 10000
-- tapOn:
-    id: "edit_note_field"
-- inputText: "MAESTRO-BELOW-MARKER"
-- hideKeyboard
+- runFlow:
+    file: ../subflows/type-new-note-heading-and-body.yaml
+    env:
+      HEADING: "MAESTRO-BELOW-MARKER"
+      BODY: "MAESTRO-BELOW-BODY"
 - tapOn:
     id: "edit_note_save"
 - back
@@ -112,10 +112,11 @@ tags:
     visible:
       id: "edit_note_field"
     timeout: 10000
-- tapOn:
-    id: "edit_note_field"
-- inputText: "MAESTRO-CHILD-MARKER"
-- hideKeyboard
+- runFlow:
+    file: ../subflows/type-new-note-heading-and-body.yaml
+    env:
+      HEADING: "MAESTRO-CHILD-MARKER"
+      BODY: "MAESTRO-CHILD-BODY"
 - tapOn:
     id: "edit_note_save"
 - back

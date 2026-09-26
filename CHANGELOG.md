@@ -65,6 +65,7 @@ re-uploads the APKs to the existing release instead of failing.
 ### Fixed
 - Saving an edited note no longer removes the blank line before the next heading.
 - Setting dates, marking done, and adding properties or logbook entries keep the file's existing indentation.
+- Maestro flow 11 now types a heading for each new note, since blank headings can't be saved.
 
 ## [1.8.0] - 2026-09-25
 
