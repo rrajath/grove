@@ -21,7 +21,7 @@ Grove registers as a target in the Android share sheet, so you can capture a lin
 
 Sharing to Grove opens the [Capture picker](/features/capture) with the shared content already available to templates:
 
-- The first shared **URL** becomes `%shared_url`; Grove also fetches the page title in the background so a template can reference it
+- The first shared **URL** becomes `%shared_url`; Grove also fetches the page title in the background so a template can reference it (unless [Fetch link titles](#fetch-link-titles) is off)
 - Any remaining shared **text** becomes `%shared_text`
 
 Pick a template as normal; whichever placeholders it uses pull in the shared content automatically.
@@ -29,6 +29,12 @@ Pick a template as normal; whichever placeholders it uses pull in the shared con
 ## Default target file
 
 Settings → Sharing lets you set a **default target file** for shared content, so shares can land somewhere predictable even before you've built out a dedicated share-specific template.
+
+## Fetch link titles
+
+Settings → Sharing → **Fetch link titles** (on by default) controls whether Grove looks up a shared link's web page to use its title as the note heading. Some sites only reveal their title after running a script, so for those Grove loads the page in a hidden browser with JavaScript enabled.
+
+Turn it off to keep sharing fully offline: no request is made, and the link is saved with the shared text (or the URL itself) as its description.
 
 ## Related
 

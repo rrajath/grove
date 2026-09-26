@@ -22,6 +22,9 @@ import com.rrajath.grove.capture.FilenameValidation
 import com.rrajath.grove.settings.GroveSettings
 import com.rrajath.grove.ui.capture.TemplatesViewModel
 import com.rrajath.grove.ui.components.NotebookFileField
+import com.rrajath.grove.ui.newbadge.MarkNewFeatureSeen
+import com.rrajath.grove.ui.newbadge.NewAnchors
+import com.rrajath.grove.ui.newbadge.NewDot
 import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
 
@@ -31,6 +34,7 @@ fun SettingsSharingScreen(
     settings: GroveSettings,
     onBack: () -> Unit,
     onSetShareTargetFile: (String) -> Unit,
+    onSetFetchSharedLinkTitles: (Boolean) -> Unit,
     templatesViewModel: TemplatesViewModel = viewModel(factory = TemplatesViewModel.Factory),
 ) {
     val c = MaterialTheme.grove
@@ -51,6 +55,9 @@ fun SettingsSharingScreen(
     }
 
     SettingsPageScaffold(title = "Sharing", onBack = onBack) {
+        // Leaving this screen retires the toggle's NEW dot from its whole trail.
+        MarkNewFeatureSeen(NewAnchors.SETTINGS_SHARING_FETCH_TITLES)
+
         SettingsGroup {
             Column(Modifier.padding(horizontal = 15.dp, vertical = 10.dp)) {
                 Text(
@@ -71,6 +78,17 @@ fun SettingsSharingScreen(
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
+            RowDivider()
+            ToggleRow(
+                label = "Fetch link titles",
+                description = "Looks up a shared link's web page so its title becomes the note's heading. " +
+                        "Some sites only show a title after loading in a hidden browser with JavaScript. " +
+                        "Turn off to keep sharing fully offline: the link is saved with the shared text " +
+                        "or the URL instead",
+                checked = settings.fetchSharedLinkTitles,
+                labelBadge = { NewDot(NewAnchors.SETTINGS_SHARING_FETCH_TITLES) },
+                onToggle = onSetFetchSharedLinkTitles,
+            )
         }
     }
 }

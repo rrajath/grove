@@ -58,7 +58,10 @@ object ShareIntake {
         }
         // On a cold start the vault may still be initializing; await it.
         val vault = app.vault.filterNotNull().first()
-        val resolvedTitle = if (payload.url.isNotEmpty()) PageTitleFetcher.fetch(payload.url, app) else null
+        // Off → no network at all; composeNote falls back to the URL as the heading.
+        val resolvedTitle = if (payload.url.isNotEmpty() && settings.fetchSharedLinkTitles) {
+            PageTitleFetcher.fetch(payload.url, app)
+        } else null
         val note = composeNote(payload, resolvedTitle)
         val target = settings.shareTargetFile.trim().ifBlank { GroveSettings.DEFAULT_SHARE_TARGET }
         val fileName = if (target.endsWith(".org")) target else "$target.org"

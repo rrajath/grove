@@ -59,6 +59,12 @@ object NewAnchors {
     /** The "Notify for tasks without a time" toggle inside Settings § Reminders. */
     const val SETTINGS_REMINDERS_UNTIMED = "settings.reminders.untimed"
 
+    /** The Settings hub row leading to the Sharing page. */
+    const val SETTINGS_SHARING = "settings.sharing"
+
+    /** The "Fetch link titles" toggle inside Settings § Sharing. */
+    const val SETTINGS_SHARING_FETCH_TITLES = "settings.sharing.fetchTitles"
+
     /** The Settings hub row leading to the Widget page. */
     const val SETTINGS_WIDGET = "settings.widget"
 
@@ -351,5 +357,20 @@ val NEW_FEATURES: List<NewFeature> = listOf(
             NewAnchors.tipsItem("capture-automation", "archive-location"),
         ),
         destination = NewAnchors.tipsItem("capture-automation", "archive-location"),
+    ),
+    NewFeature(
+        // Settings § Sharing gained a "Fetch link titles" switch (on by default):
+        // off means a shared link is saved without any network request.
+        // `since` is the versionCode of the release that ships it: bump it to
+        // match `gradle.properties` versionName when cutting the release.
+        id = "sharing-fetch-link-titles",
+        since = 10900,
+        anchors = setOf(
+            NewAnchors.TOPBAR_MENU,
+            NewAnchors.DRAWER_SETTINGS,
+            NewAnchors.SETTINGS_SHARING,
+            NewAnchors.SETTINGS_SHARING_FETCH_TITLES,
+        ),
+        destination = NewAnchors.SETTINGS_SHARING_FETCH_TITLES,
     ),
 )

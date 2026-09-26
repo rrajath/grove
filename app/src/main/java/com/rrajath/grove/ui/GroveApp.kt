@@ -1076,6 +1076,7 @@ private fun GroveNavigation(
                     settings = settings,
                     onBack = { navController.popBackStack() },
                     onSetShareTargetFile = viewModel::setShareTargetFile,
+                    onSetFetchSharedLinkTitles = viewModel::setFetchSharedLinkTitles,
                 )
             }
             composable(Routes.SETTINGS_ROAM) {

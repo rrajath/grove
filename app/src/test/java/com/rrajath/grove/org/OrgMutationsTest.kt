@@ -1289,4 +1289,78 @@ class OrgMutationsTest {
     }
 
     private fun h2(title: String) = activeDoc.headlines.first { it.title == title }
+
+    // --- byte preservation (F-Droid review, MR 45754) ---
+
+    private val indented = OrgParser.parse(
+        "* TODO Indented\n" +
+            "  SCHEDULED: <2025-06-09 Mon>\n" +
+            "  body\n" +
+            "\n" +
+            "* TODO Bare\n" +
+            "no planning here\n" +
+            "\n" +
+            "** TODO Deep\n" +
+            "  DEADLINE: <2025-06-20 Fri>\n"
+    )
+
+    private fun hi(title: String) = indented.headlines.first { it.title == title }
+
+    @Test
+    fun `replaceSubtree keeps the blank line before the next heading after a body edit`() {
+        val edited = OrgMutations.subtreeText(indented, hi("Indented")).replace("body", "bodyx").trimEnd('\n')
+        val result = OrgMutations.replaceSubtree(indented, hi("Indented"), edited)
+        assertEquals(indented.text.replace("body\n", "bodyx\n"), result)
+    }
+
+    @Test
+    fun `replaceSubtree with unchanged text is byte-identical`() {
+        for (h in indented.headlines) {
+            val result = OrgMutations.replaceSubtree(indented, h, OrgMutations.subtreeText(indented, h))
+            assertEquals(indented.text, result)
+        }
+    }
+
+    @Test
+    fun `replaceSubtree keeps extra trailing blank lines the user added`() {
+        val edited = OrgMutations.subtreeText(indented, hi("Indented")) + "\n\n"
+        val result = OrgMutations.replaceSubtree(indented, hi("Indented"), edited)
+        assertTrue(result.contains("  body\n\n\n\n* TODO Bare"))
+    }
+
+    @Test
+    fun `setScheduled keeps an indented planning line indented`() {
+        val ts = OrgTimestamp.parse("<2025-07-01 Tue>")!!
+        val result = OrgMutations.setScheduled(indented, hi("Indented"), ts)
+        assertEquals(indented.text.replace("<2025-06-09 Mon>", "<2025-07-01 Tue>"), result)
+    }
+
+    @Test
+    fun `a new planning line follows the file's level-plus-one indentation`() {
+        val ts = OrgTimestamp.parse("<2025-07-01 Tue>")!!
+        val result = OrgMutations.setScheduled(indented, hi("Bare"), ts)
+        assertTrue(result.contains("* TODO Bare\n  SCHEDULED: <2025-07-01 Tue>\nno planning here"))
+    }
+
+    @Test
+    fun `markDone keeps an indented DEADLINE indented`() {
+        val result = OrgMutations.markDone(indented, hi("Deep"), "DONE", LocalDateTime.of(2025, 6, 11, 14, 0))
+        val planning = result.lines().first { "DEADLINE:" in it }
+        assertTrue(planning, planning.startsWith("  DEADLINE: <2025-06-20 Fri>"))
+        assertTrue(planning.contains("CLOSED:"))
+    }
+
+    @Test
+    fun `a column-0 file still gets column-0 planning lines`() {
+        val ts = OrgTimestamp.parse("<2025-07-01 Tue>")!!
+        val result = OrgMutations.setScheduled(doc, h("First"), ts)
+        assertTrue(result.contains("* First :tag:\nSCHEDULED: <2025-07-01 Tue>\nbody one"))
+    }
+
+    @Test
+    fun `upsertProperty matches an indented drawer`() {
+        val d = OrgParser.parse("* Note\n  :PROPERTIES:\n  :ID: abc\n  :END:\nbody\n")
+        val result = OrgMutations.upsertProperty(d, d.headlines.first(), "CUSTOM_ID", "x")
+        assertEquals("* Note\n  :PROPERTIES:\n  :ID: abc\n  :CUSTOM_ID: x\n  :END:\nbody\n", result)
+    }
 }

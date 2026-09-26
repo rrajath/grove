@@ -114,7 +114,12 @@ fun SettingsScreen(
                 NewDot(NewAnchors.SETTINGS_ROAM, Modifier.padding(start = 6.dp))
             },
         ),
-        SettingsPage("Sharing", "Where shared content lands", onOpenSharing),
+        SettingsPage(
+            "Sharing",
+            "Where shared content lands, link titles",
+            onClick = onOpenSharing,
+            badge = { NewDot(NewAnchors.SETTINGS_SHARING) },
+        ),
         SettingsPage("Backup", "Export/import your preferences", onOpenBackup),
     )
 

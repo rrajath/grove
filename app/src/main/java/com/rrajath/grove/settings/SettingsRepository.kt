@@ -142,6 +142,8 @@ data class GroveSettings(
     val captureNotification: Boolean = false,
     /** .org file that receives content shared into Grove from other apps. */
     val shareTargetFile: String = DEFAULT_SHARE_TARGET,
+    /** Fetch a shared link's page title over the network (plain HTTP, then a hidden-WebView fallback). */
+    val fetchSharedLinkTitles: Boolean = true,
     // Outline display toggles (PRD §5.3)
     val showTagsInOutline: Boolean = true,
     val showTimestampsInOutline: Boolean = true,
@@ -331,6 +333,7 @@ class SettingsRepository(
         val folderColors = stringPreferencesKey("folder_colors")
         val captureNotification = booleanPreferencesKey("capture_notification")
         val shareTargetFile = stringPreferencesKey("share_target_file")
+        val fetchSharedLinkTitles = booleanPreferencesKey("fetch_shared_link_titles")
         val showTagsInOutline = booleanPreferencesKey("show_tags_in_outline")
         val showTimestampsInOutline = booleanPreferencesKey("show_timestamps_in_outline")
         val showKeywordsInOutline = booleanPreferencesKey("show_keywords_in_outline")
@@ -426,6 +429,7 @@ class SettingsRepository(
             folderColors = decodeModes(prefs[Keys.folderColors]),
             captureNotification = prefs[Keys.captureNotification] ?: false,
             shareTargetFile = prefs[Keys.shareTargetFile] ?: GroveSettings.DEFAULT_SHARE_TARGET,
+            fetchSharedLinkTitles = prefs[Keys.fetchSharedLinkTitles] ?: true,
             showTagsInOutline = prefs[Keys.showTagsInOutline] ?: true,
             showTimestampsInOutline = prefs[Keys.showTimestampsInOutline] ?: true,
             showKeywordsInOutline = prefs[Keys.showKeywordsInOutline] ?: true,
@@ -567,6 +571,7 @@ class SettingsRepository(
             p.remove(Keys.notebookIcons)
             p[Keys.captureNotification] = s.captureNotification
             p[Keys.shareTargetFile] = s.shareTargetFile
+            p[Keys.fetchSharedLinkTitles] = s.fetchSharedLinkTitles
             p[Keys.showTagsInOutline] = s.showTagsInOutline
             p[Keys.showTimestampsInOutline] = s.showTimestampsInOutline
             p[Keys.showKeywordsInOutline] = s.showKeywordsInOutline
@@ -756,6 +761,10 @@ class SettingsRepository(
 
     suspend fun setShareTargetFile(fileName: String) {
         context.settingsDataStore.edit { it[Keys.shareTargetFile] = fileName }
+    }
+
+    suspend fun setFetchSharedLinkTitles(enabled: Boolean) {
+        context.settingsDataStore.edit { it[Keys.fetchSharedLinkTitles] = enabled }
     }
 
     suspend fun setOutlineToggle(key: OutlineToggle, enabled: Boolean) {

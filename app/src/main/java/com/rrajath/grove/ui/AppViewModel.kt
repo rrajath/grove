@@ -295,6 +295,9 @@ class AppViewModel(
     fun setShareTargetFile(fileName: String) =
         viewModelScope.launch { settingsRepository.setShareTargetFile(fileName.trim()) }
 
+    fun setFetchSharedLinkTitles(enabled: Boolean) =
+        viewModelScope.launch { settingsRepository.setFetchSharedLinkTitles(enabled) }
+
     /**
      * Route content shared into Grove (PRD §10) straight to the configured file:
      * a URL becomes a heading linking the fetched page title; long text becomes

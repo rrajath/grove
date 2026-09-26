@@ -73,10 +73,15 @@ object OrgMutations {
         val oldSlot = h.bodyStart
         val hasOldSlotLine = !hasNewSlotLine && oldSlot < h.contentEnd && oldSlot < lines.size &&
                 isPureActiveTimestampLine(lines[oldSlot])
+        val indent = when {
+            hasNewSlotLine -> leadingWhitespace(lines[newSlot])
+            hasOldSlotLine -> leadingWhitespace(lines[oldSlot])
+            else -> metadataIndent(doc, h)
+        }
         val newLine = stamps
             .filter { it.active }
             .takeIf { it.isNotEmpty() }
-            ?.joinToString(" ") { it.format() }
+            ?.joinToString(" ", prefix = indent) { it.format() }
         // oldSlot sits after newSlot, so removing it first doesn't shift newSlot's index.
         if (hasOldSlotLine) lines.removeAt(oldSlot)
         when {
@@ -512,12 +517,25 @@ object OrgMutations {
         return lines.joinToString("\n")
     }
 
-    /** Replace [h]'s whole subtree with [newText] (the editor's save path). */
+    /**
+     * Replace [h]'s whole subtree with [newText] (the editor's save path).
+     *
+     * The subtree's trailing blank lines (the separator before the next heading,
+     * or the file's final newline) are kept verbatim unless [newText] ends in
+     * more of them, so an edit never swallows the gap before the next heading.
+     */
     fun replaceSubtree(doc: OrgDocument, h: OrgHeadline, newText: String): String {
         val lines = doc.lines.toMutableList()
         val end = doc.subtreeEndLine(h)
+        val oldLines = lines.subList(h.lineIndex, end).toList()
+        val oldTrailing = oldLines.takeLastWhile { it.isBlank() }
+        val newLines = newText.split("\n")
+        val newTrailing = newLines.takeLastWhile { it.isBlank() }
+        // A subtree is never all blank (its first line is the headline), but guard anyway.
+        val content = newLines.dropLast(newTrailing.size).ifEmpty { listOf("") }
+        val trailing = if (newTrailing.size > oldTrailing.size) newTrailing else oldTrailing
         repeat(end - h.lineIndex) { lines.removeAt(h.lineIndex) }
-        lines.addAll(h.lineIndex, newText.trimEnd('\n').split("\n"))
+        lines.addAll(h.lineIndex, content + trailing)
         return lines.joinToString("\n")
     }
 
@@ -728,6 +746,40 @@ object OrgMutations {
         }
     }
 
+    private fun leadingWhitespace(line: String): String = line.takeWhile { it == ' ' || it == '\t' }
+
+    private fun isMetadataLine(line: String): Boolean {
+        val t = line.trim().uppercase()
+        return isPlanningLine(line) || t == ":PROPERTIES:" || t == ":LOGBOOK:"
+    }
+
+    /**
+     * Indentation for a metadata line (planning, drawer, active-timestamp line)
+     * newly added under [h], so it matches how the file already writes them:
+     * [h]'s own metadata first, else the first other heading's. A file that
+     * indents to heading level + 1 (Emacs' `org-adapt-indentation`) gets
+     * [h]'s level + 1; a fixed indent is copied as-is; none means column 0.
+     */
+    private fun metadataIndent(doc: OrgDocument, h: OrgHeadline): String {
+        fun firstMetadataIndent(of: OrgHeadline): String? =
+            (of.lineIndex + 1 until minOf(of.contentEnd, doc.lines.size))
+                .firstOrNull { !doc.lines[it].isBlank() }
+                ?.let { doc.lines[it] }
+                ?.takeIf(::isMetadataLine)
+                ?.let(::leadingWhitespace)
+        firstMetadataIndent(h)?.let { return it }
+        for (other in doc.headlines) {
+            if (other.lineIndex == h.lineIndex) continue
+            val indent = firstMetadataIndent(other) ?: continue
+            return when {
+                indent.isEmpty() -> ""
+                indent.all { it == ' ' } && indent.length == other.level + 1 -> " ".repeat(h.level + 1)
+                else -> indent
+            }
+        }
+        return ""
+    }
+
     private fun planningLine(p: Planning): String? {
         val parts = buildList {
             p.scheduled?.let { add("SCHEDULED: ${it.format()}") }
@@ -743,7 +795,10 @@ object OrgMutations {
         val hadPlanning = planningLineIndex < doc.subtreeEndLine(h) &&
                 planningLineIndex < lines.size &&
                 isPlanningLine(lines[planningLineIndex])
-        val newLine = planningLine(planning)
+        val newLine = planningLine(planning)?.let {
+            val indent = if (hadPlanning) leadingWhitespace(lines[planningLineIndex]) else metadataIndent(doc, h)
+            indent + it
+        }
         when {
             hadPlanning && newLine != null -> lines[planningLineIndex] = newLine
             hadPlanning -> lines.removeAt(planningLineIndex)
@@ -813,7 +868,7 @@ object OrgMutations {
         val start = drawerScanStart(doc, h)
         val logbookMarker = findDrawerMarker(lines, start, h.bodyStart, ":LOGBOOK:")
         if (logbookMarker != null) {
-            lines.add(logbookMarker + 1, entry)
+            lines.add(logbookMarker + 1, leadingWhitespace(lines[logbookMarker]) + entry)
         } else {
             val propertiesMarker = findDrawerMarker(lines, start, h.bodyStart, ":PROPERTIES:")
             val insertAt = if (propertiesMarker != null) {
@@ -821,7 +876,8 @@ object OrgMutations {
                 while (!lines[end].trim().equals(":END:", ignoreCase = true)) end++
                 end + 1
             } else start
-            lines.addAll(insertAt, listOf(":LOGBOOK:", entry, ":END:"))
+            val indent = metadataIndent(doc, h)
+            lines.addAll(insertAt, listOf(":LOGBOOK:", entry, ":END:").map { indent + it })
         }
         return lines.joinToString("\n")
     }
@@ -836,7 +892,7 @@ object OrgMutations {
      * after the drawer's history.
      */
     fun appendLogbookNote(doc: OrgDocument, h: OrgHeadline, note: String, at: OrgTimestamp): String {
-        val entry = listOf("- Note taken on ${at.format()} \\\\") +
+        val rawEntry = listOf("- Note taken on ${at.format()} \\\\") +
                 note.trim('\n').split("\n").map { "  $it" }
         val lines = doc.lines.toMutableList()
         val start = drawerScanStart(doc, h)
@@ -846,7 +902,8 @@ object OrgMutations {
             while (!lines[end].trim().equals(":END:", ignoreCase = true)) end++
             val firstNoteLine = (logbookMarker + 1 until end)
                 .firstOrNull { lines[it].trim().startsWith("- Note taken on", ignoreCase = true) }
-            lines.addAll(firstNoteLine ?: end, entry)
+            val indent = leadingWhitespace(lines[logbookMarker])
+            lines.addAll(firstNoteLine ?: end, rawEntry.map { indent + it })
         } else {
             val propertiesMarker = findDrawerMarker(lines, start, h.bodyStart, ":PROPERTIES:")
             val insertAt = if (propertiesMarker != null) {
@@ -854,7 +911,8 @@ object OrgMutations {
                 while (!lines[end].trim().equals(":END:", ignoreCase = true)) end++
                 end + 1
             } else start
-            lines.addAll(insertAt, listOf(":LOGBOOK:") + entry + listOf(":END:"))
+            val indent = metadataIndent(doc, h)
+            lines.addAll(insertAt, (listOf(":LOGBOOK:") + rawEntry + listOf(":END:")).map { indent + it })
         }
         return lines.joinToString("\n")
     }
@@ -878,9 +936,14 @@ object OrgMutations {
             var end = propertiesMarker + 1
             while (!lines[end].trim().equals(":END:", ignoreCase = true)) end++
             val existing = (propertiesMarker + 1 until end).firstOrNull { propertyKeyLine(key, lines[it]) }
-            if (existing != null) lines[existing] = newLine else lines.add(end, newLine)
+            if (existing != null) {
+                lines[existing] = leadingWhitespace(lines[existing]) + newLine
+            } else {
+                lines.add(end, leadingWhitespace(lines[propertiesMarker]) + newLine)
+            }
         } else {
-            lines.addAll(start, listOf(":PROPERTIES:", newLine, ":END:"))
+            val indent = metadataIndent(doc, h)
+            lines.addAll(start, listOf(":PROPERTIES:", newLine, ":END:").map { indent + it })
         }
         return lines.joinToString("\n")
     }

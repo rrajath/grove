@@ -59,6 +59,13 @@ re-uploads the APKs to the existing release instead of failing.
 
 ## [Unreleased]
 
+### Added
+- Settings → Sharing gained a "Fetch link titles" switch; off saves shared links without any network request.
+
+### Fixed
+- Saving an edited note no longer removes the blank line before the next heading.
+- Setting dates, marking done, and adding properties or logbook entries keep the file's existing indentation.
+
 ## [1.8.0] - 2026-09-25
 
 ### Added

@@ -29,6 +29,7 @@ class SettingsSerializationTest {
         folderColors = mapOf("projects" to "cobalt", "projects/clients" to "rose"),
         captureNotification = true,
         shareTargetFile = "capture.org",
+        fetchSharedLinkTitles = false,
         showTagsInOutline = false,
         showTimestampsInOutline = false,
         showKeywordsInOutline = true,
@@ -105,6 +106,7 @@ class SettingsSerializationTest {
         assertEquals(sample.folderColors, restored.folderColors)
         assertEquals(sample.captureNotification, restored.captureNotification)
         assertEquals(sample.shareTargetFile, restored.shareTargetFile)
+        assertEquals(sample.fetchSharedLinkTitles, restored.fetchSharedLinkTitles)
         assertEquals(sample.showTagsInOutline, restored.showTagsInOutline)
         assertEquals(sample.showTimestampsInOutline, restored.showTimestampsInOutline)
         assertEquals(sample.showKeywordsInOutline, restored.showKeywordsInOutline)
@@ -171,6 +173,12 @@ class SettingsSerializationTest {
         )
         assertEquals(listOf("inbox.org", "area/sub/deep.org"), restored.pinnedNotebooks)
         assertEquals(listOf("projects", "projects/clients"), restored.pinnedFolders)
+    }
+
+    @Test
+    fun `an export without fetchSharedLinkTitles imports with link-title fetching on`() {
+        val restored = SettingsSerialization.import("{}", GroveSettings(fetchSharedLinkTitles = false))
+        assertTrue(restored.fetchSharedLinkTitles)
     }
 
     @Test
