@@ -4,7 +4,7 @@
 # Part A -- Outline right-swipe panel: "Tag the release" -> Note -> type ->
 #   Add -> toast.
 # Part B -- Read mode's metadata bottom sheet: "Backlog" -> "☰" -> "+ Add
-#   note" -> type -> Add -> toast. Same dialog (NoteDialog), same
+#   note" -> type -> Add -> expand :LOGBOOK: -> note text. Same dialog (NoteDialog), same
 #   DocumentViewModel.addNote() under both entry points.
 #
 # UNVERIFIED ON-DEVICE -- the element-anchored `swipe` step is confirmed
@@ -80,9 +80,22 @@ tags:
     text: "Note contents"
 - inputText: "MAESTRO-METADATA-LOGBOOK-NOTE"
 - hideKeyboard
+- back
 - tapOn:
     text: "Add"
+
+# Add closes only the note dialog; dismiss the metadata sheet too, then expand
+# Backlog's (collapsed) :LOGBOOK: drawer and check the note's own line. The
+# drawer renders each logbook line trimmed as its own Text, so the note body
+# matches exactly.
+- back
 - extendedWaitUntil:
     visible:
-      text: "Note added"
+      text: ":LOGBOOK:"
+    timeout: 5000
+- tapOn:
+    text: ":LOGBOOK:"
+- extendedWaitUntil:
+    visible:
+      text: "MAESTRO-METADATA-LOGBOOK-NOTE"
     timeout: 5000
