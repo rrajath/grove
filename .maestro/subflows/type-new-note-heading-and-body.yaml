@@ -21,11 +21,8 @@ appId: com.rrajath.grove.debug
     id: "edit_note_field"
 - inputText: ${BODY}
 - repeat:
-    times: 10
+    times: 4
     commands:
       - pressKey: Remote Dpad Up
-- pressKey: Remote Dpad Left
-- pressKey: Remote Dpad Down
-- pressKey: Remote Dpad Left
 - inputText: ${HEADING}
 - hideKeyboard

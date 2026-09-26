@@ -57,12 +57,11 @@ tags:
 - runFlow:
     file: ../subflows/type-new-note-heading-and-body.yaml
     env:
-      HEADING: "MAESTRO-ABOVE-MARKER"
+      HEADING: " MAESTRO-ABOVE-MARKER"
       BODY: "MAESTRO-ABOVE-BODY"
 - tapOn:
     id: "edit_note_save"
 - back
-- hideKeyboard
 - extendedWaitUntil:
     visible:
       id: "outline_list"
@@ -86,12 +85,11 @@ tags:
 - runFlow:
     file: ../subflows/type-new-note-heading-and-body.yaml
     env:
-      HEADING: "MAESTRO-BELOW-MARKER"
+      HEADING: " MAESTRO-BELOW-MARKER"
       BODY: "MAESTRO-BELOW-BODY"
 - tapOn:
     id: "edit_note_save"
 - back
-- hideKeyboard
 - extendedWaitUntil:
     visible:
       id: "outline_list"
@@ -115,12 +113,11 @@ tags:
 - runFlow:
     file: ../subflows/type-new-note-heading-and-body.yaml
     env:
-      HEADING: "MAESTRO-CHILD-MARKER"
+      HEADING: " MAESTRO-CHILD-MARKER"
       BODY: "MAESTRO-CHILD-BODY"
 - tapOn:
     id: "edit_note_save"
 - back
-- hideKeyboard
 - extendedWaitUntil:
     visible:
       id: "outline_list"
