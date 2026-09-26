@@ -16,4 +16,4 @@ Features:
 * Sync that respects your tools: change detection by file revision, Syncthing conflict-file detection with a keep-local, keep-remote, or keep-both picker, manual and continuous sync modes, and .orgzlyignore support.
 * A dark-mode-first design with IBM Plex Sans/Serif/Mono and org syntax highlighting colored the way an Emacs theme would.
 
-Grove has no server-side component. Its only network request is fetching a page title when you share a link into Grove, to use as the note heading. Sites that hide the title behind a script are loaded in a hidden WebView with JavaScript enabled. Turn this off in Settings, Sharing, Fetch link titles, and shared links are saved as plain links with no network request at all.
+Grove has no server-side component. Its only network request is fetching a page title when you share a link into Grove, to use as the note heading. Sites that hide the title behind a script are loaded in a hidden WebView with JavaScript enabled. Turn this off in Settings, Sharing, Fetch link titles, and Grove makes no network request at all; a shared link is then labeled with the title the sharing app provided, if any, or the URL.

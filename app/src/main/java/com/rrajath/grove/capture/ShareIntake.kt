@@ -26,12 +26,9 @@ object ShareIntake {
 
     /**
      * Build the note for [payload]. [resolvedTitle] is the page title fetched for
-     * a URL (null if the fetch failed or the payload isn't a URL). [urlOnly]
-     * (link-title fetching off) saves a URL as a bare `[[url]]` link, ignoring
-     * the title the sharing app put in its subject/text too.
+     * a URL (null if the fetch failed or the payload isn't a URL).
      */
-    fun composeNote(payload: SharedPayload, resolvedTitle: String?, urlOnly: Boolean = false): Note = when {
-        payload.url.isNotEmpty() && urlOnly -> Note(heading = "[[${payload.url}]]", body = null)
+    fun composeNote(payload: SharedPayload, resolvedTitle: String?): Note = when {
         payload.url.isNotEmpty() -> {
             val description = (resolvedTitle?.takeIf { it.isNotBlank() }
                 ?: payload.text.takeIf { it.isNotBlank() }
@@ -61,12 +58,12 @@ object ShareIntake {
         }
         // On a cold start the vault may still be initializing; await it.
         val vault = app.vault.filterNotNull().first()
-        // Off → no network at all, and the heading is just the link.
-        val fetchTitles = settings.fetchSharedLinkTitles
-        val resolvedTitle = if (payload.url.isNotEmpty() && fetchTitles) {
+        // Off → no network at all. composeNote then describes the link with whatever
+        // text the sharing app sent (often the page title, via EXTRA_SUBJECT), else the URL.
+        val resolvedTitle = if (payload.url.isNotEmpty() && settings.fetchSharedLinkTitles) {
             PageTitleFetcher.fetch(payload.url, app)
         } else null
-        val note = composeNote(payload, resolvedTitle, urlOnly = !fetchTitles)
+        val note = composeNote(payload, resolvedTitle)
         val target = settings.shareTargetFile.trim().ifBlank { GroveSettings.DEFAULT_SHARE_TARGET }
         val fileName = if (target.endsWith(".org")) target else "$target.org"
         if (vault.open(fileName) == null) vault.createNotebook(fileName)

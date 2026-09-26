@@ -81,8 +81,8 @@ fun SettingsSharingScreen(
             RowDivider()
             ToggleRow(
                 label = "Fetch link titles",
-                description = "Uses a shared link's page title as the heading. Needs a network " +
-                        "request; off saves just the link, fully offline",
+                description = "Looks up a shared link's page title online. Off makes no network " +
+                        "request; the link uses any title the sharing app sent, or the URL",
                 checked = settings.fetchSharedLinkTitles,
                 labelBadge = { NewDot(NewAnchors.SETTINGS_SHARING_FETCH_TITLES) },
                 onToggle = onSetFetchSharedLinkTitles,

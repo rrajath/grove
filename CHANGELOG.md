@@ -60,7 +60,7 @@ re-uploads the APKs to the existing release instead of failing.
 ## [Unreleased]
 
 ### Added
-- Settings → Sharing gained a "Fetch link titles" switch; off saves shared links as plain links, fully offline.
+- Settings → Sharing gained a "Fetch link titles" switch; off makes no network request when sharing links.
 
 ### Fixed
 - Saving an edited note no longer removes the blank line before the next heading.

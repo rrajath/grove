@@ -65,15 +65,4 @@ class ShareIntakeTest {
         assertEquals(exact, note.heading)
         assertNull(note.body)
     }
-
-    @Test
-    fun `urlOnly saves a bare link, ignoring the sharing app's title`() {
-        val note = ShareIntake.composeNote(
-            SharedPayload.from(subject = "Page Title", sharedText = "Page Title https://example.com/a"),
-            resolvedTitle = null,
-            urlOnly = true,
-        )
-        assertEquals("[[https://example.com/a]]", note.heading)
-        assertEquals(null, note.body)
-    }
 }
