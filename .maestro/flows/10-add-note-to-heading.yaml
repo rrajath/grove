@@ -56,6 +56,19 @@ tags:
     visible:
       text: "Note added"
     timeout: 5000
+- tapOn:
+    text: "Tag the release"
+- extendedWaitUntil:
+    visible:
+      text: ":LOGBOOK:"
+    timeout: 5000
+- tapOn:
+    text: ":LOGBOOK:"
+- extendedWaitUntil:
+    visible:
+      text: "MAESTRO-SWIPE-LOGBOOK-NOTE"
+    timeout: 5000
+- back    
 
 # Part B: metadata sheet's "+ Add note".
 - tapOn:
@@ -80,7 +93,7 @@ tags:
     text: "Note contents"
 - inputText: "MAESTRO-METADATA-LOGBOOK-NOTE"
 - hideKeyboard
-- back
+# - back
 - tapOn:
     text: "Add"
 

@@ -57,7 +57,7 @@ tags:
       text: "Set archive location"
     timeout: 5000
 - tapOn:
-    text: "reading-list"
+    text: "inbox"
 - tapOn:
     text: "Set as archive location"
 
@@ -99,7 +99,7 @@ tags:
 # this outline.
 - extendedWaitUntil:
     visible:
-      text: "Marked done. Refiled to reading-list"
+      text: "Marked done. Refiled to inbox"
     timeout: 8000
 - assertNotVisible:
     text: "Tag the release"
@@ -111,7 +111,7 @@ tags:
       id: "notebooks_capture"
     timeout: 10000
 - tapOn:
-    text: "reading-list.org"
+    text: "inbox.org"
 - extendedWaitUntil:
     visible:
       id: "outline_list"
