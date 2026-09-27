@@ -105,6 +105,9 @@ class Vault(
     suspend fun revision(fileName: String): String? =
         store.stat(fileName)?.let { "${it.lastModified}:${it.size}" }
 
+    /** [fileName]'s device path, or the vault-relative [fileName] itself when the store can't tell. */
+    fun absolutePath(fileName: String): String = store.absolutePath(fileName) ?: fileName
+
     suspend fun open(fileName: String): OrgDocument? {
         val entry = store.stat(fileName) ?: return null
         return document(entry)

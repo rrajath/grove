@@ -1,12 +1,15 @@
 package com.rrajath.grove.vault
 
+import com.rrajath.grove.org.ArchiveTarget
 import com.rrajath.grove.settings.GroveSettings
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
+import java.io.File
 import java.time.LocalDateTime
 
 class AutoArchiveTest {
@@ -146,6 +149,40 @@ class AutoArchiveTest {
         assertTrue(result.destText.contains("Done"))
         assertTrue(result.destText.contains("DONE Task"))
         assertTrue(result.sourceDoc.headlines.isEmpty())
+    }
+
+    @Test
+    fun `auto-archive stamps Emacs ARCHIVE properties on the moved heading`() = runTest {
+        tmp.newFile("todo.org").writeText("* Projects\n** TODO Task\n:PROPERTIES:\n:ID: abc\n:END:\n")
+        val v = vault()
+        val doc = v.open("todo.org")!!
+        val headline = doc.headlines.first { it.title == "Task" }
+        val settings = GroveSettings(autoArchiveDoneItems = true, autoArchiveFile = "archive.org")
+
+        val result = AutoArchive.apply(v, settings, doc, "todo.org", headline, "DONE", now)
+
+        result as StateChangeResult.Archived
+        val drawer = result.destText.substringAfter(":PROPERTIES:\n").substringBefore(":END:")
+        assertEquals(
+            ":ID: abc\n" +
+                ":ARCHIVE_TIME: 2026-08-01 Sat 09:00\n" +
+                ":ARCHIVE_FILE: ${File(tmp.root, "todo.org").absolutePath}\n" +
+                ":ARCHIVE_OLPATH: Projects\n" +
+                ":ARCHIVE_CATEGORY: todo\n" +
+                ":ARCHIVE_TODO: DONE\n",
+            drawer,
+        )
+    }
+
+    @Test
+    fun `a plain refile adds no ARCHIVE properties`() = runTest {
+        tmp.newFile("todo.org").writeText("* TODO Task\n")
+        val v = vault()
+        val doc = v.open("todo.org")!!
+
+        val write = AutoArchive.refileSubtree(v, doc, "todo.org", doc.headlines.first(), ArchiveTarget("other.org", emptyList()))!!
+
+        assertFalse(write.destText.contains("ARCHIVE_"))
     }
 
     @Test

@@ -59,6 +59,26 @@ The destination is looked up in this order, first match wins:
 
 A location looks like `file::* Heading/Subheading`. `%s` stands for the current file, so `%s_archive::` archives `agenda.org` into `agenda.org_archive`, just like Emacs. A file name with its own extension is used exactly as written. Only a bare name like `archive` becomes `archive.org`. Missing files and headings are created. Files that don't end in `.org` stay out of Grove's notebook list, search, and agenda.
 
+### Archive properties
+
+Every archive, manual or automatic, adds Emacs's context properties to the heading's `:PROPERTIES:` drawer at the destination. They are appended to an existing drawer, or a new drawer is created:
+
+```org
+:PROPERTIES:
+:ARCHIVE_TIME: 2026-09-26 Sat 14:05
+:ARCHIVE_FILE: /storage/emulated/0/Documents/org/work/tasks.org
+:ARCHIVE_OLPATH: Projects/Grove
+:ARCHIVE_CATEGORY: tasks
+:ARCHIVE_TODO: DONE
+:END:
+```
+
+- `ARCHIVE_TIME`: when you archived it
+- `ARCHIVE_FILE`: the source file's path on the device (the vault-relative path if the folder's provider doesn't expose one)
+- `ARCHIVE_OLPATH`: the parent headings, left out for a top-level heading
+- `ARCHIVE_CATEGORY`: the heading's `CATEGORY` property, then the file's `#+CATEGORY:`, then the file name
+- `ARCHIVE_TODO`: the heading's TODO keyword, left out when it has none
+
 ## Related
 
 - [Metadata Sheet](/features/metadata-sheet): where the configured keyword/priority sets show up as tappable chips

@@ -61,6 +61,7 @@ re-uploads the APKs to the existing release instead of failing.
 
 ### Added
 - Settings → Sharing gained a "Fetch link titles" switch; off makes no network request when sharing links.
+- Archiving adds Emacs's ARCHIVE_TIME, ARCHIVE_FILE, ARCHIVE_OLPATH, ARCHIVE_CATEGORY and ARCHIVE_TODO properties.
 
 ### Fixed
 - Saving an edited note no longer removes the blank line before the next heading.

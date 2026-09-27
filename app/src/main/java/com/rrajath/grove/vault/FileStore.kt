@@ -79,6 +79,12 @@ interface FileStore {
      * entities.
      */
     suspend fun pruneEmptyDirs(dir: String) {}
+
+    /**
+     * The device filesystem path of [name] (vault-relative), or null when the
+     * store can't know one (e.g. a SAF provider that isn't local storage).
+     */
+    fun absolutePath(name: String): String? = null
 }
 
 /** Directory names never descended into during vault traversal. */

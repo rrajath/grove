@@ -33,6 +33,8 @@ class JvmFileStore(
 
     override suspend fun read(name: String): String = resolve(name).readText()
 
+    override fun absolutePath(name: String): String = resolve(name).absolutePath
+
     override suspend fun write(name: String, content: String) {
         resolve(name).apply { parentFile?.mkdirs() }.writeText(content)
     }

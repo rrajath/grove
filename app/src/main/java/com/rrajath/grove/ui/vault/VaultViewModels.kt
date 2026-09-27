@@ -1513,6 +1513,7 @@ class DocumentViewModel(
             refileToResolvedTarget(
                 loaded, vault, source, target,
                 verb = "Archived", syncReason = "archive", createFileIfMissing = true,
+                archivedAt = LocalDateTime.now(),
             )
             dropFavoritesInRange(loaded.document, loaded.fileName, source.lineIndex until sourceEnd)
         }
@@ -1545,8 +1546,11 @@ class DocumentViewModel(
         verb: String,
         syncReason: String,
         createFileIfMissing: Boolean,
+        archivedAt: LocalDateTime? = null,
     ) {
-        val write = AutoArchive.refileSubtree(vault, loaded.document, loaded.fileName, source, target, createFileIfMissing)
+        val write = AutoArchive.refileSubtree(
+            vault, loaded.document, loaded.fileName, source, target, createFileIfMissing, archivedAt,
+        )
         if (write == null) {
             showToast("Couldn't open ${target.fileName.removeSuffix(".org")}")
             return

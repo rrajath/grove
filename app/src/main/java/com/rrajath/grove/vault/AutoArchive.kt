@@ -1,6 +1,7 @@
 package com.rrajath.grove.vault
 
 import com.rrajath.grove.org.ArchiveLocation
+import com.rrajath.grove.org.ArchiveProperties
 import com.rrajath.grove.org.ArchiveTarget
 import com.rrajath.grove.org.OrgDocument
 import com.rrajath.grove.org.OrgHeadline
@@ -84,7 +85,7 @@ object AutoArchive {
         if (!shouldArchive) return plain()
 
         val target = ArchiveLocation.resolve(plainDoc, movedHeadline, settingsFallback(settings), fileName) ?: return plain()
-        val write = refileSubtree(vault, plainDoc, fileName, movedHeadline, target) ?: return plain()
+        val write = refileSubtree(vault, plainDoc, fileName, movedHeadline, target, archivedAt = now) ?: return plain()
 
         return StateChangeResult.Archived(
             sourceFile = write.sourceFile,
@@ -102,7 +103,8 @@ object AutoArchive {
      * Refile [source]'s subtree out of [sourceDoc] straight to [target], creating any missing
      * destination file/heading path. Shared by [apply] and the manual per-note "Archive" quick
      * action. Returns null when the destination file doesn't exist and [createFileIfMissing] is
-     * false.
+     * false. With [archivedAt] (an archive, not a plain refile), the moved heading gets Emacs's
+     * `ARCHIVE_*` context properties stamped into its `:PROPERTIES:` drawer.
      */
     suspend fun refileSubtree(
         vault: Vault,
@@ -111,9 +113,17 @@ object AutoArchive {
         source: OrgHeadline,
         target: ArchiveTarget,
         createFileIfMissing: Boolean = true,
+        archivedAt: LocalDateTime? = null,
     ): RefileWrite? {
         val label = (listOf(target.fileName.removeSuffix(".org")) + target.headingPath).joinToString(" › ")
-        val subtree = OrgMutations.subtreeText(sourceDoc, source)
+        val subtree = OrgMutations.subtreeText(sourceDoc, source).let { text ->
+            if (archivedAt == null) text
+            else ArchiveProperties.stamp(
+                text,
+                sourceDoc.keywords,
+                ArchiveProperties.of(sourceDoc, source, sourceFile, vault.absolutePath(sourceFile), archivedAt),
+            )
+        }
 
         if (target.fileName == sourceFile) {
             val afterDelete = OrgParser.parse(OrgMutations.deleteSubtree(sourceDoc, source), sourceDoc.keywords)

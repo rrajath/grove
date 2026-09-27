@@ -365,6 +365,10 @@ class SafFileStore(
 
     override suspend fun exists(name: String): Boolean = documentUri(name) != null
 
+    override fun absolutePath(name: String): String? =
+        if (treeUri.authority != EXTERNAL_STORAGE_AUTHORITY) null
+        else externalStoragePath(rootDocId, name)
+
     override suspend fun pruneEmptyDirs(dir: String): Unit = withContext(Dispatchers.IO) {
         val trimmed = dir.trim('/')
         if (trimmed.isEmpty()) return@withContext
@@ -457,3 +461,19 @@ class SafFileStore(
 
 /** The platform's local-storage documents provider, whose document ids are paths. */
 private const val EXTERNAL_STORAGE_AUTHORITY = "com.android.externalstorage.documents"
+
+/**
+ * Maps a local-storage tree root id (`<volume>:<path>`) plus a vault-relative
+ * [name] to its filesystem path: the `primary` volume is internal shared storage
+ * (`/storage/emulated/0`), any other volume id (an SD card's `1234-ABCD`) mounts
+ * at `/storage/<id>`. Null for an id that isn't in that form.
+ */
+internal fun externalStoragePath(rootDocId: String, name: String): String? {
+    val colon = rootDocId.indexOf(':')
+    if (colon <= 0) return null
+    val volume = rootDocId.substring(0, colon)
+    val volumeRoot = if (volume.equals("primary", ignoreCase = true)) "/storage/emulated/0" else "/storage/$volume"
+    return listOf(volumeRoot, rootDocId.substring(colon + 1).trim('/'), name.trim('/'))
+        .filter { it.isNotEmpty() }
+        .joinToString("/")
+}
