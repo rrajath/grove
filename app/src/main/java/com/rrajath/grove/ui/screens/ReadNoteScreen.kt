@@ -86,6 +86,7 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rrajath.grove.data.FavoriteNote
+import com.rrajath.grove.data.containsIdOf
 import com.rrajath.grove.data.matches
 import com.rrajath.grove.org.BlockParser
 import com.rrajath.grove.org.INTRO_LINE_INDEX
@@ -742,8 +743,7 @@ private fun NoteContent(
         favorites.filter { it.customId == null }.map { it.lineIndex }.toSet()
     }
     fun isFavorite(h: OrgHeadline): Boolean {
-        val ident = h.customId ?: h.id
-        return (ident != null && ident in favoriteCustomIds) || h.lineIndex in favoriteLineIndices
+        return favoriteCustomIds.containsIdOf(h) || h.lineIndex in favoriteLineIndices
     }
 
     // A heading whose subtree is huge or very deep (e.g. a 2000-heading "note")

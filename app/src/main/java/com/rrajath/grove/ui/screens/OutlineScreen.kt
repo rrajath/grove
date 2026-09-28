@@ -98,6 +98,7 @@ import com.rrajath.grove.ui.components.SwipeAction
 import com.rrajath.grove.ui.components.SwipeRevealRow
 import com.rrajath.grove.ui.components.annotateOrgInline
 import com.rrajath.grove.data.FavoriteNote
+import com.rrajath.grove.data.containsIdOf
 import com.rrajath.grove.data.matches
 import com.rrajath.grove.ui.components.favoriteIcon
 import com.rrajath.grove.ui.components.favoriteIconFilled
@@ -143,7 +144,7 @@ fun OutlineScreen(
     onWiden: () -> Unit = {},
     /** Top-bar ⌕: opens Search with the notebook filter already pinned to this file. */
     onSearchInNotebook: () -> Unit = {},
-    /** Adds a favorite; [customId] is resolved (via [DocumentViewModel.ensureCustomId]) before this is called. */
+    /** Adds a favorite; [customId] is resolved (via [DocumentViewModel.ensureStableId]) before this is called. */
     onFavorite: (fileName: String, lineIndex: Int, title: String, customId: String?) -> Unit = { _, _, _, _ -> },
     onUnfavorite: (fileName: String, lineIndex: Int, customId: String?) -> Unit = { _, _, _ -> },
     /** Favorited headlines in this notebook, matched per-row by customId, marked with a ★. */
@@ -632,8 +633,7 @@ fun OutlineScreen(
                         }
                         items(visible, key = { it.lineIndex }) { h ->
                             val isFavorite = remember(h.lineIndex, h.customId, h.id, favoriteCustomIds, favoriteLineIndices) {
-                                val ident = h.customId ?: h.id
-                                (ident != null && ident in favoriteCustomIds) || h.lineIndex in favoriteLineIndices
+                                favoriteCustomIds.containsIdOf(h) || h.lineIndex in favoriteLineIndices
                             }
                             val toggleFavorite = {
                                 if (isFavorite) {
@@ -641,7 +641,7 @@ fun OutlineScreen(
                                     onUnfavorite(notebookId, h.lineIndex, existing?.customId)
                                     viewModel.showToast("Removed favorite")
                                 } else {
-                                    viewModel.ensureCustomId(h) { customId ->
+                                    viewModel.ensureStableId(h) { customId ->
                                         onFavorite(notebookId, h.lineIndex, h.title, customId)
                                     }
                                     viewModel.showToast("★ Added to favorites")

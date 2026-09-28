@@ -17,8 +17,11 @@ sealed class TargetLocation {
     data object BottomOfFile : TargetLocation()
 
     /**
-     * Insert as child of a heading, found by [customId] (recommended, robust)
-     * or by exact [title]. [appendLast] = insert after the last existing child.
+     * Insert as child of a heading, found by [id] (recommended, robust) or by
+     * exact [title]. [id] matches a heading's `:ID:` first, then its
+     * `:CUSTOM_ID:`. [customId] is the legacy field older templates saved;
+     * it's still honored (via [headingKey]) but the editor now writes [id].
+     * [appendLast] = insert after the last existing child.
      */
     @Serializable
     @SerialName("under_heading")
@@ -26,7 +29,11 @@ sealed class TargetLocation {
         val title: String? = null,
         val customId: String? = null,
         val appendLast: Boolean = true,
-    ) : TargetLocation()
+        val id: String? = null,
+    ) : TargetLocation() {
+        /** The id to resolve the heading by: [id], else the legacy [customId]. */
+        val headingKey: String? get() = id ?: customId
+    }
 
     /** Year → Month → Day tree; entry under the day heading. */
     @Serializable
@@ -43,7 +50,7 @@ sealed class TargetLocation {
     fun describe(): String = when (this) {
         is TopOfFile -> "top of file"
         is BottomOfFile -> "bottom of file"
-        is UnderHeading -> "under " + (customId?.let { "#$it" } ?: title ?: "heading")
+        is UnderHeading -> "under " + (headingKey?.let { "#$it" } ?: title ?: "heading")
         is DatetreeDate, is DatetreeDatetime -> "datetree"
     }
 }

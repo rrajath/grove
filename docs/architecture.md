@@ -79,7 +79,7 @@ The pipeline at capture time:
 1. `PlaceholderExpander.prompts()` finds `%^{prompt}` placeholders; the UI collects answers first.
 2. `PlaceholderExpander.expand()` substitutes placeholders (`%t %T %u %U %date %time %day %year %month %clipboard %shared_text %shared_url` …) and records where `%cursor`/`%?` puts the caret. For date-granularity targets (datetree by date), `%U`/`%u` expand date-only.
 3. `CaptureInserter.withHeadingStars()` prefixes the entry with the heading stars it will receive on insert (4 for a datetree entry, 1 for top/bottom of file) so the editor is WYSIWYG.
-4. On save, `CaptureInserter.insert()` splices the entry into the target file: at top/bottom, under a heading found by `CUSTOM_ID` or exact title, or into a `year → month → day` datetree whose nodes are created on demand in chronological position. The first line is re-leveled to the insertion depth; body lines are kept verbatim.
+4. On save, `CaptureInserter.insert()` splices the entry into the target file: at top/bottom, under a heading found by `ID` (falling back to `CUSTOM_ID`, so legacy templates resolve) or exact title, or into a `year → month → day` datetree whose nodes are created on demand in chronological position. The first line is re-leveled to the insertion depth; body lines are kept verbatim.
 
 Capture is reachable from the notebook-list FAB, a Glance home-screen widget, the share sheet (first URL → `%shared_url`, the rest → `%shared_text`), an optional ongoing notification, and the `grove://capture` deep link.
 

@@ -63,7 +63,12 @@ re-uploads the APKs to the existing release instead of failing.
 - Settings → Sharing gained a "Fetch link titles" switch; off makes no network request when sharing links.
 - Archiving adds Emacs's ARCHIVE_TIME, ARCHIVE_FILE, ARCHIVE_OLPATH, ARCHIVE_CATEGORY and ARCHIVE_TODO properties.
 
+### Changed
+- Favoriting a heading now adds an ID property instead of a CUSTOM_ID.
+- Capture templates target a heading by ID; existing CUSTOM_ID targets keep working.
+
 ### Fixed
+- Headings with both ID and CUSTOM_ID now show as favorited and aren't favorited twice.
 - Saving an edited note no longer removes the blank line before the next heading.
 - Setting dates, marking done, and adding properties or logbook entries keep the file's existing indentation.
 - Maestro flow 11 now types a heading for each new note, since blank headings can't be saved.

@@ -80,6 +80,7 @@ class CaptureTemplateTest {
         assertEquals("bottom of file", TargetLocation.BottomOfFile.describe())
         assertEquals("datetree", TargetLocation.DatetreeDatetime.describe())
         assertEquals("under #x", TargetLocation.UnderHeading(customId = "x").describe())
+        assertEquals("under #y", TargetLocation.UnderHeading(customId = "x", id = "y").describe())
         assertEquals("under Projects", TargetLocation.UnderHeading(title = "Projects").describe())
     }
 }

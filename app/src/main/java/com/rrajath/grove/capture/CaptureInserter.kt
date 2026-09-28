@@ -37,10 +37,13 @@ object CaptureInserter {
 
             is TargetLocation.UnderHeading -> {
                 val doc = OrgParser.parse(docText, keywords)
-                val target = location.customId?.let { doc.findByCustomId(it) }
+                // One id field matches either property, so legacy templates that
+                // saved a CUSTOM_ID keep resolving after the switch to ID.
+                val key = location.headingKey
+                val target = key?.let { doc.findById(it) ?: doc.findByCustomId(it) }
                     ?: location.title?.let { doc.findByTitle(it) }
                     ?: throw CaptureTargetNotFound(
-                        location.customId?.let { "No heading with CUSTOM_ID \"$it\"" }
+                        key?.let { "No heading with ID or CUSTOM_ID \"$it\"" }
                             ?: "No heading titled \"${location.title}\""
                     )
                 val line = if (location.appendLast) subtreeEnd(doc, target) else firstChildLine(doc, target)

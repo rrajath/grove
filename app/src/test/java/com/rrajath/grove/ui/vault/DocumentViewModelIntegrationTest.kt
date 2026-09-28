@@ -48,7 +48,7 @@ import java.time.LocalDate
  * resolution across every target form, the structural outline mutations
  * (move / promote / demote / delete) and their single-step undo, note creation,
  * the metadata edits (state / priority / tags / planning / logbook), the
- * heading-less-intro promote, favorites (with the `:CUSTOM_ID:` it forces), the
+ * heading-less-intro promote, favorites (with the `:ID:` it forces), the
  * open-editor pending-buffer splice, and cross-file refile.
  *
  * The 27 link forms also have Maestro end-to-end coverage (flow 05); this pins
@@ -489,18 +489,20 @@ class DocumentViewModelIntegrationTest {
         assertTrue(sync.reindexCalls.any { it.reason == "intro promoted to heading" })
     }
 
-    // --- favorites (and the CUSTOM_ID they force) ---------------------
+    // --- favorites (and the ID they force) ----------------------------
 
     @Test
-    fun `ensureCustomId writes a CUSTOM_ID onto a heading that has none`() = runTest {
+    fun `ensureStableId writes an ID onto a heading that has none`() = runTest {
         val vm = loaded("projects.org")
         var resolved: String? = null
 
-        vm.ensureCustomId(headline(vm, "Backlog")) { resolved = it }
+        vm.ensureStableId(headline(vm, "Backlog")) { resolved = it }
         advanceUntilIdle()
 
         assertNotNull(resolved)
-        assertTrue(store.read("projects.org").contains(":CUSTOM_ID: $resolved"))
+        val text = store.read("projects.org")
+        assertTrue(text.contains(":ID: $resolved"))
+        assertFalse(text.contains(":CUSTOM_ID:"))
     }
 
     @Test
@@ -512,7 +514,7 @@ class DocumentViewModelIntegrationTest {
 
         val fav = favoritesRepository.favorites.first().first { it.title == "Backlog" }
         assertEquals("projects.org", fav.fileName)
-        assertNotNull("favorite should carry the CUSTOM_ID it forced", fav.customId)
+        assertNotNull("favorite should carry the ID it forced", fav.customId)
     }
 
     @Test

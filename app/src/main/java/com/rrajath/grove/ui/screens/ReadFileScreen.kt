@@ -47,6 +47,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rrajath.grove.data.FavoriteNote
+import com.rrajath.grove.data.containsIdOf
 import com.rrajath.grove.org.INTRO_LINE_INDEX
 import com.rrajath.grove.org.OrgDocument
 import com.rrajath.grove.settings.FontSizePreference
@@ -412,8 +413,7 @@ internal fun FileContent(
                         relLevel = child.level,
                         isCollapsed = childCollapsed,
                         isFavorite = remember(child, favoriteCustomIds, favoriteLineIndices) {
-                            val ident = child.customId ?: child.id
-                            (ident != null && ident in favoriteCustomIds) || child.lineIndex in favoriteLineIndices
+                            favoriteCustomIds.containsIdOf(child) || child.lineIndex in favoriteLineIndices
                         },
                         onToggleFold = {
                             collapsed = if (childCollapsed) collapsed - child.lineIndex

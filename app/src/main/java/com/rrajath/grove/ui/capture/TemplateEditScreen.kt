@@ -143,8 +143,10 @@ fun TemplateEditScreen(
     var headingTitle by remember(existing) {
         mutableStateOf((existing?.location as? TargetLocation.UnderHeading)?.title ?: "")
     }
-    var customId by remember(existing) {
-        mutableStateOf((existing?.location as? TargetLocation.UnderHeading)?.customId ?: "")
+    // Seeded from a legacy customId too; saving writes it back as `id`, which
+    // still matches a CUSTOM_ID heading, so older templates keep working.
+    var headingId by remember(existing) {
+        mutableStateOf((existing?.location as? TargetLocation.UnderHeading)?.headingKey ?: "")
     }
     var templateText by remember(existing) { mutableStateOf(existing?.template ?: "* %^{Title}\n%cursor") }
     val invalidPlaceholders = remember(templateText) {
@@ -169,7 +171,7 @@ fun TemplateEditScreen(
         1 -> TargetLocation.BottomOfFile
         2 -> TargetLocation.UnderHeading(
             title = headingTitle.takeIf { it.isNotBlank() },
-            customId = customId.takeIf { it.isNotBlank() },
+            id = headingId.trim().takeIf { it.isNotBlank() },
         )
         3 -> TargetLocation.DatetreeDate
         else -> TargetLocation.DatetreeDatetime
@@ -305,17 +307,17 @@ fun TemplateEditScreen(
                 }
 
                 if (locationIdx == 2) {
-                    FieldLabel("Heading: CUSTOM_ID (recommended) or exact name")
+                    FieldLabel("Heading: ID (recommended) or exact name")
                     Text(
-                        "CUSTOM_ID keeps working if the heading is renamed; exact name is simpler but fragile.",
+                        "ID keeps working if the heading is renamed; exact name is simpler but fragile. A CUSTOM_ID also works.",
                         fontFamily = PlexSans, fontSize = 12.sp, color = c.ink3,
                         modifier = Modifier.padding(bottom = 6.dp),
                     )
                     OutlinedTextField(
-                        value = customId, onValueChange = { customId = it },
+                        value = headingId, onValueChange = { headingId = it },
                         singleLine = true, modifier = Modifier.fillMaxWidth(),
                         textStyle = TextStyle(fontFamily = PlexMono),
-                        placeholder = { Text("custom-id (recommended)", fontFamily = PlexMono, color = c.ink3) },
+                        placeholder = { Text("heading ID (recommended)", fontFamily = PlexMono, color = c.ink3) },
                     )
                     Spacer(Modifier.height(6.dp))
                     OutlinedTextField(

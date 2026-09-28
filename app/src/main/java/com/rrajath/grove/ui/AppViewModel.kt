@@ -116,7 +116,7 @@ class AppViewModel(
 
     /**
      * @param customId the heading's existing or newly-written stable id — see
-     *   [com.rrajath.grove.ui.vault.DocumentViewModel.ensureCustomId], which the caller
+     *   [com.rrajath.grove.ui.vault.DocumentViewModel.ensureStableId], which the caller
      *   (the currently-open [com.rrajath.grove.ui.vault.DocumentViewModel]) must resolve
      *   first so this favorite can be found again by id instead of by raw line number
      *   (line numbers drift under external edits, which is this app's primary edit path).

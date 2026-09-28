@@ -997,16 +997,16 @@ class DocumentViewModel(
 
     /**
      * Favoriting needs a stable `:ID:`/`:CUSTOM_ID:` on [headline] so the favorite survives
-     * line drift from later edits; writes a `:CUSTOM_ID:` only when it has neither already
-     * (never overwrites an intentionally-set one). Goes through this class's own [_state]
-     * (like every other mutation here) instead of a standalone vault read/write, so the id
-     * becomes part of the same in-memory document lineage subsequent edits build from —
-     * otherwise the very next outline edit in this session would rebuild its saved text from
-     * a pre-favorite snapshot and silently drop the id (the bug this was written to fix: a
-     * same-session edit right after favoriting was clobbering the just-written CUSTOM_ID).
+     * line drift from later edits; writes an `:ID:` only when it has neither already (never
+     * overwrites an intentionally-set one). Grove used to write a UUID `:CUSTOM_ID:` here;
+     * those are still honored when present. Goes through this class's own [_state] (like
+     * every other mutation here) instead of a standalone vault read/write, so the id becomes
+     * part of the same in-memory document lineage subsequent edits build from. Otherwise the
+     * very next outline edit in this session would rebuild its saved text from a
+     * pre-favorite snapshot and silently drop the id (the bug this was written to fix).
      * [onResolved] receives the heading's existing or newly-written id.
      */
-    fun ensureCustomId(headline: OrgHeadline, onResolved: (String?) -> Unit) {
+    fun ensureStableId(headline: OrgHeadline, onResolved: (String?) -> Unit) {
         val existing = headline.id ?: headline.customId
         if (existing != null) {
             onResolved(existing)
@@ -1017,20 +1017,20 @@ class DocumentViewModel(
         viewModelScope.launch {
             val newId = newOrgId()
             val newText = withContext(dispatchers.default) {
-                OrgMutations.upsertProperty(loaded.document, headline, "CUSTOM_ID", newId)
+                OrgMutations.upsertProperty(loaded.document, headline, "ID", newId)
             }
             val newDoc = withContext(dispatchers.default) {
                 OrgParser.parse(newText, loaded.document.keywords)
             }
             _state.value = DocumentUiState.Loaded(loaded.fileName, newDoc)
-            saveDoc(loaded.fileName, newText, "favorite added custom id", newDoc)
+            saveDoc(loaded.fileName, newText, "favorite added id", newDoc)
             onResolved(newId)
         }
     }
 
     /**
      * Read-mode metadata sheet: pin/unpin [headline] to the nav drawer's Favorites.
-     * Adds resolve a stable `:CUSTOM_ID:` first (via [ensureCustomId]) so the favorite
+     * Adds resolve a stable `:ID:` first (via [ensureStableId]) so the favorite
      * survives external edits that shift line numbers.
      */
     fun toggleFavorite(headline: OrgHeadline) {
@@ -1042,7 +1042,7 @@ class DocumentViewModel(
                 favoritesRepository.removeFavorite(existing.fileName, existing.lineIndex, existing.customId)
                 showToast("Removed favorite")
             } else {
-                ensureCustomId(headline) { customId ->
+                ensureStableId(headline) { customId ->
                     viewModelScope.launch {
                         favoritesRepository.addFavorite(
                             FavoriteNote(fileName, headline.lineIndex, headline.title, customId),

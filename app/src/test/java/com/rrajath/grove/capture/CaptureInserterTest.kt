@@ -93,6 +93,47 @@ class CaptureInserterTest {
         assertTrue(result.newText.contains("other body\n** note under other"))
     }
 
+    private val idDoc = """
+        * Inbox
+        :PROPERTIES:
+        :ID: AAAA-1111
+        :END:
+        inbox body
+        * Journal
+        :PROPERTIES:
+        :CUSTOM_ID: journal
+        :END:
+        journal body
+    """.trimIndent() + "\n"
+
+    @Test
+    fun `under heading by id matches the ID property`() {
+        val result = insert(idDoc, TargetLocation.UnderHeading(id = "AAAA-1111"), "new")
+        assertTrue(result.newText.contains("inbox body\n** new\n* Journal"))
+    }
+
+    @Test
+    fun `under heading by id also matches a CUSTOM_ID`() {
+        val result = insert(idDoc, TargetLocation.UnderHeading(id = "journal"), "new")
+        assertTrue(result.newText.endsWith("journal body\n** new\n"))
+    }
+
+    @Test
+    fun `legacy customId field still matches an ID property`() {
+        val result = insert(idDoc, TargetLocation.UnderHeading(customId = "AAAA-1111"), "new")
+        assertTrue(result.newText.contains("inbox body\n** new\n* Journal"))
+    }
+
+    @Test
+    fun `id wins over legacy customId when both are set`() {
+        val result = insert(
+            idDoc,
+            TargetLocation.UnderHeading(customId = "AAAA-1111", id = "journal"),
+            "new",
+        )
+        assertTrue(result.newText.endsWith("journal body\n** new\n"))
+    }
+
     @Test
     fun `under heading first-child position`() {
         val result = insert(

@@ -458,7 +458,7 @@ private fun GroveNavigation(
                     // The outline's ★ swipe action: OutlineScreen decides add vs. remove
                     // itself (it already resolves each row's favorite by customId to draw
                     // the star correctly) and, for adds, resolves a stable id first via
-                    // viewModel.ensureCustomId before calling onFavorite.
+                    // viewModel.ensureStableId before calling onFavorite.
                     onFavorite = { fileName, lineIndex, title, customId ->
                         viewModel.addFavorite(fileName, lineIndex, title, customId)
                     },
