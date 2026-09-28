@@ -19,12 +19,18 @@ object CaptureInserter {
 
     private val STARS = Regex("""^(\*+)\s+(.*)$""")
 
+    /**
+     * [bodyOnly] (only meaningful for [TargetLocation.UnderHeading]; see
+     * [isBodyOnly]) inserts [entry] verbatim into the target heading's own
+     * body instead of re-leveling its first line into a child heading.
+     */
     fun insert(
         docText: String,
         location: TargetLocation,
         entry: String,
         today: LocalDate,
         keywords: OrgKeywords = OrgKeywords.DEFAULT,
+        bodyOnly: Boolean = false,
     ): Insertion {
         return when (location) {
             is TargetLocation.TopOfFile -> {
@@ -37,17 +43,20 @@ object CaptureInserter {
 
             is TargetLocation.UnderHeading -> {
                 val doc = OrgParser.parse(docText, keywords)
-                // One id field matches either property, so legacy templates that
-                // saved a CUSTOM_ID keep resolving after the switch to ID.
-                val key = location.headingKey
-                val target = key?.let { doc.findById(it) ?: doc.findByCustomId(it) }
-                    ?: location.title?.let { doc.findByTitle(it) }
+                val target = findTarget(doc, location)
                     ?: throw CaptureTargetNotFound(
-                        key?.let { "No heading with ID or CUSTOM_ID \"$it\"" }
+                        location.headingKey?.let { "No heading with ID or CUSTOM_ID \"$it\"" }
                             ?: "No heading titled \"${location.title}\""
                     )
-                val line = if (location.appendLast) subtreeEnd(doc, target) else firstChildLine(doc, target)
-                spliceEntry(docText, line, normalizeEntry(entry, target.level + 1))
+                if (bodyOnly) {
+                    // Body text must sit above the target's first child heading,
+                    // or it would belong to that child instead.
+                    val line = if (location.appendLast) bodyEnd(doc, target) else target.bodyStart
+                    spliceEntry(docText, line, entry.trimEnd('\n').split("\n"))
+                } else {
+                    val line = if (location.appendLast) subtreeEnd(doc, target) else firstChildLine(doc, target)
+                    spliceEntry(docText, line, normalizeEntry(entry, target.level + 1))
+                }
             }
 
             is TargetLocation.DatetreeDate, is TargetLocation.DatetreeDatetime ->
@@ -56,6 +65,42 @@ object CaptureInserter {
     }
 
     class CaptureTargetNotFound(message: String) : Exception(message)
+
+    /**
+     * The heading an [TargetLocation.UnderHeading] capture lands under. One id
+     * field matches either property, so legacy templates that saved a
+     * CUSTOM_ID keep resolving after the switch to ID; the exact title is the
+     * fallback.
+     */
+    fun findTarget(doc: OrgDocument, location: TargetLocation.UnderHeading): OrgHeadline? {
+        val key = location.headingKey
+        return key?.let { doc.findById(it) ?: doc.findByCustomId(it) }
+            ?: location.title?.let { doc.findByTitle(it) }
+    }
+
+    /**
+     * True when an "under heading" capture adds content to the target
+     * heading's body rather than a new child heading: the expanded template's
+     * first non-blank line isn't a heading (e.g. a `- [ ] %?` checklist item
+     * captured under "Shopping List"). Decided from the template once, when
+     * the capture opens, not re-checked as the user types.
+     */
+    fun isBodyOnly(expandedText: String, location: TargetLocation): Boolean {
+        if (location !is TargetLocation.UnderHeading) return false
+        val first = expandedText.lineSequence().firstOrNull { it.isNotBlank() } ?: return true
+        return STARS.matchEntire(first) == null
+    }
+
+    /**
+     * Where appended body content goes: the end of [h]'s own body (before its
+     * first child heading), above any trailing blank lines so a new list item
+     * joins the list instead of sitting apart from it.
+     */
+    private fun bodyEnd(doc: OrgDocument, h: OrgHeadline): Int {
+        var end = h.contentEnd
+        while (end > h.bodyStart && doc.lines[end - 1].isBlank()) end--
+        return end
+    }
 
     /**
      * Appends [entry] verbatim at the bottom of [docText] with no re-leveling —

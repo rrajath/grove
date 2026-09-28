@@ -22,6 +22,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -152,6 +153,53 @@ class CaptureViewModelIntegrationTest {
             "entry must sit inside the Captured subtree",
             text.indexOf("Filed under the custom id") > text.indexOf(":CUSTOM_ID: capture-inbox"),
         )
+    }
+
+    @Test
+    fun `body-only save adds the content to the heading's body without a new heading`() = runTest {
+        val vm = capture()
+        val template = quickNote.copy(
+            targetFile = "inbox.org",
+            location = TargetLocation.UnderHeading(customId = "capture-inbox"),
+            template = "- [ ] %?",
+        )
+
+        vm.save(template, "- [ ] Milk", context, bodyOnly = true)
+        advanceUntilIdle()
+
+        assertEquals(SaveState.Saved("inbox.org"), vm.saveState.value)
+        val text = store.read("inbox.org")
+        assertTrue(text.contains("\n- [ ] Milk\n"))
+        assertFalse("must not become a heading", text.contains("* - [ ] Milk"))
+    }
+
+    @Test
+    fun `body-only save of a blank draft is refused`() = runTest {
+        val vm = capture()
+        val template = quickNote.copy(
+            targetFile = "inbox.org",
+            location = TargetLocation.UnderHeading(customId = "capture-inbox"),
+        )
+        val before = store.snapshot()
+
+        vm.save(template, "  \n", context, bodyOnly = true)
+        advanceUntilIdle()
+
+        assertEquals(SaveState.Failed("Nothing to save"), vm.saveState.value)
+        assertEquals(before, store.snapshot())
+    }
+
+    @Test
+    fun `loadTargetHeadingLine returns the target heading line, or null when missing`() = runTest {
+        val vm = capture()
+        val found = quickNote.copy(
+            targetFile = "inbox.org",
+            location = TargetLocation.UnderHeading(customId = "capture-inbox"),
+        )
+        val missing = found.copy(location = TargetLocation.UnderHeading(id = "NOPE"))
+
+        assertEquals("* Captured", vm.loadTargetHeadingLine(found))
+        assertNull(vm.loadTargetHeadingLine(missing))
     }
 
     @Test

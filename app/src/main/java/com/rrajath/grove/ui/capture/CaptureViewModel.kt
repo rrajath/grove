@@ -12,6 +12,7 @@ import com.rrajath.grove.capture.CaptureTemplate
 import com.rrajath.grove.capture.RoamNodeCreator
 import com.rrajath.grove.capture.RoamNodeResult
 import com.rrajath.grove.capture.TemplateKind
+import com.rrajath.grove.capture.TargetLocation
 import com.rrajath.grove.capture.TemplatesRepository
 import com.rrajath.grove.capture.hasUserDefinedTitle
 import com.rrajath.grove.data.GroveDatabase
@@ -148,9 +149,9 @@ class CaptureViewModel(
 
     /**
      * Insert [entryText] into the template's target file, creating the file
-     * if it doesn't exist yet.
+     * if it doesn't exist yet. [bodyOnly]: see [CaptureInserter.isBodyOnly].
      */
-    fun save(template: CaptureTemplate, entryText: String, context: CaptureContext) {
+    fun save(template: CaptureTemplate, entryText: String, context: CaptureContext, bodyOnly: Boolean = false) {
         if (entryText.isBlank()) {
             _saveState.value = SaveState.Failed("Nothing to save")
             return
@@ -158,7 +159,7 @@ class CaptureViewModel(
         _saveState.value = SaveState.Saving
         viewModelScope.launch {
             try {
-                val (fileName, newText) = writeMutex.withLock { upsertEntry(template, entryText, context) }
+                val (fileName, newText) = writeMutex.withLock { upsertEntry(template, entryText, context, bodyOnly) }
                 sync.requestReindex(fileName, newText, "capture saved")
                 draftInsertion = null
                 _saveState.value = SaveState.Saved(fileName)
@@ -173,11 +174,11 @@ class CaptureViewModel(
      * killed mid-edit. Replaces the previous autosave in place (never
      * duplicates it) by stripping it out before re-inserting.
      */
-    fun autosave(template: CaptureTemplate, entryText: String, context: CaptureContext) {
+    fun autosave(template: CaptureTemplate, entryText: String, context: CaptureContext, bodyOnly: Boolean = false) {
         if (entryText.isBlank()) return
         viewModelScope.launch {
             try {
-                writeMutex.withLock { upsertEntry(template, entryText, context) }
+                writeMutex.withLock { upsertEntry(template, entryText, context, bodyOnly) }
             } catch (_: Exception) {
                 // Best-effort: a failed autosave just waits for the next tick
                 // or the explicit Save tap, which surfaces errors to the user.
@@ -201,7 +202,12 @@ class CaptureViewModel(
         }
     }
 
-    private suspend fun upsertEntry(template: CaptureTemplate, entryText: String, context: CaptureContext): Pair<String, String> {
+    private suspend fun upsertEntry(
+        template: CaptureTemplate,
+        entryText: String,
+        context: CaptureContext,
+        bodyOnly: Boolean,
+    ): Pair<String, String> {
         val currentSettings = settings.settings.first()
         // Throw rather than set state + return: the caller ([save]) continues
         // running after this returns, and would otherwise overwrite the failure
@@ -236,6 +242,7 @@ class CaptureViewModel(
                 location = template.location,
                 entry = entryText,
                 today = LocalDate.from(context.now),
+                bodyOnly = bodyOnly,
             )
         }
         vault.save(template.targetFile, result.newText)
@@ -388,6 +395,20 @@ class CaptureViewModel(
      * capture editor show a Roam node's already-existing content read-only
      * above the newly captured continuation, instead of re-typing it.
      */
+    /**
+     * The raw headline line (stars, keyword, title, tags) of the heading an
+     * "under heading" [template] targets, or null when the file or heading
+     * doesn't exist. Shown read-only above a body-only capture's field.
+     */
+    suspend fun loadTargetHeadingLine(template: CaptureTemplate): String? {
+        val location = template.location as? TargetLocation.UnderHeading ?: return null
+        val vault = vaultFlow.filterNotNull().first()
+        return withContext(dispatchers.default) {
+            val doc = vault.open(template.targetFile) ?: return@withContext null
+            CaptureInserter.findTarget(doc, location)?.let { doc.lines[it.lineIndex] }
+        }
+    }
+
     suspend fun loadExistingRoamContent(path: String): String? {
         val vault = vaultFlow.filterNotNull().first()
         return withContext(dispatchers.default) { vault.open(path)?.text }

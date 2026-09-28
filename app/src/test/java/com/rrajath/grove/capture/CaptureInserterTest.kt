@@ -1,6 +1,7 @@
 package com.rrajath.grove.capture
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -132,6 +133,65 @@ class CaptureInserterTest {
             "new",
         )
         assertTrue(result.newText.endsWith("journal body\n** new\n"))
+    }
+
+    // --- body-only (content into an existing heading's body) ---
+
+    private val shoppingDoc = """
+        * Shopping List
+        :PROPERTIES:
+        :ID: SHOP
+        :END:
+        - [ ] Milk
+        - [ ] Eggs
+
+        ** Hardware store
+        - [ ] Nails
+        * Other
+    """.trimIndent() + "\n"
+
+    @Test
+    fun `body-only appends to the heading's own body, above children and trailing blanks`() {
+        val result = CaptureInserter.insert(
+            shoppingDoc, TargetLocation.UnderHeading(id = "SHOP"), "- [ ] Bread", today, bodyOnly = true,
+        )
+        assertTrue(result.newText.contains("- [ ] Eggs\n- [ ] Bread\n\n** Hardware store"))
+        assertEquals(6, result.insertedAtLine)
+    }
+
+    @Test
+    fun `body-only first position goes right after the drawers`() {
+        val result = CaptureInserter.insert(
+            shoppingDoc, TargetLocation.UnderHeading(id = "SHOP", appendLast = false), "- [ ] Bread", today,
+            bodyOnly = true,
+        )
+        assertTrue(result.newText.contains(":END:\n- [ ] Bread\n- [ ] Milk"))
+    }
+
+    @Test
+    fun `body-only keeps multi-line entries verbatim and never adds stars`() {
+        val result = CaptureInserter.insert(
+            "* Log\n", TargetLocation.UnderHeading(title = "Log"), "- a\n  - b\n", today, bodyOnly = true,
+        )
+        assertEquals("* Log\n- a\n  - b\n", result.newText)
+    }
+
+    @Test
+    fun `body-only draft can be removed and re-inserted in place`() {
+        val loc = TargetLocation.UnderHeading(id = "SHOP")
+        val first = CaptureInserter.insert(shoppingDoc, loc, "- [ ] Br", today, bodyOnly = true)
+        val base = CaptureInserter.removeInsertion(first.newText, first)
+        assertEquals(shoppingDoc, base)
+    }
+
+    @Test
+    fun `isBodyOnly only for under-heading templates without a leading heading`() {
+        val under = TargetLocation.UnderHeading(title = "Shopping List")
+        assertTrue(CaptureInserter.isBodyOnly("- [ ] ", under))
+        assertTrue(CaptureInserter.isBodyOnly("\nplain text", under))
+        assertFalse(CaptureInserter.isBodyOnly("* TODO item", under))
+        assertFalse(CaptureInserter.isBodyOnly("\n** item", under))
+        assertFalse(CaptureInserter.isBodyOnly("- [ ] ", TargetLocation.BottomOfFile))
     }
 
     @Test
