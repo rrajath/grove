@@ -283,24 +283,12 @@ fun CaptureEditorScreen(
     val bodyOnly = remember(template, expanded) {
         template.kind == TemplateKind.PLAIN && CaptureInserter.isBodyOnly(expanded.text, template.location)
     }
-    val targetFallbackLabel = remember(template) {
-        (template.location as? TargetLocation.UnderHeading)
-            ?.let { loc -> loc.title ?: loc.headingKey?.let { "#$it" } }
-            .orEmpty()
-    }
-    // The target heading's line as it appears in the file; null until loaded,
-    // or when the heading can't be found ([targetHeadingMissing]).
-    var targetHeadingLine by remember(template) { mutableStateOf<String?>(null) }
+    // Whether the target heading couldn't be found in the file, so the user is
+    // warned before saving.
     var targetHeadingMissing by remember(template) { mutableStateOf(false) }
     LaunchedEffect(template, bodyOnly) {
         if (!bodyOnly) return@LaunchedEffect
-        val line = viewModel.loadTargetHeadingLine(template)
-        targetHeadingLine = line
-        targetHeadingMissing = line == null
-    }
-    val targetHeadingTitle = remember(targetHeadingLine, keywords) {
-        targetHeadingLine?.let { OrgParser.parse(it, keywords).headlines.firstOrNull()?.title }
-            ?: targetFallbackLabel
+        targetHeadingMissing = viewModel.loadTargetHeadingLine(template) == null
     }
 
     /** [text]'s properties-drawer + preamble head vs. everything after it --
@@ -629,7 +617,7 @@ fun CaptureEditorScreen(
                     if (bodyOnly) {
                         DraftIntroPreview(
                             doc = draftDoc,
-                            lockedTitle = targetHeadingTitle,
+                            showTitle = false,
                             modifier = Modifier.fillMaxSize().padding(bottom = 80.dp),
                         )
                     } else if (draftHeadline != null) {
@@ -695,11 +683,8 @@ fun CaptureEditorScreen(
                             // dragged past the top or bottom edge, and keeps the cursor
                             // visible when the keyboard shrinks the viewport.
                             Column(Modifier.fillMaxSize()) {
-                                if (bodyOnly) {
-                                    TargetHeadingHeader(
-                                        text = targetHeadingLine ?: targetFallbackLabel,
-                                        missingIn = template.targetFile.takeIf { targetHeadingMissing },
-                                    )
+                                if (bodyOnly && targetHeadingMissing) {
+                                    TargetHeadingMissingWarning(template.targetFile)
                                 }
                                 BasicTextField(
                                     state = textState,
@@ -716,9 +701,8 @@ fun CaptureEditorScreen(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .weight(1f)
-                                        // Scrolls away like Read mode's top contentPadding; the
-                                        // heading header already supplies the gap above a body-only field.
-                                        .scrollAwareTopInset(scrollState, if (bodyOnly) 0.dp else 20.dp)
+                                        // Scrolls away like Read mode's top contentPadding.
+                                        .scrollAwareTopInset(scrollState, 20.dp)
                                         .padding(start = 20.dp, end = 20.dp, bottom = 80.dp)
                                         .testTag("capture_body_field")
                                         .focusRequester(focusRequester),
@@ -1059,26 +1043,26 @@ private fun DraftPreview(doc: OrgDocument, headline: OrgHeadline, modifier: Modi
  * into the draft render below the intro, in file order.
  */
 @Composable
-private fun DraftIntroPreview(doc: OrgDocument, modifier: Modifier = Modifier, lockedTitle: String? = null) {
+private fun DraftIntroPreview(doc: OrgDocument, modifier: Modifier = Modifier, showTitle: Boolean = true) {
     val c = MaterialTheme.grove
-    val title = lockedTitle
-        ?: doc.preambleKeywords.firstOrNull { it.first.equals("#+TITLE:", ignoreCase = true) }?.second
+    val title = doc.preambleKeywords.firstOrNull { it.first.equals("#+TITLE:", ignoreCase = true) }?.second
     Column(
         modifier
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp, vertical = 16.dp),
     ) {
-        // A locked title (body-only capture's existing target heading) is
-        // greyed like its Edit-mode header: context, not part of the draft.
-        Text(
-            annotateOrgInline(title?.takeIf { it.isNotBlank() } ?: "(no title yet)", c),
-            fontFamily = PlexSerif, fontWeight = FontWeight.SemiBold,
-            fontSize = 22.sp,
-            color = if (title.isNullOrBlank() || lockedTitle != null) c.ink3 else c.ink,
-            lineHeight = 1.3.em,
-        )
+        // A body-only capture hides the title: its heading already exists in the file.
+        if (showTitle) {
+            Text(
+                annotateOrgInline(title?.takeIf { it.isNotBlank() } ?: "(no title yet)", c),
+                fontFamily = PlexSerif, fontWeight = FontWeight.SemiBold,
+                fontSize = 22.sp,
+                color = if (title.isNullOrBlank()) c.ink3 else c.ink,
+                lineHeight = 1.3.em,
+            )
+        }
         if (doc.introBody.any { it.isNotBlank() }) {
-            Spacer(Modifier.height(16.dp))
+            if (showTitle) Spacer(Modifier.height(16.dp))
             SelectionContainer {
                 Column {
                     BodyBlocks(
@@ -1134,38 +1118,18 @@ private fun DraftIntroPreview(doc: OrgDocument, modifier: Modifier = Modifier, l
 }
 
 /**
- * Edit mode header for a body-only capture: the existing target heading, as it
- * reads in the file, greyed and not editable (same treatment as a Roam
- * continuation's existing content), then a hairline above the editable body.
- * [missingIn] names the target file when the heading couldn't be found there,
- * so the user learns before saving that the capture has nowhere to go.
+ * Shown above a body-only capture's field when the target heading couldn't be
+ * found in [targetFile], so the user learns before saving that the capture has
+ * nowhere to go.
  */
 @Composable
-private fun TargetHeadingHeader(text: String, missingIn: String?) {
+private fun TargetHeadingMissingWarning(targetFile: String) {
     val c = MaterialTheme.grove
-    Column(Modifier.fillMaxWidth().testTag("capture_target_heading")) {
-        Text(
-            text,
-            fontFamily = PlexMono, fontSize = 14.sp,
-            lineHeight = 1.9.em, color = c.ink3,
-            maxLines = 2,
-            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 20.dp, top = 20.dp, end = 20.dp),
-        )
-        if (missingIn != null) {
-            Text(
-                "Heading not found in $missingIn. Saving will fail until it exists.",
-                fontFamily = PlexSans, fontSize = 13.sp, color = c.red,
-                modifier = Modifier.padding(start = 20.dp, top = 4.dp, end = 20.dp),
-            )
-        }
-        HorizontalDivider(
-            color = c.line,
-            modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
-        )
-    }
+    Text(
+        "Heading not found in $targetFile. Saving will fail until it exists.",
+        fontFamily = PlexSans, fontSize = 13.sp, color = c.red,
+        modifier = Modifier.padding(start = 20.dp, top = 12.dp, end = 20.dp),
+    )
 }
 
 @Composable
