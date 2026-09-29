@@ -1198,12 +1198,12 @@ private fun CaptureTargetBar(
             else Triple("new file", c.green, c.greenSoft)
         location is TargetLocation.UnderHeading -> when {
             targetHeadingMissing -> Triple("not found", c.red, c.redSoft)
-            bodyOnly -> Triple("body", c.accent, c.accentSoft)
+            bodyOnly -> Triple("under heading", c.accent, c.accentSoft)
             location.appendLast -> Triple("last child", c.accent, c.accentSoft)
             else -> Triple("first child", c.accent, c.accentSoft)
         }
-        location is TargetLocation.TopOfFile -> Triple("top", c.accent, c.accentSoft)
-        else -> Triple("bottom", c.accent, c.accentSoft)
+        location is TargetLocation.TopOfFile -> Triple("top of file", c.accent, c.accentSoft)
+        else -> Triple("bottom of file", c.accent, c.accentSoft)
     }
     CaptureTargetBarFrame {
         // Middle-ellipsized so a long path keeps both the file and the target heading visible.
