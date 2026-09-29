@@ -12,9 +12,11 @@ doesn't need to be reconstructed from scratch when it's time to submit.
    `CurrentVersion`/`CurrentVersionCode`) to the actual commit being submitted for
    initial review if it's no longer `45a0dbe67034be9bac9898b91c6e60aacf906083` /
    `1.0.0` / `266`. `versionName` is a manually-bumped SemVer string in
-   `gradle.properties`, unrelated to git tags; `versionCode` is
-   `git rev-list --count HEAD` at the pinned commit — check both directly rather
-   than assuming the last submitted values still hold.
+   `gradle.properties`; `versionCode` is derived from it as
+   `MAJOR*10000 + MINOR*100 + PATCH`. Pin the commit a `v*.*.*` tag points at:
+   `scripts/release.sh` commits the version bump and the archived CHANGELOG.md
+   heading before tagging, so that commit is byte-for-byte what CI built into the
+   published APK, which F-Droid's reproducible-build check compares against.
 2. Confirm the `Categories` entry against F-Droid's current category list (subject
    to change; check the live `fdroiddata` repo).
 3. Install `fdroidserver` and run `fdroid readmeta`, `fdroid lint`, and

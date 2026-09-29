@@ -33,31 +33,32 @@ APK, uploaded as a CI artifact; a push to `main` additionally builds the
 release APK (running R8 and the signing config, so release-only breakage is
 caught at merge time). Nothing is tagged, bundled, or published to Releases
 from an ordinary push by itself, so several pushes with unrelated fixes can
-land before you choose to ship one. There are two ways to actually cut a
-release:
+land before you choose to ship one.
 
-- **Push a version tag** matching `v*.*.*` (e.g. `git tag v1.2.0 && git push
-  origin v1.2.0`). The GitHub Release is tagged and titled from that tag
-  exactly, and `## [Unreleased]` is archived as `## [1.2.0] - <date>` — bump
-  `versionName` in `gradle.properties` to match before tagging, so the app's
-  own What's New modal agrees with what you tagged. If the tag doesn't point
-  at the current tip of `main`, the CHANGELOG.md archive commit is skipped
-  (with a workflow warning) rather than rewinding `main`, though the GitHub
-  Release itself is still published.
-- **Manually run the "Build & Release" workflow** (Actions tab → Run
-  workflow) against `main`. If `## [Unreleased]` has content, CI tags
-  `v<versionName>`, publishes a GitHub Release with both APKs and the AAB
-  using that content as the release notes, then pushes a follow-up commit
-  archiving `## [Unreleased]` as `## [<versionName>] - <date>` and opening a
-  fresh empty `## [Unreleased]` above it. Re-dispatching without first
-  bumping `versionName` re-uses the tag and re-uploads assets to the existing
-  release. If `## [Unreleased]` is empty, the run builds and tests as normal
-  but no release is cut.
+To cut a release, run `scripts/release.sh 1.2.0` locally. It bumps
+`versionName` in `gradle.properties`, archives `## [Unreleased]` as
+`## [1.2.0] - <date>` under a fresh empty `## [Unreleased]`, commits both as
+`Release v1.2.0`, tags that commit `v1.2.0`, and moves `main` to it. Then push
+`main` and the tag (the script prints both commands). The tag push builds and
+publishes a GitHub Release with both APKs and the AAB, using the
+`## [1.2.0]` section as the release notes.
+
+CI never edits this file: it's bundled into the APK for the What's New modal,
+so the tagged commit has to already contain the release heading. F-Droid
+rebuilds from the tag and compares its APK with the published one, and a
+heading added only on the CI runner breaks that comparison. A tag whose
+commit lacks a matching `versionName` and `## [<version>]` heading fails the
+run. Manually running the "Build & Release" workflow against `main` publishes
+`v<versionName>` only if that heading exists (e.g. to retry a failed tag
+build); otherwise it just builds and tests.
 
 Re-running against the same commit/tag re-uses the same tag and just
 re-uploads the APKs to the existing release instead of failing.
 
 ## [Unreleased]
+
+### Changed
+- Releases are cut locally with scripts/release.sh, so F-Droid can reproduce the published APK.
 
 ## [1.8.1] - 2026-09-29
 
