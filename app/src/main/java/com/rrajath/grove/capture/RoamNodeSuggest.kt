@@ -54,9 +54,13 @@ object RoamNodeCreator {
 
         val id = newOrgId()
         val expanded = PlaceholderExpander.expand(template.newFileTemplate, CaptureContext(now = now, id = id))
-        val fullText = expanded.text.substring(0, expanded.cursorOffset) +
+        // The file-level :ID: is always the generated one, whatever the template says.
+        val fullText = RoamFileId.withFileId(
+            expanded.text.substring(0, expanded.cursorOffset) +
                 selectedTitle +
-                expanded.text.substring(expanded.cursorOffset)
+                expanded.text.substring(expanded.cursorOffset),
+            id,
+        )
         val title = FilenamePattern.titleFromDraft(fullText) ?: selectedTitle
         val slug = FilenamePattern.slugFromTitle(title)
         val stem = FilenamePattern.expand(template.filenamePattern, now, slug)
@@ -72,13 +76,15 @@ object RoamNodeCreator {
             // title match was found above but the path still collides) --
             // don't clobber it. Append just the body, same as
             // CaptureViewModel.upsertRoamEntry's ExistingFile branch.
-            val currentText = vault.open(resolvedPath)?.text.orEmpty()
+            val currentText = RoamFileId.ensureFileId(vault.open(resolvedPath)?.text.orEmpty(), id)
             val insertion = CaptureInserter.appendVerbatim(currentText, roamBody(fullText))
             vault.save(resolvedPath, insertion.newText)
             insertion.newText
         }
         sync.requestReindex(resolvedPath, newText, "roam node created from selection")
-        return RoamNodeResult.Created(id, title, resolvedPath)
+        // An already-existing file may keep its own :ID:; link to that one.
+        val fileId = OrgParser.parse(newText).fileId?.takeIf { it.isNotBlank() } ?: id
+        return RoamNodeResult.Created(fileId, title, resolvedPath)
     }
 
     /** Everything after a fresh draft's head (file-level properties drawer + `#+KEY:`

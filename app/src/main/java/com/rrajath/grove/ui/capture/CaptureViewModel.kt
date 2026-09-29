@@ -9,6 +9,7 @@ import com.rrajath.grove.GroveApplication
 import com.rrajath.grove.capture.CaptureContext
 import com.rrajath.grove.capture.CaptureInserter
 import com.rrajath.grove.capture.CaptureTemplate
+import com.rrajath.grove.capture.RoamFileId
 import com.rrajath.grove.capture.RoamNodeCreator
 import com.rrajath.grove.capture.RoamNodeResult
 import com.rrajath.grove.capture.TemplateKind
@@ -255,6 +256,8 @@ class CaptureViewModel(
     // entryText is the full expanded newFileTemplate draft (head + body); the
     // target path is computed by the screen from the draft's live #+title:
     // line, not fixed like template.targetFile, so it's passed in resolved.
+    // The file-level :ID: drawer is never part of the draft: it's added here,
+    // with context.id, to a new file and to an existing file that lacks one.
 
     private data class RoamDraft(
         val path: String,
@@ -266,7 +269,7 @@ class CaptureViewModel(
     private var roamDraft: RoamDraft? = null
 
     /**
-     * Writes [fullDraftText] verbatim to a brand-new [resolvedPath], or — an
+     * Writes [fullDraftText] (plus its `:ID:` drawer) to a brand-new [resolvedPath], or — an
      * existing file, e.g. a second capture into today's daily note — strips
      * its head (properties drawer + preamble) and appends just the body at
      * the bottom, same as [upsertEntry]'s insert-and-track mechanism.
@@ -347,19 +350,22 @@ class CaptureViewModel(
             if (prev != null && prev.path == resolvedPath && prev.ownedNewFile) {
                 // Still the same file this session created; it's ours alone,
                 // so the freshest draft simply replaces its whole content.
-                vault.save(resolvedPath, fullDraftText)
+                vault.save(resolvedPath, RoamFileId.withFileId(fullDraftText, context.id))
                 RoamDraft(resolvedPath, null, ownedNewFile = true)
             } else if (vault.open(resolvedPath) == null) {
                 vault.createNotebook(resolvedPath)
-                vault.save(resolvedPath, fullDraftText)
+                vault.save(resolvedPath, RoamFileId.withFileId(fullDraftText, context.id))
                 RoamDraft(resolvedPath, null, ownedNewFile = true)
             } else {
                 val currentText = vault.open(resolvedPath)?.text ?: ""
-                val baseText = if (prev != null && prev.path == resolvedPath && !prev.ownedNewFile) {
-                    prev.insertion?.let { CaptureInserter.removeInsertion(currentText, it) } ?: currentText
-                } else {
-                    currentText
-                }
+                val baseText = RoamFileId.ensureFileId(
+                    if (prev != null && prev.path == resolvedPath && !prev.ownedNewFile) {
+                        prev.insertion?.let { CaptureInserter.removeInsertion(currentText, it) } ?: currentText
+                    } else {
+                        currentText
+                    },
+                    context.id,
+                )
                 // appendVerbatim, not insert(): the body is plain continuation
                 // text/structure the template itself defines, not a new
                 // top-level heading entry, so it must not be re-leveled.
@@ -369,7 +375,7 @@ class CaptureViewModel(
             }
         }
         roamDraft = result
-        val savedText = result.insertion?.newText ?: fullDraftText
+        val savedText = result.insertion?.newText ?: RoamFileId.withFileId(fullDraftText, context.id)
         return resolvedPath to savedText
     }
 
@@ -391,11 +397,6 @@ class CaptureViewModel(
     }
 
     /**
-     * The on-disk text at [path], or null if it doesn't exist yet. Lets the
-     * capture editor show a Roam node's already-existing content read-only
-     * above the newly captured continuation, instead of re-typing it.
-     */
-    /**
      * The raw headline line (stars, keyword, title, tags) of the heading an
      * "under heading" [template] targets, or null when the file or heading
      * doesn't exist. Shown read-only above a body-only capture's field.
@@ -413,9 +414,10 @@ class CaptureViewModel(
         }
     }
 
-    suspend fun loadExistingRoamContent(path: String): String? {
+    /** Whether a Roam capture's resolved [path] already exists, so it appends rather than creates. */
+    suspend fun roamFileExists(path: String): Boolean {
         val vault = vaultFlow.filterNotNull().first()
-        return withContext(dispatchers.default) { vault.open(path)?.text }
+        return withContext(dispatchers.default) { vault.open(path) != null }
     }
 
     companion object {

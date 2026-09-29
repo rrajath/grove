@@ -35,7 +35,6 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Save
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -77,7 +76,9 @@ import com.rrajath.grove.capture.CaptureContext
 import com.rrajath.grove.capture.CaptureInserter
 import com.rrajath.grove.capture.CaptureTemplate
 import com.rrajath.grove.capture.FilenamePattern
+import com.rrajath.grove.capture.ExpandedTemplate
 import com.rrajath.grove.capture.PlaceholderExpander
+import com.rrajath.grove.capture.RoamFileId
 import com.rrajath.grove.capture.RoamNodeResult
 import com.rrajath.grove.capture.TargetLocation
 import com.rrajath.grove.capture.TemplateKind
@@ -142,7 +143,7 @@ import java.time.LocalTime
 private sealed class RoamAppendState {
     data object Checking : RoamAppendState()
     data object New : RoamAppendState()
-    data class ExistingFile(val path: String, val content: String) : RoamAppendState()
+    data class ExistingFile(val path: String) : RoamAppendState()
 }
 
 /**
@@ -267,11 +268,19 @@ fun CaptureEditorScreen(
     androidx.compose.runtime.DisposableEffect(Unit) {
         onDispose { app.pendingShare.value = null }
     }
+    // A Roam draft never shows the file-level :PROPERTIES: drawer: the :ID: is
+    // added by the view model on save, and any other properties the template's
+    // drawer carries are held here and put back on top of the draft on save.
+    val roamSplit = remember(template, context) {
+        if (template.kind != TemplateKind.ROAM_NODE) return@remember null
+        // The title is never prompted for: it expands blank with the
+        // cursor on it, and the user types it straight into the draft.
+        val full = PlaceholderExpander.expand(template.newFileTemplate, context)
+        RoamFileId.splitDrawer(full.text, full.cursorOffset)
+    }
     val expanded = remember(template, context) {
-        if (template.kind == TemplateKind.ROAM_NODE) {
-            // The title is never prompted for: it expands blank with the
-            // cursor on it, and the user types it straight into the draft.
-            PlaceholderExpander.expand(template.newFileTemplate, context)
+        if (roamSplit != null) {
+            ExpandedTemplate(roamSplit.second, roamSplit.third)
         } else {
             CaptureInserter.withHeadingStars(
                 PlaceholderExpander.expand(template.template, context),
@@ -299,7 +308,7 @@ fun CaptureEditorScreen(
         targetHeadingMissing = outline == null
     }
 
-    /** [text]'s properties-drawer + preamble head vs. everything after it --
+    /** [text]'s preamble (`#+KEY:` lines) head vs. everything after it --
      *  the same boundary CaptureViewModel.roamBody splits on when a Roam
      *  capture lands on an already-existing file. */
     fun roamBodySplit(text: String): Pair<String, String> {
@@ -329,12 +338,13 @@ fun CaptureEditorScreen(
         roamAppendState = if (path == null) {
             RoamAppendState.New
         } else {
-            viewModel.loadExistingRoamContent(path)?.let { RoamAppendState.ExistingFile(path, it) } ?: RoamAppendState.New
+            if (viewModel.roamFileExists(path)) RoamAppendState.ExistingFile(path) else RoamAppendState.New
         }
     }
 
     // For a continuation of an existing file, only the new body is editable
-    // (the existing content renders read-only above it), so the field starts
+    // (the file's existing content isn't shown, just like a plain capture;
+    // the target bar says it's an existing file), so the field starts
     // out holding just the body half of the fresh expansion, cursor re-based
     // into it.
     val initialText = remember(expanded, roamAppendState) {
@@ -394,22 +404,12 @@ fun CaptureEditorScreen(
     val roamNodeTemplates by viewModel.roamNodeSuggestionTemplates.collectAsStateWithLifecycle()
     var roamNodeSelection by remember { mutableStateOf<Pair<String, TextRange>?>(null) }
     var roamNodeExpandedKeys by remember(roamNodeSelection?.second) { mutableStateOf(emptySet<String>()) }
-    // The draft is the whole prospective file (see the "UI" section of
-    // internal/roam-node-from-selection-design.md), so its own #+title:/:ID:
-    // is what makes it a roam file here -- checked live against the field's
-    // current text, not assumed from the template, since a template can be edited.
-    // One parse per draft change, shared by this check, draftHeadline, and the
-    // Read-mode preview (each used to parse the draft on its own).
+    // One parse per draft change, shared by draftHeadline and the Read-mode
+    // preview (each used to parse the draft on its own).
     val draftDoc = remember(draftText, keywords) { OrgParser.parse(draftText, keywords) }
-    // Continuing an existing file (e.g. a Dailies template landing on today's note):
-    // the field holds only the new body, and the file's :ID: lives in the read-only
-    // existing content above it, so check that too. Parsed once per append state.
-    val existingFileOrgId = remember(roamAppendState, keywords) {
-        (roamAppendState as? RoamAppendState.ExistingFile)?.content?.let { OrgParser.parse(it, keywords).fileId }
-    }
-    val draftFileOrgId = draftDoc.fileId ?: existingFileOrgId
-    val roamNodeSuggestionActive =
-        roamNodeSelection != null && draftFileOrgId != null && roamNodeTemplates.isNotEmpty()
+    // Every Roam capture's file gets an :ID: on save (RoamFileId), so it's always
+    // a linkable roam file; roamNodeSelection is only ever set for a Roam capture.
+    val roamNodeSuggestionActive = roamNodeSelection != null && roamNodeTemplates.isNotEmpty()
 
     // Keyed on textState too: a Roam capture's Checking -> New/ExistingFile
     // transition (below) recreates textState with a fresh TextFieldState, same
@@ -470,6 +470,12 @@ fun CaptureEditorScreen(
      * filename pattern doesn't drift while the user is still typing). Null
      * when the title is blank/missing, or the existence check hasn't landed yet.
      */
+    /** What the view model writes for a Roam capture: a new file's draft with the
+     *  template's hidden non-ID drawer properties back on top, or just the body. */
+    fun roamSaveText(): String =
+        if (roamAppendState is RoamAppendState.ExistingFile) draftText
+        else RoamFileId.joinDrawer(roamSplit?.first.orEmpty(), draftText)
+
     fun resolvedRoamPath(): String? = when (val appendState = roamAppendState) {
         is RoamAppendState.ExistingFile -> appendState.path
         RoamAppendState.Checking -> null
@@ -480,7 +486,7 @@ fun CaptureEditorScreen(
     fun saveNow() {
         if (template.kind == TemplateKind.ROAM_NODE) {
             resolvedRoamPath()?.let { path ->
-                viewModel.autosaveRoam(path, draftText, context)
+                viewModel.autosaveRoam(path, roamSaveText(), context)
                 lastAutoSavedAt = LocalTime.now()
                 lastAutoSavedText = draftText
             }
@@ -526,7 +532,7 @@ fun CaptureEditorScreen(
             if (resolvedPath == null) {
                 showEmptyTitleAlert = true
             } else {
-                viewModel.saveRoam(resolvedPath, draftText, context)
+                viewModel.saveRoam(resolvedPath, roamSaveText(), context)
             }
         } else if (bodyOnly) {
             // A blank body is refused by the view model ("Nothing to save").
@@ -644,8 +650,8 @@ fun CaptureEditorScreen(
                             modifier = Modifier.fillMaxSize().padding(bottom = 80.dp),
                         )
                     } else {
-                        // A Roam-node draft starts headline-less (file-level
-                        // :PROPERTIES:/#+title: plus body, no leading "* " yet), so
+                        // A Roam-node draft starts headline-less (#+title: plus
+                        // body, no leading "* " yet), so
                         // there's no OrgHeadline for DraftPreview to key off of.
                         DraftIntroPreview(
                             doc = draftDoc,
@@ -653,78 +659,37 @@ fun CaptureEditorScreen(
                         )
                     }
                 } else if (roamAppendState !is RoamAppendState.Checking) {
-                    val existingContent = (roamAppendState as? RoamAppendState.ExistingFile)?.content
                     ContentFontScale(editModeFontSize) {
-                        if (existingContent != null) {
-                            // Continuing an already-existing file: its prior content
-                            // renders read-only (selectable, greyed) above a divider,
-                            // and only the new body below it is editable. Both scroll
-                            // together as one column, unlike the plain field below.
-                            Column(Modifier.fillMaxSize().verticalScroll(scrollState)) {
-                                SelectionContainer {
-                                    Text(
-                                        existingContent,
-                                        fontFamily = PlexMono, fontSize = 14.sp,
-                                        lineHeight = 1.9.em, color = c.ink3,
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(start = 20.dp, top = 20.dp, end = 20.dp),
-                                    )
-                                }
-                                HorizontalDivider(
-                                    color = c.line,
-                                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
-                                )
-                                BasicTextField(
-                                    state = textState,
-                                    inputTransformation = remember(keywords) { orgInputTransformation(keywords) },
-                                    outputTransformation = remember(c, keywords) { OrgSyntaxHighlight(c, keywords) },
-                                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-                                    lineLimits = TextFieldLineLimits.MultiLine(),
-                                    textStyle = TextStyle(
-                                        fontFamily = PlexMono, fontSize = 14.sp,
-                                        lineHeight = 1.9.em, color = c.ink,
-                                    ),
-                                    cursorBrush = SolidColor(c.accent),
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(start = 20.dp, end = 20.dp, bottom = 80.dp)
-                                        .testTag("capture_body_field")
-                                        .focusRequester(focusRequester),
-                                )
+                        // The field owns its own vertical scrolling (rather than
+                        // being wrapped in Modifier.verticalScroll): that is what
+                        // lets Compose auto-scroll while a selection handle is
+                        // dragged past the top or bottom edge, and keeps the cursor
+                        // visible when the keyboard shrinks the viewport.
+                        Column(Modifier.fillMaxSize()) {
+                            if (targetHeadingMissing) {
+                                TargetHeadingMissingWarning(template.targetFile)
                             }
-                        } else {
-                            // The field owns its own vertical scrolling (rather than
-                            // being wrapped in Modifier.verticalScroll): that is what
-                            // lets Compose auto-scroll while a selection handle is
-                            // dragged past the top or bottom edge, and keeps the cursor
-                            // visible when the keyboard shrinks the viewport.
-                            Column(Modifier.fillMaxSize()) {
-                                if (targetHeadingMissing) {
-                                    TargetHeadingMissingWarning(template.targetFile)
-                                }
-                                BasicTextField(
-                                    state = textState,
-                                    inputTransformation = remember(keywords) { orgInputTransformation(keywords) },
-                                    outputTransformation = remember(c, keywords) { OrgSyntaxHighlight(c, keywords) },
-                                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-                                    lineLimits = TextFieldLineLimits.MultiLine(),
-                                    textStyle = TextStyle(
-                                        fontFamily = PlexMono, fontSize = 14.sp,
-                                        lineHeight = 1.9.em, color = c.ink,
-                                    ),
-                                    cursorBrush = SolidColor(c.accent),
-                                    scrollState = scrollState,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .weight(1f)
-                                        // Scrolls away like Read mode's top contentPadding.
-                                        .scrollAwareTopInset(scrollState, 20.dp)
-                                        .padding(start = 20.dp, end = 20.dp, bottom = 80.dp)
-                                        .testTag("capture_body_field")
-                                        .focusRequester(focusRequester),
-                                )
-                            }
+                            BasicTextField(
+                                state = textState,
+                                inputTransformation = remember(keywords) { orgInputTransformation(keywords) },
+                                outputTransformation = remember(c, keywords) { OrgSyntaxHighlight(c, keywords) },
+                                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                                lineLimits = TextFieldLineLimits.MultiLine(),
+                                textStyle = TextStyle(
+                                    fontFamily = PlexMono, fontSize = 14.sp,
+                                    lineHeight = 1.9.em, color = c.ink,
+                                ),
+                                cursorBrush = SolidColor(c.accent),
+                                scrollState = scrollState,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f)
+                                    // Scrolls away like Read mode's top contentPadding.
+                                    .scrollAwareTopInset(scrollState, 20.dp)
+                                    .padding(start = 20.dp, end = 20.dp, bottom = 80.dp)
+                                    .testTag("capture_body_field")
+                                    .focusRequester(focusRequester),
+                            )
                         }
                     }
                 }

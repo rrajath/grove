@@ -56,6 +56,7 @@ import com.rrajath.grove.capture.CaptureTemplate
 import com.rrajath.grove.capture.FilenamePattern
 import com.rrajath.grove.capture.FilenameValidation
 import com.rrajath.grove.capture.PlaceholderExpander
+import com.rrajath.grove.capture.RoamFileId
 import com.rrajath.grove.capture.ShortcutSyncer
 import com.rrajath.grove.capture.TargetLocation
 import com.rrajath.grove.capture.TemplateKind
@@ -99,7 +100,6 @@ private val FILENAME_PATTERN_CHIPS = listOf(
 
 /** Chips appended to the "New file template" field on tap: (label shown, text inserted). */
 private val NEW_FILE_TEMPLATE_CHIPS = listOf(
-    "ID drawer" to ":PROPERTIES:\n:ID: %(id)\n:END:\n",
     "#+title:" to "#+title: ",
     "#+filetags:" to "#+filetags: ",
     "%?" to "%?",
@@ -159,8 +159,10 @@ fun TemplateEditScreen(
     }
     val filenamePatternError = FilenamePattern.errorFor(filenamePattern)
     var newFileTemplate by remember(existing) {
-        mutableStateOf(TextFieldValue(existing?.newFileTemplate ?: ":PROPERTIES:\n:ID: %(id)\n:END:\n#+title: %?"))
+        mutableStateOf(TextFieldValue(existing?.newFileTemplate ?: "#+title: %?"))
     }
+    // The :ID: drawer is added automatically (RoamFileId); one written here is ignored.
+    val roamTemplateDefinesId = remember(newFileTemplate.text) { RoamFileId.templateDefinesId(newFileTemplate.text) }
     val roamInvalidPlaceholders = remember(newFileTemplate.text) {
         PlaceholderExpander.findInvalid(newFileTemplate.text).map { it.token }.distinct()
     }
@@ -377,6 +379,11 @@ fun TemplateEditScreen(
                 InsertChipsRow(FILENAME_PATTERN_CHIPS) { insertText -> filenamePattern += insertText }
 
                 FieldLabel("New file template")
+                Text(
+                    "An :ID: property is added automatically at the top of the file. No need to add it here.",
+                    fontFamily = PlexSans, fontSize = 12.sp, color = c.ink3,
+                    modifier = Modifier.padding(bottom = 6.dp),
+                )
                 OutlinedTextField(
                     value = newFileTemplate, onValueChange = { newFileTemplate = it },
                     modifier = Modifier.fillMaxWidth().height(140.dp),
@@ -388,6 +395,13 @@ fun TemplateEditScreen(
                         "Unsupported placeholder${if (roamInvalidPlaceholders.size > 1) "s" else ""}: " +
                             roamInvalidPlaceholders.joinToString(", "),
                         fontFamily = PlexSans, fontSize = 12.sp, color = c.red,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                }
+                if (roamTemplateDefinesId) {
+                    Text(
+                        "An ID is created automatically, so the :ID: in this template will be ignored.",
+                        fontFamily = PlexSans, fontSize = 12.sp, color = c.amber,
                         modifier = Modifier.padding(top = 4.dp),
                     )
                 }

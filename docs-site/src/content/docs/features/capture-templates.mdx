@@ -64,14 +64,14 @@ Gated behind [Roam Features](/features/settings-overview#roam-features-experimen
 
 - **Directory**: vault-relative folder the file is created in; blank means the vault root. An unseen folder is created on the first capture into it — nothing to set up ahead of time.
 - **File name pattern**: the filename's stem (`.org` is appended automatically), built from `%<...>` strftime tokens (`%Y` `%m` `%d` `%H` `%M` `%S`) and `%(slug)` — the title, lowercase-preserving, with whitespace collapsed to underscores.
-- **New file template**: the org text a brand-new node file starts with — typically a `:PROPERTIES:` drawer with an `%(id)` token and a blank `#+title:` line.
+- **New file template**: the org text a brand-new node file starts with, typically a blank `#+title:` line. You don't write the `:ID:` yourself: every node file automatically gets a `:PROPERTIES:` drawer with a fresh `:ID:` at the top. If the template still has its own `:ID:`, the editor warns you and that `:ID:` is ignored; any other properties in its drawer are kept.
 
 The title is never asked for via a prompt dialog. The draft opens with the cursor already on the blank `#+title:` line; type the title directly into the draft, the same way you'd type any other text. The filename is (re-)computed from that line's current value each time the draft saves or autosaves — same as a regular template's heading is only checked when it saves, not prompted for up front. A blank title blocks saving.
 
 What happens on save depends on whether the computed filename already exists:
 
-- **New file**: the whole draft (front matter and body) is written out as the new file's contents.
-- **Existing file** — e.g. a daily-note pattern with no `%(slug)`, so every capture that day resolves to the same filename: the draft opens with the file's existing content shown read-only (selectable, greyed) above a divider, and only the new body typed below it is appended at the bottom, verbatim, with no heading inserted and the file's original title/properties drawer never duplicated or overwritten.
+- **New file**: the whole draft (front matter and body) is written out as the new file's contents, with the `:ID:` drawer added on top. The drawer is never shown in the capture editor.
+- **Existing file** (for example a daily-note pattern with no `%(slug)`, so every capture that day resolves to the same filename): like a regular template, the capture editor shows only what you're adding, not the file's existing content, and the target bar marks the file as **existing**. The new body is appended at the bottom, verbatim, with no heading inserted and the file's original title/properties drawer never duplicated. If the file has no `:ID:` yet, one is added.
 
 If you edit the title after the draft has already autosaved once under a slug-based pattern, the newly-resolved filename is what a later autosave targets; the earlier file it first created is left as-is rather than renamed.
 

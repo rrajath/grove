@@ -73,10 +73,11 @@ class CaptureViewModelRoamIntegrationTest {
         db.close()
     }
 
-    private val newNodeDraft = ":PROPERTIES:\n:ID:       TEST-ID\n:END:\n#+title: My New Node\n"
+    // The capture editor never shows the :ID: drawer; saveRoam adds it.
+    private val newNodeDraft = "#+title: My New Node\n"
 
     @Test
-    fun `saveRoam writes a brand-new resolved path verbatim`() = runTest {
+    fun `saveRoam writes a brand-new resolved path with an ID drawer on top`() = runTest {
         val vm = capture()
 
         vm.saveRoam("roam/my-new-node.org", newNodeDraft, context)
@@ -84,7 +85,7 @@ class CaptureViewModelRoamIntegrationTest {
 
         assertEquals(SaveState.Saved("roam/my-new-node.org"), vm.saveState.value)
         assertTrue(store.exists("roam/my-new-node.org"))
-        assertEquals(newNodeDraft, store.read("roam/my-new-node.org"))
+        assertEquals(":PROPERTIES:\n:ID: TEST-ID\n:END:\n$newNodeDraft", store.read("roam/my-new-node.org"))
         assertEquals(listOf("capture saved"), sync.reindexCalls.map { it.reason })
     }
 
@@ -98,7 +99,34 @@ class CaptureViewModelRoamIntegrationTest {
         advanceUntilIdle()
 
         val text = store.read("roam/my-new-node.org")
-        assertEquals("#+title: My New Node", text)
+        assertEquals(":PROPERTIES:\n:ID: TEST-ID\n:END:\n#+title: My New Node", text)
+    }
+
+    @Test
+    fun `a template's own ID is replaced, other drawer properties kept`() = runTest {
+        val vm = capture()
+
+        vm.saveRoam("roam/n.org", ":PROPERTIES:\n:ID: stale\n:ROAM_ALIASES: n\n:END:\n#+title: N", context)
+        advanceUntilIdle()
+
+        assertEquals(":PROPERTIES:\n:ID: TEST-ID\n:ROAM_ALIASES: n\n:END:\n#+title: N", store.read("roam/n.org"))
+    }
+
+    @Test
+    fun `capture into an existing file without an ID adds one, and keeps an existing one`() = runTest {
+        val vm = capture()
+        store.write("roam/a.org", "#+title: A\n")
+        store.write("roam/b.org", ":PROPERTIES:\n:ID: KEEP\n:END:\n#+title: B\n")
+
+        vm.saveRoam("roam/a.org", "#+title: A\n\nmore", context)
+        advanceUntilIdle()
+        vm.saveRoam("roam/b.org", "#+title: B\n\nmore", context)
+        advanceUntilIdle()
+
+        assertTrue(store.read("roam/a.org").startsWith(":PROPERTIES:\n:ID: TEST-ID\n:END:\n#+title: A"))
+        val b = store.read("roam/b.org")
+        assertTrue(b.startsWith(":PROPERTIES:\n:ID: KEEP\n:END:\n#+title: B"))
+        assertFalse(b.contains("TEST-ID"))
     }
 
     @Test

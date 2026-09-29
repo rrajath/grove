@@ -173,7 +173,7 @@ class CaptureScreenTest {
             composeRule.onAllNodesWithTag("capture_body_field").fetchSemanticsNodes().isNotEmpty()
         }
         // A roam draft's newFileTemplate has no leading "* " headline (just
-        // file-level :PROPERTIES:/#+title:), so the metadata sheet's hamburger
+        // #+title:), so the metadata sheet's hamburger
         // trigger -- which edits a headline -- has nothing to act on here.
         composeRule.onAllNodesWithText("☰").assertCountEquals(0)
 
