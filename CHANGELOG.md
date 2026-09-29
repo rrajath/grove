@@ -67,8 +67,7 @@ re-uploads the APKs to the existing release instead of failing.
 ### Changed
 - Favoriting a heading now adds an ID property instead of a CUSTOM_ID.
 - Capture templates target a heading by ID; existing CUSTOM_ID targets keep working.
-- Under-heading templates without a leading heading add content to that heading, shown greyed in the editor.
-- Roam templates add the file's ID drawer automatically; the capture editor hides it and existing file content.
+- Under-heading templates without a leading heading add content to that heading.
 
 ### Fixed
 - The capture template name field now capitalizes the first letter of sentences.
