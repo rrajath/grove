@@ -59,6 +59,8 @@ re-uploads the APKs to the existing release instead of failing.
 
 ## [Unreleased]
 
+## [1.8.1] - 2026-09-29
+
 ### Added
 - Settings → Sharing gained a "Fetch link titles" switch; off makes no network request when sharing links.
 - Archiving adds Emacs's ARCHIVE_TIME, ARCHIVE_FILE, ARCHIVE_OLPATH, ARCHIVE_CATEGORY and ARCHIVE_TODO properties.
