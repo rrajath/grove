@@ -79,6 +79,20 @@ object CaptureInserter {
     }
 
     /**
+     * [target]'s outline path: the titles of its ancestors, outermost first,
+     * ending with [target]'s own title. Drives the capture editor's target bar.
+     */
+    fun outlinePath(doc: OrgDocument, target: OrgHeadline): List<String> {
+        val chain = ArrayDeque<OrgHeadline>()
+        for (h in doc.headlines) {
+            if (h.index > target.index) break
+            while (chain.isNotEmpty() && chain.last().level >= h.level) chain.removeLast()
+            chain.addLast(h)
+        }
+        return chain.map { it.title }
+    }
+
+    /**
      * True when an "under heading" capture adds content to the target
      * heading's body rather than a new child heading: the expanded template's
      * first non-blank line isn't a heading (e.g. a `- [ ] %?` checklist item

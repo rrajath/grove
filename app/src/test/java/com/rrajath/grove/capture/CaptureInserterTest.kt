@@ -63,6 +63,28 @@ class CaptureInserterTest {
     """.trimIndent() + "\n"
 
     @Test
+    fun `outlinePath walks ancestors outermost first, skipping siblings and cousins`() {
+        val doc = com.rrajath.grove.org.OrgParser.parse(
+            """
+            * Areas
+            ** Home
+            *** Garden
+            ** Work
+            *** Meetings
+            **** Standup
+            *** Reviews
+            * Inbox
+            """.trimIndent(),
+            com.rrajath.grove.org.OrgKeywords.DEFAULT,
+        )
+        fun pathTo(title: String) = CaptureInserter.outlinePath(doc, doc.findByTitle(title)!!)
+
+        assertEquals(listOf("Areas", "Work", "Reviews"), pathTo("Reviews"))
+        assertEquals(listOf("Areas", "Work", "Meetings", "Standup"), pathTo("Standup"))
+        assertEquals(listOf("Inbox"), pathTo("Inbox"))
+    }
+
+    @Test
     fun `under heading by title appends as last child with releveling`() {
         val result = insert(
             projectDoc,

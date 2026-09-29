@@ -400,12 +400,16 @@ class CaptureViewModel(
      * "under heading" [template] targets, or null when the file or heading
      * doesn't exist. Shown read-only above a body-only capture's field.
      */
-    suspend fun loadTargetHeadingLine(template: CaptureTemplate): String? {
+    /**
+     * An "under heading" template's target heading path (ancestors first, the
+     * target heading last), or null when the file or heading doesn't exist.
+     */
+    suspend fun loadTargetOutline(template: CaptureTemplate): List<String>? {
         val location = template.location as? TargetLocation.UnderHeading ?: return null
         val vault = vaultFlow.filterNotNull().first()
         return withContext(dispatchers.default) {
             val doc = vault.open(template.targetFile) ?: return@withContext null
-            CaptureInserter.findTarget(doc, location)?.let { doc.lines[it.lineIndex] }
+            CaptureInserter.findTarget(doc, location)?.let { CaptureInserter.outlinePath(doc, it) }
         }
     }
 

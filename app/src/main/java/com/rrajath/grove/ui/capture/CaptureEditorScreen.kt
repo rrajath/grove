@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -60,7 +61,10 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -283,12 +287,16 @@ fun CaptureEditorScreen(
     val bodyOnly = remember(template, expanded) {
         template.kind == TemplateKind.PLAIN && CaptureInserter.isBodyOnly(expanded.text, template.location)
     }
-    // Whether the target heading couldn't be found in the file, so the user is
-    // warned before saving.
+    // An "under heading" target's outline path for the target bar, and whether
+    // the heading couldn't be found in the file, so the user is warned before
+    // saving (the save would fail).
+    var targetOutline by remember(template) { mutableStateOf<List<String>?>(null) }
     var targetHeadingMissing by remember(template) { mutableStateOf(false) }
-    LaunchedEffect(template, bodyOnly) {
-        if (!bodyOnly) return@LaunchedEffect
-        targetHeadingMissing = viewModel.loadTargetHeadingLine(template) == null
+    LaunchedEffect(template) {
+        if (template.kind != TemplateKind.PLAIN || template.location !is TargetLocation.UnderHeading) return@LaunchedEffect
+        val outline = viewModel.loadTargetOutline(template)
+        targetOutline = outline
+        targetHeadingMissing = outline == null
     }
 
     /** [text]'s properties-drawer + preamble head vs. everything after it --
@@ -602,9 +610,18 @@ fun CaptureEditorScreen(
                 // left a gap above the keyboard.
                 .windowInsetsPadding(WindowInsets.navigationBars.union(WindowInsets.ime).only(WindowInsetsSides.Bottom)),
         ) {
-            if (template.kind == TemplateKind.PLAIN && template.location.isDatetree) {
-                DatetreeBreadcrumb(template, now.toLocalDate())
+            val roamPath = remember(draftText, roamAppendState) {
+                if (template.kind == TemplateKind.ROAM_NODE) resolvedRoamPath() else null
             }
+            CaptureTargetBar(
+                template = template,
+                today = now.toLocalDate(),
+                targetOutline = targetOutline,
+                targetHeadingMissing = targetHeadingMissing,
+                bodyOnly = bodyOnly,
+                roamPath = roamPath,
+                roamFileExists = roamAppendState is RoamAppendState.ExistingFile,
+            )
             (saveState as? SaveState.Failed)?.let { failed ->
                 Text(
                     failed.message,
@@ -683,7 +700,7 @@ fun CaptureEditorScreen(
                             // dragged past the top or bottom edge, and keeps the cursor
                             // visible when the keyboard shrinks the viewport.
                             Column(Modifier.fillMaxSize()) {
-                                if (bodyOnly && targetHeadingMissing) {
+                                if (targetHeadingMissing) {
                                     TargetHeadingMissingWarning(template.targetFile)
                                 }
                                 BasicTextField(
@@ -1132,8 +1149,78 @@ private fun TargetHeadingMissingWarning(targetFile: String) {
     )
 }
 
+/** Where the capture lands, below the top bar; datetree targets add the date trail and day chip. */
 @Composable
-private fun DatetreeBreadcrumb(template: CaptureTemplate, today: LocalDate) {
+private fun CaptureTargetBar(
+    template: CaptureTemplate,
+    today: LocalDate,
+    /** Under-heading target's ancestors + the heading itself; null while loading or missing. */
+    targetOutline: List<String>?,
+    targetHeadingMissing: Boolean,
+    bodyOnly: Boolean,
+    /** Roam node: the resolved file path, or null until the draft has a title. */
+    roamPath: String?,
+    roamFileExists: Boolean,
+) {
+    val c = MaterialTheme.grove
+    val location = template.location
+    if (template.kind == TemplateKind.PLAIN && location.isDatetree) {
+        DatetreeBreadcrumb(template, today)
+        return
+    }
+    val label = buildAnnotatedString {
+        val fileStyle = SpanStyle(color = c.accent, fontWeight = FontWeight.SemiBold)
+        if (template.kind == TemplateKind.ROAM_NODE) {
+            if (roamPath != null) {
+                withStyle(fileStyle) { append(roamPath) }
+            } else {
+                if (template.roamDirectory.isNotBlank()) {
+                    withStyle(fileStyle) { append(template.roamDirectory.trimEnd('/') + "/") }
+                }
+                withStyle(SpanStyle(color = c.ink3)) { append("…") }
+            }
+        } else {
+            withStyle(fileStyle) { append(template.targetFile) }
+            withStyle(SpanStyle(color = c.ink2)) {
+                val headings = when {
+                    targetOutline != null -> targetOutline
+                    targetHeadingMissing && location is TargetLocation.UnderHeading ->
+                        listOf(location.headingKey?.let { "#$it" } ?: location.title.orEmpty())
+                    else -> emptyList()
+                }
+                headings.forEach { append(" › "); append(it) }
+            }
+        }
+    }
+    val (pill, pillFg, pillBg) = when {
+        template.kind == TemplateKind.ROAM_NODE ->
+            if (roamFileExists) Triple("existing", c.accent, c.accentSoft)
+            else Triple("new file", c.green, c.greenSoft)
+        location is TargetLocation.UnderHeading -> when {
+            targetHeadingMissing -> Triple("not found", c.red, c.redSoft)
+            bodyOnly -> Triple("body", c.accent, c.accentSoft)
+            location.appendLast -> Triple("last child", c.accent, c.accentSoft)
+            else -> Triple("first child", c.accent, c.accentSoft)
+        }
+        location is TargetLocation.TopOfFile -> Triple("top", c.accent, c.accentSoft)
+        else -> Triple("bottom", c.accent, c.accentSoft)
+    }
+    CaptureTargetBarFrame {
+        // Middle-ellipsized so a long path keeps both the file and the target heading visible.
+        Text(
+            label,
+            fontFamily = PlexMono, fontSize = 11.5.sp, color = c.ink2,
+            maxLines = 1,
+            overflow = androidx.compose.ui.text.style.TextOverflow.MiddleEllipsis,
+            modifier = Modifier.weight(1f).testTag("capture_target_path"),
+        )
+        Spacer(Modifier.width(8.dp))
+        Pill(pill, fg = pillFg, bg = pillBg)
+    }
+}
+
+@Composable
+private fun CaptureTargetBarFrame(content: @Composable RowScope.() -> Unit) {
     val c = MaterialTheme.grove
     Row(
         Modifier
@@ -1142,7 +1229,14 @@ private fun DatetreeBreadcrumb(template: CaptureTemplate, today: LocalDate) {
             .border(1.dp, c.line)
             .padding(horizontal = 18.dp, vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically,
-    ) {
+        content = content,
+    )
+}
+
+@Composable
+private fun DatetreeBreadcrumb(template: CaptureTemplate, today: LocalDate) {
+    val c = MaterialTheme.grove
+    CaptureTargetBarFrame {
         // The  t breadcrumb shares the row with the trailing pill; only the file
         // name may shrink (ellipsized), so nothing ever wraps vertically.
         Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {

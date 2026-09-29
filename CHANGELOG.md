@@ -62,6 +62,7 @@ re-uploads the APKs to the existing release instead of failing.
 ### Added
 - Settings → Sharing gained a "Fetch link titles" switch; off makes no network request when sharing links.
 - Archiving adds Emacs's ARCHIVE_TIME, ARCHIVE_FILE, ARCHIVE_OLPATH, ARCHIVE_CATEGORY and ARCHIVE_TODO properties.
+- Every capture template now shows where the note lands: file, heading path, and placement.
 
 ### Changed
 - Favoriting a heading now adds an ID property instead of a CUSTOM_ID.
