@@ -71,6 +71,7 @@ re-uploads the APKs to the existing release instead of failing.
 - Roam templates add the file's ID drawer automatically; the capture editor hides it and existing file content.
 
 ### Fixed
+- The capture template name field now capitalizes the first letter of sentences.
 - Headings with both ID and CUSTOM_ID now show as favorited and aren't favorited twice.
 - Saving an edited note no longer removes the blank line before the next heading.
 - Setting dates, marking done, and adding properties or logbook entries keep the file's existing indentation.
