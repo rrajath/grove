@@ -364,7 +364,7 @@ val NEW_FEATURES: List<NewFeature> = listOf(
         // `since` is the versionCode of the release that ships it: bump it to
         // match `gradle.properties` versionName when cutting the release.
         id = "sharing-fetch-link-titles",
-        since = 10900,
+        since = 10801,
         anchors = setOf(
             NewAnchors.TOPBAR_MENU,
             NewAnchors.DRAWER_SETTINGS,
