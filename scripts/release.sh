@@ -3,7 +3,7 @@
 #
 #   scripts/release.sh 1.8.2
 #
-# Bumps `versionName` in gradle.properties, archives `## [Unreleased]` in
+# Bumps `versionName` and `versionCode` in gradle.properties, archives `## [Unreleased]` in
 # CHANGELOG.md as `## [1.8.2] - <UTC date>`, commits both as "Release v1.8.2",
 # tags that commit v1.8.2, and moves `main` to it. Nothing is pushed: the
 # script prints the push commands at the end.
@@ -29,9 +29,9 @@ MAJOR=$((10#${BASH_REMATCH[1]})); MINOR=$((10#${BASH_REMATCH[2]})); PATCH=$((10#
 NEW_CODE=$((MAJOR * 10000 + MINOR * 100 + PATCH))
 
 CURRENT="$(sed -n 's/^versionName=//p' gradle.properties)"
-[[ "$CURRENT" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]] || die "can't parse current versionName '$CURRENT'"
-CURRENT_CODE=$((10#${BASH_REMATCH[1]} * 10000 + 10#${BASH_REMATCH[2]} * 100 + 10#${BASH_REMATCH[3]}))
-[ "$NEW_CODE" -gt "$CURRENT_CODE" ] || die "$VERSION is not newer than current versionName $CURRENT"
+CURRENT_CODE="$(sed -n 's/^versionCode=//p' gradle.properties)"
+[[ "$CURRENT_CODE" =~ ^[0-9]+$ ]] || die "can't parse current versionCode '$CURRENT_CODE' in gradle.properties"
+[ "$NEW_CODE" -gt "$CURRENT_CODE" ] || die "$VERSION ($NEW_CODE) is not newer than current $CURRENT ($CURRENT_CODE)"
 
 git rev-parse -q --verify "refs/tags/$TAG" >/dev/null && die "tag $TAG already exists"
 grep -qxF "## [Unreleased]" CHANGELOG.md || die "CHANGELOG.md has no '## [Unreleased]' heading"
@@ -52,7 +52,8 @@ else
   [ -z "$(git status --porcelain --untracked-files=no)" ] || die "working tree has uncommitted changes"
 fi
 
-sed -i.bak "s/^versionName=.*/versionName=$VERSION/" gradle.properties && rm gradle.properties.bak
+sed -i.bak -e "s/^versionName=.*/versionName=$VERSION/" -e "s/^versionCode=.*/versionCode=$NEW_CODE/" gradle.properties
+rm gradle.properties.bak
 
 DATE="$(date -u +%Y-%m-%d)"
 awk -v ver="$VERSION" -v date="$DATE" '

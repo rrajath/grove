@@ -17,8 +17,8 @@ plugins {
 // gradle.properties. versionCode is derived from it numerically —
 // MAJOR * 10000 + MINOR * 100 + PATCH — so "1.2.3" becomes 10203. Minor and
 // patch therefore each occupy two decimal digits and must stay within 0-99.
-// Nothing is read from git or written back into the repo; bumping versionName
-// in gradle.properties is the only action a release needs.
+// Nothing is read from git or written back into the repo; scripts/release.sh
+// bumps both keys in gradle.properties when cutting a release.
 val manualVersionName = providers.gradleProperty("versionName").get()
 
 val derivedVersionCode: Int = run {
@@ -32,6 +32,20 @@ val derivedVersionCode: Int = run {
             "(they occupy two decimal digits each in versionCode)"
     }
     major * 10000 + minor * 100 + patch
+}
+
+// gradle.properties also carries the derived number as a literal `versionCode`
+// so F-Droid's checkupdates can read it with a regex (UpdateCheckData) instead
+// of evaluating this script. It must always equal the derived value; the build
+// fails on a mismatch rather than silently shipping either one.
+val storedVersionCode: Int = run {
+    val raw = providers.gradleProperty("versionCode").get()
+    val stored = raw.trim().toIntOrNull() ?: error("versionCode '$raw' in gradle.properties is not a number")
+    require(stored == derivedVersionCode) {
+        "versionCode=$stored in gradle.properties doesn't match versionName $manualVersionName " +
+            "(expected $derivedVersionCode). Use scripts/release.sh to bump versions."
+    }
+    stored
 }
 
 // Bundles the repo's CHANGELOG.md into the APK as a raw asset (read at runtime by the
@@ -143,7 +157,7 @@ android {
         applicationId = "com.rrajath.grove"
         minSdk = 23
         targetSdk = 36
-        versionCode = derivedVersionCode
+        versionCode = storedVersionCode
         versionName = manualVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -367,9 +381,8 @@ tasks.register("printVersionName") {
 }
 
 // Print just the versionCode (`./gradlew -q printVersionCode` → "10203"): the
-// numeric form of versionName (MAJOR*10000 + MINOR*100 + PATCH) stamped into the
-// APK. Kept as a convenience for tooling that wants the resolved number without
-// recomputing it.
+// `versionCode` from gradle.properties, already checked against versionName
+// (MAJOR*10000 + MINOR*100 + PATCH), as stamped into the APK.
 tasks.register("printVersionCode") {
-    doLast { println(derivedVersionCode) }
+    doLast { println(storedVersionCode) }
 }

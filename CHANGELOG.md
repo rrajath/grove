@@ -6,12 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 **Versioning:** `versionName` is the single source of truth. It's a
 manually-controlled SemVer string (`major.minor.patch`) set in the
-`versionName` key in `gradle.properties`. Bump it by hand whenever a release
-should carry a new number: major = breaking change, minor = new feature,
-patch = fix/tweak. `versionCode` is derived from it automatically as
-`MAJOR*10000 + MINOR*100 + PATCH` (so `1.2.3` → `10203`); keep minor and patch
-each within 0-99. CI reads `versionName` via `./gradlew -q printVersionName`
-and never bumps it.
+`versionName` key in `gradle.properties`: major = breaking change, minor =
+new feature, patch = fix/tweak. `versionCode`, stored next to it so F-Droid
+can read it, must equal `MAJOR*10000 + MINOR*100 + PATCH` (so `1.2.3` →
+`10203`; keep minor and patch each within 0-99), and the build fails if it
+doesn't. `scripts/release.sh` bumps both. CI reads `versionName` via
+`./gradlew -q printVersionName` and never bumps it.
 
 Two eras of historical entries below use different schemes: entries titled
 `1.0.<N>` below the `1.0.0` line predate mid-2026, when `versionName` was an
@@ -59,6 +59,7 @@ re-uploads the APKs to the existing release instead of failing.
 
 ### Changed
 - Releases are cut locally with scripts/release.sh, so F-Droid can reproduce the published APK.
+- versionCode is now stored in gradle.properties so F-Droid can detect new releases automatically.
 
 ## [1.8.1] - 2026-09-29
 
