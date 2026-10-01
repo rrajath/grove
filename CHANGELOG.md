@@ -57,6 +57,9 @@ re-uploads the APKs to the existing release instead of failing.
 
 ## [Unreleased]
 
+### Added
+- Marking a recurring task done now shows its next occurrence date in the snackbar.
+
 ### Changed
 - Editor suggestion strip restyled with outlined chips; Capture's Save now fits inside it, aligned with the Read/Edit toggle.
 - Releases are cut locally with scripts/release.sh, so F-Droid can reproduce the published APK.

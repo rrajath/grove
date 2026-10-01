@@ -1,5 +1,8 @@
 package com.rrajath.grove.ui.vault
 
+import java.time.LocalDate
+import com.rrajath.grove.org.nextRepeatOccurrence
+import com.rrajath.grove.org.markedDoneMessage
 import android.content.Intent
 import android.provider.DocumentsContract
 import androidx.core.net.toUri
@@ -1263,7 +1266,15 @@ class DocumentViewModel(
                 is StateChangeResult.Plain -> {
                     _state.value = DocumentUiState.Loaded(loaded.fileName, result.doc)
                     saveDoc(loaded.fileName, result.text, "state set", result.doc)
-                    showToast("State → ${keyword ?: "none"}")
+                    // A recurring task keeps its keyword and just moves its date, so say where it went.
+                    val next = result.doc.headlines.firstOrNull { it.lineIndex == headline.lineIndex }
+                        ?.let { nextRepeatOccurrence(headline, it) }
+                    if (next != null) {
+                        undoSnapshot = UndoSnapshot(listOf(loaded.fileName to loaded.document.text))
+                        showSnack(markedDoneMessage(next, LocalDate.now()))
+                    } else {
+                        showToast("State → ${keyword ?: "none"}")
+                    }
                 }
                 is StateChangeResult.Archived -> {
                     undoSnapshot = UndoSnapshot(

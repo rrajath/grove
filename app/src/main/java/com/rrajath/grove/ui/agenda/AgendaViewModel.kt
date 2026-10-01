@@ -1,5 +1,7 @@
 package com.rrajath.grove.ui.agenda
 
+import com.rrajath.grove.org.nextRepeatOccurrence
+import com.rrajath.grove.org.markedDoneMessage
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rrajath.grove.AppDispatchers
@@ -510,7 +512,9 @@ class AgendaViewModel(
                     undoSnapshot = listOf(FileSnapshot(fileName, doc.text))
                     vault.save(fileName, result.text)
                     sync.requestReindex(fileName, result.text, "agenda toggle done")
-                    showSnack("Marked done")
+                    val next = result.doc.headlines.firstOrNull { it.lineIndex == lineIndex }
+                        ?.let { nextRepeatOccurrence(headline, it) }
+                    showSnack(markedDoneMessage(next, LocalDate.now()))
                 }
                 is StateChangeResult.Archived -> {
                     undoSnapshot = if (result.sourceFile == result.destFile) {
@@ -555,7 +559,10 @@ class AgendaViewModel(
             undoSnapshot = listOf(FileSnapshot(row.fileName, doc.text))
             vault.save(row.fileName, newText)
             sync.requestReindex(row.fileName, newText, "agenda advance repeater")
-            showSnack("Advanced to next occurrence")
+            val next = OrgParser.parse(newText, doc.keywords).headlines
+                .firstOrNull { it.lineIndex == row.lineIndex }
+                ?.let { nextRepeatOccurrence(headline, it) }
+            showSnack(markedDoneMessage(next, LocalDate.now()))
         }
     }
 

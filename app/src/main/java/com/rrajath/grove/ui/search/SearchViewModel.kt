@@ -1,5 +1,7 @@
 package com.rrajath.grove.ui.search
 
+import com.rrajath.grove.org.nextRepeatOccurrence
+import com.rrajath.grove.org.markedDoneMessage
 import android.database.SQLException
 import android.util.Log
 import androidx.compose.runtime.Immutable
@@ -417,6 +419,13 @@ class SearchViewModel(
                 is StateChangeResult.Plain -> {
                     vault.save(fileName, result.text)
                     sync.requestReindex(fileName, result.text, "search state set")
+                    // A recurring task keeps its keyword and just moves its date, so say where it went.
+                    val next = result.doc.headlines.firstOrNull { it.lineIndex == lineIndex }
+                        ?.let { nextRepeatOccurrence(headline, it) }
+                    if (next != null) {
+                        undoSnapshot = listOf(fileName to doc.text)
+                        showSnack(markedDoneMessage(next, LocalDate.now()))
+                    }
                 }
                 is StateChangeResult.Archived -> {
                     undoSnapshot = if (result.sourceFile == result.destFile) {

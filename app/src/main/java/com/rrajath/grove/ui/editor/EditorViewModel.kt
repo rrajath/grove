@@ -1,5 +1,8 @@
 package com.rrajath.grove.ui.editor
 
+import java.time.LocalDate
+import com.rrajath.grove.org.nextRepeatOccurrence
+import com.rrajath.grove.org.markedDoneMessage
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rrajath.grove.AppDispatchers
@@ -484,6 +487,17 @@ class EditorViewModel(
                             loadedRevision = revision,
                             bufferRevision = it.bufferRevision + 1,
                         )
+                    }
+                    // A recurring task keeps its keyword and just moves its date, so say where it went.
+                    val next = newHeadline?.let { nextRepeatOccurrence(headline, it) }
+                    if (next != null) {
+                        archiveUndo = ArchiveUndo(
+                            files = listOf(s.fileName to doc.text),
+                            fileName = s.fileName,
+                            lineIndex = s.lineIndex,
+                            buffer = s.buffer,
+                        )
+                        showSnack(markedDoneMessage(next, LocalDate.now()))
                     }
                 }
                 is StateChangeResult.Archived -> {
