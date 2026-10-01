@@ -544,25 +544,36 @@ private val FabShadowColor = Color(0x668A5A2B)
  * the affordance that used to be the top-bar "☰" glyph. 54dp square with 18dp
  * corners, accent fill, amber-tinted drop shadow. The caller positions it
  * (typically the bottom-end of the content area).
+ *
+ * [compact] is the 44x36dp, 10dp-corner, shadowless variant that sits inside the
+ * editor suggestion strip, sized to match Capture's Save button.
  */
 @Composable
-fun EditorMenuFab(onClick: () -> Unit, modifier: Modifier = Modifier) {
+fun EditorMenuFab(onClick: () -> Unit, modifier: Modifier = Modifier, compact: Boolean = false) {
     val c = MaterialTheme.grove
+    val shape = RoundedCornerShape(if (compact) 10.dp else 18.dp)
     Box(
         modifier
-            .size(54.dp)
-            .shadow(
-                elevation = 10.dp,
-                shape = RoundedCornerShape(18.dp),
-                clip = false,
-                ambientColor = FabShadowColor,
-                spotColor = FabShadowColor,
+            .then(
+                if (compact) {
+                    Modifier.size(width = 44.dp, height = 36.dp)
+                } else {
+                    Modifier
+                        .size(54.dp)
+                        .shadow(
+                            elevation = 10.dp,
+                            shape = shape,
+                            clip = false,
+                            ambientColor = FabShadowColor,
+                            spotColor = FabShadowColor,
+                        )
+                },
             )
-            .clip(RoundedCornerShape(18.dp))
+            .clip(shape)
             .background(c.accent)
             .clickable(onClickLabel = "Open metadata", onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Text("☰", fontFamily = PlexSans, fontSize = 20.sp, color = c.accentInk)
+        Text("☰", fontFamily = PlexSans, fontSize = if (compact) 16.sp else 20.sp, color = c.accentInk)
     }
 }

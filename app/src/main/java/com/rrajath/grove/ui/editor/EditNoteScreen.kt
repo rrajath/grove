@@ -521,10 +521,9 @@ fun EditNoteScreen(
                             .testTag("edit_note_field"),
                     )
                 }
-                // Bottom bar: the suggestion strip (if any) and the FAB column share
-                // this row's own vertical center -- they're independently sized, so
-                // Alignment.Center rather than Alignment.Bottom keeps them lined up
-                // regardless of the strip's or column's exact rendered height.
+                // Bottom bar: the FAB column (scroll-jump buttons + menu FAB) and, while
+                // the keyboard is up, the suggestion strip, which then carries a compact
+                // menu FAB at its end instead (same as Capture's Save).
                 Box(
                     Modifier
                         .align(Alignment.BottomStart)
@@ -533,10 +532,12 @@ fun EditNoteScreen(
                 ) {
                     Column(
                         Modifier
-                            .align(Alignment.CenterEnd)
+                            .align(Alignment.BottomEnd)
                             // 16dp end = the end gutter, matching the Read/Edit
-                            // toggle in the top bar.
-                            .padding(end = 16.dp),
+                            // toggle in the top bar. With the strip showing, the
+                            // scroll-jump buttons float 10dp above it (the strip
+                            // overhangs this row's 16dp bottom padding).
+                            .padding(end = 16.dp, bottom = if (imeVisible) SuggestionSlotHeight - 16.dp + 10.dp else 0.dp),
                         horizontalAlignment = Alignment.End,
                         verticalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
@@ -544,21 +545,19 @@ fun EditNoteScreen(
                             scrollState = scrollState,
                             minScrollDeltaPx = scrollButtonThresholdPx,
                         )
-                        EditorMenuFab(onClick = { metadataOpen = true })
+                        if (!imeVisible) EditorMenuFab(onClick = { metadataOpen = true })
                     }
                     // Suggestions only while typing: with the keyboard down they'd just cover the note.
                     // The slot is there whenever the keyboard is up, chips or not and whichever
                     // providers are on. It floats over the field's own 80dp bottom clearance (so
-                    // it never pushes the field's height around or covers text), end-padded clear
-                    // of the FAB's own 16dp gutter + 54dp size. Sits flush on the formatting
-                    // toolbar like CaptureEditorScreen's strip: cancels this row's 16dp bottom
-                    // padding, so its top hairline reads as the strip's border rather than
-                    // floating mid-air level with the FAB.
+                    // it never pushes the field's height around or covers text). Sits flush on
+                    // the formatting toolbar like CaptureEditorScreen's strip: cancels this
+                    // row's 16dp bottom padding.
                     if (imeVisible) SuggestionSlot(
                         Modifier
                             .align(Alignment.BottomStart)
-                            .offset(y = 16.dp)
-                            .padding(end = 80.dp),
+                            .offset(y = 16.dp),
+                        trailing = { EditorMenuFab(onClick = { metadataOpen = true }, compact = true) },
                     ) {
                         val block = blockTrigger
                         if (block != null) {
