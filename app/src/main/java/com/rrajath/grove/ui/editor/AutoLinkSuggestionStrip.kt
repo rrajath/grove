@@ -4,8 +4,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -19,11 +20,12 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.rrajath.grove.ui.components.BrandMarkGlyph
 import com.rrajath.grove.ui.components.notebookIcon
+import com.rrajath.grove.ui.theme.grove
 
 /**
  * Horizontal suggestion strip docked above the keyboard while a 3+ character
  * word is being typed, offering `id:`-linkable files/headings that match it
- * (see `AutoLinkSuggest.kt`). The first (best) match is the tinted lead chip.
+ * (see `AutoLinkSuggest.kt`).
  * A chip whose title is short enough to show in full inserts on the first tap;
  * a longer, ellipsised one reveals its full title on the first tap and inserts
  * on the second.
@@ -40,20 +42,20 @@ fun AutoLinkSuggestionStrip(
         // The trailing chip dissolves into the strip's end edge rather than
         // being hard-clipped, which also signals the row scrolls.
         modifier.fadingTrailingEdge(SuggestionFadeWidth),
-        horizontalArrangement = Arrangement.spacedBy(2.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
         contentPadding = SuggestionStripPadding,
     ) {
-        itemsIndexed(suggestions, key = { _, it -> it.key }) { index, suggestion ->
+        items(suggestions, key = { it.key }) { suggestion ->
             val expanded = suggestion.key in expandedKeys
             val truncated = suggestion.title.length >= 10
             SuggestionChip(
                 label = ellipsizeChipLabel(suggestion.title, expanded),
-                lead = index == 0,
                 onClick = {
                     if (truncated && !expanded) onToggleExpand(suggestion.key) else onPick(suggestion)
                 },
-                glyph = { tint ->
+                glyph = {
+                    val tint = MaterialTheme.grove.accent
                     when (suggestion) {
                         is AutoLinkFileSuggestion ->
                             Icon(notebookIcon(), contentDescription = null, tint = tint, modifier = Modifier.size(13.dp))

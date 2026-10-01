@@ -162,8 +162,8 @@ fun SegmentedControl(
  * The Read/Edit mode switch every note, file, Dailies and capture top bar carries:
  * a two-option [SegmentedControl] with eye/pencil icons. The whole control is one
  * tap target that flips the mode, since the icon segments alone are small. It
- * owns the shared 16dp end gutter (plus the top bar's own 8dp, the 24dp read
- * gutter) so every screen's toggle lines up the same way.
+ * owns an 8dp end inset (plus the top bar's own 8dp, the 16dp end gutter that
+ * Capture's Save and the editor FABs share) so every screen's toggle lines up the same way.
  *
  * Mode-switch policy (never saving, seeding a new file, ...) stays with the
  * caller's [onToggle].
@@ -178,7 +178,7 @@ fun ReadEditToggle(
     selectedIndex = if (isEditing) 1 else 0,
     onSelect = {},
     modifier = modifier
-        .padding(end = 16.dp)
+        .padding(end = 8.dp)
         .width(IntrinsicSize.Min)
         .testTag("read_edit_toggle")
         .semantics(mergeDescendants = true) {

@@ -372,9 +372,9 @@ fun ReadNoteScreen(
                         Column(
                             Modifier
                                 .align(Alignment.BottomEnd)
-                                // 24dp end = the read-note gutter, matching the
+                                // 16dp end = the end gutter, matching the
                                 // Read/Edit toggle above it.
-                                .padding(end = 24.dp, bottom = 16.dp),
+                                .padding(end = 16.dp, bottom = 16.dp),
                             horizontalAlignment = Alignment.End,
                             verticalArrangement = Arrangement.spacedBy(10.dp),
                         ) {
@@ -425,9 +425,9 @@ fun ReadNoteScreen(
                         Column(
                             Modifier
                                 .align(Alignment.BottomEnd)
-                                // 24dp end = the read-note gutter, matching the
+                                // 16dp end = the end gutter, matching the
                                 // Read/Edit toggle above it.
-                                .padding(end = 24.dp, bottom = 16.dp),
+                                .padding(end = 16.dp, bottom = 16.dp),
                             horizontalAlignment = Alignment.End,
                             verticalArrangement = Arrangement.spacedBy(10.dp),
                         ) {

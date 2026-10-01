@@ -29,9 +29,8 @@ internal fun TextFieldState.applyBlockTemplate(trigger: BlockTrigger) {
 }
 
 /**
- * One lead chip ("Insert quote?") in the editor's suggestion slot while a block
- * shorthand sits at the cursor: a single quiet offer, styled and padded like
- * [AutoLinkSuggestionStrip]'s best match.
+ * One chip ("Insert quote?") in the editor's suggestion slot while a block
+ * shorthand sits at the cursor, styled and padded like [AutoLinkSuggestionStrip]'s.
  */
 @Composable
 internal fun BlockTemplateSuggestionStrip(
@@ -42,18 +41,8 @@ internal fun BlockTemplateSuggestionStrip(
     Box(modifier.padding(SuggestionStripPadding)) {
         SuggestionChip(
             label = "Insert ${template.label}?",
-            lead = true,
             onClick = onPick,
             modifier = Modifier.testTag("block_template_chip"),
-            glyph = { tint -> SuggestionTextGlyph(template.glyph, tint) },
         )
     }
 }
-
-/** Leading glyph for a block chip: the org syntax it inserts, in short. */
-private val BlockTemplate.glyph: String
-    get() = when {
-        isDrawer -> ":"
-        this == BlockTemplate.QUOTE -> "“"
-        else -> "#+"
-    }

@@ -1,6 +1,6 @@
 package com.rrajath.grove.ui.editor
 
-import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -23,7 +23,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.rrajath.grove.ui.theme.PlexMono
 import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
 
@@ -56,7 +55,7 @@ internal fun SuggestionSlot(
             .fillMaxWidth()
             .heightIn(min = SuggestionSlotHeight)
             .drawBehind { drawLine(line, Offset.Zero, Offset(size.width, 0f), strokeWidth = 2f) }
-            .padding(end = if (trailing != null) 8.dp else 0.dp),
+            .padding(end = if (trailing != null) 16.dp else 0.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) { content() }
@@ -68,44 +67,38 @@ internal fun SuggestionSlot(
 }
 
 /**
- * One suggestion in the strip. The [lead] (best) match gets a faint `accentSoft` tint
- * and accent label; the rest are plain `ink2` text, so the eye lands on one thing
- * instead of a row of equal-weight pills. [glyph] draws the leading marker in the
- * colour it is handed.
+ * One suggestion in the strip: an outlined, unfilled chip. [color] tints the outline
+ * and label (`line` / `ink` by default; Roam-node chips pass their template colour).
+ * [glyph] draws an optional leading marker.
  */
 @Composable
 internal fun SuggestionChip(
     label: String,
-    lead: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    glyph: (@Composable (Color) -> Unit)? = null,
+    borderColor: Color = MaterialTheme.grove.line,
+    labelColor: Color = MaterialTheme.grove.ink,
+    glyph: (@Composable () -> Unit)? = null,
 ) {
-    val c = MaterialTheme.grove
+    val shape = RoundedCornerShape(9.dp)
     Row(
         modifier
             .heightIn(min = 32.dp)
-            .clip(RoundedCornerShape(9.dp))
-            .then(if (lead) Modifier.background(c.accentSoft) else Modifier)
+            .clip(shape)
+            .border(1.dp, borderColor, shape)
             .clickable(onClick = onClick)
-            .padding(horizontal = if (lead) 11.dp else 10.dp),
+            .padding(horizontal = 11.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (glyph != null) {
-            glyph(if (lead) c.accent else c.ink3)
+            glyph()
             Spacer(Modifier.width(7.dp))
         }
         Text(
             label,
-            fontFamily = PlexSans, fontWeight = if (lead) FontWeight.Medium else FontWeight.Normal,
-            fontSize = 13.5.sp, color = if (lead) c.accent else c.ink2,
+            fontFamily = PlexSans, fontWeight = FontWeight.Medium,
+            fontSize = 13.5.sp, color = labelColor,
             maxLines = 1,
         )
     }
-}
-
-/** A [SuggestionChip] glyph drawn as a short mono string (`“`, `:`, `#+`). */
-@Composable
-internal fun SuggestionTextGlyph(text: String, color: Color) {
-    Text(text, fontFamily = PlexMono, fontSize = 11.5.sp, color = color)
 }

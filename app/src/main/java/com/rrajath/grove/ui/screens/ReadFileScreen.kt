@@ -261,8 +261,8 @@ fun ReadFileScreen(
                         }
                         ScrollJumpButtons(
                             listState = listState,
-                            // 24dp end = the read gutter, matching the toggle above.
-                            modifier = Modifier.align(Alignment.BottomEnd).padding(end = 24.dp, bottom = 16.dp),
+                            // 16dp end = the end gutter, matching the toggle above.
+                            modifier = Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 16.dp),
                         )
                     }
                 }

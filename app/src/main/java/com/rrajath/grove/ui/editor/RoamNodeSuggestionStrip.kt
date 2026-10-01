@@ -3,7 +3,7 @@ package com.rrajath.grove.ui.editor
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -12,6 +12,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.rrajath.grove.capture.CaptureTemplate
+import com.rrajath.grove.ui.components.monogramPalette
+import com.rrajath.grove.ui.components.nameHashPaletteKey
 import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
 
@@ -19,8 +21,8 @@ import com.rrajath.grove.ui.theme.grove
  * Selection-triggered counterpart to [AutoLinkSuggestionStrip]: docked in the
  * same slot, offering one chip per eligible Roam-kind capture template
  * ([com.rrajath.grove.capture.hasUserDefinedTitle]) to turn the current
- * non-collapsed selection into a link to a new or existing roam node. The
- * first template is the tinted lead chip.
+ * non-collapsed selection into a link to a new or existing roam node. Each
+ * chip is outlined and labelled in its template's colour.
  */
 @Composable
 fun RoamNodeSuggestionStrip(
@@ -36,23 +38,25 @@ fun RoamNodeSuggestionStrip(
     val c = MaterialTheme.grove
     LazyRow(
         modifier.fadingTrailingEdge(SuggestionFadeWidth),
-        horizontalArrangement = Arrangement.spacedBy(2.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
         contentPadding = SuggestionStripPadding,
     ) {
         item {
             Text(
                 if (matchesExistingNode) "Link to the roam node?" else "Create a roam node?",
-                fontFamily = PlexSans, fontSize = 13.5.sp, color = c.ink3,
-                modifier = Modifier.padding(end = 6.dp),
+                fontFamily = PlexSans, fontSize = 13.5.sp, color = c.ink2,
+                modifier = Modifier.padding(end = 2.dp),
             )
         }
-        itemsIndexed(templates, key = { _, it -> it.id }) { index, template ->
+        items(templates, key = { it.id }) { template ->
             val expanded = template.id in expandedKeys
             val truncated = selectedText.length >= 10
+            val (fg, _) = monogramPalette(c, template.color ?: nameHashPaletteKey(template.id))
             SuggestionChip(
                 label = "${template.name}: " + ellipsizeChipLabel(selectedText, expanded),
-                lead = index == 0,
+                borderColor = fg,
+                labelColor = fg,
                 onClick = {
                     if (truncated && !expanded) onToggleExpand(template.id) else onPick(template)
                 },
