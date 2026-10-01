@@ -16,7 +16,7 @@ import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.only
@@ -693,30 +693,51 @@ fun CaptureEditorScreen(
                         }
                     }
                 }
-                // Bottom bar: the suggestion strip (if any, bottom-aligned to sit just
-                // above the toolbar) and the Save pill (centred in the row).
+                // Save: a compact 36dp button that fits inside the suggestion strip.
+                // Stays available in Read mode too, so a metadata-only capture
+                // (state/dates/tags set from the sheet, no further typing) can be
+                // saved without switching back to Edit.
+                val saveButton: @Composable (Modifier) -> Unit = { modifier ->
+                    Box(
+                        modifier
+                            .heightIn(min = 36.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(c.accent)
+                            .clickable(enabled = saveState !is SaveState.Saving && roamAppendState !is RoamAppendState.Checking) {
+                                trySave()
+                            }
+                            .testTag("capture_save")
+                            .padding(horizontal = 16.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            if (saveState is SaveState.Saving) "Saving…" else "Save",
+                            fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
+                            fontSize = 13.5.sp, color = c.accentInk,
+                        )
+                    }
+                }
+                // The suggestion slot: there for every capture kind whenever the keyboard
+                // is up, chips or not and whichever providers are on (the Roam ones only
+                // ever fill it for a Roam capture). It floats over the field's own 80dp
+                // bottom clearance, so it never pushes the field around or covers text.
+                val slotShown = roamAppendState !is RoamAppendState.Checking &&
+                    (imeVisible || roamNodeSuggestionActive)
+                // Bottom bar: the strip sits flush on the toolbar with Save at its end;
+                // without it, Save floats bottom-right on its own (above the keyboard
+                // while it's up, since the column is ime-padded).
                 Box(
                     Modifier
                         .align(Alignment.BottomStart)
                         .fillMaxWidth()
-                        .padding(bottom = 16.dp),
+                        .padding(bottom = if (slotShown) 0.dp else 16.dp),
                 ) {
-                    if (roamAppendState !is RoamAppendState.Checking) {
-                        // The suggestion slot: there for every capture kind whenever the keyboard
-                        // is up, chips or not and whichever providers are on (the Roam ones only
-                        // ever fill it for a Roam capture). It floats over the field's own 80dp
-                        // bottom clearance, so it never pushes the field around or covers text.
-                        // End-padded clear of the Save pill's own 16dp gutter + its widest
-                        // ("Saving…") width, so a scrollable strip stops short of the pill
-                        // instead of running chips behind it.
-                        if (imeVisible || roamNodeSuggestionActive) SuggestionSlot(
-                            Modifier
-                                .align(Alignment.BottomStart)
-                                // Hug the bottom edge (6dp above the formatting toolbar),
-                                // same as the whole-file editor's strip: cancels 10dp of
-                                // this row's 16dp bottom padding, which the Save pill keeps.
-                                .offset(y = 10.dp)
-                                .padding(start = 16.dp, end = 100.dp),
+                    if (!slotShown) {
+                        saveButton(Modifier.align(Alignment.CenterEnd).padding(end = 16.dp))
+                    } else {
+                        SuggestionSlot(
+                            Modifier.align(Alignment.BottomStart),
+                            trailing = { saveButton(Modifier) },
                         ) {
                             // Link and block chips only while typing: with the keyboard down they'd just cover the draft.
                             val block = blockTrigger
@@ -779,29 +800,6 @@ fun CaptureEditorScreen(
                                 )
                             }
                         }
-                    }
-                    // Save floats bottom-right: above the keyboard while it's up
-                    // (the column is ime-padded), at the screen's bottom otherwise.
-                    // Stays available in Read mode too, so a metadata-only capture
-                    // (state/dates/tags set from the sheet, no further typing) can be
-                    // saved without switching back to Edit.
-                    Box(
-                        Modifier
-                            .align(Alignment.CenterEnd)
-                            .padding(end = 16.dp)
-                            .clip(RoundedCornerShape(15.dp))
-                            .background(c.accent)
-                            .clickable(enabled = saveState !is SaveState.Saving && roamAppendState !is RoamAppendState.Checking) {
-                                trySave()
-                            }
-                            .testTag("capture_save")
-                            .padding(horizontal = 22.dp, vertical = 13.dp),
-                    ) {
-                        Text(
-                            if (saveState is SaveState.Saving) "Saving…" else "Save",
-                            fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
-                            fontSize = 14.sp, color = c.accentInk,
-                        )
                     }
                 }
             }

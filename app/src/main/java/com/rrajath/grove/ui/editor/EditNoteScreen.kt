@@ -550,14 +550,14 @@ fun EditNoteScreen(
                     // The slot is there whenever the keyboard is up, chips or not and whichever
                     // providers are on. It floats over the field's own 80dp bottom clearance (so
                     // it never pushes the field's height around or covers text), end-padded clear
-                    // of the FAB's own 24dp gutter + 54dp size. Hugs the bottom edge (6dp above
-                    // the formatting toolbar) like CaptureEditorScreen's strip: cancels 10dp of
-                    // this row's 16dp bottom padding, so its top hairline reads as the strip's
-                    // border rather than floating mid-air level with the FAB.
+                    // of the FAB's own 24dp gutter + 54dp size. Sits flush on the formatting
+                    // toolbar like CaptureEditorScreen's strip: cancels this row's 16dp bottom
+                    // padding, so its top hairline reads as the strip's border rather than
+                    // floating mid-air level with the FAB.
                     if (imeVisible) SuggestionSlot(
                         Modifier
                             .align(Alignment.BottomStart)
-                            .offset(y = 10.dp)
+                            .offset(y = 16.dp)
                             .padding(end = 88.dp),
                     ) {
                         val block = blockTrigger

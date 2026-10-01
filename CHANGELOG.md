@@ -58,6 +58,7 @@ re-uploads the APKs to the existing release instead of failing.
 ## [Unreleased]
 
 ### Changed
+- Editor suggestion strip restyled: only the best match is highlighted, and Capture's Save button now fits inside the strip.
 - Releases are cut locally with scripts/release.sh, so F-Droid can reproduce the published APK.
 - versionCode is now stored in gradle.properties so F-Droid can detect new releases automatically.
 

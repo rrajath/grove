@@ -587,8 +587,8 @@ internal fun WholeFileEditorBody(
                         .fillMaxSize()
                         // Scrolls away like Read mode's top contentPadding (see EditNoteScreen).
                         .scrollAwareTopInset(scrollState, 18.dp)
-                        // With the suggestion slot below, the strip's own 8dp top padding is
-                        // the gap under the last line (matching its 8dp bottom), so no more here.
+                        // With the suggestion slot below, the space above the strip's 32dp
+                        // chips (in its 50dp height) is the gap under the last line, so no more here.
                         .padding(
                             start = 18.dp, end = 18.dp,
                             bottom = if (suggestionSlotShown) 0.dp else bottomClearance,
@@ -610,8 +610,7 @@ internal fun WholeFileEditorBody(
         // reserved (empty) while there are no chips, and even with every suggestion
         // provider off, so the text never jumps up and down as suggestions come and go.
         if (suggestionSlotShown) SuggestionSlot {
-            // 4dp start + the strip's own 14dp content padding = the text's 18dp gutter.
-            val stripModifier = Modifier.fillMaxWidth().align(Alignment.CenterStart).padding(start = 4.dp)
+            val stripModifier = Modifier.fillMaxWidth().align(Alignment.CenterStart)
             val block = blockTrigger
             if (imeVisible && block != null) {
                 BlockTemplateSuggestionStrip(
