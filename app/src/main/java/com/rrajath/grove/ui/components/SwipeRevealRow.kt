@@ -34,10 +34,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
@@ -48,6 +50,7 @@ import androidx.compose.ui.unit.sp
 import com.rrajath.grove.ui.theme.PlexSans
 import com.rrajath.grove.ui.theme.grove
 import kotlinx.coroutines.launch
+import kotlin.math.abs
 
 /**
  * One action cell behind a swipeable row (design spec Gestures screen). Glyph is a plain
@@ -178,8 +181,10 @@ fun SwipeRevealRow(
  * settles open showing both cells (primary nearest the edge, so it's revealed
  * first) for a tap, and the parent keeps at most one row open the same way,
  * via [forceClose]/[onOpenChanged]. Dragging further, past [CommitThreshold],
- * commits the primary action immediately without needing a second tap. A null
- * action on a side disables dragging that direction.
+ * commits the primary action immediately without needing a second tap; on
+ * the way there the secondary cell fades out and the whole side floods with
+ * the primary's colour ([DualCommitPanel]). A null action on a side disables
+ * dragging that direction.
  */
 @Composable
 fun SwipeCommitRow(
@@ -268,14 +273,14 @@ fun SwipeCommitRow(
     Box(modifier.clipToBounds()) {
         if (showLeftPanel && leftAction != null) {
             if (leftSecondaryAction != null) {
-                ActionPanel(listOf(leftAction, leftSecondaryAction), anchorEnd = false, shape = shape, onAction = ::close)
+                DualCommitPanel(leftAction, leftSecondaryAction, anchorEnd = false, shape = shape, offset = { offset.value }, onAction = ::close)
             } else {
                 CommitUnderlay(leftAction, anchorEnd = false, shape = shape)
             }
         }
         if (showRightPanel && rightAction != null) {
             if (rightSecondaryAction != null) {
-                ActionPanel(listOf(rightSecondaryAction, rightAction), anchorEnd = true, shape = shape, onAction = ::close)
+                DualCommitPanel(rightAction, rightSecondaryAction, anchorEnd = true, shape = shape, offset = { offset.value }, onAction = ::close)
             } else {
                 CommitUnderlay(rightAction, anchorEnd = true, shape = shape)
             }
@@ -315,11 +320,81 @@ private val CommitCap = 96.dp
 
 // Physics for a [SwipeCommitRow] side that also has a secondary action: the
 // panel settles open at two cells' width, and a drag past CommitThreshold
-// (well beyond that open width, so both cells are clearly seen first) commits
-// the primary action without a second tap.
+// (far beyond that open width, so a long swipe is a deliberate gesture)
+// commits the primary action without a second tap.
 private val DualPanelWidth = CellWidth * 2
-private val CommitThreshold = 150.dp
-private val DualCommitCap = 170.dp
+private val CommitThreshold = 300.dp
+private val DualCommitCap = 320.dp
+
+// How strong the primary's flood gets by the commit point, as an alpha on its
+// solid colour; crossing commit jumps it the rest of the way to solid.
+private const val PreCommitFloodAlpha = 0.45f
+
+/**
+ * A dual [SwipeCommitRow] side: [primary] at the edge, [secondary] beside it.
+ * From the open width to [CommitThreshold] the secondary cell fades out and
+ * the whole side (both cells and the gap behind the card) floods with the
+ * primary's colour, growing bolder; past commit, over the stretch to
+ * [DualCommitCap], it deepens to solid and the primary's icon and label turn
+ * [com.rrajath.grove.ui.theme.GroveColors.accentInk] to stay readable.
+ * [offset] is read in the draw phase, so drag frames before the commit point
+ * redraw without recomposing.
+ */
+@Composable
+private fun androidx.compose.foundation.layout.BoxScope.DualCommitPanel(
+    primary: SwipeAction,
+    secondary: SwipeAction,
+    anchorEnd: Boolean,
+    shape: Shape,
+    offset: () -> Float,
+    onAction: () -> Unit,
+) {
+    val c = MaterialTheme.grove
+    val density = LocalDensity.current
+    val openPx = with(density) { DualPanelWidth.toPx() }
+    val commitPx = with(density) { CommitThreshold.toPx() }
+    val capPx = with(density) { DualCommitCap.toPx() }
+    // 0 at the open width, 1 at the commit point.
+    fun progress() = ((abs(offset()) - openPx) / (commitPx - openPx)).coerceIn(0f, 1f)
+    // 0 at the commit point, 1 at the cap.
+    fun deepen() = ((abs(offset()) - commitPx) / (capPx - commitPx)).coerceIn(0f, 1f)
+    val primaryInk by remember(primary.fg, c.accentInk) { derivedStateOf { lerp(primary.fg, c.accentInk, deepen()) } }
+
+    Row(
+        Modifier.matchParentSize().clip(shape).drawBehind {
+            val alpha = progress() * PreCommitFloodAlpha + deepen() * (1f - PreCommitFloodAlpha)
+            if (alpha > 0f) drawRect(primary.fg.copy(alpha = primary.fg.alpha * alpha))
+        },
+        horizontalArrangement = if (anchorEnd) Arrangement.End else Arrangement.Start,
+    ) {
+        val cells = if (anchorEnd) listOf(secondary, primary) else listOf(primary, secondary)
+        cells.forEach { action ->
+            val isPrimary = action === primary
+            Column(
+                Modifier
+                    .width(CellWidth)
+                    .fillMaxHeight()
+                    // The cell's own soft fill hands over to the flood as it grows.
+                    .drawBehind { drawRect(action.bg.copy(alpha = action.bg.alpha * (1f - progress()))) }
+                    .graphicsLayer { if (!isPrimary) alpha = 1f - progress() }
+                    .clickable {
+                        onAction()
+                        action.onClick()
+                    },
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                val ink = if (isPrimary) primaryInk else action.fg
+                ActionMark(action.copy(fg = ink), iconSize = 17.dp, glyphSize = 16.sp)
+                Text(
+                    action.label,
+                    fontFamily = PlexSans, fontWeight = FontWeight.Medium,
+                    fontSize = 9.sp, color = ink,
+                )
+            }
+        }
+    }
+}
 
 /** Single full-bleed action underlay for [SwipeCommitRow], icon+label anchored near the near edge. */
 @Composable

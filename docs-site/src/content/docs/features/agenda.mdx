@@ -48,7 +48,7 @@ Swiping an Agenda row left or right triggers a configurable action: by default, 
 
 On a plain event row, the side configured as Mark as Done offers Add note instead, since there's nothing to complete. A keyword-less row with a repeater still gets the Done cell, advancing the date on swipe.
 
-Mark as Done rides with an **Add note** cell, and Schedule with a **Reveal** cell. On those sides a long swipe commits the configured action, and a shorter swipe opens the row with both cells, the configured action at the edge. **Reveal** opens the heading's notebook in [Outline View](/features/outline-view), scrolled to that heading.
+Mark as Done rides with an **Add note** cell, and Schedule with a **Reveal** cell. On those sides a long swipe commits the configured action, and a shorter swipe opens the row with both cells, the configured action at the edge. **Reveal** opens the heading's notebook in [Outline View](/features/outline-view), scrolled to that heading. A long swipe has to travel most of the row's width. As it does, the inner cell fades out and the row's background fills with the committing action's color, turning solid once releasing would fire it.
 
 <ThemeShot
   light={settingsAgendaLight}
