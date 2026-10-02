@@ -955,8 +955,8 @@ class SearchViewModel(
     }
 
     private fun toResult(meta: NoteMeta, today: LocalDate): SearchResult {
-        val (scheduledLabel, scheduledOverdue) = dateLabel(meta.scheduledDate, today)
-        val (deadlineLabel, deadlineOverdue) = dateLabel(meta.deadlineDate, today)
+        val (scheduledLabel, scheduledOverdue) = dateLabel(meta.scheduledTs, today)
+        val (deadlineLabel, deadlineOverdue) = dateLabel(meta.deadlineTs, today)
         return SearchResult(
             fileName = meta.fileName,
             lineIndex = meta.lineIndex,
@@ -979,18 +979,25 @@ class SearchViewModel(
         )
     }
 
-    private fun dateLabel(date: LocalDate?, today: LocalDate): Pair<String?, Boolean> {
-        if (date == null) return null to false
-        val n = ChronoUnit.DAYS.between(today, date)
+    /** A SCHEDULED/DEADLINE pill: the day, plus its time-of-day (and end
+     *  time) when set, like the event pills ("today 23:00"). An overdue one
+     *  reads "3d overdue" with no time: the day count is what matters. */
+    private fun dateLabel(ts: OrgTimestamp?, today: LocalDate): Pair<String?, Boolean> {
+        if (ts == null) return null to false
+        val n = ChronoUnit.DAYS.between(today, ts.date)
         val overdue = n < 0
-        val text = when {
+        val day = when {
             n == 0L -> "today"
             n == 1L -> "tomorrow"
-            overdue -> "${-n}d overdue"
-            else -> date.format(DAY_FORMAT)
+            overdue -> return "${-n}d overdue" to true
+            else -> ts.date.format(DAY_FORMAT)
         }
-        return text to overdue
+        return day + clockLabel(ts) to false
     }
+
+    /** " 14:00" or " 14:00-15:30" for a timed stamp, "" for an all-day one. */
+    private fun clockLabel(ts: OrgTimestamp): String =
+        ts.time?.let { t -> " " + t.format(CLOCK_FORMAT) + (ts.endTime?.let { "-${it.format(CLOCK_FORMAT)}" } ?: "") } ?: ""
 
     /** Every bare active timestamp as a row pill label, earliest first. Each
      *  keeps its time-of-day (and range span) when it has one, so a stamp like
@@ -1001,10 +1008,7 @@ class SearchViewModel(
             .map { ts ->
                 val start = activeDateLabel(ts.date, today)
                 val span = ts.rangeEnd?.let { "$start – ${activeDateLabel(it, today)}" } ?: start
-                val clock = ts.time?.let { t ->
-                    " " + t.format(CLOCK_FORMAT) + (ts.endTime?.let { "-${it.format(CLOCK_FORMAT)}" } ?: "")
-                } ?: ""
-                span + clock
+                span + clockLabel(ts)
             }
             .toImmutableList()
 

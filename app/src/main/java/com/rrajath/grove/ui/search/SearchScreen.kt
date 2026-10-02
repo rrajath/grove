@@ -130,7 +130,7 @@ fun SearchScreen(
     onOpenNote: (NoteRef) -> Unit,
     /** A result whose notebook file name matched the query: open that notebook's outline. */
     onOpenOutline: (fileName: String) -> Unit = {},
-    /** A heading row's "Book" swipe cell: its notebook's outline, scrolled to it. */
+    /** A heading row's "Reveal" swipe cell: its notebook's outline, scrolled to it. */
     onShowInNotebook: (NoteRef) -> Unit = {},
     /**
      * Notebook to pin the search to on entry (the Outline's search action passes
@@ -924,10 +924,12 @@ private class ResultRowActions(
 )
 
 /**
- * A heading result wrapped in its swipe actions, Agenda-style: a long swipe
- * left-to-right cycles the state and right-to-left schedules (as in the
- * Outline); a partial swipe settles open with a second cell beside it, Done
- * (open tasks only) or Book (the heading in its notebook's outline).
+ * A heading result wrapped in its swipe actions, Agenda-style. Left-to-right:
+ * a long swipe marks an open task done (Orgzly's swipe-to-done); a partial
+ * swipe settles open as [Done | State]. On a heading with nothing to complete
+ * (no keyword, or already done) State is the only action and fires on
+ * release. Right-to-left: a long swipe schedules; a partial swipe shows
+ * [Schedule | Reveal] (the heading in its notebook's outline).
  */
 @Composable
 private fun ResultSwipeRow(
@@ -942,22 +944,20 @@ private fun ResultSwipeRow(
     val bookIcon = notebookIcon()
     val canMarkDone = result.keyword != null && !result.isDone
     val forceClose by remember { derivedStateOf { !isOpen() } }
+    val state = SwipeAction("⟳", "State", c.amber, c.amberSoft) { actions.onOpenStatePicker(result) }
+    val done = SwipeAction(label = "Done", fg = c.green, bg = c.greenSoft, icon = Icons.Default.Check) {
+        actions.onMarkDone(result)
+    }
     SwipeCommitRow(
-        leftAction = SwipeAction("⟳", "State", c.amber, c.amberSoft) { actions.onOpenStatePicker(result) },
-        leftSecondaryAction = if (canMarkDone) {
-            SwipeAction(label = "Done", fg = c.green, bg = c.greenSoft, icon = Icons.Default.Check) {
-                actions.onMarkDone(result)
-            }
-        } else {
-            null
-        },
+        leftAction = if (canMarkDone) done else state,
+        leftSecondaryAction = if (canMarkDone) state else null,
         rightAction = SwipeAction(
             label = "Schedule",
             fg = c.blue,
             bg = c.blueSoft,
             icon = Icons.Outlined.CalendarMonth,
         ) { actions.onOpenSchedulePicker(result) },
-        rightSecondaryAction = SwipeAction(label = "Book", fg = c.accent, bg = c.accentSoft, icon = bookIcon) {
+        rightSecondaryAction = SwipeAction(label = "Reveal", fg = c.accent, bg = c.accentSoft, icon = bookIcon) {
             actions.onShowInNotebook(ref)
         },
         forceClose = forceClose,

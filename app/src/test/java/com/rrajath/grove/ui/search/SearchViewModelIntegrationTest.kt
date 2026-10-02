@@ -320,6 +320,34 @@ class SearchViewModelIntegrationTest {
         assertEquals(null, vm.state.value.days)
     }
 
+    @Test
+    fun `scheduled and deadline pills show the time of day when set`() = runTest {
+        val today = java.time.LocalDate.now()
+        val dow = today.dayOfWeek.getDisplayName(java.time.format.TextStyle.SHORT, java.util.Locale.ENGLISH)
+        store.write(
+            "timed.org",
+            """
+            * TODO Late call
+            SCHEDULED: <$today $dow 23:00>
+            * TODO Meeting
+            DEADLINE: <$today $dow 10:00-11:30>
+            * TODO All day
+            SCHEDULED: <$today $dow>
+            """.trimIndent() + "\n",
+        )
+        TestVaultSeeder.index(db, store)
+        advanceUntilIdle()
+        val vm = search()
+        advanceUntilIdle()
+
+        runQuery(vm, "b.timed")
+
+        val byTitle = vm.state.value.groups.flatMap { it.headings }.associateBy { it.title }
+        assertEquals("today 23:00", byTitle.getValue("Late call").scheduledLabel)
+        assertEquals("today 10:00-11:30", byTitle.getValue("Meeting").deadlineLabel)
+        assertEquals("today", byTitle.getValue("All day").scheduledLabel)
+    }
+
     // --- nested queries, it., Orgzly sort keys ---
 
     private fun kotlinx.coroutines.test.TestScope.runQuery(vm: SearchViewModel, query: String) {

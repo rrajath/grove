@@ -63,7 +63,7 @@ re-uploads the APKs to the existing release instead of failing.
 - Search accepts lowercase `and`/`or`, quoted values, `e.` events, `ps.` set priority, and Orgzly day aliases.
 - Search supports `now` and hour offsets with time-of-day matching, plus `Ny` year offsets.
 - `ad.N` searches now show results grouped by day, including events, like Orgzly's agenda.
-- Search results gain swipe cells to mark a task done or show it in its notebook.
+- Search results: long swipe right marks a task done; a Reveal cell shows it in its notebook.
 
 ### Changed
 - Date filters follow Orgzly defaults: `s.today` now includes overdue. Saved searches are migrated to keep their meaning.
@@ -76,6 +76,7 @@ re-uploads the APKs to the existing release instead of failing.
 - versionCode is now stored in gradle.properties so F-Droid can detect new releases automatically.
 
 ### Fixed
+- Search result date pills now show the scheduled or deadline time, e.g. "today 23:00".
 - In the file editor, the Backlinks bar now reaches the bottom edge of the screen, matching Read mode.
 
 ## [1.8.1] - 2026-09-29
