@@ -963,6 +963,8 @@ private fun ResultSwipeRow(
         forceClose = forceClose,
         onOpenChanged = onOpenChanged,
         onTap = { actions.onOpenNote(ref) },
+        // Agenda's row radius, so the swipe underlay and flood get rounded ends too.
+        shape = RoundedCornerShape(12.dp),
     ) {
         SearchResultRow(result, matchedTerms)
     }
