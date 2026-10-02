@@ -1,7 +1,5 @@
 package com.rrajath.grove.ui.agenda
 
-import com.rrajath.grove.org.nextRepeatOccurrence
-import com.rrajath.grove.org.markedDoneMessage
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rrajath.grove.AppDispatchers
@@ -14,6 +12,8 @@ import com.rrajath.grove.org.OrgMutations
 import com.rrajath.grove.org.OrgParser
 import com.rrajath.grove.org.OrgTimestamp
 import com.rrajath.grove.org.PlanningKind
+import com.rrajath.grove.org.markedDoneMessage
+import com.rrajath.grove.org.nextRepeatOccurrence
 import com.rrajath.grove.search.NoteMeta
 import com.rrajath.grove.settings.AgendaGrouping
 import com.rrajath.grove.settings.AgendaStateFilter

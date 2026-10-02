@@ -1,8 +1,5 @@
 package com.rrajath.grove.ui.editor
 
-import java.time.LocalDate
-import com.rrajath.grove.org.nextRepeatOccurrence
-import com.rrajath.grove.org.markedDoneMessage
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rrajath.grove.AppDispatchers
@@ -19,7 +16,9 @@ import com.rrajath.grove.org.OrgKeywords
 import com.rrajath.grove.org.OrgMutations
 import com.rrajath.grove.org.OrgParser
 import com.rrajath.grove.org.OrgTimestamp
+import com.rrajath.grove.org.markedDoneMessage
 import com.rrajath.grove.org.newOrgId
+import com.rrajath.grove.org.nextRepeatOccurrence
 import com.rrajath.grove.settings.SettingsSource
 import com.rrajath.grove.sync.SyncTrigger
 import com.rrajath.grove.vault.Vault
@@ -33,6 +32,7 @@ import com.rrajath.grove.ui.vault.headlineAtLine
 import com.rrajath.grove.ui.vault.headlineFor
 import com.rrajath.grove.vault.AutoArchive
 import com.rrajath.grove.vault.StateChangeResult
+import java.time.LocalDate
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList

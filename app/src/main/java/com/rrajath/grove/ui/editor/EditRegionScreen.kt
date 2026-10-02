@@ -69,7 +69,7 @@ import com.rrajath.grove.org.OrgParser
 import com.rrajath.grove.settings.FontSizePreference
 import com.rrajath.grove.ui.components.ReadEditToggle
 import com.rrajath.grove.ui.components.GroveTopBar
-import com.rrajath.grove.ui.components.LinkedReferencesBar
+import com.rrajath.grove.ui.components.KeyboardHiddenLinkedReferencesBar
 import com.rrajath.grove.ui.components.LinkedReferencesSheet
 import com.rrajath.grove.ui.components.ScrollJumpButtons
 import com.rrajath.grove.ui.components.rememberImeVisible
@@ -670,9 +670,12 @@ internal fun WholeFileEditorBody(
         // Hidden while the keyboard is up: the bar and the toolbar both sit at
         // the bottom of this Column, and only one of them should own that row
         // at a time -- the toolbar takes it while typing (see EditNoteScreen).
-        if (showBacklinks && isRoamFile && !imeVisible) {
-            LinkedReferencesBar(linkedCount = linkedCount, unlinkedCount = unlinkedCount, onClick = onOpenLinkedRefs)
-        }
+        KeyboardHiddenLinkedReferencesBar(
+            visible = showBacklinks && isRoamFile && !imeVisible,
+            linkedCount = linkedCount,
+            unlinkedCount = unlinkedCount,
+            onClick = onOpenLinkedRefs,
+        )
         if (imeVisible) EditorToolbar(
             onWrap = { marker -> textState.applyEdit { wrapSelection(it, marker) } },
             onInsert = { snippet -> textState.applyEdit { insertAtCursor(it, snippet) } },

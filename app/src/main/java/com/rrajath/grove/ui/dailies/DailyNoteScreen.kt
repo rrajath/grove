@@ -51,7 +51,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rrajath.grove.settings.FontSizePreference
 import com.rrajath.grove.ui.components.ReadEditToggle
 import com.rrajath.grove.ui.components.GroveTopBar
-import com.rrajath.grove.ui.components.LinkedReferencesBar
+import com.rrajath.grove.ui.components.KeyboardHiddenLinkedReferencesBar
 import com.rrajath.grove.ui.components.LinkedReferencesSheet
 import com.rrajath.grove.org.OrgTimestamp
 import com.rrajath.grove.ui.components.InsertTimestampScreen
@@ -346,13 +346,12 @@ fun DailyNoteScreen(
         },
         bottomBar = {
             val imeVisible by rememberImeVisible()
-            if (showBacklinks && isRoamFile && !imeVisible) {
-                LinkedReferencesBar(
-                    linkedCount = linkedReferences.linkedCount,
-                    unlinkedCount = linkedReferences.unlinkedCount,
-                    onClick = { linkedRefsOpen = true },
-                )
-            }
+            KeyboardHiddenLinkedReferencesBar(
+                visible = showBacklinks && isRoamFile && !imeVisible,
+                linkedCount = linkedReferences.linkedCount,
+                unlinkedCount = linkedReferences.unlinkedCount,
+                onClick = { linkedRefsOpen = true },
+            )
         },
     ) { padding ->
         val contentImeVisible by rememberImeVisible()

@@ -1,5 +1,10 @@
 package com.rrajath.grove.ui.components
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -36,6 +41,29 @@ import com.rrajath.grove.ui.util.pluralCount
  * (`ReadNoteScreen`'s Scaffold `bottomBar`) and Edit mode (above
  * `EditorToolbar`), always visible so the count is passive until wanted.
  */
+/**
+ * [LinkedReferencesBar] for the editors, where it gives its row up to the
+ * formatting toolbar while the keyboard is up. When the keyboard closes it
+ * rises from the bottom edge instead of popping in; it leaves instantly, since
+ * the toolbar is taking its place in the same frame.
+ */
+@Composable
+fun KeyboardHiddenLinkedReferencesBar(
+    visible: Boolean,
+    linkedCount: Int,
+    unlinkedCount: Int,
+    onClick: () -> Unit,
+) {
+    AnimatedVisibility(
+        visible = visible,
+        enter = expandVertically(tween(220), expandFrom = Alignment.Top) +
+            slideInVertically(tween(220)) { it },
+        exit = ExitTransition.None,
+    ) {
+        LinkedReferencesBar(linkedCount = linkedCount, unlinkedCount = unlinkedCount, onClick = onClick)
+    }
+}
+
 @Composable
 fun LinkedReferencesBar(
     linkedCount: Int,

@@ -62,7 +62,8 @@ re-uploads the APKs to the existing release instead of failing.
 
 ### Changed
 - Editor suggestion strip restyled with outlined chips; Capture's Save now fits inside it, aligned with the Read/Edit toggle.
-- While typing a note, the menu button shrinks and sits inside the suggestion strip, like Capture's Save.
+- While typing a note, the menu button smoothly shrinks into the suggestion strip, like Capture's Save.
+- The linked references bar now slides up when the keyboard closes instead of popping in.
 - Releases are cut locally with scripts/release.sh, so F-Droid can reproduce the published APK.
 - versionCode is now stored in gradle.properties so F-Droid can detect new releases automatically.
 

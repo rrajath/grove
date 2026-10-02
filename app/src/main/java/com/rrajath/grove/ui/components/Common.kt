@@ -2,6 +2,7 @@ package com.rrajath.grove.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -50,6 +51,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.unit.sp
 import com.rrajath.grove.R
 import com.rrajath.grove.settings.ThemePreference
@@ -546,34 +548,36 @@ private val FabShadowColor = Color(0x668A5A2B)
  * (typically the bottom-end of the content area).
  *
  * [compact] is the 44x36dp, 10dp-corner, shadowless variant that sits inside the
- * editor suggestion strip, sized to match Capture's Save button.
+ * editor suggestion strip, sized to match Capture's Save button. Flipping it
+ * morphs size, corners, shadow and glyph over [EditorFabMorphMillis] rather
+ * than snapping.
  */
 @Composable
 fun EditorMenuFab(onClick: () -> Unit, modifier: Modifier = Modifier, compact: Boolean = false) {
     val c = MaterialTheme.grove
-    val shape = RoundedCornerShape(if (compact) 10.dp else 18.dp)
+    val t by animateFloatAsState(if (compact) 1f else 0f, tween(EditorFabMorphMillis), label = "fabMorph")
+    val shape = RoundedCornerShape(lerp(18.dp, 10.dp, t))
     Box(
         modifier
-            .then(
-                if (compact) {
-                    Modifier.size(width = 44.dp, height = 36.dp)
-                } else {
-                    Modifier
-                        .size(54.dp)
-                        .shadow(
-                            elevation = 10.dp,
-                            shape = shape,
-                            clip = false,
-                            ambientColor = FabShadowColor,
-                            spotColor = FabShadowColor,
-                        )
-                },
+            .size(width = lerp(54.dp, EditorFabCompactWidth, t), height = lerp(54.dp, 36.dp, t))
+            .shadow(
+                elevation = lerp(10.dp, 0.dp, t),
+                shape = shape,
+                clip = false,
+                ambientColor = FabShadowColor,
+                spotColor = FabShadowColor,
             )
             .clip(shape)
             .background(c.accent)
             .clickable(onClickLabel = "Open metadata", onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Text("☰", fontFamily = PlexSans, fontSize = if (compact) 16.sp else 20.sp, color = c.accentInk)
+        Text("☰", fontFamily = PlexSans, fontSize = (20f - 4f * t).sp, color = c.accentInk)
     }
 }
+
+/** Duration of the [EditorMenuFab] morph and the layout that moves with it. */
+const val EditorFabMorphMillis = 220
+
+/** Width of the compact [EditorMenuFab]; the suggestion strip reserves this much. */
+val EditorFabCompactWidth = 44.dp

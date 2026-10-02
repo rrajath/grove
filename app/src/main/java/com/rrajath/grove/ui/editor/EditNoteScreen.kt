@@ -1,14 +1,16 @@
 package com.rrajath.grove.ui.editor
 
 import android.widget.Toast
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -19,6 +21,7 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
@@ -70,12 +73,14 @@ import com.rrajath.grove.org.OrgHeadline
 import com.rrajath.grove.org.OrgTimestamp
 import com.rrajath.grove.settings.FontSizePreference
 import com.rrajath.grove.settings.NewNoteCursor
+import com.rrajath.grove.ui.components.EditorFabCompactWidth
+import com.rrajath.grove.ui.components.EditorFabMorphMillis
 import com.rrajath.grove.ui.components.ReadEditToggle
 import com.rrajath.grove.ui.components.EditorMenuFab
 import com.rrajath.grove.ui.components.GroveTopBar
 import com.rrajath.grove.ui.components.GroveUndoSnackbar
 import com.rrajath.grove.ui.components.InsertTimestampScreen
-import com.rrajath.grove.ui.components.LinkedReferencesBar
+import com.rrajath.grove.ui.components.KeyboardHiddenLinkedReferencesBar
 import com.rrajath.grove.ui.components.LinkedReferencesSheet
 import com.rrajath.grove.ui.components.ScrollJumpButtons
 import com.rrajath.grove.ui.components.rememberImeVisible
@@ -521,32 +526,30 @@ fun EditNoteScreen(
                             .testTag("edit_note_field"),
                     )
                 }
-                // Bottom bar: the FAB column (scroll-jump buttons + menu FAB) and, while
-                // the keyboard is up, the suggestion strip, which then carries a compact
-                // menu FAB at its end instead (same as Capture's Save).
+                // Bottom bar: the scroll-jump buttons, the menu FAB and, while the keyboard
+                // is up, the suggestion strip, whose trailing slot the FAB then shrinks into
+                // (same place as Capture's Save).
+                val scrollButtonsLift by animateDpAsState(
+                    // Keyboard down: 10dp above the 54dp FAB. Up: 10dp above the strip,
+                    // whose top sits 34dp above this row (it overhangs the 16dp padding).
+                    if (imeVisible) SuggestionSlotHeight - 16.dp + 10.dp else 54.dp + 10.dp,
+                    tween(EditorFabMorphMillis),
+                    label = "scrollButtonsLift",
+                )
                 Box(
                     Modifier
                         .align(Alignment.BottomStart)
                         .fillMaxWidth()
                         .padding(bottom = 16.dp),
                 ) {
-                    Column(
-                        Modifier
+                    ScrollJumpButtons(
+                        scrollState = scrollState,
+                        minScrollDeltaPx = scrollButtonThresholdPx,
+                        // 16dp end = the end gutter, matching the Read/Edit toggle in the top bar.
+                        modifier = Modifier
                             .align(Alignment.BottomEnd)
-                            // 16dp end = the end gutter, matching the Read/Edit
-                            // toggle in the top bar. With the strip showing, the
-                            // scroll-jump buttons float 10dp above it (the strip
-                            // overhangs this row's 16dp bottom padding).
-                            .padding(end = 16.dp, bottom = if (imeVisible) SuggestionSlotHeight - 16.dp + 10.dp else 0.dp),
-                        horizontalAlignment = Alignment.End,
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        ScrollJumpButtons(
-                            scrollState = scrollState,
-                            minScrollDeltaPx = scrollButtonThresholdPx,
-                        )
-                        if (!imeVisible) EditorMenuFab(onClick = { metadataOpen = true })
-                    }
+                            .padding(end = 16.dp, bottom = scrollButtonsLift),
+                    )
                     // Suggestions only while typing: with the keyboard down they'd just cover the note.
                     // The slot is there whenever the keyboard is up, chips or not and whichever
                     // providers are on. It floats over the field's own 80dp bottom clearance (so
@@ -557,7 +560,8 @@ fun EditNoteScreen(
                         Modifier
                             .align(Alignment.BottomStart)
                             .offset(y = 16.dp),
-                        trailing = { EditorMenuFab(onClick = { metadataOpen = true }, compact = true) },
+                        // Holds the compact menu FAB's spot; the FAB itself is drawn below.
+                        trailing = { Spacer(Modifier.size(width = EditorFabCompactWidth, height = 36.dp)) },
                     ) {
                         val block = blockTrigger
                         if (block != null) {
@@ -616,6 +620,24 @@ fun EditNoteScreen(
                             )
                         }
                     }
+                    // One menu FAB for both states, drawn above the strip: it morphs between
+                    // the 54dp FAB (keyboard down) and the compact 44x36dp button centred in
+                    // the strip's trailing slot (keyboard up), rather than swapping instantly.
+                    // +9dp = the strip's 16dp overhang below this row, less the 7dp that
+                    // centres a 36dp button in the 50dp strip.
+                    val fabDrop by animateDpAsState(
+                        if (imeVisible) 16.dp - (SuggestionSlotHeight - 36.dp) / 2 else 0.dp,
+                        tween(EditorFabMorphMillis),
+                        label = "fabDrop",
+                    )
+                    EditorMenuFab(
+                        onClick = { metadataOpen = true },
+                        compact = imeVisible,
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(end = 16.dp)
+                            .offset(y = fabDrop),
+                    )
                 }
                 GroveUndoSnackbar(
                     snack = snack,
@@ -638,13 +660,12 @@ fun EditNoteScreen(
             // Hidden while the keyboard is up: the bar and the toolbar both sit at
             // the bottom of this Column, and only one of them should own that row
             // at a time -- the toolbar takes it while typing.
-            if (showBacklinks && !imeVisible) {
-                LinkedReferencesBar(
-                    linkedCount = linkedReferences.linkedCount,
-                    unlinkedCount = linkedReferences.unlinkedCount,
-                    onClick = { linkedRefsOpen = true },
-                )
-            }
+            KeyboardHiddenLinkedReferencesBar(
+                visible = showBacklinks && !imeVisible,
+                linkedCount = linkedReferences.linkedCount,
+                unlinkedCount = linkedReferences.unlinkedCount,
+                onClick = { linkedRefsOpen = true },
+            )
             if (imeVisible) EditorToolbar(
                 onWrap = { marker -> textState.applyEdit { wrapSelection(it, marker) } },
                 onInsert = { snippet -> textState.applyEdit { insertAtCursor(it, snippet) } },

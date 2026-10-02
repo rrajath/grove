@@ -1,7 +1,5 @@
 package com.rrajath.grove.ui.search
 
-import com.rrajath.grove.org.nextRepeatOccurrence
-import com.rrajath.grove.org.markedDoneMessage
 import android.database.SQLException
 import android.util.Log
 import androidx.compose.runtime.Immutable
@@ -22,6 +20,8 @@ import com.rrajath.grove.org.InlineTokenizer
 import com.rrajath.grove.org.OrgKeywords
 import com.rrajath.grove.org.OrgMutations
 import com.rrajath.grove.org.OrgTimestamp
+import com.rrajath.grove.org.markedDoneMessage
+import com.rrajath.grove.org.nextRepeatOccurrence
 import com.rrajath.grove.search.DatePresence
 import com.rrajath.grove.search.FacetNarrowing
 import com.rrajath.grove.search.FilenameMatcher
