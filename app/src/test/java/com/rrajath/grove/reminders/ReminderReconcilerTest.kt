@@ -78,6 +78,43 @@ class ReminderReconcilerTest {
     )
 
     @Test
+    fun `access-change rearm reschedules only armed future reminders`() = runTest {
+        val dao = FakeReminderDao()
+        dao.rows["future"] = entity("future", triggerAtMillis = now + 60_000L)
+        dao.rows["overdue"] = entity("overdue", triggerAtMillis = now - 1_000L)
+        dao.rows["fired"] = entity("fired", triggerAtMillis = now - 2_000L, firedAt = now - 1_500L)
+        dao.rows["pending"] = entity("pending", triggerAtMillis = now + 60_000L, pendingPermission = true)
+        val rec = Recorder()
+
+        reconciler(dao, rec).rearmFuture()
+
+        assertEquals(listOf("future"), rec.scheduled)
+        assertTrue("an access change must never fire a notification", rec.notified.isEmpty())
+        assertNull("overdue row left for catch-up", dao.rows["overdue"]!!.firedAt)
+        assertTrue("pending row left for reconcilePending", dao.rows["pending"]!!.pendingPermission)
+    }
+
+    @Test
+    fun `access-change rearm without notification permission marks future reminders pending`() = runTest {
+        val dao = FakeReminderDao()
+        dao.rows["future"] = entity("future", triggerAtMillis = now + 60_000L)
+        val rec = Recorder()
+
+        ReminderReconciler(
+            context = null,
+            dao = dao,
+            clock = { now },
+            hasPermission = { false },
+            notify = { rec.notified += it.key },
+            scheduleAlarm = { rec.scheduled += it.key },
+            cancelAlarm = { rec.cancelled += it.key },
+        ).rearmFuture()
+
+        assertTrue(rec.scheduled.isEmpty())
+        assertTrue(dao.rows["future"]!!.pendingPermission)
+    }
+
+    @Test
     fun `boot rearm does not re-fire an already-fired overdue reminder`() = runTest {
         val dao = FakeReminderDao()
         dao.rows["k"] = entity("k", triggerAtMillis = 1_000L, firedAt = 1_500L)

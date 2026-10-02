@@ -83,6 +83,7 @@ re-uploads the APKs to the existing release instead of failing.
 - In the file editor, the Backlinks bar now reaches the bottom edge of the screen, matching Read mode.
 - The note and Capture editors no longer leave a blank gap above the suggestion strip.
 - Search's Operators card now has matching top and bottom padding.
+- Reminders switch to exact timing once Alarms & reminders access is granted, instead of staying up to an hour late.
 
 ## [1.8.1] - 2026-09-29
 

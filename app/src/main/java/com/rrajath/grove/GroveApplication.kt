@@ -14,6 +14,8 @@ import com.rrajath.grove.data.RoomNoteIndex
 import com.rrajath.grove.icon.AppIconManager
 import com.rrajath.grove.icon.NotificationAppearance
 import com.rrajath.grove.org.OrgKeywords
+import com.rrajath.grove.reminders.AlarmScheduler
+import com.rrajath.grove.reminders.ExactAlarmAccessWatcher
 import com.rrajath.grove.reminders.ReminderDigestScheduler
 import com.rrajath.grove.reminders.ReminderReconciler
 import com.rrajath.grove.search.SearchRepository
@@ -118,6 +120,21 @@ open class GroveApplication : Application() {
 
     val reminderReconciler: ReminderReconciler by lazy {
         ReminderReconciler(this, database.reminderDao())
+    }
+
+    val exactAlarmAccessWatcher: ExactAlarmAccessWatcher by lazy {
+        ExactAlarmAccessWatcher(
+            canScheduleExact = { AlarmScheduler.canScheduleExactAlarms(this) },
+            lastKnown = { settingsRepository.settings.first().exactAlarmAccessLastKnown },
+            storeLastKnown = { settingsRepository.setExactAlarmAccessLastKnown(it) },
+            rearm = {
+                reminderReconciler.rearmFuture()
+                val settings = settingsRepository.settings.first()
+                if (settings.remindersEnabled && settings.morningBriefEnabled) {
+                    ReminderDigestScheduler.scheduleNext(this, settings.defaultReminderTime)
+                }
+            },
+        )
     }
 
     // Coalesces bursts of onSyncCompleted calls (e.g. a run of outline swipes,
@@ -370,6 +387,7 @@ open class GroveApplication : Application() {
             )
             reminderReconciler.catchUpOverdue()
             reminderReconciler.reconcilePending()
+            exactAlarmAccessWatcher.check()
         }
 
         appScope.launch {
@@ -450,6 +468,9 @@ open class GroveApplication : Application() {
                 appScope.launch {
                     syncManager.onAppForeground(settingsRepository.settings.first().syncMode)
                 }
+                // Back from system Settings (or anywhere) with exact-alarm access
+                // changed: re-arm so existing alarms switch exact/inexact.
+                appScope.launch { exactAlarmAccessWatcher.check() }
             }
 
             override fun onStop(owner: LifecycleOwner) {

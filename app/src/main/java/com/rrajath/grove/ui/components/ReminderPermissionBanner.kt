@@ -53,9 +53,16 @@ fun ReminderPermissionBanner(pendingCount: Int, modifier: Modifier = Modifier) {
         ActivityResultContracts.RequestPermission()
     ) { reconcile() }
 
+    // reconcilePending() only touches pending rows; the watcher also moves
+    // already-armed alarms onto the exact path once access is granted.
     val exactAlarmSettings = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
-    ) { reconcile() }
+    ) {
+        scope.launch {
+            app.reminderReconciler.reconcilePending()
+            app.exactAlarmAccessWatcher.check()
+        }
+    }
 
     Row(
         modifier

@@ -127,6 +127,20 @@ class ReminderReconciler(
         dao.all().forEach { arm(it) }
     }
 
+    /**
+     * Exact-alarm access changed: re-arm every still-future reminder so its alarm
+     * moves to the path [AlarmScheduler.schedule] now picks (exact once granted;
+     * inexact after a revoke, which has already made the OS cancel the exact ones).
+     * Overdue rows are left to [catchUpOverdue] and permission-pending rows to
+     * [reconcilePending], so this never fires a notification.
+     */
+    suspend fun rearmFuture() {
+        val now = clock()
+        dao.all()
+            .filter { !it.pendingPermission && it.triggerAtMillis > now }
+            .forEach { arm(it) }
+    }
+
     private suspend fun applyPlan(plan: ReminderPlan) {
         plan.toCancel.forEach { entity ->
             cancelAlarm(entity)

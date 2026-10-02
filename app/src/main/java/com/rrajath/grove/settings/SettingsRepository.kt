@@ -89,6 +89,13 @@ data class GroveSettings(
      * longer show. Device-specific, like [newBadgeBaseline] — not exported.
      */
     val seenNewFeatures: Set<String> = emptySet(),
+    /**
+     * Exact-alarm access ("Alarms & reminders") as last seen by
+     * [com.rrajath.grove.reminders.ExactAlarmAccessWatcher]; null until the first check.
+     * A difference from the live value means every future reminder's alarm must be
+     * re-armed. Device-specific, like [onboardingDone]: not exported.
+     */
+    val exactAlarmAccessLastKnown: Boolean? = null,
     /** Persisted SAF tree URI of the sync folder; null until the user picks one. */
     val vaultTreeUri: String? = null,
     val syncMode: SyncMode = SyncMode.ON_OPEN_CLOSE,
@@ -309,6 +316,7 @@ class SettingsRepository(
         val lastSeenChangelogBuild = intPreferencesKey("last_seen_changelog_build")
         val newBadgeBaseline = intPreferencesKey("new_badge_baseline")
         val seenNewFeatures = stringPreferencesKey("seen_new_features")
+        val exactAlarmAccessLastKnown = booleanPreferencesKey("exact_alarm_access_last_known")
         val vaultTreeUri = stringPreferencesKey("vault_tree_uri")
         val syncMode = stringPreferencesKey("sync_mode")
         val periodicSyncMinutes = intPreferencesKey("periodic_sync_minutes")
@@ -411,6 +419,7 @@ class SettingsRepository(
             lastSeenChangelogBuild = prefs[Keys.lastSeenChangelogBuild],
             newBadgeBaseline = prefs[Keys.newBadgeBaseline],
             seenNewFeatures = decodeStringSet(prefs[Keys.seenNewFeatures]),
+            exactAlarmAccessLastKnown = prefs[Keys.exactAlarmAccessLastKnown],
             vaultTreeUri = prefs[Keys.vaultTreeUri],
             syncMode = SyncMode.fromStorage(prefs[Keys.syncMode]),
             periodicSyncMinutes = prefs[Keys.periodicSyncMinutes] ?: 30,
@@ -667,6 +676,10 @@ class SettingsRepository(
 
     suspend fun setLastSeenChangelogBuild(build: Int) {
         context.settingsDataStore.edit { it[Keys.lastSeenChangelogBuild] = build }
+    }
+
+    suspend fun setExactAlarmAccessLastKnown(granted: Boolean) {
+        context.settingsDataStore.edit { it[Keys.exactAlarmAccessLastKnown] = granted }
     }
 
     /**
