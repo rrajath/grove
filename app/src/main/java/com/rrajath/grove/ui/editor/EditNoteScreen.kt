@@ -80,8 +80,6 @@ import com.rrajath.grove.ui.components.EditorMenuFab
 import com.rrajath.grove.ui.components.GroveTopBar
 import com.rrajath.grove.ui.components.GroveUndoSnackbar
 import com.rrajath.grove.ui.components.InsertTimestampScreen
-import com.rrajath.grove.ui.components.KeyboardHiddenLinkedReferencesBar
-import com.rrajath.grove.ui.components.LinkedReferencesSheet
 import com.rrajath.grove.ui.components.ScrollJumpButtons
 import com.rrajath.grove.ui.components.rememberImeVisible
 import com.rrajath.grove.ui.screens.IconGlyph
@@ -109,8 +107,6 @@ fun EditNoteScreen(
     noteRef: NoteRef,
     onBack: () -> Unit,
     onSwitchToRead: () -> Unit,
-    /** A Linked References row was tapped: same dirty-buffer confirmation as [onBack], then navigates there instead of back. */
-    onOpenNote: (NoteRef) -> Unit = {},
     /** True when the note was just created (e.g. via the outline + button). */
     isNewNote: Boolean = false,
     /**
@@ -123,8 +119,6 @@ fun EditNoteScreen(
     editModeFontSize: FontSizePreference = FontSizePreference.MEDIUM,
     /** Settings § Notes: caret placement for a freshly created note (only used when [isNewNote]). */
     newNoteCursor: NewNoteCursor = NewNoteCursor.BODY,
-    /** Settings § Roam Features (experimental): show the Linked References bar (backlinks). */
-    showBacklinks: Boolean = false,
     /** Settings § Roam Features (experimental) suggestions
      *  ([com.rrajath.grove.settings.GroveSettings.roamSuggestionsActive]): gates the Roam
      *  providers (file/heading link chips, roam-node chips) only. The suggestion strip slot
@@ -145,8 +139,6 @@ fun EditNoteScreen(
     val snack by viewModel.snack.collectAsStateWithLifecycle()
     val textState = rememberTextFieldState()
     var metadataOpen by remember { mutableStateOf(false) }
-    var linkedRefsOpen by remember { mutableStateOf(false) }
-    val linkedReferences by viewModel.linkedReferences.collectAsStateWithLifecycle()
     var timestampPickerOpen by remember { mutableStateOf(false) }
     var confirmLeave by remember { mutableStateOf(false) }
     var confirmDiscardBlankHeading by remember { mutableStateOf(false) }
@@ -250,11 +242,6 @@ fun EditNoteScreen(
         }
     }
 
-    // Non-null while confirmLeave/confirmDiscardBlankHeading is up because of
-    // openNote() (a Linked References row) rather than the back button: the
-    // dialogs' confirm actions land here instead of onBack() once resolved.
-    var pendingOpenNote by remember { mutableStateOf<NoteRef?>(null) }
-
     fun leave() {
         when {
             // A blank heading can't be saved, so leaving always means discarding
@@ -266,21 +253,6 @@ fun EditNoteScreen(
         }
     }
     androidx.activity.compose.BackHandler { leave() }
-
-    /** Same dirty/blank-heading guard as [leave], landing on [ref] instead of back. */
-    fun openNote(ref: NoteRef) {
-        when {
-            isNewNote && viewModel.isCurrentHeadingBlank() -> {
-                pendingOpenNote = ref
-                confirmDiscardBlankHeading = true
-            }
-            state.dirty -> {
-                pendingOpenNote = ref
-                confirmLeave = true
-            }
-            else -> onOpenNote(ref)
-        }
-    }
 
     // Refile is a disk-level move-between-files operation; the editor only holds an in-memory
     // buffer until Save. A dedicated DocumentViewModel drives the refile picker itself (that
@@ -657,15 +629,6 @@ fun EditNoteScreen(
                     modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 16.dp),
                 )
             }
-            // Hidden while the keyboard is up: the bar and the toolbar both sit at
-            // the bottom of this Column, and only one of them should own that row
-            // at a time -- the toolbar takes it while typing.
-            KeyboardHiddenLinkedReferencesBar(
-                visible = showBacklinks && !imeVisible,
-                linkedCount = linkedReferences.linkedCount,
-                unlinkedCount = linkedReferences.unlinkedCount,
-                onClick = { linkedRefsOpen = true },
-            )
             if (imeVisible) EditorToolbar(
                 onWrap = { marker -> textState.applyEdit { wrapSelection(it, marker) } },
                 onInsert = { snippet -> textState.applyEdit { insertAtCursor(it, snippet) } },
@@ -811,15 +774,13 @@ fun EditNoteScreen(
         UnsavedNoteDialog(
             onSave = {
                 confirmLeave = false
-                val target = pendingOpenNote.also { pendingOpenNote = null }
-                trySave(onSaved = { if (target != null) onOpenNote(target) else onBack() })
+                trySave(onSaved = onBack)
             },
             onDiscard = {
                 confirmLeave = false
-                val target = pendingOpenNote.also { pendingOpenNote = null }
-                if (target != null) onOpenNote(target) else onBack()
+                onBack()
             },
-            onDismiss = { confirmLeave = false; pendingOpenNote = null },
+            onDismiss = { confirmLeave = false },
         )
     }
 
@@ -827,28 +788,14 @@ fun EditNoteScreen(
         DiscardBlankHeadingDialog(
             onDiscard = {
                 confirmDiscardBlankHeading = false
-                val target = pendingOpenNote.also { pendingOpenNote = null }
-                viewModel.deleteSubtree(onDeleted = { if (target != null) onOpenNote(target) else onBack() })
+                viewModel.deleteSubtree(onDeleted = onBack)
             },
-            onKeepEditing = { confirmDiscardBlankHeading = false; pendingOpenNote = null },
+            onKeepEditing = { confirmDiscardBlankHeading = false },
         )
     }
 
     if (showEmptyHeadingAlert) {
         EmptyHeadingAlertDialog(onDismiss = { showEmptyHeadingAlert = false })
-    }
-
-    if (linkedRefsOpen) {
-        val title = remember(state.buffer, state.keywords) { viewModel.currentHeadline?.title }.orEmpty()
-        LinkedReferencesSheet(
-            title = title,
-            result = linkedReferences,
-            onOpenReference = { fileName, lineIndex, id ->
-                linkedRefsOpen = false
-                openNote(NoteRef(fileName, lineIndex, id))
-            },
-            onDismiss = { linkedRefsOpen = false },
-        )
     }
 }
 

@@ -15,7 +15,7 @@ import kotlinx.coroutines.withContext
 private const val OUTLINE_QUERY_CHUNK = 500
 
 /**
- * Backlinks/mentions for the Linked References bar+sheet, shared by
+ * Backlinks/mentions for the Backlinks bar+sheet, shared by
  * [DocumentViewModel] and `EditorViewModel`. Each [load] cancels the one before
  * it, so a slow scan for an old target can't land after (and overwrite) a newer one.
  */
@@ -39,7 +39,7 @@ class LinkedReferencesLoader(
     fun load(fileName: String, lineIndex: Int, targetId: String?, title: String) {
         job?.cancel()
         job = scope.launch {
-            // A vault-wide body scan that only the Linked References bar uses: skip it
+            // A vault-wide body scan that only the Backlinks bar uses: skip it
             // entirely while that bar can't show.
             if (!settings.settings.first().roamBacklinksActive) {
                 _result.value = LinkedReferencesResult.EMPTY

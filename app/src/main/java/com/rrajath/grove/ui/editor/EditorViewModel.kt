@@ -140,7 +140,7 @@ class EditorViewModel(
     val snack: StateFlow<OutlineSnack?> = _snack
     private var eventId = 0L
 
-    /** Backlinks/mentions for the Linked References bar+sheet; refreshed by [loadLinkedReferences]. */
+    /** Backlinks/mentions for the Backlinks bar+sheet; refreshed by [loadLinkedReferences]. */
     private val linkedRefs = LinkedReferencesLoader(viewModelScope, database, settings, dispatchers)
     val linkedReferences: StateFlow<LinkedReferencesResult> = linkedRefs.result
 
@@ -148,7 +148,7 @@ class EditorViewModel(
     fun loadLinkedReferences(fileName: String, lineIndex: Int, targetId: String?, title: String) =
         linkedRefs.load(fileName, lineIndex, targetId, title)
 
-    /** Empties Linked References (and cancels a pending load) for a target whose bar can't show. */
+    /** Empties Backlinks (and cancels a pending load) for a target whose bar can't show. */
     fun clearLinkedReferences() = linkedRefs.clear()
 
     /** Everything needed to put the buffer back where [changeKeyword]'s auto-archive found it. */
@@ -252,7 +252,6 @@ class EditorViewModel(
                 keywords = keywords.value,
                 allTags = tags,
             )
-            loadLinkedReferences(ref.fileName, headline.lineIndex, headline.id, headline.title)
         }
     }
 

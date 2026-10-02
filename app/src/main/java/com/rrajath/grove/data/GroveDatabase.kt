@@ -346,7 +346,7 @@ abstract class IndexDao {
 
     /**
      * Every note whose own body text contains [needle] as a literal substring
-     * (case-insensitive) -- the candidate set the Linked References sheet
+     * (case-insensitive) -- the candidate set the Backlinks sheet
      * scans for `[[id:…]]` backlinks and plain-text title mentions. LIKE
      * rather than an FTS `MATCH`: a needle like `id:AB12` or a short title
      * isn't a safe FTS token, and the `notes` table is small enough (a

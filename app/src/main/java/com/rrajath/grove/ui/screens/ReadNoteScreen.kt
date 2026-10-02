@@ -105,8 +105,6 @@ import com.rrajath.grove.ui.components.FavoriteStar
 import com.rrajath.grove.ui.components.GroveToast
 import com.rrajath.grove.ui.components.GroveTopBar
 import com.rrajath.grove.ui.components.GroveUndoSnackbar
-import com.rrajath.grove.ui.components.LinkedReferencesBar
-import com.rrajath.grove.ui.components.LinkedReferencesSheet
 import com.rrajath.grove.ui.editor.MetadataSheet
 import com.rrajath.grove.ui.components.OrgTableView
 import com.rrajath.grove.ui.components.Pill
@@ -172,8 +170,6 @@ fun ReadNoteScreen(
     onOpenBlock: (fileName: String, line: Int) -> Unit = { _, _ -> },
     /** Settings toggle: show collapsible sections for `:PROPERTIES:`/`:LOGBOOK:` drawers. */
     showPropertyDrawers: Boolean = true,
-    /** Settings § Roam Features (experimental): show the Linked References bar (backlinks). */
-    showBacklinks: Boolean = false,
     /** Settings § Notes: font-size lever for the rendered note. App chrome is unaffected. */
     readModeFontSize: FontSizePreference = FontSizePreference.MEDIUM,
     /** Favorited headlines in this file, matched per-heading by customId, marked with a ★. */
@@ -217,8 +213,6 @@ fun ReadNoteScreen(
         { target -> viewModel.openOrgLink(target, noteRef.fileName, onOpenNote, onOpenOutline) }
     }
     var metadataOpen by remember { mutableStateOf(false) }
-    var linkedRefsOpen by remember { mutableStateOf(false) }
-    val linkedReferences by viewModel.linkedReferences.collectAsStateWithLifecycle()
     // Set on a completed move (refileConfirm/refileToArchive/refileToLastUsed), not a plain
     // cancel/back-out. The move itself (file write + the "Refiled to X" snack) runs async in
     // viewModel.viewModelScope *after* `refile` is already nulled out to close the sheet, so
@@ -241,21 +235,6 @@ fun ReadNoteScreen(
         }
     }
     val currentHeadline = (state as? DocumentUiState.Loaded)?.document?.headlineFor(noteRef)
-    // Keyed on the target's identity, not the document: a checkbox tap or keyword change
-    // re-parses the file but can't change what links here.
-    val linkedRefsTarget: Triple<Int, String?, String>? = (state as? DocumentUiState.Loaded)?.document?.let { doc ->
-        if (noteRef.isIntro) {
-            val introTitle = doc.preambleKeywords.firstOrNull { it.first.equals("#+TITLE:", ignoreCase = true) }
-                ?.second ?: noteRef.fileName.removeSuffix(".org")
-            Triple(noteRef.lineIndex, doc.fileId, introTitle)
-        } else {
-            currentHeadline?.let { Triple(it.lineIndex, it.id, it.title) }
-        }
-    }
-    LaunchedEffect(noteRef.fileName, linkedRefsTarget) {
-        val (lineIndex, targetId, title) = linkedRefsTarget ?: return@LaunchedEffect
-        viewModel.loadLinkedReferences(noteRef.fileName, lineIndex, targetId, title)
-    }
     // Reload whenever the screen comes back to the foreground (e.g. returning
     // from the editor) so saved edits show immediately. The ON_RESUME right
     // after this screen enters composition is skipped: the LaunchedEffect
@@ -330,15 +309,6 @@ fun ReadNoteScreen(
                     }
                 },
             )
-        },
-        bottomBar = {
-            if (showBacklinks && state is DocumentUiState.Loaded) {
-                LinkedReferencesBar(
-                    linkedCount = linkedReferences.linkedCount,
-                    unlinkedCount = linkedReferences.unlinkedCount,
-                    onClick = { linkedRefsOpen = true },
-                )
-            }
         },
     ) { padding ->
         Box(Modifier.fillMaxSize().testTag("read_note_screen")) {
@@ -558,25 +528,6 @@ fun ReadNoteScreen(
             onConfirm = { refileAwaitingLeave = true; viewModel.refileConfirm() },
             onArchive = { refileAwaitingLeave = true; viewModel.refileToArchive() },
             onPickLastUsed = { refileAwaitingLeave = true; viewModel.refileToLastUsed() },
-        )
-    }
-
-    if (linkedRefsOpen) {
-        val title = if (noteRef.isIntro) {
-            (state as? DocumentUiState.Loaded)?.document
-                ?.preambleKeywords?.firstOrNull { it.first.equals("#+TITLE:", ignoreCase = true) }
-                ?.second ?: noteRef.fileName.removeSuffix(".org")
-        } else {
-            currentHeadline?.title.orEmpty()
-        }
-        LinkedReferencesSheet(
-            title = title,
-            result = linkedReferences,
-            onOpenReference = { fileName, lineIndex, id ->
-                linkedRefsOpen = false
-                onOpenNote(NoteRef(fileName, lineIndex, id))
-            },
-            onDismiss = { linkedRefsOpen = false },
         )
     }
 }

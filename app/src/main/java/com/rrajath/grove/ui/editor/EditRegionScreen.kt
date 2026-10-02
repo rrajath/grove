@@ -176,7 +176,7 @@ fun EditRegionScreen(
      */
     onSwitchToRead: (() -> Unit)? = null,
     /**
-     * Settings § Roam Features (experimental): show the Linked References bar
+     * Settings § Roam Features (experimental): show the Backlinks bar
      * (backlinks). Only wired for [EditRegion.WHOLE_FILE], and only ever
      * renders for a roam file (one with a file-level `:ID:`).
      */
@@ -189,7 +189,7 @@ fun EditRegionScreen(
      * editor while the keyboard is up; the other region editors have no strip.
      */
     roamSuggestionsEnabled: Boolean = false,
-    /** [EditRegion.WHOLE_FILE] only: the Linked References sheet's "open" action. */
+    /** [EditRegion.WHOLE_FILE] only: the Backlinks sheet's "open" action. */
     onOpenNote: (NoteRef) -> Unit = {},
     viewModel: EditorViewModel = viewModel(factory = EditorViewModel.Factory),
 ) {
@@ -200,7 +200,7 @@ fun EditRegionScreen(
     val label = if (region == EditRegion.BLOCK) blockLabelFromBuffer(state.buffer) else regionLabel(region)
     val textState = rememberTextFieldState()
     var confirmLeave by remember { mutableStateOf(false) }
-    // Set when a Linked References tap needs to navigate away from a dirty
+    // Set when a Backlinks tap needs to navigate away from a dirty
     // buffer; the leave-confirm dialog below routes there instead of onBack.
     var pendingOpenNote by remember { mutableStateOf<NoteRef?>(null) }
     // Whole-file editor only: (fileId, title) parsed once the buffer first
@@ -482,7 +482,7 @@ fun EditRegionScreen(
 
 /**
  * The whole-file editor's content area (text field, toolbar, stale-file banner,
- * scroll jump buttons, auto-link suggestions, Linked References bar) -- everything
+ * scroll jump buttons, auto-link suggestions, Backlinks bar) -- everything
  * [EditRegionScreen] puts inside its `Scaffold`'s content padding, minus the
  * `Scaffold`/`GroveTopBar` wrapper itself. Shared with `com.rrajath.grove.ui.dailies.DailyNoteScreen`,
  * which supplies its own top bar around the same body.

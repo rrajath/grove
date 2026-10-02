@@ -37,9 +37,9 @@ The app version is shown at the bottom of the hub screen.
 
 ## Roam Features (experimental)
 
-Roam Features are currently available only in debug builds. Release builds hide this page and treat every Roam feature as off: Dailies, Linked References, link suggestions, and roam node templates.
+Roam Features are currently available only in debug builds. Release builds hide this page and treat every Roam feature as off: Dailies, Backlinks, link suggestions, and roam node templates.
 
-An opt-in page, badged **Experimental** in the hub, for features that are still settling: the Linked References bar (backlinks), inline auto-link suggestions while typing, and **Open roam files directly in read mode**. A master toggle enables the feature area; the sub-toggles then choose which of them are active, each also requiring the master toggle to be on. Backlinks and typing-suggestions default off; **Open roam files directly in read mode** defaults on.
+An opt-in page, badged **Experimental** in the hub, for features that are still settling: the Backlinks bar, inline auto-link suggestions while typing, and **Open roam files directly in read mode**. A master toggle enables the feature area; the sub-toggles then choose which of them are active, each also requiring the master toggle to be on. Backlinks and typing-suggestions default off; **Open roam files directly in read mode** defaults on.
 
 Turning a feature off also stops its background work, not just its UI: with backlinks off, Grove never scans the vault for references when you open a note, and with typing suggestions off, editors don't load the file and heading list used for suggestions. The search index is unaffected, since search, the agenda, and link following use it too.
 
@@ -49,7 +49,7 @@ Suggestion strips only appear while the keyboard is up; lowering the keyboard hi
 
 The master toggle also gates the capture-template editor's **New node file** type — see [Roam node templates](/features/capture-templates#roam-node-templates-experimental).
 
-The Linked References bar only ever appears for an org-roam file (one with a file-level `:ID:`) — in the outline, in Read mode and in Edit mode — and only when **Show backlinks** is on. It never appears for a file without a file-level `:ID:`.
+The Backlinks bar only ever appears for an org-roam file (one with a file-level `:ID:`) — in its outline, its whole-file Read and Edit views, and Dailies — and only when **Show backlinks** is on. It never appears for a file without a file-level `:ID:`. It also doesn't appear on a single heading opened from the outline.
 
 **Open roam files directly in read mode** is a separate lever: it only decides whether opening a notebook lands on the outline or skips straight to the whole file. It's for org-roam style vaults, where most files are short and have few or no headings. With it on, opening an org-roam notebook of up to 1,000 lines (from the Notebooks list, a `[[file:]]` link or a search file match) skips the outline and lands on the whole file as a single Read/Edit note, in your default note mode. Larger notebooks, and non-roam notebooks, keep opening in the outline, where the same whole-file view is available from the `⋮` menu's **View file** (see [Outline View](/features/outline-view#viewing-the-whole-file)). Turning it off sends roam files back through the outline too, regardless of size.
 

@@ -688,7 +688,7 @@ class DocumentViewModel(
     private val _allTags = MutableStateFlow<List<String>>(emptyList())
     val allTags: StateFlow<List<String>> = _allTags
 
-    /** Backlinks/mentions for the Linked References bar+sheet; refreshed by [loadLinkedReferences]. */
+    /** Backlinks/mentions for the Backlinks bar+sheet; refreshed by [loadLinkedReferences]. */
     private val linkedRefs = LinkedReferencesLoader(viewModelScope, database, settingsRepository, dispatchers)
     val linkedReferences: StateFlow<LinkedReferencesResult> = linkedRefs.result
 
@@ -696,7 +696,7 @@ class DocumentViewModel(
     fun loadLinkedReferences(fileName: String, lineIndex: Int, targetId: String?, title: String) =
         linkedRefs.load(fileName, lineIndex, targetId, title)
 
-    /** Empties Linked References (and cancels a pending load) for a target whose bar can't show. */
+    /** Empties Backlinks (and cancels a pending load) for a target whose bar can't show. */
     fun clearLinkedReferences() = linkedRefs.clear()
 
     /**

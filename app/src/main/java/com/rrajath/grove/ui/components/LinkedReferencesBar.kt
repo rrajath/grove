@@ -35,11 +35,11 @@ import com.rrajath.grove.ui.theme.grove
 import com.rrajath.grove.ui.util.pluralCount
 
 /**
- * Collapsed "linked references" bar (design: Roam Links.dc.html, variant 1a):
+ * Collapsed "Backlinks" bar (design: Roam Links.dc.html, variant 1a):
  * a persistent row above the note's own bottom chrome. Tapping it opens the
- * full [LinkedReferencesSheet] (variant 1b). Shown in both Read mode
- * (`ReadNoteScreen`'s Scaffold `bottomBar`) and Edit mode (above
- * `EditorToolbar`), always visible so the count is passive until wanted.
+ * full [LinkedReferencesSheet] (variant 1b). Roam files only (file-level :ID:):
+ * the Outline, the whole-file Read view (`ReadFileScreen`), the whole-file
+ * editor and Dailies. Never on a single heading opened from the Outline.
  */
 /**
  * [LinkedReferencesBar] for the editors, where it gives its row up to the
@@ -112,7 +112,7 @@ fun LinkedReferencesBar(
             }
             Spacer(Modifier.width(11.dp))
             Text(
-                pluralCount(linkedCount, "linked reference"),
+                pluralCount(linkedCount, "backlink"),
                 fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
                 fontSize = 14.5.sp, color = c.ink,
                 modifier = Modifier.weight(1f),

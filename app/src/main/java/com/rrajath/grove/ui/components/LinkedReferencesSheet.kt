@@ -92,7 +92,7 @@ fun LinkedReferencesSheet(
                 Spacer(Modifier.height(14.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                     ReferenceTab(
-                        label = "Linked ${result.linkedCount}",
+                        label = "Backlinks ${result.linkedCount}",
                         selected = tab == 0,
                         onClick = { tab = 0 },
                     )
@@ -112,7 +112,7 @@ fun LinkedReferencesSheet(
                     if (result.linkedByFile.isEmpty()) {
                         item {
                             Text(
-                                "No linked references yet",
+                                "No backlinks yet",
                                 fontFamily = PlexSans, fontSize = 13.5.sp, color = c.ink3,
                                 modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp),
                             )

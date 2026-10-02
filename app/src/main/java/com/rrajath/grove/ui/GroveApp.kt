@@ -761,11 +761,9 @@ private fun GroveNavigation(
                             initialCursorLine = editTargetLine,
                             editModeFontSize = settings.editModeFontSize,
                             newNoteCursor = settings.newNoteCursor,
-                            showBacklinks = settings.roamFeaturesEnabled && settings.roamShowBacklinks,
                             roamSuggestionsEnabled = settings.roamSuggestionsActive,
                             onBack = leaveNote,
                             onSwitchToRead = { editTargetLine = null; mode = "read" },
-                            onOpenNote = { target -> navController.navigate(Routes.note(target.encode())) },
                             viewModel = editorViewModel,
                         )
                     } else {
@@ -807,7 +805,6 @@ private fun GroveNavigation(
                                 navController.navigate(Routes.block(fileName, line))
                             },
                             showPropertyDrawers = settings.showPropertyDrawers,
-                            showBacklinks = settings.roamFeaturesEnabled && settings.roamShowBacklinks,
                             readModeFontSize = settings.readModeFontSize,
                             favorites = remember(favorites, ref.fileName) { favoritesFor(favorites, ref.fileName) },
                             // The intro just got a blank heading (a metadata action

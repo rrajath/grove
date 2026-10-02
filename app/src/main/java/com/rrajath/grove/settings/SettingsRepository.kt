@@ -243,7 +243,7 @@ data class GroveSettings(
      * while this is off, regardless of their own stored value.
      */
     val roamFeaturesEnabled: Boolean = false,
-    /** Roam Features sub-toggle: show the Linked References bar (backlinks) in Outline/Read/Edit. */
+    /** Roam Features sub-toggle: show the Backlinks bar in Outline/Read/Edit. */
     val roamShowBacklinks: Boolean = false,
     /** Roam Features sub-toggle: show file/heading link suggestions while typing in Edit mode. */
     val roamShowSuggestions: Boolean = false,
@@ -270,7 +270,7 @@ data class GroveSettings(
     val pinnedFolders: List<String>
         get() = pinnedItems.filter { it.kind == PinKind.FOLDER }.map { it.path }
 
-    /** Backlinks are both enabled and visible; the Linked References scan runs only then. */
+    /** Backlinks are both enabled and visible; the backlinks scan runs only then. */
     val roamBacklinksActive: Boolean
         get() = roamFeaturesEnabled && roamShowBacklinks
 

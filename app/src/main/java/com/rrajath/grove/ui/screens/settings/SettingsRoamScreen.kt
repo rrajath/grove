@@ -33,7 +33,7 @@ import kotlinx.coroutines.delay
 
 /**
  * Settings § Roam Features (experimental): a master toggle plus three sub-toggles
- * for the Linked References bar (backlinks), inline auto-link suggestions, and
+ * for the Backlinks bar, inline auto-link suggestions, and
  * opening small files as one note. Every sub-toggle is gated on
  * [GroveSettings.roamFeaturesEnabled] as well as its own stored value — see call
  * sites in `GroveApp` (all `settings.roamFeaturesEnabled && settings.roamX`).
@@ -105,7 +105,7 @@ fun SettingsRoamScreen(
             ToggleRow(
                 label = "Roam Features",
                 checked = settings.roamFeaturesEnabled,
-                description = "Adds backlinks (a Linked References bar showing notes that reference " +
+                description = "Adds backlinks (a Backlinks bar showing notes that reference " +
                     "this one) and auto suggestions for files or headings as you type.",
                 onToggle = onSetRoamFeaturesEnabled,
             )
@@ -114,7 +114,7 @@ fun SettingsRoamScreen(
                 ToggleRow(
                     label = "Show backlinks",
                     checked = settings.roamShowBacklinks,
-                    description = "Show the Linked References bar in Outline, Read, and Edit mode.",
+                    description = "Show the Backlinks bar on roam files (file-level ID) in the Outline and the whole-file Read and Edit views.",
                     onToggle = onSetRoamShowBacklinks,
                 )
                 RowDivider()

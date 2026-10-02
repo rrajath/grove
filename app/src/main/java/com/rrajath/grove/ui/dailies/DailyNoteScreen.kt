@@ -209,7 +209,7 @@ fun DailyNoteScreen(
             documentViewModel.load(n.fileName)
         }
     }
-    // Linked References needs the document's real fileId/title, so it can only
+    // Backlinks needs the document's real fileId/title, so it can only
     // fire once the document has actually loaded -- not eagerly alongside the
     // load() call above (which would race with a null fileId/empty title).
     // Keyed on (fileName, fileId, title), not the document: every save reloads a new
@@ -564,7 +564,7 @@ fun DailyNoteScreen(
                             editorViewModel.loadRegion(n.fileName, null, EditRegion.WHOLE_FILE)
                         },
                         editModeFontSize = editModeFontSize,
-                        showBacklinks = false, // this screen's own bottom bar owns Linked References (Task 17)
+                        showBacklinks = false, // this screen's own bottom bar owns Backlinks (Task 17)
                         isRoamFile = false,
                         linkedCount = 0,
                         unlinkedCount = 0,

@@ -161,7 +161,7 @@ fun OutlineScreen(
      */
     showPropertyDrawers: Boolean = true,
     /**
-     * Settings § Roam Features (experimental): show the Linked References bar
+     * Settings § Roam Features (experimental): show the Backlinks bar
      * (backlinks). Only ever renders for a roam file (one with a file-level
      * `:ID:`) -- this toggle alone doesn't force it on for a non-roam file.
      */
@@ -226,7 +226,7 @@ fun OutlineScreen(
         return
     }
 
-    // Whole-file linked references, independent of any narrow -- narrowing to a
+    // Whole-file backlinks, independent of any narrow -- narrowing to a
     // subtree doesn't change which file's backlinks/mentions are being shown.
     val linkedReferences by viewModel.linkedReferences.collectAsStateWithLifecycle()
     var linkedRefsOpen by remember { mutableStateOf(false) }

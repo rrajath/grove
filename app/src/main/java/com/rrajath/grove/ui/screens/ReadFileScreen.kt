@@ -80,7 +80,7 @@ import com.rrajath.grove.ui.vault.NoteRef
  * Deliberately has no `☰` metadata FAB: those actions are heading-scoped. The
  * Read/Edit toggle switches to the whole-file editor (`EditRegionScreen` with
  * `EditRegion.WHOLE_FILE`). Large files open with foldable headings folded, like
- * note Read mode. The Linked References bar (backlinks) shows at the bottom for
+ * note Read mode. The Backlinks bar (backlinks) shows at the bottom for
  * roam files when Settings § Roam Features' "Show backlinks" is on.
  */
 @Composable
@@ -101,7 +101,7 @@ fun ReadFileScreen(
     /** Settings toggle: show collapsible sections for `:PROPERTIES:`/`:LOGBOOK:` drawers. */
     showPropertyDrawers: Boolean = true,
     /**
-     * Settings § Roam Features (experimental): show the Linked References bar
+     * Settings § Roam Features (experimental): show the Backlinks bar
      * (backlinks). Only ever renders for a roam file (one with a file-level
      * `:ID:`, i.e. `document.fileId != null`) -- this toggle alone doesn't
      * force it on for a non-roam file.
