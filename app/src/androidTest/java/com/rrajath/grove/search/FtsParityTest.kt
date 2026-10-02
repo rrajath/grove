@@ -115,6 +115,40 @@ class FtsParityTest {
     @Test fun bareOperatorWord() = assertParity("NEAR", expectHits = true)
     @Test fun hyphenPrefixedTerm() = assertParity("well-known", expectHits = true)
 
+    // --- nesting, AND, it., comparisons (flattened before narrowing) ---
+
+    @Test fun orNestedInsideAnd() = assertParity("meeting (i.TODO OR i.IN-PROGRESS)", expectHits = true)
+    @Test fun twoLevelsOfNesting() = assertParity("t.home (it.todo OR (it.none café))", expectHits = true)
+    @Test fun explicitAnd() = assertParity("meeting AND roadmap", expectHits = true)
+    @Test fun bracketsAttachedToWords() = assertParity("(meeting)OR(plumber)", expectHits = true)
+    @Test fun unclosedBracket() = assertParity("meeting (plumber OR roadmap", expectHits = true)
+    @Test fun strayClosingBracket() = assertParity("meeting) roadmap", expectHits = true)
+    @Test fun negatedGroup() = assertParity(".(t.work OR t.home)", expectHits = true)
+    @Test fun negatedGroupBesideText() = assertParity("meeting .(i.DONE OR p.A)", expectHits = true)
+    @Test fun negatedNestedGroup() = assertParity(".(t.work (i.TODO OR p.A))", expectHits = true)
+    @Test fun shortTermInsideANestedBranch() = assertParity("t.work (meeting OR of)", expectHits = true)
+    @Test fun facetOnlyNestedBranchBesideText() = assertParity("meeting OR (i.TODO t.home)", expectHits = true)
+    @Test fun nonAsciiInsideANestedBranch() = assertParity("t.home (задача OR café)", expectHits = true)
+    @Test fun tooLargeToFlatten() =
+        assertParity((1..7).joinToString(" ") { "(meeting OR absent$it)" }, expectHits = true)
+
+    @Test fun itTodo() = assertParity("it.todo", expectHits = true)
+    @Test fun itDone() = assertParity("it.done", expectHits = true)
+    @Test fun itNone() = assertParity("it.none", expectHits = true)
+    @Test fun negatedIt() = assertParity("t.work .it.done", expectHits = true)
+
+    @Test fun scheduledOnOrBeforeToday() = assertParity("s.le.today", expectHits = true)
+    @Test fun deadlineAfterToday() = assertParity("d.gt.today", expectHits = true)
+    @Test fun closedExactlyThreeDaysAgo() = assertParity("c.eq.3d", expectHits = true)
+    @Test fun createdWithinAMonth() = assertParity("cr.ge.1m", expectHits = true)
+    @Test fun eventOnOrAfterToday() = assertParity("a.ge.today", expectHits = true)
+    @Test fun eventBeforeToday() = assertParity("a.lt.today")
+    @Test fun comparisonAgainstNoDay() = assertParity("s.eq.none")
+    @Test fun comparisonInsideNesting() =
+        assertParity("t.work (it.todo OR (it.done c.ge.1w))", expectHits = true)
+
+    @Test fun orgzlySortKeys() = assertParity("it.todo o.st .o.p o.t", expectHits = true)
+
     /**
      * The filter-chip half of the pushdown. The chips are applied in Kotlin
      * either way, so the check is that the SQL never withholds a row the Kotlin
@@ -231,6 +265,9 @@ class FtsParityTest {
                 A draft chapter about meetings, NEAR the end.
                 * Заметка :home:
                 Это задача на завтра.
+                * Dentist appointment :home:
+                <2026-07-30 Thu 10:00>
+                Bring the insurance card.
             """.trimIndent(),
 
             "long.org" to """

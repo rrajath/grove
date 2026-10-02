@@ -197,6 +197,57 @@ class QueryParserTest {
     }
 
     @Test
+    fun `sort and agenda modifiers inside brackets stay global`() {
+        val q = QueryParser.parse("(o.t t.x) OR (t.y .o.p ad.3)")
+        assertEquals(listOf("t.x", "t.y"), q.groupStrings())
+        assertEquals(listOf(SortKey(SortField.TITLE), SortKey(SortField.PRIORITY, descending = true)), q.sortBy)
+        assertEquals(3, q.agendaDays)
+    }
+
+    @Test
+    fun `a group holding only modifiers contributes no branch`() {
+        // Otherwise "t.x OR (o.p)" would gain an empty, match-everything group.
+        assertEquals(listOf("t.x"), QueryParser.parse("t.x OR (o.p)").groupStrings())
+    }
+
+    @Test
+    fun `deep nesting flattens correctly`() {
+        val q = QueryParser.parse("a (b (c (d OR e)))")
+        assertEquals(listOf("a b c d", "a b c e"), q.groupStrings())
+    }
+
+    @Test
+    fun `odd inputs parse without crashing`() {
+        assertTrue(QueryParser.parse("AND").isEmpty)
+        assertTrue(QueryParser.parse("OR OR").isEmpty)
+        assertTrue(QueryParser.parse(".(").isEmpty)
+        assertTrue(QueryParser.parse(")))(((").isEmpty)
+        assertEquals(listOf("a", "b"), QueryParser.parse("a AND OR b").groupStrings())
+        assertEquals(listOf("a b"), QueryParser.parse("AND a AND b AND").groupStrings())
+        // A lone "." is text, and ". (a)" (with a space) is not a group negation.
+        assertEquals(listOf(". a"), QueryParser.parse(". (a)").groupStrings())
+        // ".." before a bracket isn't the negation marker either.
+        assertEquals(listOf(".. a"), QueryParser.parse("..(a)").groupStrings())
+    }
+
+    @Test
+    fun `malformed comparisons fall back to plain periods`() {
+        assertEquals(Condition.Scheduled(Period("eq.")), QueryParser.parse("s.eq.").groups[0][0].condition)
+        assertEquals(Condition.Scheduled(Period("foo.today")), QueryParser.parse("s.foo.today").groups[0][0].condition)
+        assertEquals(Condition.Scheduled(Period("today", CompareOp.LE)), QueryParser.parse("s.LE.today").groups[0][0].condition)
+        // With an operator, none/nodate/overdue aren't the special window tokens.
+        val p = Period.parse("eq.none")
+        assertFalse(p.isNoDate)
+        assertFalse(Period.parse("le.overdue").isOverdue)
+    }
+
+    @Test
+    fun `text terms come from the tree without duplicates from distribution`() {
+        val q = QueryParser.parse("milk (eggs OR bread) .cheese")
+        assertEquals(listOf("milk", "eggs", "bread"), q.textTerms)
+    }
+
+    @Test
     fun `words containing dots stay text`() {
         val q = QueryParser.parse("file.org v1.2")
         assertEquals(

@@ -250,4 +250,75 @@ class SearchViewModelIntegrationTest {
         assertTrue(store.read("projects.org").contains("DONE Tag the release"))
         assertTrue(sync.reindexCalls.any { it.reason == "search state set" })
     }
+
+    // --- nested queries, it., Orgzly sort keys ---
+
+    private fun kotlinx.coroutines.test.TestScope.runQuery(vm: SearchViewModel, query: String) {
+        vm.onQueryChange(query)
+        advanceTimeBy(400)
+        advanceUntilIdle()
+    }
+
+    @Test
+    fun `o st sorts by the configured keyword order, not the default`() = runTest {
+        // Indexing still uses the default set (so done-ness is unchanged); only
+        // the order the view model hands to the sort differs.
+        keywords.value = OrgKeywords.parse("IN-PROGRESS TODO | CANCELLED DONE")
+        TestVaultSeeder.index(db, store)
+        advanceUntilIdle()
+        val vm = search()
+        advanceUntilIdle()
+
+        runQuery(vm, "b.projects o.st")
+
+        val states = vm.state.value.groups.flatMap { g -> g.headings.map { it.keyword } }
+        assertEquals(
+            listOf("IN-PROGRESS", "TODO", "TODO", "TODO", "TODO", "TODO", "CANCELLED", "DONE"),
+            states,
+        )
+    }
+
+    @Test
+    fun `reversed state sort with it filters through the whole pipeline`() = runTest {
+        TestVaultSeeder.index(db, store)
+        advanceUntilIdle()
+        val vm = search()
+        advanceUntilIdle()
+
+        runQuery(vm, "b.projects (it.done OR i.IN-PROGRESS) .o.st")
+
+        val titles = vm.state.value.groups.flatMap { g -> g.headings.map { it.title } }
+        // Default order is TODO IN-PROGRESS | DONE CANCELLED, reversed here.
+        assertEquals(listOf("Drop the widget rewrite", "Cut the changelog", "Write the store listing"), titles)
+    }
+
+    @Test
+    fun `a nested query shows the snippet for the branch that matched`() = runTest {
+        TestVaultSeeder.index(db, store)
+        advanceUntilIdle()
+        val vm = search()
+        advanceUntilIdle()
+
+        runQuery(vm, "b.reading-list (photosynthesis OR nomatchanywhere)")
+
+        val rows = vm.state.value.groups.flatMap { it.rows }
+        assertEquals(1, rows.size)
+        val text = rows.single() as SearchRow.Text
+        assertEquals(headlineLine("reading-list.org", "How leaves work"), text.lineIndex)
+        assertTrue(text.snippet.contains("photosynthesis"))
+        assertEquals(listOf("photosynthesis", "nomatchanywhere"), vm.state.value.matchedTerms)
+    }
+
+    @Test
+    fun `a negated group excludes matching notes`() = runTest {
+        TestVaultSeeder.index(db, store)
+        advanceUntilIdle()
+        val vm = search()
+        advanceUntilIdle()
+
+        runQuery(vm, "b.projects .(it.done OR i.TODO)")
+
+        val titles = vm.state.value.groups.flatMap { g -> g.headings.map { it.title } }
+        assertEquals(listOf("Write the store listing"), titles)
+    }
 }

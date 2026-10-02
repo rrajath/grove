@@ -333,4 +333,142 @@ class QueryMatcherTest {
         assertEquals(listOf("gamma", "beta", "Alpha"), run(".o.t", c, a, none))
         assertEquals(listOf("beta", "gamma", "Alpha"), run(".o.book", c, none, a))
     }
+
+    // --- matcher edge cases ---
+
+    @Test
+    fun `comparisons on deadline and created`() {
+        val soon = note("Soon", deadline = "<2025-06-12 Thu>", created = "[2025-06-10 Tue]")
+        val far = note("Far", deadline = "<2025-07-01 Tue>", created = "[2025-05-01 Thu]")
+        val none = note("None")
+        assertEquals(listOf("Far"), run("d.gt.1w", soon, far, none))
+        assertEquals(listOf("Soon"), run("d.eq.tomorrow", soon, far, none))
+        assertEquals(listOf("Soon"), run("cr.ge.1w", soon, far, none))
+        assertEquals(listOf("Far"), run("cr.lt.1m", soon, far, none))
+        // An explicit + on a past prefix counts forward instead.
+        assertEquals(listOf("Soon", "Far"), run("cr.le.+0d", soon, far, none))
+    }
+
+    @Test
+    fun `event comparisons match when any event day passes`() {
+        val two = note("Two", active = "<2025-06-01 Sun> <2025-06-20 Fri>")
+        val ranged = note("Ranged", active = "<2025-06-10 Tue>--<2025-06-12 Thu>")
+        val none = note("None")
+        assertEquals(listOf("Two"), run("a.lt.-5d", two, ranged, none))
+        assertEquals(listOf("Two", "Ranged"), run("a.ge.today", two, ranged, none))
+        // A ranged event contributes every day it spans, so today matches eq.
+        assertEquals(listOf("Ranged"), run("a.eq.today", two, ranged, none))
+        // ne passes when at least one day differs, which a two-event note always has.
+        assertEquals(listOf("Two", "Ranged"), run("a.ne.today", two, ranged, none))
+        assertEquals(emptyList<String>(), run("a.eq.overdue", two, ranged, none))
+    }
+
+    @Test
+    fun `negated it`() {
+        val todo = note("T", keyword = "TODO")
+        val done = note("D", keyword = "DONE", done = true)
+        val none = note("N")
+        assertEquals(listOf("T", "N"), run(".it.done", todo, done, none))
+        assertEquals(listOf("T", "D"), run(".it.none", todo, done, none))
+    }
+
+    @Test
+    fun `negating a nested group applies De Morgan at every level`() {
+        // .(t.aa (t.bb OR t.cc)) excludes only notes with aa AND (bb OR cc).
+        val ab = note("ab", tags = listOf("aa", "bb"))
+        val ac = note("ac", tags = listOf("aa", "cc"))
+        val a = note("a", tags = listOf("aa"))
+        val bc = note("bc", tags = listOf("bb", "cc"))
+        val none = note("none")
+        assertEquals(listOf("a", "bc", "none"), run(".(t.aa (t.bb OR t.cc))", ab, ac, a, bc, none))
+    }
+
+    @Test
+    fun `agenda window still applies to a nested query`() {
+        val inWindow = note("In", tags = listOf("xx"), scheduled = "<2025-06-13 Fri>")
+        val unscheduled = note("Unscheduled", tags = listOf("xx"))
+        val otherTag = note("Other", tags = listOf("zz"), scheduled = "<2025-06-12 Thu>")
+        assertEquals(listOf("In"), run("ad.7 (t.xx OR t.yy)", inWindow, unscheduled, otherTag))
+    }
+
+    @Test
+    fun `satisfiedGroups reports only the branches a note matched`() {
+        val milkEggs = note("milk eggs")
+        val q = QueryParser.parse("milk (eggs OR bread)")
+        val groups = QueryMatcher.satisfiedGroups(milkEggs, q, today)
+        assertEquals(1, groups.size)
+        assertEquals(listOf("milk", "eggs"), groups.single().textTerms())
+    }
+
+    // --- sort edge cases ---
+
+    @Test
+    fun `date sorts order by time of day within a date`() {
+        val untimed = note("untimed", scheduled = "<2025-06-12 Thu>", deadline = "<2025-06-12 Thu>",
+            closed = "[2025-06-10 Tue]", created = "[2025-06-10 Tue]")
+        val morning = note("morning", scheduled = "<2025-06-12 Thu 09:00>", deadline = "<2025-06-12 Thu 09:00>",
+            closed = "[2025-06-10 Tue 09:00]", created = "[2025-06-10 Tue 09:00]")
+        val evening = note("evening", scheduled = "<2025-06-12 Thu 18:30>", deadline = "<2025-06-12 Thu 18:30>",
+            closed = "[2025-06-10 Tue 18:30]", created = "[2025-06-10 Tue 18:30]")
+        for (key in listOf("s", "d", "c", "cr")) {
+            assertEquals(key, listOf("untimed", "morning", "evening"), run("o.$key", evening, untimed, morning))
+            assertEquals(key, listOf("evening", "morning", "untimed"), run(".o.$key", morning, evening, untimed))
+        }
+    }
+
+    @Test
+    fun `reversed date sorts still put missing dates last`() {
+        val early = note("early", scheduled = "<2025-06-01 Sun>", deadline = "<2025-06-01 Sun>",
+            closed = "[2025-06-01 Sun]", created = "[2025-06-01 Sun]", active = "<2025-06-01 Sun>")
+        val late = note("late", scheduled = "<2025-06-20 Fri>", deadline = "<2025-06-20 Fri>",
+            closed = "[2025-06-20 Fri]", created = "[2025-06-20 Fri]", active = "<2025-06-20 Fri>")
+        val none = note("none")
+        for (key in listOf("s", "d", "c", "cr", "e")) {
+            assertEquals(key, listOf("early", "late", "none"), run("o.$key", none, late, early))
+            assertEquals(key, listOf("late", "early", "none"), run(".o.$key", none, early, late))
+        }
+    }
+
+    @Test
+    fun `later sort keys break ties left by earlier ones`() {
+        val aTodo = note("aTodo", priority = "A", keyword = "TODO")
+        val aDone = note("aDone", priority = "A", keyword = "DONE", done = true)
+        val bTodo = note("bTodo", priority = "B", keyword = "TODO")
+        val order = listOf("TODO", "DONE")
+        fun sorted(q: String) =
+            QueryMatcher.filter(listOf(bTodo, aDone, aTodo), QueryParser.parse(q), today, order).map { it.title }
+        assertEquals(listOf("aTodo", "aDone", "bTodo"), sorted("o.p o.st"))
+        assertEquals(listOf("aDone", "aTodo", "bTodo"), sorted("o.p .o.st"))
+        assertEquals(listOf("aTodo", "bTodo", "aDone"), sorted("o.st o.p"))
+    }
+
+    @Test
+    fun `state sort is case-insensitive and puts unconfigured keywords after configured ones`() {
+        val todo = note("todo", keyword = "todo")
+        val waiting = note("waiting", keyword = "WAITING")
+        val done = note("done", keyword = "DONE", done = true)
+        val none = note("none")
+        val order = listOf("TODO", "DONE")
+        fun sorted(q: String) =
+            QueryMatcher.filter(listOf(none, waiting, done, todo), QueryParser.parse(q), today, order).map { it.title }
+        assertEquals(listOf("todo", "done", "waiting", "none"), sorted("o.st"))
+        assertEquals(listOf("waiting", "done", "todo", "none"), sorted(".o.st"))
+    }
+
+    @Test
+    fun `state sort with no configured order keeps keyworded notes ahead of none`() {
+        val todo = note("todo", keyword = "TODO")
+        val none = note("none")
+        assertEquals(listOf("todo", "none"), run("o.st", none, todo))
+    }
+
+    // --- odd inputs ---
+
+    @Test
+    fun `malformed comparisons and unknown operators match nothing`() {
+        val n = note("n", scheduled = "<2025-06-11 Wed>")
+        for (q in listOf("s.eq.", "s.foo.today", "s.le.nodate", "s.eq.3x")) {
+            assertEquals(q, emptyList<String>(), run(q, n))
+        }
+    }
 }

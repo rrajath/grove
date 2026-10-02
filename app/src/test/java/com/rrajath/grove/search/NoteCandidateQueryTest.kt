@@ -115,6 +115,94 @@ class NoteCandidateQueryTest {
         assertTrue(sql.isFullScan)
     }
 
+    // --- it., comparisons, nesting ---
+
+    @Test
+    fun `it none becomes a null check`() {
+        assertTrue(build("it.none").sql.contains("(keyword IS NULL)"))
+    }
+
+    @Test
+    fun `it todo and it done only require a keyword`() {
+        // Done-ness isn't a column predicate; "has a keyword" is a superset of both.
+        for (q in listOf("it.todo", "it.done")) {
+            val sql = build(q)
+            assertTrue(q, sql.sql.contains("(keyword IS NOT NULL)"))
+            assertTrue(q, sql.args.isEmpty())
+        }
+    }
+
+    @Test
+    fun `comparisons only require the timestamp to exist`() {
+        assertTrue(build("s.le.today").sql.contains("scheduled IS NOT NULL"))
+        assertTrue(build("d.gt.1w").sql.contains("deadline IS NOT NULL"))
+        assertTrue(build("a.eq.tomorrow").sql.contains("activeTimestamps IS NOT NULL"))
+        assertTrue(build("c.eq.today").sql.contains("closed IS NOT NULL"))
+        assertTrue(build("cr.ge.-1m").sql.contains("createdAt IS NOT NULL"))
+    }
+
+    @Test
+    fun `comparing against none or nodate still requires presence`() {
+        // With an operator "none" is not the absence marker; it names no day,
+        // so the matcher rejects every row and requiring presence stays a superset.
+        assertTrue(build("s.eq.none").sql.contains("scheduled IS NOT NULL"))
+        assertFalse(build("s.eq.none").sql.contains("scheduled IS NULL"))
+    }
+
+    @Test
+    fun `nested query pushes down its flattened groups`() {
+        val sql = build("p.A (i.TODO OR i.NEXT)")
+        assertTrue(
+            sql.sql,
+            sql.sql.contains(
+                "((priority = ? COLLATE NOCASE AND keyword = ? COLLATE NOCASE) OR " +
+                    "(priority = ? COLLATE NOCASE AND keyword = ? COLLATE NOCASE))",
+            ),
+        )
+        assertEquals(listOf("A", "TODO", "A", "NEXT"), sql.args)
+    }
+
+    @Test
+    fun `negated group pushes nothing down`() {
+        // .(i.TODO OR p.A) flattens to .i.TODO .p.A: all negated, so nothing narrows.
+        assertTrue(build(".(i.TODO OR p.A)").isFullScan)
+    }
+
+    @Test
+    fun `negated group beside a positive term keeps the positive one`() {
+        val sql = build("t.work .(i.DONE OR p.C)")
+        assertTrue(sql.sql.contains("inheritedTags LIKE ?"))
+        assertFalse(sql.sql.contains("keyword"))
+        assertFalse(sql.sql.contains("priority"))
+    }
+
+    @Test
+    fun `a nested branch with nothing pushable drops the whole query predicate`() {
+        val sql = build("i.TODO OR (hi lo)")
+        assertFalse(sql.sql.contains("keyword"))
+        assertTrue(sql.isFullScan)
+    }
+
+    @Test
+    fun `a term ANDed onto a nested OR narrows every branch`() {
+        // Distribution copies p.A into the "hi" branch, so that branch still
+        // narrows even though "hi" itself can't.
+        val sql = build("p.A (i.TODO OR hi)")
+        assertTrue(
+            sql.sql,
+            sql.sql.contains(
+                "((priority = ? COLLATE NOCASE AND keyword = ? COLLATE NOCASE) OR (priority = ? COLLATE NOCASE))",
+            ),
+        )
+        assertEquals(listOf("A", "TODO", "A"), sql.args)
+    }
+
+    @Test
+    fun `a query too large to flatten adds no query predicate`() {
+        val sql = build((1..7).joinToString(" ") { "(i.TODO$it OR p.$it)" })
+        assertTrue(sql.isFullScan)
+    }
+
     @Test
     fun `negated terms are never pushed down`() {
         // .i.TODO excludes rows; leaving it out keeps the candidate set a superset.
