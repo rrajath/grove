@@ -52,7 +52,7 @@ Facet prefixes:
 
 ### Dates
 
-A date filter is `PREFIX.TIME` or `PREFIX.OP.TIME`. TIME is one day: `today` (or `tod`, `now`), `tomorrow` (or `tom`, `tmrw`), `yesterday`, an offset like `3d`, `2w`, `1m` (negative counts back: `-1w` is a week ago), or a date like `2026-10-01`. OP is one of `eq`, `ne`, `lt`, `le`, `gt`, `ge`.
+A date filter is `PREFIX.TIME` or `PREFIX.OP.TIME`. TIME is one day: `today` (or `tod`), `tomorrow` (or `tom`, `tmrw`), `yesterday`, an offset like `3d`, `2w`, `1m`, `1y` (negative counts back: `-1w` is a week ago), or a date like `2026-10-01`. TIME can also be a moment: `now`, or an hour offset like `2h` or `-3h`. OP is one of `eq`, `ne`, `lt`, `le`, `gt`, `ge`.
 
 Without an OP, Grove follows Orgzly's defaults:
 
@@ -63,6 +63,8 @@ Without an OP, Grove follows Orgzly's defaults:
 
 More examples: `s.eq.today` (exactly today), `c.ge.-1w` (closed in the last week), `e.ge.today` (events from today on), `d.gt.1w` (deadline more than a week out).
 
+Against a moment, a timed heading is compared at its time, so `e.ge.now` hides this morning's finished meetings and `d.2h` lists what's due in the next two hours (or overdue). An entry with no time covers its whole day, so today's all-day events and untimed tasks still match `now`.
+
 Two extras take no OP: `overdue` (before today) and `none` (also `no` or `nodate`: no such date at all), e.g. `d.overdue`, `.s.none`.
 
 Searches you saved before this change keep their old meaning: they're rewritten once, so a saved `s.today` becomes `s.eq.today`.
@@ -70,6 +72,8 @@ Searches you saved before this change keep their old meaning: they're rewritten 
 ### Sorting
 
 `o.PROP` sorts the results; `.o.PROP` reverses the order. Several sort keys apply in order. Headings without the property always go last.
+
+Without `o.`, a search with words in it ranks the best title matches first. A filters-only search (like `i.todo t.work`) follows Orgzly's order: notebook, then priority, then scheduled or deadline time when the query filters on `s.` or `d.`, then position in the notebook.
 
 | Property | Order by |
 |---|---|
@@ -89,7 +93,7 @@ As you type, matches highlight inline and results group by notebook under collap
 
 Each result is one of two kinds:
 
-- **Heading**: a heading whose title contains the search words, or one picked by a filter such as `i.TODO` or `s.today`. It shows its TODO keyword, priority, title, dates, and tags.
+- **Heading**: a heading whose title or own tags contain the search words (as in Orgzly, `phone` also finds a heading tagged `:phone:`), or one picked by a filter such as `i.TODO` or `s.today`. It shows its TODO keyword, priority, title, dates, and tags.
 - **Text match**: a line of body text that contains every search word, shown with up to 10 words of context on each side. Words that appear again inside that window stay in the same snippet; matches further apart get their own. Tapping one opens the heading it sits under (or the whole file, for text before the first heading).
 
 A file that matches only through a file-level setting, such as a `#+filetags:` tag, shows a single file row instead of its text.

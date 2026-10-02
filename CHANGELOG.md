@@ -61,9 +61,11 @@ re-uploads the APKs to the existing release instead of failing.
 - Marking a recurring task done now shows its next occurrence date in the snackbar.
 - Search supports nested brackets, `.( … )` negation, `AND`, `it.` keyword types, date comparisons, and Orgzly sort keys.
 - Search accepts lowercase `and`/`or`, quoted values, `e.` events, `ps.` set priority, and Orgzly day aliases.
+- Search supports `now` and hour offsets with time-of-day matching, plus `Ny` year offsets.
 
 ### Changed
 - Date filters follow Orgzly defaults: `s.today` now includes overdue. Saved searches are migrated to keep their meaning.
+- Plain search text also matches a heading's own tags; filter-only searches sort by notebook, priority, then date.
 - Editor suggestion strip restyled with outlined chips; Capture's Save now fits inside it, aligned with the Read/Edit toggle.
 - While typing a note, the menu button smoothly shrinks into the suggestion strip, like Capture's Save.
 - The Backlinks bar now slides up when the keyboard closes instead of popping in.

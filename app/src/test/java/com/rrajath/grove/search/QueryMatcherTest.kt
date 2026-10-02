@@ -4,6 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDate
+import java.time.LocalDateTime
 
 class QueryMatcherTest {
 
@@ -24,8 +25,9 @@ class QueryMatcherTest {
         created: String? = null,
         body: String = "",
         modified: Long = 0L,
+        line: Int = 0,
     ) = NoteMeta(
-        fileName, 0, title, keyword, done, priority, tags, inherited,
+        fileName, line, title, keyword, done, priority, tags, inherited,
         scheduled, deadline, closed, active, created, modified, "$title\n$body",
     )
 
@@ -539,5 +541,117 @@ class QueryMatcherTest {
         val n = note("N", fileName = "My Notebook.org")
         val other = note("O", fileName = "My.org")
         assertEquals(listOf("N"), run("b.\"My Notebook\"", n, other))
+    }
+
+    // --- P2: moments, h/y units, text in tags, default order ---
+
+    private val tenThirty = LocalDateTime.of(2025, 6, 11, 10, 30)
+
+    private fun runAt(now: LocalDateTime, query: String, vararg notes: NoteMeta): List<String> =
+        QueryMatcher.filter(notes.toList(), QueryParser.parse(query), now.toLocalDate(), now = now).map { it.title }
+
+    @Test
+    fun `now compares the time of day of timed entries`() {
+        val early = note("Early", scheduled = "<2025-06-11 Wed 09:00>")
+        val late = note("Late", scheduled = "<2025-06-11 Wed 14:00>")
+        assertEquals(listOf("Late"), runAt(tenThirty, "s.ge.now", early, late))
+        assertEquals(listOf("Early"), runAt(tenThirty, "s.now", early, late))
+        assertEquals(listOf("Early"), runAt(tenThirty, "s.lt.now", early, late))
+    }
+
+    @Test
+    fun `an untimed entry covers its whole day against now`() {
+        val allDay = note("All day", active = "<2025-06-11 Wed>")
+        val yesterday = note("Yesterday", active = "<2025-06-10 Tue>")
+        assertEquals(listOf("All day"), runAt(tenThirty, "e.ge.now", allDay, yesterday))
+        assertEquals(listOf("All day"), runAt(tenThirty, "e.now", allDay, yesterday))
+        assertEquals(listOf("All day", "Yesterday"), runAt(tenThirty, "e.le.now", allDay, yesterday))
+        val untimedTask = note("Task", scheduled = "<2025-06-11 Wed>")
+        assertEquals(listOf("Task"), runAt(tenThirty, "s.le.now", untimedTask))
+        assertEquals(listOf("Task"), runAt(tenThirty, "s.ge.now", untimedTask))
+    }
+
+    @Test
+    fun `an event with an end time is still on while it runs`() {
+        val meeting = note("Meeting", active = "<2025-06-11 Wed 10:00-11:00>")
+        val over = note("Standup", active = "<2025-06-11 Wed 09:00-09:15>")
+        assertEquals(listOf("Meeting"), runAt(tenThirty, "e.ge.now", meeting, over))
+    }
+
+    @Test
+    fun `hour offsets count from now in both directions`() {
+        val soon = note("Soon", deadline = "<2025-06-11 Wed 12:00>")
+        val later = note("Later", deadline = "<2025-06-11 Wed 15:00>")
+        val past = note("Past", closed = "[2025-06-11 Wed 09:00]")
+        // d. defaults to le: due within the next two hours (or earlier).
+        assertEquals(listOf("Soon"), runAt(tenThirty, "d.2h", soon, later))
+        assertEquals(listOf("Soon", "Later"), runAt(tenThirty, "d.le.5h", soon, later))
+        assertEquals(listOf("Past"), runAt(tenThirty, "c.ge.-2h", past))
+        assertEquals(emptyList<String>(), runAt(tenThirty, "c.ge.-1h", past))
+    }
+
+    @Test
+    fun `year offsets`() {
+        val nextYear = note("Next year", scheduled = "<2026-03-01 Sun>")
+        val far = note("Far", scheduled = "<2027-06-12 Sat>")
+        assertEquals(listOf("Next year"), run("s.1y", nextYear, far))
+        assertEquals(listOf("Far"), run("s.gt.1y", nextYear, far))
+        val old = note("Old", created = "[2023-01-01 Sun]")
+        assertEquals(listOf("Old"), run("cr.le.-2y", old))
+    }
+
+    @Test
+    fun `plain text also matches own tags but not inherited ones`() {
+        val tagged = note("Call Bob", tags = listOf("phone"))
+        val child = note("Child", tags = emptyList(), inherited = listOf("phone"))
+        val plain = note("Nothing")
+        assertEquals(listOf("Call Bob"), run("phone", tagged, child, plain))
+        assertEquals(listOf("Call Bob"), run("pho", tagged, child, plain))
+        assertEquals(listOf("Child", "Nothing"), run(".phone", tagged, child, plain))
+    }
+
+    @Test
+    fun `filter-only queries order by notebook, priority, then position`() {
+        val a = note("A", fileName = "b.org", line = 1)
+        val b = note("B", fileName = "a.org", line = 5, priority = "C")
+        val c = note("C", fileName = "a.org", line = 9, priority = "A")
+        val d = note("D", fileName = "a.org", line = 2)
+        val e = note("E", fileName = "a.org", line = 1)
+        assertEquals(listOf("C", "B", "E", "D", "A"), run("i.none", a, b, c, d, e))
+    }
+
+    @Test
+    fun `default order counts unprioritized notes at the default priority`() {
+        val none = note("None", line = 1)
+        val a = note("A", line = 2, priority = "A")
+        val c = note("C", line = 3, priority = "C")
+        val sorted = QueryMatcher.filter(
+            listOf(c, none, a), QueryParser.parse("i.none"), today, MatchOptions(defaultPriority = "B"),
+        ).map { it.title }
+        assertEquals(listOf("A", "None", "C"), sorted)
+    }
+
+    @Test
+    fun `default order sorts by scheduled time when the query filters on s`() {
+        val late = note("Late", line = 1, scheduled = "<2025-06-11 Wed 15:00>")
+        val early = note("Early", line = 2, scheduled = "<2025-06-10 Tue>")
+        val mid = note("Mid", line = 3, scheduled = "<2025-06-11 Wed 09:00>")
+        assertEquals(listOf("Early", "Mid", "Late"), run("s.today", late, early, mid))
+        // Without s./d. in the query, position decides.
+        assertEquals(listOf("Late", "Early", "Mid"), run("i.none", mid, late, early))
+    }
+
+    @Test
+    fun `default order sorts by deadline time when the query filters on d`() {
+        val x = note("X", line = 1, deadline = "<2025-06-13 Fri>")
+        val y = note("Y", line = 2, deadline = "<2025-06-12 Thu>")
+        assertEquals(listOf("Y", "X"), run("d.1w", x, y))
+    }
+
+    @Test
+    fun `text queries keep relevance ranking`() {
+        val body = note("Other", body = "ramen", line = 1, priority = "A")
+        val title = note("Ramen", line = 2)
+        assertEquals(listOf("Ramen", "Other"), run("ramen", body, title))
     }
 }

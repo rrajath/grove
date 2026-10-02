@@ -481,9 +481,10 @@ private val OPERATOR_LEGEND = listOf(
     "it.TYPE" to "keyword type: it.todo, it.done, it.none",
     "b.NOTEBOOK" to "restrict to one notebook",
     "p. / ps." to "priority (p. counts the default priority) / set on the heading",
-    "s./d./cr.DAY" to "on or before DAY: today, tom, 3d, -1w… (s.today includes overdue)",
+    "s./d./cr.DAY" to "on or before DAY: today, tom, 3d, -1w, 1y… (s.today includes overdue)",
     "c./e.DAY" to "closed / event on DAY (a. = e.)",
     "X.OP.DAY" to "compare: eq, ne, lt, le, gt, ge (s.eq.today, c.ge.-1w)",
+    "now / Nh" to "a moment, times compared too: e.ge.now, d.2h, c.ge.-3h",
     "overdue / none" to "before today / no such date (s.overdue, d.none)",
 )
 

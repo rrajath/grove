@@ -24,8 +24,28 @@ class NoteCandidateQueryTest {
     fun `a text query joins through the FTS table`() {
         val sql = build("meeting")
         assertTrue(sql.sql.contains("(fileName, lineIndex) IN (SELECT fileName, lineIndex FROM notes_fts WHERE notes_fts MATCH ?)"))
-        assertEquals(listOf("(\"meeting\")"), sql.args)
+        assertEquals(listOf("(\"meeting\")", "%meeting%"), sql.args)
         assertFalse(sql.isFullScan)
+    }
+
+    @Test
+    fun `text terms also keep rows whose own tags contain them`() {
+        val sql = build("meeting notes")
+        assertTrue(sql.sql.contains("MATCH ?) OR tags LIKE ? ESCAPE '\\' OR tags LIKE ? ESCAPE '\\')"))
+        assertEquals(listOf("(\"meeting\" AND \"notes\")", "%meeting%", "%notes%"), sql.args)
+    }
+
+    @Test
+    fun `a non-ASCII text term drops the FTS clause rather than miss a tag match`() {
+        val sql = build("café")
+        assertFalse(sql.sql.contains("notes_fts"))
+        assertTrue(sql.isFullScan)
+    }
+
+    @Test
+    fun `a negated text term adds no tag clause`() {
+        val sql = build("meeting .notes")
+        assertEquals(listOf("(\"meeting\")", "%meeting%"), sql.args)
     }
 
     @Test
@@ -307,7 +327,7 @@ class NoteCandidateQueryTest {
         assertTrue(sql.sql.contains("notes_fts MATCH ?"))
         assertTrue(sql.sql.contains("keyword = ? COLLATE NOCASE"))
         assertTrue(sql.sql.contains("priority IN (?)"))
-        assertEquals(listOf("(\"meeting\")", "TODO", "A"), sql.args)
+        assertEquals(listOf("(\"meeting\")", "%meeting%", "TODO", "A"), sql.args)
     }
 
     @Test

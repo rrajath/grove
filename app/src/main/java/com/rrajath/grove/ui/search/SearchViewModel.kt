@@ -674,9 +674,10 @@ class SearchViewModel(
         val facetRows = facets.value.orEmpty()
 
         withContext(dispatchers.default) {
-            val today = LocalDate.now()
+            val now = LocalDateTime.now()
+            val today = now.toLocalDate()
             val options = matchOptions()
-            val textMatched = textQuery?.let { QueryMatcher.filter(notes, it, today, options) } ?: notes
+            val textMatched = textQuery?.let { QueryMatcher.filter(notes, it, today, options, now) } ?: notes
             val terms = textQuery?.textTerms ?: emptyList()
             val filtered = textMatched.filter { matchesFilters(it, filters, today) }
 
@@ -685,11 +686,11 @@ class SearchViewModel(
             val byFile = LinkedHashMap<String, MutableList<SearchRow>>()
             val fileLevel = mutableSetOf<String>()
             filtered.forEach { note ->
-                val groups = textQuery?.let { QueryMatcher.satisfiedGroups(note, it, today, options) } ?: listOf(emptyList())
+                val groups = textQuery?.let { QueryMatcher.satisfiedGroups(note, it, today, options, now) } ?: listOf(emptyList())
                 val rows = byFile.getOrPut(note.fileName) { mutableListOf() }
                 if (note.lineIndex == INTRO_LINE_INDEX) {
                     if (groups.any { it.textTerms().isEmpty() }) fileLevel += note.fileName
-                } else if (groups.any { g -> g.textTerms().all { note.title.contains(it, ignoreCase = true) } }) {
+                } else if (groups.any { g -> g.textTerms().all { note.matchesInHeading(it) } }) {
                     rows += SearchRow.Heading(toResult(note, today))
                 }
                 rows += lineSnippets(note, groups, ordinalFrom = rows.size)
@@ -860,6 +861,12 @@ class SearchViewModel(
      * first (links show their label), so the words and window are what you'd
      * read, not org syntax.
      */
+    /** A text term the heading row itself shows: in the title or one of the
+     *  note's own tags (plain text matches those too, see `QueryMatcher`). */
+    private fun NoteMeta.matchesInHeading(term: String): Boolean = title.contains(term, ignoreCase = true) || inTags(term)
+
+    private fun NoteMeta.inTags(term: String): Boolean = tags.any { it.contains(term, ignoreCase = true) }
+
     private fun lineSnippets(note: NoteMeta, groups: List<List<Term>>, ordinalFrom: Int): List<SearchRow.Text> {
         val groupTerms = groups.map { it.textTerms() }.filter { it.isNotEmpty() }
         if (groupTerms.isEmpty()) return emptyList()
@@ -867,9 +874,12 @@ class SearchViewModel(
         return note.searchText.substringAfter('\n', "").lineSequence()
             .map { line -> InlineTokenizer.tokenize(line).joinToString("") { it.text }.trim() }
             .flatMap { line ->
+                // A term found in the note's own tags is already satisfied, so
+                // a line only needs the rest; it highlights what it contains.
                 val lineTerms = groupTerms
-                    .filter { terms -> terms.all { line.contains(it, ignoreCase = true) } }
+                    .filter { terms -> terms.all { line.contains(it, ignoreCase = true) || note.inTags(it) } }
                     .flatten()
+                    .filter { line.contains(it, ignoreCase = true) }
                     .distinct()
                 if (lineTerms.isEmpty()) emptySequence() else Snippets.windows(line, lineTerms).asSequence()
             }
@@ -987,7 +997,10 @@ class SearchViewModel(
         val textQuery = if (query.isBlank()) null else QueryParser.parse(query)
         val notes = loadCandidates(textQuery, SearchFilters())
         return withContext(dispatchers.default) {
-            textQuery?.let { QueryMatcher.filter(notes, it, LocalDate.now(), matchOptions()).size } ?: notes.size
+            textQuery?.let {
+                val now = LocalDateTime.now()
+                QueryMatcher.filter(notes, it, now.toLocalDate(), matchOptions(), now).size
+            } ?: notes.size
         }
     }
 

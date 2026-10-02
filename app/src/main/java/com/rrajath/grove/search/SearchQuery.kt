@@ -1,6 +1,8 @@
 package com.rrajath.grove.search
 
 import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.temporal.ChronoUnit
 
 /**
  * Orgzly-compatible structured search (PRD §5.5).
@@ -110,15 +112,44 @@ enum class CompareOp {
         GE -> !date.isBefore(target)
     }
 
+    /**
+     * Against a moment: a [Span] with no end is one instant and compares
+     * exactly; a span `[start, end)` matches when any moment inside it does,
+     * so `eq` means the moment falls inside it and `ne` that it doesn't.
+     */
+    fun test(span: Span, moment: LocalDateTime): Boolean {
+        val (start, end) = span
+        if (end == null) return when (this) {
+            EQ -> start == moment
+            NE -> start != moment
+            LT -> start.isBefore(moment)
+            LE -> !start.isAfter(moment)
+            GT -> start.isAfter(moment)
+            GE -> !start.isBefore(moment)
+        }
+        val inside = !moment.isBefore(start) && moment.isBefore(end)
+        return when (this) {
+            EQ -> inside
+            NE -> !inside
+            LT -> start.isBefore(moment)
+            LE -> !start.isAfter(moment)
+            GT, GE -> end.isAfter(moment)
+        }
+    }
+
     companion object {
         fun parse(token: String): CompareOp? = entries.firstOrNull { it.name.equals(token, ignoreCase = true) }
     }
 }
 
+/** The time a timestamp covers: [start] alone when [end] is null, else `[start, end)`. */
+data class Span(val start: LocalDateTime, val end: LocalDateTime?)
+
 /**
- * A date token, Orgzly style: `[OP.]TIME`. TIME names one day (`today`,
- * `tomorrow`, `yesterday`, a signed `Nd`/`Nw`/`Nm` offset from today, or an
- * ISO `yyyy-mm-dd` date) and the timestamp is compared against it with [op].
+ * A date token, Orgzly style: `[OP.]TIME`. TIME names either one day (`today`,
+ * `tomorrow`, `yesterday`, a signed `Nd`/`Nw`/`Nm`/`Ny` offset from today, or
+ * an ISO `yyyy-mm-dd` date) or one moment (`now`, a signed `Nh` offset from
+ * now; see [isMoment]), and the timestamp is compared against it with [op].
  * Without an op each prefix applies its own default (see `QueryMatcher`):
  * `le` for s./d./cr., `eq` for c./a. Grove additionally keeps two op-less
  * specials: `overdue` and `none`/`no`/`nodate`.
@@ -131,7 +162,13 @@ data class Period(val raw: String, val op: CompareOp? = null) {
     /** `s.overdue`/`d.overdue`/etc.: the timestamp is strictly before today. */
     val isOverdue: Boolean get() = op == null && raw.equals("overdue", ignoreCase = true)
 
-    /** The day this token names, or null when it names none (`overdue`, `none`, junk). */
+    /** `now` and `Nh` name a moment rather than a day: they compare against
+     *  the time of day too (see [targetMoment]). */
+    val isMoment: Boolean
+        get() = raw.lowercase().let { it == "now" || SIGNED.matchEntire(it)?.groupValues?.get(3) == "h" }
+
+    /** The day this token names, or null when it names none (`overdue`,
+     *  `none`, `Nh`, junk). `now` names today. */
     fun target(today: LocalDate): LocalDate? {
         when (raw.lowercase()) {
             "today", "tod", "now" -> return today
@@ -139,19 +176,33 @@ data class Period(val raw: String, val op: CompareOp? = null) {
             "yesterday" -> return today.minusDays(1)
         }
         SIGNED.matchEntire(raw.lowercase())?.let { m ->
-            val n = m.groupValues[2].toLong().let { if (m.groupValues[1] == "-") -it else it }
+            val n = signedCount(m)
             return when (m.groupValues[3]) {
                 "d" -> today.plusDays(n)
                 "w" -> today.plusWeeks(n)
                 "m" -> today.plusMonths(n)
+                "y" -> today.plusYears(n)
                 else -> null
             }
         }
         return runCatching { LocalDate.parse(raw) }.getOrNull()
     }
 
+    /** The moment a [isMoment] token names, counted from [now] (to the
+     *  minute, the precision of an org timestamp); null for a day token. */
+    fun targetMoment(now: LocalDateTime): LocalDateTime? {
+        val base = now.truncatedTo(ChronoUnit.MINUTES)
+        val lower = raw.lowercase()
+        if (lower == "now") return base
+        val m = SIGNED.matchEntire(lower)?.takeIf { it.groupValues[3] == "h" } ?: return null
+        return base.plusHours(signedCount(m))
+    }
+
+    private fun signedCount(m: MatchResult): Long =
+        m.groupValues[2].toLong().let { if (m.groupValues[1] == "-") -it else it }
+
     companion object {
-        private val SIGNED = Regex("""([+-]?)(\d+)([dwm])""")
+        private val SIGNED = Regex("""([+-]?)(\d+)([hdwmy])""")
         private val NO_DATE = setOf("none", "no", "nodate")
 
         /** `today` → default op; `le.today` → explicit op. */

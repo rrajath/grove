@@ -2,6 +2,7 @@ package com.rrajath.grove.search
 
 import com.rrajath.grove.org.OrgTimestamp
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.LocalTime
 
 /** Index-row view the matcher operates on (kept android/Room-free). */
@@ -21,15 +22,15 @@ data class NoteMeta(
     val active: String? = null,
     val createdAt: String?,
     val lastModified: Long,
-    /** Heading + body text for plain-term matching. */
+    /** Heading + body text for plain-term matching (own [tags] match too). */
     val searchText: String,
 ) {
     // Parsed once per instance; matching, sorting, and the agenda view would
     // otherwise re-run the timestamp regex per comparison / per agenda day.
-    private val scheduledTs by tsOf(scheduled)
-    private val deadlineTs by tsOf(deadline)
-    private val closedTs by tsOf(closed)
-    private val createdTs by tsOf(createdAt)
+    val scheduledTs by tsOf(scheduled)
+    val deadlineTs by tsOf(deadline)
+    val closedTs by tsOf(closed)
+    val createdTs by tsOf(createdAt)
 
     val scheduledDate: LocalDate? get() = scheduledTs?.date
     val deadlineDate: LocalDate? get() = deadlineTs?.date
@@ -74,10 +75,21 @@ data class MatchOptions(
 
 object QueryMatcher {
 
-    fun matches(note: NoteMeta, query: SearchQuery, today: LocalDate, options: MatchOptions = MatchOptions()): Boolean {
-        if (!matchesAgendaWindow(note, query, today)) return false
+    /**
+     * [now] is what `now` and `Nh` count from; every other date token only
+     * looks at [today]. Production passes the real clock; the default (start
+     * of [today]) keeps tests that never use a moment token deterministic.
+     */
+    fun matches(
+        note: NoteMeta,
+        query: SearchQuery,
+        today: LocalDate,
+        options: MatchOptions = MatchOptions(),
+        now: LocalDateTime = today.atStartOfDay(),
+    ): Boolean {
+        if (!matchesAgendaWindow(note, query, today, now)) return false
         val expr = query.expr ?: return true
-        return expr.matches { term -> matchesTerm(note, term, today, options) }
+        return expr.matches { term -> matchesTerm(note, term, today, now, options) }
     }
 
     /**
@@ -93,13 +105,14 @@ object QueryMatcher {
         query: SearchQuery,
         today: LocalDate,
         options: MatchOptions = MatchOptions(),
+        now: LocalDateTime = today.atStartOfDay(),
     ): List<List<Term>> {
-        if (!matchesAgendaWindow(note, query, today)) return emptyList()
+        if (!matchesAgendaWindow(note, query, today, now)) return emptyList()
         if (query.expr == null) return listOf(emptyList())
         if (query.isFlatteningSkipped) {
-            return if (matches(note, query, today, options)) listOf(emptyList()) else emptyList()
+            return if (matches(note, query, today, options, now)) listOf(emptyList()) else emptyList()
         }
-        return query.groups.filter { group -> group.all { term -> matchesTerm(note, term, today, options) } }
+        return query.groups.filter { group -> group.all { term -> matchesTerm(note, term, today, now, options) } }
     }
 
     /**
@@ -109,11 +122,11 @@ object QueryMatcher {
      * Applied independently of [SearchQuery.groups] so it still
      * filters when `ad.N` is the only token in the query.
      */
-    private fun matchesAgendaWindow(note: NoteMeta, query: SearchQuery, today: LocalDate): Boolean {
+    private fun matchesAgendaWindow(note: NoteMeta, query: SearchQuery, today: LocalDate, now: LocalDateTime): Boolean {
         val days = query.agendaDays ?: return true
         val period = Period("${days}d")
-        return matchesDate(note.scheduledDate, period, today, CompareOp.LE) ||
-            matchesDate(note.deadlineDate, period, today, CompareOp.LE)
+        return matchesDate(note.scheduledTs, period, today, now, CompareOp.LE) ||
+            matchesDate(note.deadlineTs, period, today, now, CompareOp.LE)
     }
 
     fun filter(
@@ -121,12 +134,21 @@ object QueryMatcher {
         query: SearchQuery,
         today: LocalDate,
         options: MatchOptions = MatchOptions(),
-    ): List<NoteMeta> = sort(notes.filter { matches(it, query, today, options) }, query, options)
+        now: LocalDateTime = today.atStartOfDay(),
+    ): List<NoteMeta> = sort(notes.filter { matches(it, query, today, options, now) }, query, options)
 
-    private fun matchesTerm(note: NoteMeta, term: Term, today: LocalDate, options: MatchOptions): Boolean {
+    private fun matchesTerm(
+        note: NoteMeta,
+        term: Term,
+        today: LocalDate,
+        now: LocalDateTime,
+        options: MatchOptions,
+    ): Boolean {
         val result = when (val c = term.condition) {
+            // Orgzly: title, content or any of the note's own tags (not inherited ones).
             is Condition.Text ->
-                note.searchText.contains(c.term, ignoreCase = true)
+                note.searchText.contains(c.term, ignoreCase = true) ||
+                    note.tags.any { it.contains(c.term, ignoreCase = true) }
 
             is Condition.State ->
                 if (c.state.equals("none", true)) note.keyword == null
@@ -152,26 +174,36 @@ object QueryMatcher {
             }
 
             // Orgzly's default operators when none is written: le for s./d./cr., eq for c./a.
-            is Condition.Scheduled -> matchesDate(note.scheduledDate, c.period, today, CompareOp.LE)
-            is Condition.Deadline -> matchesDate(note.deadlineDate, c.period, today, CompareOp.LE)
-            is Condition.Active -> anyActiveMatches(note, c.period, today)
-            is Condition.Closed -> matchesDate(note.closedDate, c.period, today, CompareOp.EQ)
-            is Condition.Created -> matchesDate(note.createdDate, c.period, today, CompareOp.LE)
+            is Condition.Scheduled -> matchesDate(note.scheduledTs, c.period, today, now, CompareOp.LE)
+            is Condition.Deadline -> matchesDate(note.deadlineTs, c.period, today, now, CompareOp.LE)
+            is Condition.Active -> anyActiveMatches(note, c.period, today, now)
+            is Condition.Closed -> matchesDate(note.closedTs, c.period, today, now, CompareOp.EQ)
+            is Condition.Created -> matchesDate(note.createdTs, c.period, today, now, CompareOp.LE)
         }
         return result != term.negated
     }
 
     /**
-     * [date] compared against the day [period] names, with its own op or
-     * [defaultOp]. The op-less specials: `none` requires no date, `overdue`
-     * requires one strictly before today. A token naming no day matches nothing.
+     * [ts] compared against what [period] names, with its own op or
+     * [defaultOp]: its date against a day token, its [span] against a moment
+     * token (`now`, `Nh`). The op-less specials: `none` requires no
+     * timestamp, `overdue` requires one dated strictly before today. A token
+     * naming nothing matches nothing.
      */
-    private fun matchesDate(date: LocalDate?, period: Period, today: LocalDate, defaultOp: CompareOp): Boolean {
-        if (period.isNoDate) return date == null
-        if (date == null) return false
-        if (period.isOverdue) return date.isBefore(today)
+    private fun matchesDate(
+        ts: OrgTimestamp?,
+        period: Period,
+        today: LocalDate,
+        now: LocalDateTime,
+        defaultOp: CompareOp,
+    ): Boolean {
+        if (period.isNoDate) return ts == null
+        if (ts == null) return false
+        if (period.isOverdue) return ts.date.isBefore(today)
+        val op = period.op ?: defaultOp
+        period.targetMoment(now)?.let { return op.test(ts.span(), it) }
         val target = period.target(today) ?: return false
-        return (period.op ?: defaultOp).test(date, target)
+        return op.test(ts.date, target)
     }
 
     /** a./e.: any bare active timestamp day satisfying the comparison (default
@@ -179,26 +211,49 @@ object QueryMatcher {
      *  [NoteMeta.activeDates]. `a.overdue` matches an event that has fully
      *  passed (its last day is before today) on purpose: search is explicit,
      *  only the agenda hides overdue events. */
-    private fun anyActiveMatches(note: NoteMeta, period: Period, today: LocalDate): Boolean {
+    private fun anyActiveMatches(note: NoteMeta, period: Period, today: LocalDate, now: LocalDateTime): Boolean {
         val dates = note.activeDates
         if (period.isNoDate) return dates.isEmpty()
         if (period.isOverdue) {
             return note.activeTimestamps.any { (it.rangeEnd ?: it.date).isBefore(today) }
         }
-        val target = period.target(today) ?: return false
         val op = period.op ?: CompareOp.EQ
+        period.targetMoment(now)?.let { moment ->
+            return note.activeTimestamps.any { op.test(it.span(), moment) }
+        }
+        val target = period.target(today) ?: return false
         return dates.any { op.test(it, target) }
+    }
+
+    /**
+     * The time a timestamp covers, for comparing against a moment. A timed
+     * stamp is one instant ([Span.end] null) unless it has an end time; an
+     * untimed one covers its whole day, so `e.ge.now` still shows today's
+     * all-day events and `s.le.now` today's untimed tasks. A date range runs
+     * to its end time, or to the end of its last day.
+     */
+    private fun OrgTimestamp.span(): Span {
+        val start = date.atTime(time ?: LocalTime.MIN)
+        val lastDay = rangeEnd ?: date
+        val end = when {
+            endTime != null -> lastDay.atTime(endTime)
+            time != null && rangeEnd == null -> null
+            else -> lastDay.plusDays(1).atStartOfDay()
+        }
+        return Span(start, end)
     }
 
     // --- ranking ---
 
     /**
      * `o.PROP` sorts when present (Orgzly's property set, `.o.PROP` reversed);
-     * otherwise PRD §11 ranking: exact title > title contains > body match,
-     * recency as tiebreaker. Notes missing the sorted property go last in
-     * either direction. `o.state` follows [MatchOptions.stateOrder]; an
-     * unconfigured keyword sorts after every configured one. `o.p` counts a
-     * note with no priority as [MatchOptions.defaultPriority].
+     * otherwise a query with text uses PRD §11 ranking: exact title > title
+     * contains > body (or tag) match, recency as tiebreaker. A filter-only
+     * query uses Orgzly's default order (see [defaultOrder]). Notes missing
+     * the sorted property go last in either direction. `o.state` follows
+     * [MatchOptions.stateOrder]; an unconfigured keyword sorts after every
+     * configured one. `o.p` counts a note with no priority as
+     * [MatchOptions.defaultPriority].
      */
     fun sort(notes: List<NoteMeta>, query: SearchQuery, options: MatchOptions = MatchOptions()): List<NoteMeta> {
         if (query.sortBy.isNotEmpty()) {
@@ -208,7 +263,7 @@ object QueryMatcher {
             return notes.sortedWith(comparator)
         }
         val terms = query.textTerms
-        if (terms.isEmpty()) return notes
+        if (terms.isEmpty()) return notes.sortedWith(defaultOrder(query, options))
         return notes.sortedWith(
             compareBy<NoteMeta> { note ->
                 when {
@@ -218,6 +273,24 @@ object QueryMatcher {
                 }
             }.thenByDescending { it.lastModified }
         )
+    }
+
+    /**
+     * Orgzly's order without `o.`: notebook, then priority, then scheduled
+     * and deadline time when the query filters on `s.`/`d.`, then position in
+     * the notebook.
+     */
+    private fun defaultOrder(query: SearchQuery, options: MatchOptions): Comparator<NoteMeta> {
+        val conditions = query.expr?.leaves().orEmpty().filter { !it.negated }.map { it.condition }
+        var order = compareBy<NoteMeta>({ it.fileName.lowercase() }, { it.fileName })
+            .then(comparatorFor(SortKey(SortField.PRIORITY), options))
+        if (conditions.any { it is Condition.Scheduled }) {
+            order = order.then(comparatorFor(SortKey(SortField.SCHEDULED), options))
+        }
+        if (conditions.any { it is Condition.Deadline }) {
+            order = order.then(comparatorFor(SortKey(SortField.DEADLINE), options))
+        }
+        return order.thenBy { it.lineIndex }
     }
 
     private fun comparatorFor(key: SortKey, options: MatchOptions): Comparator<NoteMeta> {

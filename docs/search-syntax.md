@@ -28,7 +28,7 @@ An empty query matches everything.
 
 | Syntax | Matches notes that… | Example |
 |---|---|---|
-| `word` | contain the text in their heading or body (case-insensitive substring, anywhere in the word: `meet` matches `committee`). A `word` is also matched against notebook **file names** / vault-relative paths: a file whose name matches is listed first, above the content results, and opens its outline when tapped | `meeting` |
+| `word` | contain the text in their heading, body or own tags (case-insensitive substring, anywhere in the word: `meet` matches `committee`). A `word` is also matched against notebook **file names** / vault-relative paths: a file whose name matches is listed first, above the content results, and opens its outline when tapped | `meeting` |
 | `i.STATE` | have that TODO keyword (case-insensitive); `i.none` = no keyword | `i.todo`, `i.in-progress`, `.i.done` |
 | `it.TYPE` | have a keyword of that type: `todo` = any not-done keyword, `done` = any done keyword, `none` = no keyword | `it.todo`, `.it.done` |
 | `b.NAME` | live in that notebook (`.org` suffix optional; quote names with spaces) | `b.inbox`, `b."My Notebook"` |
@@ -44,7 +44,7 @@ An empty query matches everything.
 
 ## Dates
 
-A date token is `PREFIX.[OP.]TIME`. TIME names one day and the timestamp's date is compared against it with OP. When OP is omitted, each prefix uses Orgzly's default: **`le` for `s.`, `d.` and `cr.`; `eq` for `c.` and `e.`/`a.`**. (Orgzly's docs don't name a default for `e.`; Grove uses `eq` so `e.today` means "events today".)
+A date token is `PREFIX.[OP.]TIME`. TIME names one day, and the timestamp's date is compared against it with OP, or one moment (`now`, `Nh`), and the timestamp's time is compared too (see below). When OP is omitted, each prefix uses Orgzly's default: **`le` for `s.`, `d.` and `cr.`; `eq` for `c.` and `e.`/`a.`**. (Orgzly's docs don't name a default for `e.`; Grove uses `eq` so `e.today` means "events today".)
 
 | OP | Meaning |
 |---|---|
@@ -54,15 +54,19 @@ A date token is `PREFIX.[OP.]TIME`. TIME names one day and the timestamp's date 
 
 | TIME | Meaning |
 |---|---|
-| `today`, `tod`, `now` | today |
+| `today`, `tod` | today |
 | `tomorrow`, `tom`, `tmrw` | today + 1 day |
 | `yesterday` | today − 1 day |
-| `Nd` / `Nw` / `Nm` | N days / weeks / months from today. N can be negative: `-2w` is two weeks ago |
+| `Nd` / `Nw` / `Nm` / `Ny` | N days / weeks / months / years from today. N can be negative: `-2w` is two weeks ago |
+| `now` | this moment (to the minute) |
+| `Nh` | N hours from now; `-2h` is two hours ago |
 | `yyyy-mm-dd` | that date (a Grove extension, used by the Filters panel's custom range) |
 
 Two Grove specials take no operator: `overdue` (the date is before today) and `none` (aliases `no`, `nodate`: the timestamp is absent).
 
-A note without the timestamp never matches a comparison. `e.`/`a.` match when any of the note's event days satisfies it. Grove compares dates only: `now` means today, and Orgzly's hour (`Nh`) and year (`Ny`) units aren't supported yet.
+A note without the timestamp never matches a comparison. `e.`/`a.` match when any of the note's event days satisfies it.
+
+Against `now` and `Nh`, a timed entry (`<2026-10-01 Thu 09:00>`) is compared at its time, so `s.ge.now` drops this morning's 09:00 task by 10:30. An entry with an end time (`10:00-11:00`, or a timed range) counts until it ends. An untimed entry covers its **whole day**: it matches when any moment of that day does, so `e.ge.now` still shows today's all-day events and `s.le.now` today's untimed tasks. (Orgzly treats an untimed entry as midnight; Grove doesn't, so all-day items don't vanish at 00:01.)
 
 | Example | Meaning |
 |---|---|
@@ -84,13 +88,15 @@ A note without the timestamp never matches a comparison. `e.`/`a.` match when an
 
 ## What gets searched
 
-Plain-text terms match against a heading's title plus its **entire** body. (Before the FTS5 migration, body text past the first 4000 characters was silently unsearchable.) Unlike Orgzly, plain text does not match tags; use `t.`.
+Plain-text terms match against a heading's title plus its **entire** body, and, as in Orgzly, its own tags (substring, so `pho` matches `:phone:`). Inherited tags and `#+FILETAGS:` don't count; use `t.` for those. A heading picked by its tags shows as a heading row, tags visible. (Before the FTS5 migration, body text past the first 4000 characters was silently unsearchable.)
 
 Searching is backed by a SQLite FTS5 index, but the matching rules above are unchanged: the index only narrows which notes get examined, and every result is still decided by the same substring logic. Terms of one or two characters are shorter than the index's smallest unit and are matched by scanning instead, so they work exactly as before, just more slowly on a large vault.
 
 ## Ranking
 
-Without `o.` sorts, results are ranked by relevance to the plain-text terms: exact title match, then title contains, then body match, with most-recently-modified as the tiebreaker.
+Without `o.` sorts, a query with plain-text terms is ranked by relevance: exact title match, then title contains, then body (or tag) match, with most-recently-modified as the tiebreaker.
+
+A filter-only query (no plain text) uses Orgzly's default order: notebook name, then priority (an unprioritized heading at the default priority when one is set, otherwise last), then scheduled time when the query has an `s.` term and deadline time when it has a `d.` term, then position in the notebook.
 
 ## Examples
 

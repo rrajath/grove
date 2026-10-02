@@ -59,9 +59,13 @@ object NoteCandidateQuery {
             // Row-value IN against the FTS table's stored keys: notes' primary
             // key is (fileName, lineIndex), so the candidate set resolves
             // through that index rather than a scan.
-            conditions += "(fileName, lineIndex) IN " +
+            val fts = "(fileName, lineIndex) IN " +
                 "(SELECT fileName, lineIndex FROM ${NotesFts.TABLE} WHERE ${NotesFts.TABLE} MATCH ?)"
-            args += match
+            tagFallback(query)?.let { (tagSql, tagArgs) ->
+                conditions += if (tagSql == null) fts else "($fts OR $tagSql)"
+                args += match
+                args.addAll(tagArgs)
+            }
         }
 
         query?.let { queryConditions(it) }?.let { (sql, queryArgs) ->
@@ -80,6 +84,25 @@ object NoteCandidateQuery {
             sql = "SELECT * FROM notes$where ORDER BY fileName, lineIndex",
             args = args,
         )
+    }
+
+    /**
+     * Plain text also matches a note's own tags, which the FTS table doesn't
+     * index. A matching note has every text term of some group in its title,
+     * body or tags, so it is either an FTS hit or has at least one text term
+     * in its tags: OR-ing the FTS clause with "tags contain any text term"
+     * keeps a superset. Returns the extra clause (null = no text terms), or
+     * null overall when a non-ASCII term rules out LIKE and the FTS clause
+     * must be dropped entirely.
+     */
+    private fun tagFallback(query: SearchQuery?): Pair<String?, List<String>>? {
+        val terms = query?.groups.orEmpty().flatten()
+            .filter { !it.negated }
+            .mapNotNull { (it.condition as? Condition.Text)?.term }
+            .distinct()
+        if (terms.isEmpty()) return null to emptyList()
+        val likes = terms.map { term -> term.ifAscii { likeContains(it) } ?: return null }
+        return likes.joinToString(" OR ") { "tags LIKE ? ESCAPE '\\'" } to likes
     }
 
     // --- structured query terms ---
