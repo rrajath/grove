@@ -37,6 +37,8 @@ import androidx.compose.material.icons.automirrored.filled.FormatIndentIncrease
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.UnfoldLess
 import androidx.compose.material.icons.filled.UnfoldMore
@@ -50,7 +52,10 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshotFlow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -63,6 +68,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -140,6 +146,9 @@ fun OutlineScreen(
      * only that heading and its descendants are shown, until [onWiden].
      */
     narrowLineIndex: Int? = null,
+    /** Line index of a heading to unfold to, scroll into view and briefly
+     *  highlight once the document loads (Search's "show in notebook"). */
+    revealLineIndex: Int? = null,
     /** Return to the full, unnarrowed outline. */
     onWiden: () -> Unit = {},
     /** Top-bar ⌕: opens Search with the notebook filter already pinned to this file. */
@@ -278,6 +287,9 @@ fun OutlineScreen(
     // Collapsed by default, like heading `:PROPERTIES:` drawers in Read mode.
     var filePropsExpanded by rememberSaveable(notebookId) { mutableStateOf(false) }
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+    var revealDone by rememberSaveable(notebookId) { mutableStateOf(false) }
+    var revealedLine by remember { mutableStateOf<Int?>(null) }
+    val revealHighlight = remember { Animatable(0f) }
 
     // Only one swipe panel open at a time; any mutation snaps it shut.
     var openRowLine by remember { mutableStateOf<Int?>(null) }
@@ -534,6 +546,35 @@ fun OutlineScreen(
                 // Every mutation produces a new document; snap any open panel shut.
                 LaunchedEffect(doc) { openRowLine = null }
                 val visible = remember(scopedHeadlines, collapsed) { visibleHeadlines(scopedHeadlines, collapsed) }
+                // Rows the LazyColumn below places before the first heading; keep in
+                // step with its item list so a heading's list index can be computed.
+                val leadingItems = listOf(
+                    showPropertyDrawers && doc.filePropertyDrawer.isNotEmpty(),
+                    showPreface && doc.preambleKeywords.isNotEmpty(),
+                    doc.hasIntro && narrowTarget == null,
+                ).count { it }
+                // Search's "show in notebook": unfold the heading's ancestors, scroll
+                // it into view, then fade an accentSoft wash off it. Once per entry,
+                // so returning from a note doesn't replay it.
+                LaunchedEffect(revealLineIndex) {
+                    val line = revealLineIndex ?: return@LaunchedEffect
+                    if (revealDone) return@LaunchedEffect
+                    revealDone = true
+                    val target = doc.headlineAtLine(line) ?: return@LaunchedEffect
+                    val ancestors = generateSequence(doc.parent(target)) { doc.parent(it) }.map { it.lineIndex }.toSet()
+                    val unfolded = collapsed - ancestors
+                    collapsed = unfolded
+                    val index = visibleHeadlines(scopedHeadlines, unfolded).indexOfFirst { it.lineIndex == line }
+                    if (index < 0) return@LaunchedEffect
+                    val listIndex = leadingItems + index
+                    snapshotFlow { listState.layoutInfo.totalItemsCount }.first { it > listIndex }
+                    listState.scrollToItem(listIndex)
+                    revealedLine = line
+                    revealHighlight.snapTo(1f)
+                    delay(REVEAL_HOLD_MS)
+                    revealHighlight.animateTo(0f, tween(REVEAL_FADE_MS))
+                    revealedLine = null
+                }
                 // A file can hold real content before its first heading (or
                 // with no heading at all). It's not a headline, so it gets its
                 // own tap-only row above the outline, opening in read mode.
@@ -728,6 +769,7 @@ fun OutlineScreen(
                                     headline = h,
                                     isCollapsed = h.lineIndex in collapsed,
                                     isFocused = isFocusedRow,
+                                    highlight = if (revealedLine == h.lineIndex) revealHighlight.value else 0f,
                                     onToggle = {
                                         collapsed = if (h.lineIndex in collapsed) collapsed - h.lineIndex
                                         else collapsed + h.lineIndex
@@ -1055,6 +1097,8 @@ private fun OutlineNode(
     onToggle: () -> Unit,
     isFavorite: Boolean = false,
     flags: OutlineDisplayFlags = OutlineDisplayFlags(),
+    /** 1 = full accentSoft "landing" wash, 0 = none (see revealLineIndex). */
+    highlight: Float = 0f,
 ) {
     val c = MaterialTheme.grove
     val hasChildren = remember(doc, headline) { doc.hasDescendants(headline) }
@@ -1073,7 +1117,7 @@ private fun OutlineNode(
             .background(c.surface)
             .border(2.dp, c.accent, RoundedCornerShape(12.dp))
     } else {
-        Modifier.clip(RoundedCornerShape(10.dp)).background(c.bg)
+        Modifier.clip(RoundedCornerShape(10.dp)).background(lerp(c.bg, c.accentSoft, highlight))
     }
 
     Row(
@@ -1287,3 +1331,7 @@ private fun OutlineNode(
         }
     }
 }
+
+/** Search's "show in notebook" landing wash: held, then faded out. */
+private const val REVEAL_HOLD_MS = 300L
+private const val REVEAL_FADE_MS = 1200

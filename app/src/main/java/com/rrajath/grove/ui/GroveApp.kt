@@ -427,10 +427,12 @@ private fun GroveNavigation(
                 val notebookId = entry.arguments?.getString("notebookId").orEmpty()
                 val narrowTo = entry.arguments?.getString("narrowTo")?.toIntOrNull()
                 val autoOpen = entry.arguments?.getString("auto") == "true"
+                val reveal = entry.arguments?.getString("reveal")?.toIntOrNull()
                 val wholeFileLineLimit by wholeFileLineLimitOverride.collectAsState()
                 OutlineScreen(
                     notebookId = notebookId,
                     narrowLineIndex = narrowTo,
+                    revealLineIndex = reveal,
                     onBack = { navController.popBackStack() },
                     onViewFile = { fileName -> navController.navigate(Routes.file(fileName)) },
                     wholeFileLineLimit = wholeFileLineLimit,
@@ -921,6 +923,7 @@ private fun GroveNavigation(
                     onBack = { navController.popBackStack() },
                     onOpenNote = { ref -> navController.navigate(Routes.note(ref.encode())) },
                     onOpenOutline = { fileName -> navController.navigate(Routes.outline(fileName, autoOpen = true)) },
+                    onShowInNotebook = { ref -> navController.navigate(Routes.outline(ref.fileName, reveal = ref.lineIndex)) },
                 )
             }
             composable(

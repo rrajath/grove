@@ -32,6 +32,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
 import androidx.compose.material.icons.filled.Circle
 import androidx.compose.material.icons.filled.EventBusy
@@ -55,6 +56,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateMapOf
@@ -98,6 +100,7 @@ import com.rrajath.grove.ui.components.SwipeCommitRow
 import com.rrajath.grove.ui.components.annotateOrgInline
 import com.rrajath.grove.ui.components.ResultRowContent
 import com.rrajath.grove.ui.components.ScrollJumpButtons
+import com.rrajath.grove.ui.agenda.GroupHeader
 import com.rrajath.grove.ui.components.notebookIcon
 import com.rrajath.grove.ui.components.searchIcon
 import com.rrajath.grove.ui.screens.IconGlyph
@@ -127,6 +130,8 @@ fun SearchScreen(
     onOpenNote: (NoteRef) -> Unit,
     /** A result whose notebook file name matched the query: open that notebook's outline. */
     onOpenOutline: (fileName: String) -> Unit = {},
+    /** A heading row's "Book" swipe cell: its notebook's outline, scrolled to it. */
+    onShowInNotebook: (NoteRef) -> Unit = {},
     /**
      * Notebook to pin the search to on entry (the Outline's search action passes
      * the file you were reading). The pin is an ordinary notebook filter from
@@ -170,7 +175,7 @@ fun SearchScreen(
     // still inherit the old offset. Guarding on the query means a background
     // re-run (a sync finishing mid-search) doesn't yank the user off their spot.
     var lastScrolledQuery by remember { mutableStateOf<String?>(null) }
-    LaunchedEffect(state.groups) {
+    LaunchedEffect(state.groups, state.days) {
         if (state.query != lastScrolledQuery) {
             listState.scrollToItem(0)
             lastScrolledQuery = state.query
@@ -274,6 +279,13 @@ fun SearchScreen(
                 })
             }
 
+            val rowActions = ResultRowActions(
+                onOpenNote = onOpenNote,
+                onShowInNotebook = onShowInNotebook,
+                onOpenStatePicker = { statePickerFor = it },
+                onOpenSchedulePicker = { schedulePickerFor = it },
+                onMarkDone = { viewModel.markDone(it.fileName, it.lineIndex) },
+            )
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 when {
                     state.isBlank -> BlankState(
@@ -286,16 +298,21 @@ fun SearchScreen(
                         onRenameSaved = viewModel::renameSavedSearch,
                         onDeleteSaved = viewModel::deleteSavedSearch,
                     )
-                    state.groups.isEmpty() -> NoResultsState(onOpenFilters = { filterPanelOpen = true })
+                    state.days?.isEmpty() ?: state.groups.isEmpty() ->
+                        NoResultsState(onOpenFilters = { filterPanelOpen = true })
+                    state.days != null -> DayResultsList(
+                        listState = listState,
+                        days = state.days!!,
+                        matchedTerms = state.matchedTerms,
+                        actions = rowActions,
+                    )
                     else -> GroupedResultsList(
                         listState = listState,
                         groups = state.groups,
                         matchedTerms = state.matchedTerms,
                         collapsedFiles = collapsedFiles,
-                        onOpenNote = onOpenNote,
                         onOpenOutline = onOpenOutline,
-                        onOpenStatePicker = { statePickerFor = it },
-                        onOpenSchedulePicker = { schedulePickerFor = it },
+                        actions = rowActions,
                     )
                 }
                 ScrollJumpButtons(
@@ -827,12 +844,10 @@ private fun GroupedResultsList(
     groups: List<SearchFileGroup>,
     matchedTerms: List<String>,
     collapsedFiles: androidx.compose.runtime.snapshots.SnapshotStateMap<String, Boolean>,
-    onOpenNote: (NoteRef) -> Unit,
     onOpenOutline: (fileName: String) -> Unit,
-    onOpenStatePicker: (SearchResult) -> Unit,
-    onOpenSchedulePicker: (SearchResult) -> Unit,
+    actions: ResultRowActions,
 ) {
-    val c = MaterialTheme.grove
+    var openRowKey by remember { mutableStateOf<String?>(null) }
     LazyColumn(
         state = listState,
         modifier = Modifier
@@ -873,28 +888,127 @@ private fun GroupedResultsList(
                     when (row) {
                         // Only a heading can take a TODO state or a date, so only
                         // heading rows get the swipe actions.
-                        is SearchRow.Heading -> SwipeCommitRow(
-                            // Swipe left-to-right: cycle the TODO state via a bottom sheet.
-                            leftAction = SwipeAction("⟳", "State", c.amber, c.amberSoft) { onOpenStatePicker(row.result) },
-                            // Swipe right-to-left: schedule this task.
-                            rightAction = SwipeAction(
-                                label = "Schedule",
-                                fg = c.blue,
-                                bg = c.blueSoft,
-                                icon = Icons.Outlined.CalendarMonth,
-                            ) { onOpenSchedulePicker(row.result) },
-                            onTap = { onOpenNote(NoteRef(group.fileName, row.result.lineIndex)) },
-                        ) {
-                            SearchResultRow(row.result, matchedTerms)
+                        is SearchRow.Heading -> {
+                            val rowKey = "${group.fileName}-${row.key}"
+                            ResultSwipeRow(
+                                result = row.result,
+                                matchedTerms = matchedTerms,
+                                actions = actions,
+                                isOpen = { openRowKey == rowKey },
+                                onOpenChanged = { open ->
+                                    if (open) openRowKey = rowKey
+                                    else if (openRowKey == rowKey) openRowKey = null
+                                },
+                            )
                         }
                         // Text before the first heading has no note of its own to
                         // open, so it opens the file.
                         is SearchRow.Text -> TextMatchRow(row.snippet, matchedTerms) {
                             if (row.lineIndex == INTRO_LINE_INDEX) onOpenOutline(group.fileName)
-                            else onOpenNote(NoteRef(group.fileName, row.lineIndex))
+                            else actions.onOpenNote(NoteRef(group.fileName, row.lineIndex))
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+/** What a heading result row's tap and swipe cells do, shared by both result layouts. */
+private class ResultRowActions(
+    val onOpenNote: (NoteRef) -> Unit,
+    val onShowInNotebook: (NoteRef) -> Unit,
+    val onOpenStatePicker: (SearchResult) -> Unit,
+    val onOpenSchedulePicker: (SearchResult) -> Unit,
+    val onMarkDone: (SearchResult) -> Unit,
+)
+
+/**
+ * A heading result wrapped in its swipe actions, Agenda-style: a long swipe
+ * left-to-right cycles the state and right-to-left schedules (as in the
+ * Outline); a partial swipe settles open with a second cell beside it, Done
+ * (open tasks only) or Book (the heading in its notebook's outline).
+ */
+@Composable
+private fun ResultSwipeRow(
+    result: SearchResult,
+    matchedTerms: List<String>,
+    actions: ResultRowActions,
+    isOpen: () -> Boolean,
+    onOpenChanged: (Boolean) -> Unit,
+) {
+    val c = MaterialTheme.grove
+    val ref = NoteRef(result.fileName, result.lineIndex)
+    val bookIcon = notebookIcon()
+    val canMarkDone = result.keyword != null && !result.isDone
+    val forceClose by remember { derivedStateOf { !isOpen() } }
+    SwipeCommitRow(
+        leftAction = SwipeAction("⟳", "State", c.amber, c.amberSoft) { actions.onOpenStatePicker(result) },
+        leftSecondaryAction = if (canMarkDone) {
+            SwipeAction(label = "Done", fg = c.green, bg = c.greenSoft, icon = Icons.Default.Check) {
+                actions.onMarkDone(result)
+            }
+        } else {
+            null
+        },
+        rightAction = SwipeAction(
+            label = "Schedule",
+            fg = c.blue,
+            bg = c.blueSoft,
+            icon = Icons.Outlined.CalendarMonth,
+        ) { actions.onOpenSchedulePicker(result) },
+        rightSecondaryAction = SwipeAction(label = "Book", fg = c.accent, bg = c.accentSoft, icon = bookIcon) {
+            actions.onShowInNotebook(ref)
+        },
+        forceClose = forceClose,
+        onOpenChanged = onOpenChanged,
+        onTap = { actions.onOpenNote(ref) },
+    ) {
+        SearchResultRow(result, matchedTerms)
+    }
+}
+
+/**
+ * The `ad.N` layout: day sections (Overdue first) under the Agenda's
+ * [GroupHeader], heading rows only. Headers scroll with the list, as on the
+ * Agenda screen. A note can sit in several sections (an event spanning days).
+ */
+@Composable
+private fun DayResultsList(
+    listState: LazyListState,
+    days: List<SearchDayGroup>,
+    matchedTerms: List<String>,
+    actions: ResultRowActions,
+) {
+    var openRowKey by remember { mutableStateOf<String?>(null) }
+    LazyColumn(
+        state = listState,
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 12.dp, vertical = 4.dp)
+            .testTag("search_results_list"),
+    ) {
+        days.forEach { day ->
+            item(key = "day-${day.key}", contentType = "dayHeader") {
+                Box(Modifier.padding(top = 10.dp)) { GroupHeader(day.label, day.results.size) }
+            }
+            itemsIndexed(
+                day.results,
+                key = { i, r -> "${day.key}-${r.fileName}@${r.lineIndex}-$i" },
+                contentType = { _, _ -> "heading" },
+            ) { index, result ->
+                if (index > 0) HorizontalDivider(color = MaterialTheme.grove.line)
+                val rowKey = "${day.key}-${result.fileName}@${result.lineIndex}-$index"
+                ResultSwipeRow(
+                    result = result,
+                    matchedTerms = matchedTerms,
+                    actions = actions,
+                    isOpen = { openRowKey == rowKey },
+                    onOpenChanged = { open ->
+                        if (open) openRowKey = rowKey
+                        else if (openRowKey == rowKey) openRowKey = null
+                    },
+                )
             }
         }
     }

@@ -17,6 +17,8 @@ import com.rrajath.grove.data.rawQuery
 import com.rrajath.grove.data.toNoteMeta
 import com.rrajath.grove.org.INTRO_LINE_INDEX
 import com.rrajath.grove.org.InlineTokenizer
+import com.rrajath.grove.org.OrgDocument
+import com.rrajath.grove.org.OrgHeadline
 import com.rrajath.grove.org.OrgKeywords
 import com.rrajath.grove.org.OrgMutations
 import com.rrajath.grove.org.OrgTimestamp
@@ -218,6 +220,15 @@ data class FilenameMatch(
     val quality: Int,
 )
 
+/** One day section of the `ad.N` view (see [SearchAgenda]). */
+@Immutable
+data class SearchDayGroup(
+    /** [SearchAgenda.OVERDUE_KEY] or the ISO date. */
+    val key: String,
+    val label: String,
+    val results: ImmutableList<SearchResult>,
+)
+
 @Immutable
 data class SearchCatalog(
     val tags: ImmutableList<String> = persistentListOf(),
@@ -231,6 +242,9 @@ data class SearchUiState(
     val query: String = "",
     val filters: SearchFilters = SearchFilters(),
     val groups: ImmutableList<SearchFileGroup> = persistentListOf(),
+    /** Non-null when the query has `ad.N`: results laid out by day instead of
+     *  by notebook ([groups] is then empty). */
+    val days: ImmutableList<SearchDayGroup>? = null,
     val resultCount: Int = 0,
     val notebookCount: Int = 0,
     val isBlank: Boolean = true,
@@ -243,7 +257,7 @@ data class SearchUiState(
 )
 
 /** Full-text + faceted search, results grouped by file (design spec §9 "Search
- *  B: panel"). Agenda's day-grouped/Overdue view now lives on its own screen. */
+ *  B: panel"), or by day for an `ad.N` query ([SearchAgenda]). */
 class SearchViewModel(
     private val vaultFlow: StateFlow<Vault?>,
     private val sync: SyncTrigger,
@@ -408,40 +422,67 @@ class SearchViewModel(
      * opened and saved on demand, the way Agenda's row swipes do.
      */
     fun setState(fileName: String, lineIndex: Int, keyword: String?) {
+        viewModelScope.launch { applyState(fileName, lineIndex) { _, _ -> keyword } }
+    }
+
+    /**
+     * The one-swipe Done action (Orgzly's swipe-to-done): sets an open
+     * heading to the first configured done-type keyword, through the same
+     * path as [setState], and always offers Undo. Not offered for a
+     * keyword-less heading (an event has nothing to complete) or one that's
+     * already done.
+     */
+    fun markDone(fileName: String, lineIndex: Int) {
         viewModelScope.launch {
-            val vault = vaultFlow.value ?: return@launch
-            val doc = vault.open(fileName) ?: return@launch
-            val headline = doc.headlineAtLine(lineIndex) ?: return@launch
-            if (headline.keyword == keyword) return@launch
-            val currentSettings = settings.settings.first()
-            when (
-                val result = AutoArchive.apply(vault, currentSettings, doc, fileName, headline, keyword, LocalDateTime.now())
-            ) {
-                is StateChangeResult.Plain -> {
-                    vault.save(fileName, result.text)
-                    sync.requestReindex(fileName, result.text, "search state set")
-                    // A recurring task keeps its keyword and just moves its date, so say where it went.
-                    val next = result.doc.headlines.firstOrNull { it.lineIndex == lineIndex }
-                        ?.let { nextRepeatOccurrence(headline, it) }
-                    if (next != null) {
-                        undoSnapshot = listOf(fileName to doc.text)
-                        showSnack(markedDoneMessage(next, LocalDate.now()))
-                    }
+            applyState(fileName, lineIndex, announceDone = true) { doc, headline ->
+                val keyword = headline.keyword ?: return@applyState null
+                if (keyword in doc.keywords.done) null else doc.keywords.done.firstOrNull()
+            }
+        }
+    }
+
+    /** [target] picks the new keyword from the freshly opened document;
+     *  returning the heading's current keyword (or null for [markDone]'s
+     *  "nothing to do") skips the write. */
+    private suspend fun applyState(
+        fileName: String,
+        lineIndex: Int,
+        announceDone: Boolean = false,
+        target: (OrgDocument, OrgHeadline) -> String?,
+    ) {
+        val vault = vaultFlow.value ?: return
+        val doc = vault.open(fileName) ?: return
+        val headline = doc.headlineAtLine(lineIndex) ?: return
+        val keyword = target(doc, headline)
+        if (headline.keyword == keyword || (announceDone && keyword == null)) return
+        val currentSettings = settings.settings.first()
+        when (
+            val result = AutoArchive.apply(vault, currentSettings, doc, fileName, headline, keyword, LocalDateTime.now())
+        ) {
+            is StateChangeResult.Plain -> {
+                vault.save(fileName, result.text)
+                sync.requestReindex(fileName, result.text, "search state set")
+                // A recurring task keeps its keyword and just moves its date, so say where it went.
+                val next = result.doc.headlines.firstOrNull { it.lineIndex == lineIndex }
+                    ?.let { nextRepeatOccurrence(headline, it) }
+                if (next != null || announceDone) {
+                    undoSnapshot = listOf(fileName to doc.text)
+                    showSnack(markedDoneMessage(next, LocalDate.now()))
                 }
-                is StateChangeResult.Archived -> {
-                    undoSnapshot = if (result.sourceFile == result.destFile) {
-                        listOf(result.sourceFile to doc.text)
-                    } else {
-                        listOf(fileName to doc.text, result.destFile to result.destTextBefore)
-                    }
-                    vault.save(fileName, result.sourceText)
-                    sync.requestReindex(fileName, result.sourceText, "search state set")
-                    if (result.destFile != fileName) {
-                        vault.save(result.destFile, result.destText)
-                        sync.requestReindex(result.destFile, result.destText, "search state set")
-                    }
-                    showSnack("Marked done. Refiled to ${result.label}")
+            }
+            is StateChangeResult.Archived -> {
+                undoSnapshot = if (result.sourceFile == result.destFile) {
+                    listOf(result.sourceFile to doc.text)
+                } else {
+                    listOf(fileName to doc.text, result.destFile to result.destTextBefore)
                 }
+                vault.save(fileName, result.sourceText)
+                sync.requestReindex(fileName, result.sourceText, "search state set")
+                if (result.destFile != fileName) {
+                    vault.save(result.destFile, result.destText)
+                    sync.requestReindex(result.destFile, result.destText, "search state set")
+                }
+                showSnack("Marked done. Refiled to ${result.label}")
             }
         }
     }
@@ -662,6 +703,7 @@ class SearchViewModel(
             _state.value = _state.value.copy(
                 filters = filters,
                 groups = persistentListOf(),
+                days = null,
                 resultCount = vaultNoteCount,
                 notebookCount = vaultNotebookCount,
                 isBlank = true,
@@ -680,6 +722,30 @@ class SearchViewModel(
             val textMatched = textQuery?.let { QueryMatcher.filter(notes, it, today, options, now) } ?: notes
             val terms = textQuery?.textTerms ?: emptyList()
             val filtered = textMatched.filter { matchesFilters(it, filters, today) }
+
+            val agendaDays = textQuery?.agendaDays
+            if (agendaDays != null) {
+                // Text snippets and file rows don't apply: every entry is a
+                // dated heading (an intro has no planning line or events).
+                val days = SearchAgenda.build(filtered.filter { it.lineIndex != INTRO_LINE_INDEX }, today, agendaDays)
+                    .map { day ->
+                        SearchDayGroup(
+                            key = day.key,
+                            label = day.label,
+                            results = day.entries.map { toResult(it.note, today) }.toImmutableList(),
+                        )
+                    }
+                _state.value = _state.value.copy(
+                    filters = filters,
+                    groups = persistentListOf(),
+                    days = days.toImmutableList(),
+                    resultCount = days.sumOf { it.results.size },
+                    notebookCount = days.flatMap { d -> d.results.map { it.fileName } }.distinct().size,
+                    isBlank = false,
+                    matchedTerms = terms.toImmutableList(),
+                )
+                return@withContext
+            }
 
             // Group by file, preserving first-seen file order. A note with
             // nothing to show (its words only meet across lines) is dropped.
@@ -734,6 +800,7 @@ class SearchViewModel(
             _state.value = _state.value.copy(
                 filters = filters,
                 groups = groups,
+                days = null,
                 resultCount = groups.sumOf { it.rows.size + if (it.hasFileRow) 1 else 0 },
                 notebookCount = groups.size,
                 isBlank = false,

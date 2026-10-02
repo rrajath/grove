@@ -84,7 +84,7 @@ Against `now` and `Nh`, a timed entry (`<2026-10-01 Thu 09:00>`) is compared at 
 | Syntax | Effect |
 |---|---|
 | `o.PROP` | Sort results by a property instead of relevance; `.o.PROP` sorts descending. Repeatable: `o.p o.d` sorts by priority, then deadline. Notes without the property go last in either direction (for `o.p`, an unprioritized note sorts at the default priority when one is set). Properties (Orgzly's set): `b`/`book`/`notebook`, `t`/`title`, `s`/`sched`/`scheduled`, `d`/`dead`/`deadline`, `e`/`event` (also `a`/`active`; ascending uses the oldest event, descending the most recent), `c`/`close`/`closed`, `cr`/`created`, `p`/`pri`/`prio`/`priority`, `st`/`state` (the keyword order from Settings, unconfigured keywords after it). Unknown properties are ignored. |
-| `ad.N` | Narrows results to notes scheduled or due within the next N days, overdue included. Unlike Orgzly, results are not regrouped by day in Search (Grove's day-grouped view is the separate Agenda screen) and events aren't included. |
+| `ad.N` | Agenda view, as in Orgzly: narrows results to notes with any time set in the N days starting today (`ad.1` = today only): a SCHEDULED or DEADLINE in that window or overdue, or an event covering one of those days. Results are laid out by day instead of by notebook: an **Overdue** section first, then one section per day that has something on it. A heading lands on its SCHEDULED day, else its DEADLINE day (or the DEADLINE when SCHEDULED is past the window); an event shows on every day of the window it covers. Within a day, timed entries come first in time order, untimed ones after. Text snippets and file-name rows don't appear in this view. |
 
 ## What gets searched
 
@@ -112,7 +112,7 @@ e.ge.today e.le.7d o.e          events in the next week, earliest first
 p.b                             priority B, plus unprioritized notes if the default priority is B
 ps.b                            priority B written on the heading
 i.none b.journal grateful       journal prose (no TODO keyword) containing "grateful"
-ad.7 t.work                     work items due or scheduled in the next week
+ad.7 t.work                     work items and events in the next 7 days, by day
 .(t.work OR t.home) i.todo      TODOs tagged neither work nor home
 b.shopping t.tigros AND (it.todo OR (it.done AND c.eq.today)) o.p o.st o.t
                                 open tigros items plus ones checked off today, by priority, state, title

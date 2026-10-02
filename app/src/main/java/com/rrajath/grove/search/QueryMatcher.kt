@@ -87,7 +87,7 @@ object QueryMatcher {
         options: MatchOptions = MatchOptions(),
         now: LocalDateTime = today.atStartOfDay(),
     ): Boolean {
-        if (!matchesAgendaWindow(note, query, today, now)) return false
+        if (!matchesAgendaWindow(note, query, today)) return false
         val expr = query.expr ?: return true
         return expr.matches { term -> matchesTerm(note, term, today, now, options) }
     }
@@ -107,7 +107,7 @@ object QueryMatcher {
         options: MatchOptions = MatchOptions(),
         now: LocalDateTime = today.atStartOfDay(),
     ): List<List<Term>> {
-        if (!matchesAgendaWindow(note, query, today, now)) return emptyList()
+        if (!matchesAgendaWindow(note, query, today)) return emptyList()
         if (query.expr == null) return listOf(emptyList())
         if (query.isFlatteningSkipped) {
             return if (matches(note, query, today, options, now)) listOf(emptyList()) else emptyList()
@@ -116,18 +116,27 @@ object QueryMatcher {
     }
 
     /**
-     * `ad.N` (PRD §5.5): besides switching the results to a day-grouped agenda
-     * view, it narrows to notes scheduled or with deadline within the next N
-     * days (or overdue: the same `le` rule a plain `s.Nd`/`d.Nd` uses).
-     * Applied independently of [SearchQuery.groups] so it still
-     * filters when `ad.N` is the only token in the query.
+     * `ad.N` (PRD §5.5, Orgzly's agenda): besides switching Search to its
+     * day-grouped view, it narrows to notes with any time set in the N days
+     * starting today ([agendaHorizon]): a SCHEDULED or DEADLINE on or before
+     * the last day (overdue included, as the agenda's Overdue section), or an
+     * event (bare active timestamp) covering one of those days. Applied
+     * independently of [SearchQuery.groups] so it still filters when `ad.N`
+     * is the only token in the query.
      */
-    private fun matchesAgendaWindow(note: NoteMeta, query: SearchQuery, today: LocalDate, now: LocalDateTime): Boolean {
+    private fun matchesAgendaWindow(note: NoteMeta, query: SearchQuery, today: LocalDate): Boolean {
         val days = query.agendaDays ?: return true
-        val period = Period("${days}d")
-        return matchesDate(note.scheduledTs, period, today, now, CompareOp.LE) ||
-            matchesDate(note.deadlineTs, period, today, now, CompareOp.LE)
+        val horizon = agendaHorizon(today, days)
+        if (note.scheduledDate?.isAfter(horizon) == false) return true
+        if (note.deadlineDate?.isAfter(horizon) == false) return true
+        return note.activeTimestamps.any { ts ->
+            !ts.date.isAfter(horizon) && !(ts.rangeEnd ?: ts.date).isBefore(today)
+        }
     }
+
+    /** The last day `ad.[days]` covers: `ad.1` is today only (`ad.0` and below count as 1). */
+    fun agendaHorizon(today: LocalDate, days: Int): LocalDate =
+        today.plusDays((days.coerceAtLeast(1) - 1).toLong())
 
     fun filter(
         notes: List<NoteMeta>,

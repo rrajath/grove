@@ -48,7 +48,7 @@ Facet prefixes:
 | `c.` | closed date |
 | `cr.` | created date |
 | `o.` | sort (see below) |
-| `ad.N` | scheduled or due within the next N days (overdue included) |
+| `ad.N` | agenda view: anything scheduled, due or happening in the N days starting today (overdue included), laid out by day |
 
 ### Dates
 
@@ -108,7 +108,14 @@ A file that matches only through a file-level setting, such as a `#+filetags:` t
 
 ## Swipe actions on results
 
-Heading results support a subset of the swipe-to-commit gestures as Outline View (text matches don't, since only a heading can hold a TODO state or a date): swipe left to cycle TODO state via the shared state picker, swipe right to set a Scheduled date via [Planning Dates](/features/planning-dates); both work across notebooks directly from the results list.
+Heading results have swipe actions (text matches don't, since only a heading can hold a TODO state or a date). They work across notebooks directly from the results list.
+
+- **Swipe left to right**: a long swipe cycles the TODO state through the shared state picker, as in Outline View. A shorter swipe opens the row with a second cell, **Done**, which marks an open task done in one tap (with Undo).
+- **Swipe right to left**: a long swipe sets a Scheduled date via [Planning Dates](/features/planning-dates). A shorter swipe also shows **Book**, which opens the heading's notebook in Outline View, unfolded and scrolled to that heading, with a brief highlight.
+
+## Agenda view (`ad.N`)
+
+Add `ad.N` to any search to see the results by day, like Orgzly's agenda: `ad.7 t.work` lists everything tagged `work` that is scheduled, due or happening in the next seven days (today included). An **Overdue** section comes first, then one section per day with something on it. Timed entries are listed in time order, with untimed ones after them. Events (bare active timestamps) appear on every day they cover. The rest of the query still applies, so you can combine `ad.N` with tags, notebooks, states and `OR`.
 
 ## Filters panel
 

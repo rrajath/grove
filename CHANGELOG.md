@@ -62,6 +62,8 @@ re-uploads the APKs to the existing release instead of failing.
 - Search supports nested brackets, `.( … )` negation, `AND`, `it.` keyword types, date comparisons, and Orgzly sort keys.
 - Search accepts lowercase `and`/`or`, quoted values, `e.` events, `ps.` set priority, and Orgzly day aliases.
 - Search supports `now` and hour offsets with time-of-day matching, plus `Ny` year offsets.
+- `ad.N` searches now show results grouped by day, including events, like Orgzly's agenda.
+- Search results gain swipe cells to mark a task done or show it in its notebook.
 
 ### Changed
 - Date filters follow Orgzly defaults: `s.today` now includes overdue. Saved searches are migrated to keep their meaning.

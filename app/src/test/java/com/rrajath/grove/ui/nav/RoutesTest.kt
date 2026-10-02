@@ -178,6 +178,13 @@ class RoutesTest {
     }
 
     @Test
+    fun `outline route carries reveal only when set`() {
+        assertEquals("outline/travel.org?reveal=7", Routes.outline("travel.org", reveal = 7))
+        assertFalse(Routes.outline("travel.org").contains("reveal"))
+        assertTrue(Routes.OUTLINE.contains("reveal={reveal}"))
+    }
+
+    @Test
     fun `file route encodes the file name and defaults to read mode`() {
         assertEquals("file/my%20notes.org?mode=read", Routes.file("my notes.org"))
         assertEquals("file/a%2Fb.org?mode=edit", Routes.file("a/b.org", mode = "edit"))

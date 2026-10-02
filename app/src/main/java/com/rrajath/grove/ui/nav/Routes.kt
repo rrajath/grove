@@ -15,8 +15,10 @@ object Routes {
      * "open small files as one note" toggle on, a file under the line limit then
      * skips the outline and lands on [FILE] instead. Breadcrumbs and the file
      * view's own filename tap ask for the outline explicitly and leave it off.
+     * [reveal] is a heading's line index to scroll to and briefly highlight
+     * (Search's "show in notebook").
      */
-    const val OUTLINE = "outline/{notebookId}?narrowTo={narrowTo}&auto={auto}"
+    const val OUTLINE = "outline/{notebookId}?narrowTo={narrowTo}&auto={auto}&reveal={reveal}"
     const val NOTE = "note/{noteId}?mode={mode}&isNew={isNew}"
     /**
      * The whole `.org` file as one note: preface, intro and every heading in one
@@ -92,10 +94,11 @@ object Routes {
      * Read Mode breadcrumb, so the Outline shows only that heading's subtree
      * (org-narrow-to-subtree semantics) until the user taps "widen".
      */
-    fun outline(notebookId: String, narrowTo: Int? = null, autoOpen: Boolean = false): String {
+    fun outline(notebookId: String, narrowTo: Int? = null, autoOpen: Boolean = false, reveal: Int? = null): String {
         val params = listOfNotNull(
             narrowTo?.let { "narrowTo=$it" },
             "auto=true".takeIf { autoOpen },
+            reveal?.let { "reveal=$it" },
         )
         return "outline/${encode(notebookId)}" + if (params.isEmpty()) "" else "?" + params.joinToString("&")
     }

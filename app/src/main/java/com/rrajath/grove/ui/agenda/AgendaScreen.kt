@@ -484,7 +484,7 @@ private fun AgendaList(
         }
 
         state.groups.forEach { group ->
-            item("head-${group.key}") { GroupHeader(group) }
+            item("head-${group.key}") { GroupHeader(group.key, group.count) }
             items(group.rows, key = { "${group.key}-${it.fileName}@${it.lineIndex}-${it.activeTs}" }) { row ->
                 val rowKey = "${group.key}-${row.fileName}@${row.lineIndex}-${row.activeTs}"
                 // Add-note rides along beside whichever side is configured as Mark
@@ -521,21 +521,22 @@ private fun AgendaList(
     }
 }
 
-/** Uppercase bucket key, its mono count, and a hairline running to the right edge. */
+/** Uppercase bucket key, its mono count, and a hairline running to the right edge.
+ *  Also heads the day sections of Search's `ad.N` view. */
 @Composable
-private fun GroupHeader(group: AgendaGroup) {
+internal fun GroupHeader(key: String, count: Int) {
     val c = MaterialTheme.grove
     Row(
         Modifier.fillMaxWidth().padding(start = 2.dp, end = 2.dp, bottom = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            group.key.uppercase(),
+            key.uppercase(),
             fontFamily = PlexSans, fontWeight = FontWeight.Bold,
             fontSize = 11.sp, letterSpacing = 0.77.sp, color = c.ink2,
         )
         Spacer(Modifier.width(8.dp))
-        Text(group.count.toString(), fontFamily = PlexMono, fontSize = 11.sp, color = c.ink3)
+        Text(count.toString(), fontFamily = PlexMono, fontSize = 11.sp, color = c.ink3)
         Spacer(Modifier.width(8.dp))
         Box(Modifier.weight(1f).height(1.dp).background(c.line))
     }

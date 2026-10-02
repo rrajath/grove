@@ -251,6 +251,75 @@ class SearchViewModelIntegrationTest {
         assertTrue(sync.reindexCalls.any { it.reason == "search state set" })
     }
 
+    @Test
+    fun `markDone sets the first done keyword and offers undo`() = runTest {
+        TestVaultSeeder.index(db, store)
+        advanceUntilIdle()
+        val vm = search()
+        advanceUntilIdle()
+
+        val line = headlineLine("projects.org", "Tag the release")
+        vm.markDone("projects.org", line)
+        // Not advanceUntilIdle: that would also run the snack's auto-dismiss delay.
+        advanceTimeBy(1000)
+
+        assertTrue(store.read("projects.org").contains("DONE Tag the release"))
+        assertEquals("Marked done", vm.snack.value?.message)
+        vm.undo()
+        advanceUntilIdle()
+        assertFalse(store.read("projects.org").contains("DONE Tag the release"))
+    }
+
+    @Test
+    fun `markDone leaves a done heading alone`() = runTest {
+        TestVaultSeeder.index(db, store)
+        advanceUntilIdle()
+        val vm = search()
+        advanceUntilIdle()
+        val before = store.read("projects.org")
+
+        vm.markDone("projects.org", headlineLine("projects.org", "Cut the changelog"))
+        advanceUntilIdle()
+
+        assertEquals(before, store.read("projects.org"))
+        assertEquals(null, vm.snack.value)
+    }
+
+    @Test
+    fun `an ad N query lays results out by day`() = runTest {
+        val today = java.time.LocalDate.now()
+        fun stamp(d: java.time.LocalDate) = "<$d ${d.dayOfWeek.getDisplayName(java.time.format.TextStyle.SHORT, java.util.Locale.ENGLISH)}>"
+        store.write(
+            "plans.org",
+            """
+            * TODO Pay rent
+            DEADLINE: ${stamp(today.minusDays(2))}
+            * TODO Dentist
+            SCHEDULED: ${stamp(today.plusDays(1))}
+            * Concert
+            ${stamp(today)}
+            """.trimIndent() + "\n",
+        )
+        TestVaultSeeder.index(db, store)
+        advanceUntilIdle()
+        val vm = search()
+        advanceUntilIdle()
+
+        runQuery(vm, "b.plans ad.3")
+
+        val days = vm.state.value.days!!
+        assertEquals(listOf("overdue", today.toString(), today.plusDays(1).toString()), days.map { it.key })
+        assertEquals(
+            listOf(listOf("Pay rent"), listOf("Concert"), listOf("Dentist")),
+            days.map { d -> d.results.map { it.title } },
+        )
+        assertTrue(vm.state.value.groups.isEmpty())
+        assertEquals(3, vm.state.value.resultCount)
+
+        runQuery(vm, "b.plans")
+        assertEquals(null, vm.state.value.days)
+    }
+
     // --- nested queries, it., Orgzly sort keys ---
 
     private fun kotlinx.coroutines.test.TestScope.runQuery(vm: SearchViewModel, query: String) {

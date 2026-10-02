@@ -654,4 +654,24 @@ class QueryMatcherTest {
         val title = note("Ramen", line = 2)
         assertEquals(listOf("Ramen", "Other"), run("ramen", body, title))
     }
+
+    // --- P3: ad.N window ---
+
+    @Test
+    fun `ad N covers N days starting today, overdue included`() {
+        val lastDay = note("Last day", scheduled = "<2025-06-17 Tue>")
+        val dayAfter = note("Day after", scheduled = "<2025-06-18 Wed>")
+        val overdue = note("Overdue", deadline = "<2025-06-01 Sun>")
+        assertEquals(listOf("Last day", "Overdue"), run("ad.7", lastDay, dayAfter, overdue))
+        assertEquals(listOf("Overdue"), run("ad.1", lastDay, overdue))
+    }
+
+    @Test
+    fun `ad N includes events in the window but not past ones`() {
+        val soon = note("Soon", active = "<2025-06-13 Fri>")
+        val running = note("Running", active = "<2025-06-09 Mon>--<2025-06-12 Thu>")
+        val past = note("Past", active = "<2025-06-10 Tue>")
+        val far = note("Far", active = "<2025-06-30 Mon>")
+        assertEquals(listOf("Soon", "Running"), run("ad.3", soon, running, past, far))
+    }
 }
