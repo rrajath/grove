@@ -70,6 +70,7 @@ re-uploads the APKs to the existing release instead of failing.
 - Plain search text also matches a heading's own tags; filter-only searches sort by notebook, priority, then date.
 - Editor suggestion strip restyled with outlined chips; Capture's Save now fits inside it, aligned with the Read/Edit toggle.
 - While typing a note, the menu button smoothly shrinks into the suggestion strip, like Capture's Save.
+- Swipe cells: Schedule now sits at the edge with Reveal beside it; Agenda's Schedule swipe gains Reveal.
 - The Backlinks bar now slides up when the keyboard closes instead of popping in.
 - Linked References is now called Backlinks, and no longer shows on single headings opened from the outline.
 - Releases are cut locally with scripts/release.sh, so F-Droid can reproduce the published APK.

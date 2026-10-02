@@ -275,7 +275,7 @@ fun SwipeCommitRow(
         }
         if (showRightPanel && rightAction != null) {
             if (rightSecondaryAction != null) {
-                ActionPanel(listOf(rightAction, rightSecondaryAction), anchorEnd = true, shape = shape, onAction = ::close)
+                ActionPanel(listOf(rightSecondaryAction, rightAction), anchorEnd = true, shape = shape, onAction = ::close)
             } else {
                 CommitUnderlay(rightAction, anchorEnd = true, shape = shape)
             }

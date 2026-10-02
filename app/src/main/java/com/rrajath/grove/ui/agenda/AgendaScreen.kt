@@ -68,6 +68,7 @@ import com.rrajath.grove.ui.components.PlanningDatesScreen
 import com.rrajath.grove.ui.components.SwipeAction
 import com.rrajath.grove.ui.components.SwipeCommitRow
 import com.rrajath.grove.ui.components.annotateOrgInline
+import com.rrajath.grove.ui.components.notebookIcon
 import com.rrajath.grove.ui.screens.NoteDialog
 import com.rrajath.grove.ui.theme.GroveColors
 import com.rrajath.grove.ui.theme.PlexMono
@@ -96,15 +97,18 @@ private data class DatePickerRequest(
  * the list by date, priority, tag, or file.
  *
  * Rows additionally support the swipe gestures configured in Settings § Agenda
- * (set scheduled date, set deadline, or mark done), each committing on release
- * past the threshold. Overdue rows are deliberately not swipeable: they live on
- * the red card, whose own "Move to today" is the bulk equivalent, and the swipe
- * underlay would break the card's fill.
+ * (set scheduled date, set deadline, or mark done). A partial swipe opens the
+ * side's two cells (the configured action at the edge, Reveal or Add-note
+ * beside it); a long swipe commits the configured action. Overdue rows are
+ * deliberately not swipeable: they live on the red card, whose own "Move to
+ * today" is the bulk equivalent, and the swipe underlay would break the card's
+ * fill.
  */
 @Composable
 fun AgendaScreen(
     onBack: () -> Unit,
     onOpenNote: (NoteRef) -> Unit,
+    onShowInNotebook: (NoteRef) -> Unit = {},
     viewModel: AgendaViewModel = viewModel(factory = AgendaViewModel.Factory),
 ) {
     val c = MaterialTheme.grove
@@ -168,6 +172,7 @@ fun AgendaScreen(
                     onMoveOverdue = viewModel::moveOverdueToToday,
                     onOpenDatePicker = openDatePicker,
                     onOpenNoteDialog = { row -> noteDialogFor = row },
+                    onShowInNotebook = onShowInNotebook,
                 )
 
                 val nearBottom by remember {
@@ -439,6 +444,7 @@ private fun AgendaList(
     onMoveOverdue: () -> Unit,
     onOpenDatePicker: (AgendaRow, PlanningKind) -> Unit,
     onOpenNoteDialog: (AgendaRow) -> Unit,
+    onShowInNotebook: (NoteRef) -> Unit,
 ) {
     val c = MaterialTheme.grove
     // At most one row's swipe panel stays open at a time (mirrors the Outline
@@ -447,6 +453,7 @@ private fun AgendaList(
     // Hoisted so every row's "Note" swipe cell shares one call instead of one per row per
     // recomposition.
     val icNote = ImageVector.vectorResource(id = R.drawable.ic_note)
+    val icNotebook = notebookIcon()
     LazyColumn(
         state = listState,
         modifier = Modifier.fillMaxSize(),
@@ -488,14 +495,15 @@ private fun AgendaList(
             items(group.rows, key = { "${group.key}-${it.fileName}@${it.lineIndex}-${it.activeTs}" }) { row ->
                 val rowKey = "${group.key}-${row.fileName}@${row.lineIndex}-${row.activeTs}"
                 // Add-note rides along beside whichever side is configured as Mark
-                // Done: partial swipe reveals both, full swipe still marks done. On
-                // an event (a heading with no TODO keyword) the Done side is dropped
-                // and that side offers Add-note alone instead.
+                // Done, and Reveal beside a date action: partial swipe reveals both,
+                // full swipe still commits the configured action. On an event (a
+                // heading with no TODO keyword) the Done side is dropped and that
+                // side offers Add-note alone instead.
                 val (leftPrimary, leftSecondary) = remember(row, state.swipeLeftAction, c) {
-                    agendaSwipeActions(state.swipeLeftAction, row, c, icNote, onOpenDatePicker, onToggleDone, onOpenNoteDialog)
+                    agendaSwipeActions(state.swipeLeftAction, row, c, icNote, icNotebook, onOpenDatePicker, onToggleDone, onOpenNoteDialog, onShowInNotebook)
                 }
                 val (rightPrimary, rightSecondary) = remember(row, state.swipeRightAction, c) {
-                    agendaSwipeActions(state.swipeRightAction, row, c, icNote, onOpenDatePicker, onToggleDone, onOpenNoteDialog)
+                    agendaSwipeActions(state.swipeRightAction, row, c, icNote, icNotebook, onOpenDatePicker, onToggleDone, onOpenNoteDialog, onShowInNotebook)
                 }
                 // derivedStateOf: openRowKey changes on every open/close, but only the
                 // previously- and newly-open row's forceClose value actually flips.
@@ -777,7 +785,9 @@ internal fun GroveColors.metaColor(tone: AgendaMetaTone): Color = when (tone) {
  * The (primary, secondary) swipe actions for one direction, given its configured
  * [AgendaSwipeAction].
  *
- * - `SET_SCHEDULED` / `SET_DEADLINE`: a single swipe-to-commit action, no secondary.
+ * - `SET_SCHEDULED` / `SET_DEADLINE`: the date action primary with a "Reveal"
+ *   secondary (the heading in its notebook's outline, as in Search); partial
+ *   swipe reveals both, full swipe opens the date picker.
  * - `MARK_DONE` on a task: "Done" primary with an "Add note" secondary riding
  *   alongside (partial swipe reveals both, full swipe commits Done).
  * - `MARK_DONE` on a keyword-less row with a repeater ([AgendaRow.repeaterKind]
@@ -793,9 +803,11 @@ private fun agendaSwipeActions(
     row: AgendaRow,
     c: GroveColors,
     icNote: ImageVector,
+    icNotebook: ImageVector,
     onOpenDatePicker: (AgendaRow, PlanningKind) -> Unit,
     onToggleDone: (AgendaRow) -> Unit,
     onOpenNoteDialog: (AgendaRow) -> Unit,
+    onShowInNotebook: (NoteRef) -> Unit,
 ): Pair<SwipeAction?, SwipeAction?> {
     val note = SwipeAction(
         label = "Note",
@@ -803,15 +815,19 @@ private fun agendaSwipeActions(
         bg = c.blueSoft,
         icon = icNote,
     ) { onOpenNoteDialog(row) }
+    // Same cell as Search's Reveal: the heading in its notebook's outline.
+    val reveal = SwipeAction(label = "Reveal", fg = c.accent, bg = c.accentSoft, icon = icNotebook) {
+        onShowInNotebook(NoteRef(row.fileName, row.lineIndex))
+    }
     return when (kind) {
         AgendaSwipeAction.SET_SCHEDULED ->
             SwipeAction(label = "Sched", fg = c.blue, bg = c.blueSoft, icon = Icons.Outlined.CalendarMonth) {
                 onOpenDatePicker(row, PlanningKind.SCHEDULED)
-            } to null
+            } to reveal
         AgendaSwipeAction.SET_DEADLINE ->
             SwipeAction(label = "Deadl", fg = c.red, bg = c.redSoft, icon = Icons.Filled.Flag) {
                 onOpenDatePicker(row, PlanningKind.DEADLINE)
-            } to null
+            } to reveal
         AgendaSwipeAction.MARK_DONE ->
             if (!row.hasDoneAffordance) {
                 note to null

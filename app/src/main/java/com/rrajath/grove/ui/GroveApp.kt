@@ -933,6 +933,7 @@ private fun GroveNavigation(
                 AgendaScreen(
                     onBack = { navController.popBackStack() },
                     onOpenNote = { ref -> navController.navigate(Routes.note(ref.encode())) },
+                    onShowInNotebook = { ref -> navController.navigate(Routes.outline(ref.fileName, reveal = ref.lineIndex)) },
                 )
             }
             composable(Routes.CONFLICT) { entry ->

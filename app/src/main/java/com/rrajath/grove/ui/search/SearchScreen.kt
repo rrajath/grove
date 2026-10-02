@@ -929,7 +929,7 @@ private class ResultRowActions(
  * swipe settles open as [Done | State]. On a heading with nothing to complete
  * (no keyword, or already done) State is the only action and fires on
  * release. Right-to-left: a long swipe schedules; a partial swipe shows
- * [Schedule | Reveal] (the heading in its notebook's outline).
+ * [Reveal | Schedule] (Reveal opens the heading in its notebook's outline).
  */
 @Composable
 private fun ResultSwipeRow(
