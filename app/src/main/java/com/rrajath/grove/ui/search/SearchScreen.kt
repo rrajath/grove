@@ -71,11 +71,13 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
@@ -518,12 +520,26 @@ private fun AdvancedPanel(onChipTap: (String) -> Unit) {
             .border(1.dp, c.line, RoundedCornerShape(13.dp))
             .padding(13.dp),
     ) {
+        // The header is exactly the label's height, its line box trimmed to the
+        // glyphs, so the card's 13dp top inset reads the same as the 13dp under
+        // the chips. The ⓘ button is taller (13sp + 4dp padding): it lays out
+        // as zero-height and overhangs the row, centred on the label, instead
+        // of pushing the label down.
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 "Operators", fontFamily = PlexSans, fontWeight = FontWeight.SemiBold,
-                fontSize = 11.5.sp, color = c.ink2, modifier = Modifier.weight(1f),
+                fontSize = 11.5.sp, lineHeight = 11.5.sp, color = c.ink2,
+                style = TextStyle(
+                    lineHeightStyle = LineHeightStyle(LineHeightStyle.Alignment.Center, LineHeightStyle.Trim.Both),
+                ),
+                modifier = Modifier.weight(1f),
             )
-            Box {
+            Box(
+                Modifier.layout { measurable, constraints ->
+                    val placeable = measurable.measure(constraints)
+                    layout(placeable.width, 0) { placeable.place(0, -placeable.height / 2) }
+                },
+            ) {
                 Text(
                     "ⓘ", fontFamily = PlexMono, fontSize = 13.sp, color = c.ink3,
                     modifier = Modifier

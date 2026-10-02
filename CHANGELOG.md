@@ -82,6 +82,7 @@ re-uploads the APKs to the existing release instead of failing.
 - Search result date pills now show the scheduled or deadline time, e.g. "today 23:00".
 - In the file editor, the Backlinks bar now reaches the bottom edge of the screen, matching Read mode.
 - The note and Capture editors no longer leave a blank gap above the suggestion strip.
+- Search's Operators card now has matching top and bottom padding.
 
 ## [1.8.1] - 2026-09-29
 
