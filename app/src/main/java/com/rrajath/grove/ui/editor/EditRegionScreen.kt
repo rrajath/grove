@@ -383,13 +383,22 @@ fun EditRegionScreen(
         // ime.getBottom > 0 tracks the live keyboard height, unlike isImeVisible's
         // visibility flag; see EditNoteScreen's identical wiring.
         val imeVisible by rememberImeVisible()
+        val isRoamFile = region == EditRegion.WHOLE_FILE && wholeFileMeta?.first != null
+        // While the Backlinks bar is up it runs to the screen's bottom edge, under
+        // the nav bar, exactly like the Read view's Scaffold bottomBar does.
+        val backlinksBarShown = showBacklinks && isRoamFile && !imeVisible
         Column(
             Modifier
                 .fillMaxSize()
                 .padding(padding)
                 // union (not safeDrawing alone): the bar below and the toolbar must
                 // sit inside this same inset-padded Column -- see EditNoteScreen.
-                .windowInsetsPadding(WindowInsets.navigationBars.union(WindowInsets.ime).only(WindowInsetsSides.Bottom)),
+                .then(
+                    if (backlinksBarShown) Modifier
+                    else Modifier.windowInsetsPadding(
+                        WindowInsets.navigationBars.union(WindowInsets.ime).only(WindowInsetsSides.Bottom),
+                    ),
+                ),
         ) {
             state.error?.let { error ->
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -412,7 +421,7 @@ fun EditRegionScreen(
                 onReloadStale = { viewModel.dismissStale(); viewModel.loadRegion(fileName, noteId, region, blockLine) },
                 editModeFontSize = editModeFontSize,
                 showBacklinks = showBacklinks,
-                isRoamFile = region == EditRegion.WHOLE_FILE && wholeFileMeta?.first != null,
+                isRoamFile = isRoamFile,
                 linkedCount = linkedReferences.linkedCount,
                 unlinkedCount = linkedReferences.unlinkedCount,
                 onOpenLinkedRefs = { linkedRefsOpen = true },

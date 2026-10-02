@@ -68,6 +68,9 @@ re-uploads the APKs to the existing release instead of failing.
 - Releases are cut locally with scripts/release.sh, so F-Droid can reproduce the published APK.
 - versionCode is now stored in gradle.properties so F-Droid can detect new releases automatically.
 
+### Fixed
+- In the file editor, the Backlinks bar now reaches the bottom edge of the screen, matching Read mode.
+
 ## [1.8.1] - 2026-09-29
 
 ### Added
