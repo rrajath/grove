@@ -53,7 +53,7 @@ Reminders depend on two kinds of access, and Grove asks for neither before you'v
 - **Notifications.** Without them no reminder can appear. If a reminder is waiting on this permission, a banner on the Notebooks screen offers to grant it.
 - **Alarms & reminders (exact timing).** Android 12 and later gate exact alarms behind this setting, and Android 14 and later leave it off for new installs. Without it, reminders still fire, but Android may delay them by up to an hour.
 
-While reminders are on and either kind of access is off, Settings → Reminders shows an **Exact timing** or **Notifications** row with an **Allow** button that takes you to the right system screen. The row disappears once access is granted. Granting or revoking exact timing re-arms every upcoming reminder straight away, so existing reminders switch to the new timing without needing to be edited.
+While reminders are on and access is missing, Settings → Reminders shows a row with an **Allow** button that takes you to the right system screen: **Notifications** first, then **Exact timing** once notifications are allowed (exact timing has no effect while notifications are off). The row disappears once access is granted. Granting or revoking exact timing re-arms every upcoming reminder straight away, so existing reminders switch to the new timing without needing to be edited.
 
 ## Surviving a reboot
 

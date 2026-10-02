@@ -68,13 +68,14 @@ class ReminderAccessRowsTest {
     }
 
     @Test
-    fun bothOffShowsBothRowsEachWithItsOwnAction() {
+    fun bothOffShowsOnlyNotificationsUntilTheyAreAllowed() {
         content(ReminderAccess(exactAlarmsOff = true, notificationsOff = true))
 
-        composeRule.onAllNodesWithText("Allow").assertCountEquals(2)
-        composeRule.onNodeWithText("Exact timing").performClick()
+        // Exact timing is meaningless while notifications are off (nothing is armed).
+        composeRule.onAllNodesWithText("Allow").assertCountEquals(1)
+        composeRule.onAllNodesWithText("Exact timing").assertCountEquals(0)
         composeRule.onNodeWithText("Notifications").performClick()
-        assertEquals(1, exactTaps)
+        assertEquals(0, exactTaps)
         assertEquals(1, notificationTaps)
     }
 }

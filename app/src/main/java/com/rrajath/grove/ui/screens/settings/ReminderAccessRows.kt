@@ -97,7 +97,12 @@ internal fun ReminderAccessSection() {
     )
 }
 
-/** Stateless rows, split out so UI tests can inject [access]. Renders nothing when nothing is off. */
+/**
+ * Stateless rows, split out so UI tests can inject [access]. At most one row shows:
+ * Notifications while they're off, and only then Exact timing. With notifications off,
+ * reminders aren't armed at all (they wait as `pendingPermission`), so exact access
+ * would have nothing to apply to. Renders nothing when nothing is off.
+ */
 @Composable
 internal fun ReminderAccessRows(
     access: ReminderAccess,
@@ -106,19 +111,17 @@ internal fun ReminderAccessRows(
 ) {
     if (!access.exactAlarmsOff && !access.notificationsOff) return
     SettingsGroup {
-        if (access.exactAlarmsOff) {
-            SettingsRow(
-                label = "Exact timing",
-                description = "Lets reminders fire at the exact minute. Without it, Android may delay them by up to an hour.",
-                onClick = onAllowExactAlarms,
-            ) { AllowLabel() }
-        }
-        if (access.exactAlarmsOff && access.notificationsOff) RowDivider()
         if (access.notificationsOff) {
             SettingsRow(
                 label = "Notifications",
                 description = "Required for any reminder to appear",
                 onClick = onAllowNotifications,
+            ) { AllowLabel() }
+        } else {
+            SettingsRow(
+                label = "Exact timing",
+                description = "Lets reminders fire at the exact minute. Without it, Android may delay them by up to an hour.",
+                onClick = onAllowExactAlarms,
             ) { AllowLabel() }
         }
     }
