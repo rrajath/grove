@@ -471,19 +471,20 @@ private fun AdvancedToggle(active: Boolean, onClick: () -> Unit) {
 /** One line per operator, shown from the (i) button (see [AdvancedPanel]). */
 private val OPERATOR_LEGEND = listOf(
     "space / AND" to "AND: every term must match",
-    "OR" to "either side can match (binds looser than AND)",
+    "OR" to "either side can match (binds looser than AND); any case",
     "( … )" to "group terms; nest as deep as needed",
     ". prefix" to "NOT: excludes rather than requires; .( … ) negates a group",
+    "\"…\"" to "quote a value or phrase: b.\"My Notebook\", \"phone call\"",
     "o.PROP" to "sort by PROP (b, t, s, d, e, c, cr, p, st); .o.PROP reverses",
     "t.TAG / tn.TAG" to "tag anywhere in the heading / on this heading only",
     "i.STATE" to "TODO keyword (i.none = no keyword)",
     "it.TYPE" to "keyword type: it.todo, it.done, it.none",
     "b.NOTEBOOK" to "restrict to one notebook",
-    "p.PRIORITY" to "priority letter (A/B/C)",
-    "s./d." to "scheduled/deadline within a period (today, tomorrow, 3d, 1w, overdue, nodate…)",
-    "a." to "bare active timestamp (event) within a period (same tokens as s./d.)",
-    "c./cr." to "closed/created within a period (same period tokens as s./d.)",
-    "s.OP.DAY" to "compare a date: eq, ne, lt, le, gt, ge (s.le.today, c.ge.-1w)",
+    "p. / ps." to "priority (p. counts the default priority) / set on the heading",
+    "s./d./cr.DAY" to "on or before DAY: today, tom, 3d, -1w… (s.today includes overdue)",
+    "c./e.DAY" to "closed / event on DAY (a. = e.)",
+    "X.OP.DAY" to "compare: eq, ne, lt, le, gt, ge (s.eq.today, c.ge.-1w)",
+    "overdue / none" to "before today / no such date (s.overdue, d.none)",
 )
 
 @Composable

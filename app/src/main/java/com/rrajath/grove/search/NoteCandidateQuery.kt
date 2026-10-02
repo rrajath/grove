@@ -129,8 +129,12 @@ object NoteCandidateQuery {
             if (condition.type == Condition.StateType.Type.NONE) "keyword IS NULL" to emptyList()
             else "keyword IS NOT NULL" to emptyList()
 
-        is Condition.Priority ->
-            condition.priority.ifAscii { "priority = ? COLLATE NOCASE" to listOf(it) }
+        // p. also matches an unprioritized note when the default priority
+        // equals X, which only the matcher knows, so NULL rows stay candidates.
+        is Condition.Priority -> condition.priority.ifAscii {
+            if (condition.setOnly) "priority = ? COLLATE NOCASE" to listOf(it)
+            else "(priority = ? COLLATE NOCASE OR priority IS NULL)" to listOf(it)
+        }
 
         is Condition.Tag -> {
             val column = if (condition.ownOnly) "tags" else "inheritedTags"

@@ -102,7 +102,7 @@ class NoteCandidateQueryTest {
     @Test
     fun `OR groups become an ORed predicate`() {
         val sql = build("i.TODO OR p.A")
-        assertTrue(sql.sql.contains("((keyword = ? COLLATE NOCASE) OR (priority = ? COLLATE NOCASE))"))
+        assertTrue(sql.sql.contains("((keyword = ? COLLATE NOCASE) OR ((priority = ? COLLATE NOCASE OR priority IS NULL)))"))
         assertEquals(listOf("TODO", "A"), sql.args)
     }
 
@@ -155,8 +155,8 @@ class NoteCandidateQueryTest {
         assertTrue(
             sql.sql,
             sql.sql.contains(
-                "((priority = ? COLLATE NOCASE AND keyword = ? COLLATE NOCASE) OR " +
-                    "(priority = ? COLLATE NOCASE AND keyword = ? COLLATE NOCASE))",
+                "(((priority = ? COLLATE NOCASE OR priority IS NULL) AND keyword = ? COLLATE NOCASE) OR " +
+                    "((priority = ? COLLATE NOCASE OR priority IS NULL) AND keyword = ? COLLATE NOCASE))",
             ),
         )
         assertEquals(listOf("A", "TODO", "A", "NEXT"), sql.args)
@@ -191,7 +191,7 @@ class NoteCandidateQueryTest {
         assertTrue(
             sql.sql,
             sql.sql.contains(
-                "((priority = ? COLLATE NOCASE AND keyword = ? COLLATE NOCASE) OR (priority = ? COLLATE NOCASE))",
+                "(((priority = ? COLLATE NOCASE OR priority IS NULL) AND keyword = ? COLLATE NOCASE) OR ((priority = ? COLLATE NOCASE OR priority IS NULL)))",
             ),
         )
         assertEquals(listOf("A", "TODO", "A"), sql.args)
@@ -201,6 +201,21 @@ class NoteCandidateQueryTest {
     fun `a query too large to flatten adds no query predicate`() {
         val sql = build((1..7).joinToString(" ") { "(i.TODO$it OR p.$it)" })
         assertTrue(sql.isFullScan)
+    }
+
+    @Test
+    fun `p keeps unprioritized rows as candidates, ps does not`() {
+        // p.X also matches a note at the default priority, which SQL can't see.
+        assertTrue(build("p.B").sql.contains("(priority = ? COLLATE NOCASE OR priority IS NULL)"))
+        val ps = build("ps.B").sql
+        assertTrue(ps.contains("(priority = ? COLLATE NOCASE)"))
+        assertFalse(ps.contains("priority IS NULL"))
+    }
+
+    @Test
+    fun `e pushes down like a`() {
+        assertTrue(build("e.ge.today").sql.contains("activeTimestamps IS NOT NULL"))
+        assertTrue(build("e.no").sql.contains("activeTimestamps IS NULL"))
     }
 
     @Test

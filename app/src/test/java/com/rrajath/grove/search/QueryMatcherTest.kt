@@ -68,15 +68,32 @@ class QueryMatcherTest {
     }
 
     @Test
-    fun `relative windows include overdue but today is an exact match`() {
-        val past = note("Past", scheduled = "<2025-06-01 Sun>")
-        val todayNote = note("Today", scheduled = "<2025-06-11 Wed>")
-        val future = note("Future", scheduled = "<2025-06-20 Fri>")
+    fun `plain s and d default to le, so today includes overdue like Orgzly`() {
+        val past = note("Past", scheduled = "<2025-06-01 Sun>", deadline = "<2025-06-01 Sun>")
+        val todayNote = note("Today", scheduled = "<2025-06-11 Wed>", deadline = "<2025-06-11 Wed>")
+        val future = note("Future", scheduled = "<2025-06-20 Fri>", deadline = "<2025-06-20 Fri>")
         val none = note("None")
-        // "today" is an exact-day match, not "on or before".
-        assertEquals(listOf("Today"), run("s.today", past, todayNote, future, none))
-        // Relative windows (Nd/Nw/Nm) still include everything overdue.
-        assertEquals(listOf("Past", "Today", "Future"), run("s.2w", past, todayNote, future, none))
+        for (p in listOf("s", "d")) {
+            assertEquals(p, listOf("Past", "Today"), run("$p.today", past, todayNote, future, none))
+            assertEquals(p, listOf("Past"), run("$p.yesterday", past, todayNote, future, none))
+            assertEquals(p, listOf("Past", "Today", "Future"), run("$p.2w", past, todayNote, future, none))
+            assertEquals(p, listOf("Past"), run("$p.-1d", past, todayNote, future, none))
+            // The old exact-day meaning is now spelled with eq.
+            assertEquals(p, listOf("Today"), run("$p.eq.today", past, todayNote, future, none))
+        }
+    }
+
+    @Test
+    fun `plain cr defaults to le and plain c to eq`() {
+        val created10 = note("C10", created = "[2025-06-10 Tue]", closed = "[2025-06-10 Tue]")
+        val created04 = note("C04", created = "[2025-06-04 Wed]", closed = "[2025-06-04 Wed]")
+        assertEquals(listOf("C10", "C04"), run("cr.yesterday", created10, created04))
+        assertEquals(listOf("C04"), run("cr.-1w", created10, created04))
+        assertEquals(listOf("C10"), run("c.yesterday", created10, created04))
+        assertEquals(listOf("C04"), run("c.-1w", created10, created04))
+        // Unsigned offsets count forward: closed exactly a week from now matches nothing.
+        assertEquals(emptyList<String>(), run("c.1w", created10, created04))
+        assertEquals(listOf("C10", "C04"), run("cr.1w", created10, created04))
     }
 
     @Test
@@ -129,7 +146,7 @@ class QueryMatcherTest {
     fun `closed within past window`() {
         val recent = note("Recent", closed = "[2025-06-10 Tue]")
         val old = note("Old", closed = "[2025-05-01 Thu]")
-        assertEquals(listOf("Recent"), run("c.2d", recent, old))
+        assertEquals(listOf("Recent"), run("c.ge.-2d", recent, old))
         assertEquals(emptyList<String>(), run("c.today", recent, old))
     }
 
@@ -139,7 +156,10 @@ class QueryMatcherTest {
         val far = note("Far", active = "<2025-07-20 Sun>")
         val multi = note("Multi", active = "<2025-09-01 Mon> <2025-06-12 Thu>")
         val none = note("None")
-        assertEquals(listOf("Soon", "Multi"), run("a.7d", soon, far, multi, none))
+        assertEquals(listOf("Soon", "Multi"), run("a.le.7d", soon, far, multi, none))
+        // a./e. default to eq: a.2d is the one day two days out.
+        assertEquals(listOf("Soon"), run("a.2d", soon, far, multi, none))
+        assertEquals(listOf("Soon"), run("e.2d", soon, far, multi, none))
         // "none" alias matches only notes with no active timestamp at all.
         assertEquals(listOf("None"), run("a.none", soon, far, none))
         assertEquals(listOf("Soon", "Far"), run(".a.none", soon, far, none))
@@ -158,7 +178,7 @@ class QueryMatcherTest {
     fun `o active sorts by the earliest active date`() {
         val a = note("A", active = "<2025-06-20 Fri>")
         val b = note("B", active = "<2025-08-01 Fri> <2025-06-12 Thu>")
-        assertEquals(listOf("B", "A"), run("a.3m o.active", a, b))
+        assertEquals(listOf("B", "A"), run("a.le.3m o.active", a, b))
     }
 
     @Test
@@ -294,8 +314,11 @@ class QueryMatcherTest {
 
         val closedRecent = note("Recent", closed = "[2025-06-10 Tue]")
         val closedOld = note("Old", closed = "[2025-05-01 Thu]")
-        assertEquals(listOf("Recent"), run("c.ge.1w", closedRecent, closedOld))
+        assertEquals(listOf("Recent"), run("c.ge.-1w", closedRecent, closedOld))
+        // Unsigned offsets count forward for every prefix (Orgzly), c. included.
+        assertEquals(emptyList<String>(), run("c.ge.1w", closedRecent, closedOld))
         assertEquals(listOf("Recent"), run("c.eq.yesterday", closedRecent, closedOld))
+        assertEquals(listOf("Recent"), run("c.ge.2025-06-01", closedRecent, closedOld))
     }
 
     @Test
@@ -305,7 +328,7 @@ class QueryMatcherTest {
         val done = note("c", keyword = "DONE", done = true)
         val none = note("d")
         val order = listOf("TODO", "NEXT", "DONE")
-        fun sorted(q: String) = QueryMatcher.filter(listOf(none, done, next, todo), QueryParser.parse(q), today, order)
+        fun sorted(q: String) = QueryMatcher.filter(listOf(none, done, next, todo), QueryParser.parse(q), today, MatchOptions(stateOrder = order))
             .map { it.title }
         assertEquals(listOf("a", "b", "c", "d"), sorted("o.st"))
         assertEquals(listOf("c", "b", "a", "d"), sorted(".o.state"))
@@ -343,9 +366,8 @@ class QueryMatcherTest {
         val none = note("None")
         assertEquals(listOf("Far"), run("d.gt.1w", soon, far, none))
         assertEquals(listOf("Soon"), run("d.eq.tomorrow", soon, far, none))
-        assertEquals(listOf("Soon"), run("cr.ge.1w", soon, far, none))
-        assertEquals(listOf("Far"), run("cr.lt.1m", soon, far, none))
-        // An explicit + on a past prefix counts forward instead.
+        assertEquals(listOf("Soon"), run("cr.ge.-1w", soon, far, none))
+        assertEquals(listOf("Far"), run("cr.lt.-1m", soon, far, none))
         assertEquals(listOf("Soon", "Far"), run("cr.le.+0d", soon, far, none))
     }
 
@@ -436,7 +458,7 @@ class QueryMatcherTest {
         val bTodo = note("bTodo", priority = "B", keyword = "TODO")
         val order = listOf("TODO", "DONE")
         fun sorted(q: String) =
-            QueryMatcher.filter(listOf(bTodo, aDone, aTodo), QueryParser.parse(q), today, order).map { it.title }
+            QueryMatcher.filter(listOf(bTodo, aDone, aTodo), QueryParser.parse(q), today, MatchOptions(stateOrder = order)).map { it.title }
         assertEquals(listOf("aTodo", "aDone", "bTodo"), sorted("o.p o.st"))
         assertEquals(listOf("aDone", "aTodo", "bTodo"), sorted("o.p .o.st"))
         assertEquals(listOf("aTodo", "bTodo", "aDone"), sorted("o.st o.p"))
@@ -450,7 +472,7 @@ class QueryMatcherTest {
         val none = note("none")
         val order = listOf("TODO", "DONE")
         fun sorted(q: String) =
-            QueryMatcher.filter(listOf(none, waiting, done, todo), QueryParser.parse(q), today, order).map { it.title }
+            QueryMatcher.filter(listOf(none, waiting, done, todo), QueryParser.parse(q), today, MatchOptions(stateOrder = order)).map { it.title }
         assertEquals(listOf("todo", "done", "waiting", "none"), sorted("o.st"))
         assertEquals(listOf("waiting", "done", "todo", "none"), sorted(".o.st"))
     }
@@ -470,5 +492,52 @@ class QueryMatcherTest {
         for (q in listOf("s.eq.", "s.foo.today", "s.le.nodate", "s.eq.3x")) {
             assertEquals(q, emptyList<String>(), run(q, n))
         }
+    }
+
+    // --- default priority, ps., aliases ---
+
+    @Test
+    fun `p counts unprioritized notes as the default priority, ps does not`() {
+        val b = note("B", priority = "B")
+        val a = note("A", priority = "A")
+        val none = note("None")
+        fun run(q: String, default: String?) = QueryMatcher.filter(
+            listOf(b, a, none), QueryParser.parse(q), today, MatchOptions(defaultPriority = default),
+        ).map { it.title }
+        assertEquals(listOf("B", "None"), run("p.b", "B"))
+        assertEquals(listOf("B"), run("p.b", null))
+        assertEquals(listOf("B"), run("ps.b", "B"))
+        assertEquals(listOf("A"), run("p.a", "B"))
+        assertEquals(listOf("A"), run(".p.b", "B"))
+        assertEquals(listOf("A", "None"), run(".ps.b", "B"))
+    }
+
+    @Test
+    fun `priority sort places unprioritized notes at the default priority`() {
+        val a = note("A", priority = "A")
+        val c = note("C", priority = "C")
+        val none = note("None")
+        val sorted = QueryMatcher.filter(
+            listOf(c, none, a), QueryParser.parse("o.p"), today, MatchOptions(defaultPriority = "B"),
+        ).map { it.title }
+        assertEquals(listOf("A", "None", "C"), sorted)
+    }
+
+    @Test
+    fun `day aliases and no work in queries`() {
+        val tomorrowNote = note("Tom", scheduled = "<2025-06-12 Thu>")
+        val todayNote = note("Tod", scheduled = "<2025-06-11 Wed>")
+        val none = note("None")
+        assertEquals(listOf("Tom"), run("s.eq.tom", tomorrowNote, todayNote, none))
+        assertEquals(listOf("Tom"), run("s.eq.tmrw", tomorrowNote, todayNote, none))
+        assertEquals(listOf("Tod"), run("s.eq.tod", tomorrowNote, todayNote, none))
+        assertEquals(listOf("None"), run("s.no", tomorrowNote, todayNote, none))
+    }
+
+    @Test
+    fun `quoted notebook name with spaces matches`() {
+        val n = note("N", fileName = "My Notebook.org")
+        val other = note("O", fileName = "My.org")
+        assertEquals(listOf("N"), run("b.\"My Notebook\"", n, other))
     }
 }

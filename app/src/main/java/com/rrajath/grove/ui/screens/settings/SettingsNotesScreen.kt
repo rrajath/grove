@@ -112,7 +112,10 @@ fun SettingsNotesScreen(
                 )
             }
             RowDivider()
-            SettingsRow(label = "Default priority") {
+            SettingsRow(
+                label = "Default priority",
+                description = "Search's p. counts headings with no priority as this one",
+            ) {
                 SegmentedControl(
                     options = listOf("None", "A", "B", "C"),
                     selectedIndex = when (settings.defaultPriority) {

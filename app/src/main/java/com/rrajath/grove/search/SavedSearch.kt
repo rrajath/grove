@@ -26,7 +26,7 @@ object SavedSearchSerializer {
 /** PRD §5.5 default saved searches. */
 object DefaultSavedSearches {
     val all = listOf(
-        SavedSearch("builtin-scheduled-today", "Scheduled Today", "s.today"),
+        SavedSearch("builtin-scheduled-today", "Scheduled Today", "s.eq.today"),
         SavedSearch("builtin-all-todo", "All TODO", "i.todo"),
         SavedSearch("builtin-this-week", "This Week", "s.7d"),
     )

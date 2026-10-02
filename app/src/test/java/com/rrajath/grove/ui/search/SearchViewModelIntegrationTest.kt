@@ -227,13 +227,13 @@ class SearchViewModelIntegrationTest {
         advanceUntilIdle()
 
         assertEquals(1, vm.state.value.filters.activeCount)
-        assertTrue(vm.state.value.query.contains("a.today"))
+        assertTrue(vm.state.value.query.contains("a.eq.today"))
 
         // Tapping the same preset again clears it.
         vm.setActivePreset(DatePreset.TODAY)
         advanceUntilIdle()
         assertEquals(0, vm.state.value.filters.activeCount)
-        assertFalse(vm.state.value.query.contains("a.today"))
+        assertFalse(vm.state.value.query.contains("a.eq.today"))
     }
 
     @Test

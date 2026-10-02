@@ -28,6 +28,7 @@ import com.rrajath.grove.search.FilenameMatcher
 import com.rrajath.grove.search.FtsQuery
 import com.rrajath.grove.search.NoteCandidateQuery
 import com.rrajath.grove.search.NoteMeta
+import com.rrajath.grove.search.MatchOptions
 import com.rrajath.grove.search.QueryMatcher
 import com.rrajath.grove.search.QueryParser
 import com.rrajath.grove.search.QuickStartOverrides
@@ -70,13 +71,13 @@ import java.util.Locale
  *  and the states catalog, distinct from any real keyword string. */
 const val NO_STATE = "-"
 
-enum class DatePreset(val label: String, val token: String) {
-    ANY("Any", "any"),
-    TODAY("Today", "today"),
-    NEXT_7_DAYS("Next 7 days", "7d"),
-    OVERDUE("Overdue", "overdue"),
-    NO_DATE("No date", "none"),
-    CUSTOM("Custom range", "custom"),
+enum class DatePreset(val label: String) {
+    ANY("Any"),
+    TODAY("Today"),
+    NEXT_7_DAYS("Next 7 days"),
+    OVERDUE("Overdue"),
+    NO_DATE("No date"),
+    CUSTOM("Custom range"),
 }
 
 /** Inclusive start/end for [DatePreset.CUSTOM]. */
@@ -613,11 +614,26 @@ class SearchViewModel(
         return combinations.joinToString(" OR ") { combo -> (fixed + combo).joinToString(" ") }
     }
 
-    private fun datePresetToken(prefix: String, preset: DatePreset, range: DateRange?): String? = when {
-        preset == DatePreset.CUSTOM && range != null -> "$prefix.${range.start}..${range.end}"
-        preset != DatePreset.ANY -> "$prefix.${preset.token}"
-        else -> null
+    /**
+     * The mirrored token(s) for one date facet. They are parsed and ANDed with
+     * [matchesFilters] like anything typed, so each must match at least what
+     * the preset does: explicit ops pin that down regardless of the prefix's
+     * default op (`s.today` alone would also take overdue items).
+     */
+    private fun datePresetToken(prefix: String, preset: DatePreset, range: DateRange?): String? = when (preset) {
+        DatePreset.ANY -> null
+        DatePreset.TODAY -> "$prefix.eq.today"
+        DatePreset.NEXT_7_DAYS -> "$prefix.ge.today $prefix.le.7d"
+        DatePreset.OVERDUE -> "$prefix.overdue"
+        DatePreset.NO_DATE -> "$prefix.none"
+        DatePreset.CUSTOM -> range?.let { "$prefix.ge.${it.start} $prefix.le.${it.end}" }
     }
+
+    /** What the current settings make a query mean (`o.state` order, `p.` default). */
+    private suspend fun matchOptions(): MatchOptions = MatchOptions(
+        stateOrder = keywordsFlow.value.all,
+        defaultPriority = settings.settings.first().defaultPriority?.toString(),
+    )
 
     private fun stateToken(state: String) = if (state == NO_STATE) "none" else state.lowercase()
 
@@ -659,7 +675,8 @@ class SearchViewModel(
 
         withContext(dispatchers.default) {
             val today = LocalDate.now()
-            val textMatched = textQuery?.let { QueryMatcher.filter(notes, it, today, keywordsFlow.value.all) } ?: notes
+            val options = matchOptions()
+            val textMatched = textQuery?.let { QueryMatcher.filter(notes, it, today, options) } ?: notes
             val terms = textQuery?.textTerms ?: emptyList()
             val filtered = textMatched.filter { matchesFilters(it, filters, today) }
 
@@ -668,7 +685,7 @@ class SearchViewModel(
             val byFile = LinkedHashMap<String, MutableList<SearchRow>>()
             val fileLevel = mutableSetOf<String>()
             filtered.forEach { note ->
-                val groups = textQuery?.let { QueryMatcher.satisfiedGroups(note, it, today) } ?: listOf(emptyList())
+                val groups = textQuery?.let { QueryMatcher.satisfiedGroups(note, it, today, options) } ?: listOf(emptyList())
                 val rows = byFile.getOrPut(note.fileName) { mutableListOf() }
                 if (note.lineIndex == INTRO_LINE_INDEX) {
                     if (groups.any { it.textTerms().isEmpty() }) fileLevel += note.fileName
@@ -970,7 +987,7 @@ class SearchViewModel(
         val textQuery = if (query.isBlank()) null else QueryParser.parse(query)
         val notes = loadCandidates(textQuery, SearchFilters())
         return withContext(dispatchers.default) {
-            textQuery?.let { QueryMatcher.filter(notes, it, LocalDate.now()).size } ?: notes.size
+            textQuery?.let { QueryMatcher.filter(notes, it, LocalDate.now(), matchOptions()).size } ?: notes.size
         }
     }
 

@@ -27,8 +27,9 @@ Terms combine like this:
 - A leading `.` negates a term: `.t.work` excludes anything tagged `work`.
 - Brackets group terms and can nest as deep as you need: `i.todo (s.today OR d.today)`.
 - `.( … )` negates a whole group: `.(t.work OR t.home)` excludes both tags.
+- Double quotes keep spaces, brackets and keywords together: `b."My Notebook"`, `"phone call"`, `"or"`.
 
-`AND` and `OR` must be uppercase; lowercase `and`/`or` are searched as words. Brackets always group, so they can't be searched for as text. Unbalanced brackets are forgiven: a missing `)` closes at the end of the query, and a stray `)` is ignored.
+`AND` and `OR` work in any case, as in Orgzly. Brackets always group, so to search for one as text, quote it: `"f(x)"`. Unbalanced brackets and quotes are forgiven: a missing `)` or `"` closes at the end of the query, and a stray `)` is ignored.
 
 Facet prefixes:
 
@@ -36,23 +37,35 @@ Facet prefixes:
 |---|---|
 | `i.` | TODO keyword (`i.todo`, `i.next`; `i.none` = no keyword) |
 | `it.` | keyword type: `it.todo` (any not-done keyword), `it.done` (any done keyword), `it.none` |
-| `b.` | notebook |
+| `b.` | notebook (quote names with spaces) |
 | `t.` | tag, including inherited tags |
 | `tn.` | tag on the heading itself only |
-| `p.` | priority |
-| `s.` | scheduled within a period |
-| `d.` | deadline within a period |
-| `a.` | bare active `<date>` event (`a.today`, `a.7d`, `a.overdue`, `.a.none`) |
-| `c.` | closed within a period |
-| `cr.` | created within a period |
+| `p.` | priority; a heading with no priority counts as your **Default priority** (Settings › Notes) |
+| `ps.` | priority written on the heading only |
+| `s.` | scheduled date |
+| `d.` | deadline date |
+| `e.` or `a.` | bare active `<date>` event |
+| `c.` | closed date |
+| `cr.` | created date |
 | `o.` | sort (see below) |
-| `ad.N` | agenda-mode grouping |
+| `ad.N` | scheduled or due within the next N days (overdue included) |
 
-Periods are `today`, `tomorrow`, `yesterday`, `overdue`, `nodate`, or a relative window like `3d`, `2w`, `1m`.
+### Dates
 
-### Comparing dates
+A date filter is `PREFIX.TIME` or `PREFIX.OP.TIME`. TIME is one day: `today` (or `tod`, `now`), `tomorrow` (or `tom`, `tmrw`), `yesterday`, an offset like `3d`, `2w`, `1m` (negative counts back: `-1w` is a week ago), or a date like `2026-10-01`. OP is one of `eq`, `ne`, `lt`, `le`, `gt`, `ge`.
 
-Any date prefix also takes a comparison operator followed by a single day: `eq`, `ne`, `lt`, `le`, `gt`, `ge`. For example, `s.le.today` is scheduled today or earlier, and `c.eq.yesterday` is closed yesterday. A relative day counts forward for `s.`/`d.`/`a.` and backward for `c.`/`cr.` (so `c.ge.1w` means closed in the last week). An explicit sign overrides that: `s.lt.-2d`.
+Without an OP, Grove follows Orgzly's defaults:
+
+| Prefix | Default | So… |
+|---|---|---|
+| `s.` `d.` `cr.` | `le` (on or before) | `s.today` is scheduled today **or overdue**; `s.3d` is within the next three days or overdue |
+| `c.` `e.` `a.` | `eq` (on) | `c.yesterday` is closed yesterday; `e.today` is an event today |
+
+More examples: `s.eq.today` (exactly today), `c.ge.-1w` (closed in the last week), `e.ge.today` (events from today on), `d.gt.1w` (deadline more than a week out).
+
+Two extras take no OP: `overdue` (before today) and `none` (also `no` or `nodate`: no such date at all), e.g. `d.overdue`, `.s.none`.
+
+Searches you saved before this change keep their old meaning: they're rewritten once, so a saved `s.today` becomes `s.eq.today`.
 
 ### Sorting
 

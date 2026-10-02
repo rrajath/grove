@@ -119,8 +119,54 @@ class QueryParserTest {
     }
 
     @Test
-    fun `lowercase or and and stay text`() {
-        assertEquals(listOf("a or and b"), QueryParser.parse("a or and b").groupStrings())
+    fun `and and or are case-insensitive like Orgzly`() {
+        assertEquals(listOf("b.Home phone", "b.Work phone"), QueryParser.parse("(b.Home or b.Work) phone").groupStrings())
+        assertEquals(listOf("a b", "c"), QueryParser.parse("a And b Or c").groupStrings())
+    }
+
+    // --- quoting ---
+
+    @Test
+    fun `quoted notebook names keep their spaces`() {
+        assertEquals(Condition.Notebook("My Notebook"), QueryParser.parse("b.\"My Notebook\"").groups[0][0].condition)
+        val neg = QueryParser.parse(".b.\"My Notebook\" i.todo").groups[0]
+        assertEquals(Term(Condition.Notebook("My Notebook"), negated = true), neg[0])
+    }
+
+    @Test
+    fun `quoted words are literal text`() {
+        val q = QueryParser.parse("\"phone call\" \"or\" \"f(x)\" \"i.todo\" .\"draft copy\"")
+        assertEquals(
+            listOf(
+                Term(Condition.Text("phone call"), false),
+                Term(Condition.Text("or"), false),
+                Term(Condition.Text("f(x)"), false),
+                Term(Condition.Text("i.todo"), false),
+                Term(Condition.Text("draft copy"), true),
+            ),
+            q.groups.single(),
+        )
+    }
+
+    @Test
+    fun `quotes are lenient`() {
+        // Unclosed runs to the end; empty quotes contribute nothing.
+        assertEquals(listOf("a b c"), QueryParser.parse("\"a b c").groupStrings().map { it })
+        assertEquals(listOf("x"), QueryParser.parse("x \"\"").groupStrings())
+        assertTrue(QueryParser.parse("\"\"").isEmpty)
+    }
+
+    @Test
+    fun `e is an alias for a and ps is set-only priority`() {
+        val q = QueryParser.parse("e.ge.now ps.b p.b")
+        assertEquals(
+            listOf(
+                Condition.Active(Period("now", CompareOp.GE)),
+                Condition.Priority("b", setOnly = true),
+                Condition.Priority("b"),
+            ),
+            q.groups[0].map { it.condition },
+        )
     }
 
     @Test
@@ -166,14 +212,26 @@ class QueryParserTest {
     }
 
     @Test
-    fun `compare targets count forward or back`() {
+    fun `targets count from today, sign respected for every prefix`() {
         val today = LocalDate.of(2025, 6, 11)
-        assertEquals(today.plusDays(3), Period("3d").compareTarget(today, past = false))
-        assertEquals(today.minusDays(3), Period("3d").compareTarget(today, past = true))
-        assertEquals(today.minusDays(3), Period("-3d").compareTarget(today, past = false))
-        assertEquals(today.plusWeeks(1), Period("+1w").compareTarget(today, past = true))
-        assertEquals(today, Period("today").compareTarget(today, past = true))
-        assertNull(Period("overdue").compareTarget(today, past = false))
+        assertEquals(today.plusDays(3), Period("3d").target(today))
+        assertEquals(today.plusDays(3), Period("+3d").target(today))
+        assertEquals(today.minusDays(3), Period("-3d").target(today))
+        assertEquals(today.plusWeeks(2), Period("2w").target(today))
+        assertEquals(today.minusMonths(1), Period("-1m").target(today))
+        assertEquals(LocalDate.of(2025, 1, 31), Period("2025-01-31").target(today))
+        assertNull(Period("overdue").target(today))
+        assertNull(Period("none").target(today))
+        assertNull(Period("3h").target(today))
+        assertNull(Period("nonsense").target(today))
+    }
+
+    @Test
+    fun `Orgzly day aliases`() {
+        val today = LocalDate.of(2025, 6, 11)
+        for (alias in listOf("today", "tod", "now", "TODAY")) assertEquals(alias, today, Period(alias).target(today))
+        for (alias in listOf("tomorrow", "tom", "tmrw")) assertEquals(alias, today.plusDays(1), Period(alias).target(today))
+        assertEquals(today.minusDays(1), Period("yesterday").target(today))
     }
 
     @Test
@@ -263,37 +321,12 @@ class QueryParserTest {
     }
 
     @Test
-    fun `period pivots`() {
-        val today = LocalDate.of(2025, 6, 11)
-        assertEquals(today, Period("today").pivot(today))
-        assertEquals(today, Period("now").pivot(today))
-        assertEquals(today.plusDays(1), Period("tomorrow").pivot(today))
-        assertEquals(today.minusDays(1), Period("yesterday").pivot(today))
-        assertEquals(today.plusDays(3), Period("3d").pivot(today))
-        assertEquals(today.plusWeeks(2), Period("2w").pivot(today))
-        assertEquals(today.plusMonths(1), Period("1m").pivot(today))
-        assertNull(Period("nonsense").pivot(today))
-    }
-
-    @Test
-    fun `past pivots mirror for closed and created`() {
-        val today = LocalDate.of(2025, 6, 11)
-        assertEquals(today, Period("today").pastPivot(today))
-        assertEquals(today.minusDays(1), Period("yesterday").pastPivot(today))
-        assertEquals(today.minusDays(7), Period("1w").pastPivot(today))
-    }
-
-    @Test
-    fun `nodate, overdue and exact-day tokens`() {
-        val today = LocalDate.of(2025, 6, 11)
-        assertTrue(Period("nodate").isNoDate)
-        assertTrue(Period("none").isNoDate)
+    fun `none, no, nodate and overdue are op-less specials`() {
+        for (t in listOf("none", "no", "nodate", "NoDate")) assertTrue(t, Period(t).isNoDate)
         assertFalse(Period("today").isNoDate)
+        assertFalse(Period("none", CompareOp.EQ).isNoDate)
         assertTrue(Period("overdue").isOverdue)
+        assertFalse(Period("overdue", CompareOp.LE).isOverdue)
         assertFalse(Period("today").isOverdue)
-        assertEquals(today, Period("today").exactDate(today))
-        assertEquals(today.plusDays(1), Period("tomorrow").exactDate(today))
-        assertEquals(today.minusDays(1), Period("yesterday").exactDate(today))
-        assertNull(Period("3d").exactDate(today))
     }
 }

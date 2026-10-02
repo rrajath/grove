@@ -90,7 +90,7 @@ class FtsParityTest {
     @Test fun notebookTokenWithSuffix() = assertParity("b.work.org", expectHits = true)
     @Test fun scheduledWindow() = assertParity("s.3d", expectHits = true)
     @Test fun deadlineWindow() = assertParity("d.1w", expectHits = true)
-    @Test fun closedWindow() = assertParity("c.1w", expectHits = true)
+    @Test fun closedOnAnExactPastDay() = assertParity("c.-3d", expectHits = true)
     @Test fun createdWindow() = assertParity("cr.1m", expectHits = true)
     @Test fun everythingAtOnce() = assertParity("meeting i.TODO t.work p.A")
     @Test fun explicitSortOrder() = assertParity("o.priority meeting", expectHits = true)
@@ -139,13 +139,30 @@ class FtsParityTest {
 
     @Test fun scheduledOnOrBeforeToday() = assertParity("s.le.today", expectHits = true)
     @Test fun deadlineAfterToday() = assertParity("d.gt.today", expectHits = true)
-    @Test fun closedExactlyThreeDaysAgo() = assertParity("c.eq.3d", expectHits = true)
-    @Test fun createdWithinAMonth() = assertParity("cr.ge.1m", expectHits = true)
+    @Test fun closedExactlyThreeDaysAgo() = assertParity("c.eq.-3d", expectHits = true)
+    @Test fun createdWithinAMonth() = assertParity("cr.ge.-1m", expectHits = true)
     @Test fun eventOnOrAfterToday() = assertParity("a.ge.today", expectHits = true)
     @Test fun eventBeforeToday() = assertParity("a.lt.today")
     @Test fun comparisonAgainstNoDay() = assertParity("s.eq.none")
     @Test fun comparisonInsideNesting() =
-        assertParity("t.work (it.todo OR (it.done c.ge.1w))", expectHits = true)
+        assertParity("t.work (it.todo OR (it.done c.ge.-1w))", expectHits = true)
+
+    // --- Orgzly P1: lowercase keywords, quoting, e., ps., default operators ---
+
+    @Test fun lowercaseOr() = assertParity("(b.work or b.personal) meeting", expectHits = true)
+    @Test fun lowercaseAnd() = assertParity("meeting and roadmap", expectHits = true)
+    @Test fun quotedPhrase() = assertParity("\"the roadmap\"", expectHits = true)
+    @Test fun quotedKeywordAsText() = assertParity("\"near\" .\"or\"", expectHits = true)
+    @Test fun quotedNotebook() = assertParity("b.\"work\" i.TODO", expectHits = true)
+    @Test fun eAlias() = assertParity("e.ge.tod", expectHits = true)
+    @Test fun eDefaultsToEq() = assertParity("e.3d", expectHits = true)
+    @Test fun setPriority() = assertParity("ps.A", expectHits = true)
+    @Test fun priorityKeepsUnprioritizedCandidates() = assertParity("p.A meeting", expectHits = true)
+    @Test fun scheduledTodayIncludesOverdue() = assertParity("s.today", expectHits = true)
+    @Test fun negativePlainPeriod() = assertParity("s.-1d", expectHits = true)
+    @Test fun createdDefaultLe() = assertParity("cr.yesterday", expectHits = true)
+    @Test fun noAlias() = assertParity("d.no", expectHits = true)
+    @Test fun absoluteDate() = assertParity("s.ge.2026-07-26", expectHits = true)
 
     @Test fun orgzlySortKeys() = assertParity("it.todo o.st .o.p o.t", expectHits = true)
 

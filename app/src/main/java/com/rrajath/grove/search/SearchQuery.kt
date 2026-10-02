@@ -4,9 +4,10 @@ import java.time.LocalDate
 
 /**
  * Orgzly-compatible structured search (PRD §5.5).
- * Space (or `AND`) = AND, `OR` = or (binds looser), `.` prefix = NOT,
- * `( … )` groups and nests, `.( … )` negates a group,
- * `o.PROP` = sort (`.o.PROP` reversed), `ad.N` = agenda day-grouping.
+ * Space (or `AND`) = AND, `OR` = or (binds looser; both case-insensitive),
+ * `.` prefix = NOT, `( … )` groups and nests, `.( … )` negates a group,
+ * `"…"` quotes a value or literal text, `o.PROP` = sort (`.o.PROP` reversed),
+ * `ad.N` = agenda day-grouping.
  */
 data class SearchQuery(
     /**
@@ -80,12 +81,16 @@ sealed class Condition {
 
     data class Notebook(val name: String) : Condition()
     data class Tag(val tag: String, val ownOnly: Boolean) : Condition()
-    data class Priority(val priority: String) : Condition()
+
+    /** `p.X`: priority X, counting a note with no priority as the configured
+     *  default priority (org's `org-default-priority`); `ps.X` ([setOnly]):
+     *  only notes where X is written on the heading. */
+    data class Priority(val priority: String, val setOnly: Boolean = false) : Condition()
     data class Scheduled(val period: Period) : Condition()
     data class Deadline(val period: Period) : Condition()
 
-    /** `a.PERIOD`: a bare active timestamp (event) whose day falls in the window;
-     *  `a.overdue` still matches a past event (only the agenda suppresses those). */
+    /** `a.PERIOD` (alias `e.`): a bare active timestamp (event) on a matching
+     *  day; `a.overdue` still matches a past event (only the agenda suppresses those). */
     data class Active(val period: Period) : Condition()
 
     data class Closed(val period: Period) : Condition()
@@ -111,81 +116,45 @@ enum class CompareOp {
 }
 
 /**
- * A relative time window token: today, tomorrow, yesterday, now, overdue,
- * nodate, Nd/Nw/Nm. With an [op] (`s.le.3d`) the token instead names a single
- * day and the timestamp is compared against it.
+ * A date token, Orgzly style: `[OP.]TIME`. TIME names one day (`today`,
+ * `tomorrow`, `yesterday`, a signed `Nd`/`Nw`/`Nm` offset from today, or an
+ * ISO `yyyy-mm-dd` date) and the timestamp is compared against it with [op].
+ * Without an op each prefix applies its own default (see `QueryMatcher`):
+ * `le` for s./d./cr., `eq` for c./a. Grove additionally keeps two op-less
+ * specials: `overdue` and `none`/`no`/`nodate`.
  */
 data class Period(val raw: String, val op: CompareOp? = null) {
-    /** `s.nodate`/`d.nodate` (alias `none`): matches when the timestamp itself
-     *  is absent, the opposite of every other period (which requires one to
-     *  be present). */
-    val isNoDate: Boolean get() = op == null && (raw.equals("nodate", ignoreCase = true) || raw.equals("none", ignoreCase = true))
+    /** `s.none` (aliases `no`, `nodate`): matches when the timestamp itself is
+     *  absent, the opposite of every other period (which requires one). */
+    val isNoDate: Boolean get() = op == null && raw.lowercase() in NO_DATE
 
-    /** `s.overdue`/`d.overdue`/etc.: the timestamp is strictly before today,
-     *  regardless of any window a relative period would otherwise apply. */
+    /** `s.overdue`/`d.overdue`/etc.: the timestamp is strictly before today. */
     val isOverdue: Boolean get() = op == null && raw.equals("overdue", ignoreCase = true)
 
-    /** Single-day tokens ("today"/"now", "tomorrow", "yesterday") match that
-     *  exact day only, unlike the Nd/Nw/Nm windows below which are inclusive
-     *  of everything up to and including the pivot. */
-    fun exactDate(today: LocalDate): LocalDate? = when (raw.lowercase()) {
-        "today", "now" -> today
-        "tomorrow" -> today.plusDays(1)
-        "yesterday" -> today.minusDays(1)
-        else -> null
-    }
-
-    /**
-     * Future pivot date for s./d. ("within period" = on or before pivot,
-     * e.g. `s.3d` = scheduled in the next three days or overdue).
-     */
-    fun pivot(today: LocalDate): LocalDate? {
-        exactDate(today)?.let { return it }
-        val m = RELATIVE.matchEntire(raw.lowercase()) ?: return null
-        val n = m.groupValues[1].toLong()
-        return when (m.groupValues[2]) {
-            "d" -> today.plusDays(n)
-            "w" -> today.plusWeeks(n)
-            "m" -> today.plusMonths(n)
-            else -> null
+    /** The day this token names, or null when it names none (`overdue`, `none`, junk). */
+    fun target(today: LocalDate): LocalDate? {
+        when (raw.lowercase()) {
+            "today", "tod", "now" -> return today
+            "tomorrow", "tom", "tmrw" -> return today.plusDays(1)
+            "yesterday" -> return today.minusDays(1)
         }
-    }
-
-    /** Past pivot for c./cr. windows ([pivot, today]). */
-    fun pastPivot(today: LocalDate): LocalDate? {
-        val p = pivot(today) ?: return null
-        val delta = java.time.temporal.ChronoUnit.DAYS.between(today, p)
-        return today.minusDays(kotlin.math.abs(delta))
-    }
-
-    /**
-     * The single day an [op] compares against. An unsigned Nd/Nw/Nm counts
-     * forward for s./d./a. and backward when [past] (c./cr.), the same
-     * direction their plain windows use; an explicit sign (`-2d`, `+1w`)
-     * always wins.
-     */
-    fun compareTarget(today: LocalDate, past: Boolean): LocalDate? {
-        exactDate(today)?.let { return it }
-        val m = SIGNED.matchEntire(raw.lowercase()) ?: return null
-        val magnitude = m.groupValues[2].toLong()
-        val n = when (m.groupValues[1]) {
-            "-" -> -magnitude
-            "+" -> magnitude
-            else -> if (past) -magnitude else magnitude
+        SIGNED.matchEntire(raw.lowercase())?.let { m ->
+            val n = m.groupValues[2].toLong().let { if (m.groupValues[1] == "-") -it else it }
+            return when (m.groupValues[3]) {
+                "d" -> today.plusDays(n)
+                "w" -> today.plusWeeks(n)
+                "m" -> today.plusMonths(n)
+                else -> null
+            }
         }
-        return when (m.groupValues[3]) {
-            "d" -> today.plusDays(n)
-            "w" -> today.plusWeeks(n)
-            "m" -> today.plusMonths(n)
-            else -> null
-        }
+        return runCatching { LocalDate.parse(raw) }.getOrNull()
     }
 
     companion object {
-        private val RELATIVE = Regex("""(\d+)([dwm])""")
         private val SIGNED = Regex("""([+-]?)(\d+)([dwm])""")
+        private val NO_DATE = setOf("none", "no", "nodate")
 
-        /** `today` → plain window; `le.today` → comparison against that day. */
+        /** `today` → default op; `le.today` → explicit op. */
         fun parse(value: String): Period {
             val dot = value.indexOf('.')
             if (dot > 0) {
@@ -240,7 +209,9 @@ object QueryParser {
     }
 
     private sealed interface Token {
-        data class Word(val text: String) : Token
+        /** [literal]: the word started with a quote (after an optional `.`),
+         *  so it is always plain text, never a prefix like `i.` or `o.`. */
+        data class Word(val text: String, val literal: Boolean = false) : Token
         data object Open : Token
         data object Close : Token
 
@@ -250,24 +221,41 @@ object QueryParser {
         data object And : Token
     }
 
-    /** Whitespace separates words; `(` and `)` are always tokens of their own. */
+    /**
+     * Whitespace separates words; `(` and `)` are always tokens of their own.
+     * `"…"` keeps spaces, brackets and keywords inside one word (`b."My
+     * Notebook"`, `"or"`, `"f(x)"`); an unclosed quote runs to the end.
+     */
     private fun tokenize(input: String): List<Token> {
         val tokens = mutableListOf<Token>()
         val word = StringBuilder()
+        var quoted = false
+        var literal = false
+        var hadQuote = false
         fun flush() {
-            if (word.isEmpty()) return
-            tokens += when (val text = word.toString()) {
-                "OR" -> Token.Or
-                "AND" -> Token.And
+            if (word.isEmpty() && !hadQuote) return
+            val text = word.toString()
+            tokens += when {
+                hadQuote -> Token.Word(text, literal)
+                text.equals("OR", ignoreCase = true) -> Token.Or
+                text.equals("AND", ignoreCase = true) -> Token.And
                 else -> Token.Word(text)
             }
             word.clear()
+            literal = false
+            hadQuote = false
         }
         for (ch in input) {
             when {
+                ch == '"' -> {
+                    if (!quoted && (word.isEmpty() || word.toString() == ".")) literal = true
+                    quoted = !quoted
+                    hadQuote = true
+                }
+                quoted -> word.append(ch)
                 ch.isWhitespace() -> flush()
                 ch == '(' -> {
-                    if (word.toString() == ".") {
+                    if (word.toString() == "." && !hadQuote) {
                         word.clear()
                         tokens += Token.Not
                     } else {
@@ -346,9 +334,17 @@ object QueryParser {
                 depth--
                 inner
             }
-            is Token.Word -> word(token.text)
+            is Token.Word -> if (token.literal) literal(token.text) else word(token.text)
             // Close/Or/And are consumed by parseAnd before reaching here.
             else -> null
+        }
+
+        /** A quoted word: text as written, `.` still negates it; `""` is nothing. */
+        private fun literal(token: String): Expr? {
+            val negated = token.startsWith(".")
+            val body = if (negated) token.drop(1) else token
+            if (body.isEmpty()) return null
+            return Expr.Leaf(Term(Condition.Text(body), negated))
         }
 
         private fun word(token: String): Expr? {
@@ -413,9 +409,10 @@ object QueryParser {
                     "t" -> return Condition.Tag(value, ownOnly = false)
                     "tn" -> return Condition.Tag(value, ownOnly = true)
                     "p" -> return Condition.Priority(value)
+                    "ps" -> return Condition.Priority(value, setOnly = true)
                     "s" -> return Condition.Scheduled(Period.parse(value))
                     "d" -> return Condition.Deadline(Period.parse(value))
-                    "a" -> return Condition.Active(Period.parse(value))
+                    "a", "e" -> return Condition.Active(Period.parse(value))
                     "c" -> return Condition.Closed(Period.parse(value))
                     "cr" -> return Condition.Created(Period.parse(value))
                 }
