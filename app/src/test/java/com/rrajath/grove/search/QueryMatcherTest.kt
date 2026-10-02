@@ -233,4 +233,104 @@ class QueryMatcherTest {
         val words = ranges.map { "Call TransUnion about the transfer".substring(it) }
         assertEquals(listOf("Trans", "trans"), words)
     }
+
+    // --- nesting, it., comparisons, Orgzly sort keys ---
+
+    @Test
+    fun `nested query matches the tree`() {
+        val open = note("Milk", keyword = "TODO", fileName = "shopping.org", tags = listOf("tigros"))
+        val doneToday = note("Eggs", keyword = "DONE", done = true, fileName = "shopping.org",
+            tags = listOf("tigros"), closed = "[2025-06-11 Wed 10:00]")
+        val doneEarlier = note("Bread", keyword = "DONE", done = true, fileName = "shopping.org",
+            tags = listOf("tigros"), closed = "[2025-06-01 Sun]")
+        val elsewhere = note("Soap", keyword = "TODO", fileName = "shopping.org", tags = listOf("coop"))
+        assertEquals(
+            listOf("Eggs", "Milk"),
+            run("b.shopping t.tigros AND (it.todo OR (it.done AND c.eq.today)) o.t", open, doneToday, doneEarlier, elsewhere),
+        )
+    }
+
+    @Test
+    fun `negated group excludes either tag`() {
+        val a = note("A", tags = listOf("work"))
+        val b = note("B", tags = listOf("home"))
+        val c = note("C")
+        assertEquals(listOf("C"), run(".(t.work OR t.home)", a, b, c))
+    }
+
+    @Test
+    fun `oversized query still matches through the tree`() {
+        val hit = note("x1 x2 x3 x4 x5 x6 y7")
+        val miss = note("x1 x2 x3 x4 x5 x6")
+        val query = (1..7).joinToString(" ") { "(x$it OR y$it)" }
+        assertEquals(listOf("x1 x2 x3 x4 x5 x6 y7"), run(query, hit, miss))
+        val parsed = QueryParser.parse(query)
+        assertEquals(listOf(emptyList<Term>()), QueryMatcher.satisfiedGroups(hit, parsed, today))
+        assertTrue(QueryMatcher.satisfiedGroups(miss, parsed, today).isEmpty())
+    }
+
+    @Test
+    fun `it matches keyword types`() {
+        val todo = note("T", keyword = "NEXT")
+        val done = note("D", keyword = "CANCELLED", done = true)
+        val none = note("N")
+        assertEquals(listOf("T"), run("it.todo", todo, done, none))
+        assertEquals(listOf("D"), run("it.done", todo, done, none))
+        assertEquals(listOf("N"), run("it.none", todo, done, none))
+    }
+
+    @Test
+    fun `comparison operators on dates`() {
+        val past = note("Past", scheduled = "<2025-06-09 Mon>")
+        val now = note("Now", scheduled = "<2025-06-11 Wed>")
+        val later = note("Later", scheduled = "<2025-06-14 Sat>")
+        val none = note("None")
+        assertEquals(listOf("Past", "Now"), run("s.le.today", past, now, later, none))
+        assertEquals(listOf("Later"), run("s.gt.today", past, now, later, none))
+        assertEquals(listOf("Past", "Later"), run("s.ne.today", past, now, later, none))
+        assertEquals(listOf("Later"), run("s.ge.3d", past, now, later, none))
+        assertEquals(listOf("Past"), run("s.lt.-1d", past, now, later, none))
+        assertEquals(emptyList<String>(), run("s.le.overdue", past, now, later, none))
+
+        val closedRecent = note("Recent", closed = "[2025-06-10 Tue]")
+        val closedOld = note("Old", closed = "[2025-05-01 Thu]")
+        assertEquals(listOf("Recent"), run("c.ge.1w", closedRecent, closedOld))
+        assertEquals(listOf("Recent"), run("c.eq.yesterday", closedRecent, closedOld))
+    }
+
+    @Test
+    fun `sort by state follows configured order, missing last either way`() {
+        val todo = note("a", keyword = "TODO")
+        val next = note("b", keyword = "NEXT")
+        val done = note("c", keyword = "DONE", done = true)
+        val none = note("d")
+        val order = listOf("TODO", "NEXT", "DONE")
+        fun sorted(q: String) = QueryMatcher.filter(listOf(none, done, next, todo), QueryParser.parse(q), today, order)
+            .map { it.title }
+        assertEquals(listOf("a", "b", "c", "d"), sorted("o.st"))
+        assertEquals(listOf("c", "b", "a", "d"), sorted(".o.state"))
+    }
+
+    @Test
+    fun `sort by event uses oldest ascending and newest descending`() {
+        // spread's oldest event is earliest and its newest is latest, so it
+        // leads in both directions only if each direction picks its own end.
+        val spread = note("spread", active = "<2025-06-01 Sun> <2025-06-30 Mon>")
+        val middle = note("middle", active = "<2025-06-15 Sun>")
+        val none = note("none")
+        assertEquals(listOf("spread", "middle", "none"), run("o.e", none, middle, spread))
+        assertEquals(listOf("spread", "middle", "none"), run(".o.event", none, middle, spread))
+        assertEquals(listOf("spread", "middle", "none"), run("o.a", none, middle, spread))
+    }
+
+    @Test
+    fun `sort by priority, title and notebook`() {
+        val a = note("beta", priority = "A", fileName = "z.org")
+        val c = note("Alpha", priority = "C", fileName = "a.org")
+        val none = note("gamma", fileName = "m.org")
+        assertEquals(listOf("beta", "Alpha", "gamma"), run("o.prio", none, c, a))
+        assertEquals(listOf("Alpha", "beta", "gamma"), run("o.t", none, a, c))
+        assertEquals(listOf("gamma", "beta", "Alpha"), run(".o.t", c, a, none))
+        assertEquals(listOf("beta", "gamma", "Alpha"), run(".o.book", c, none, a))
+    }
 }

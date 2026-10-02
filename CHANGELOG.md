@@ -59,6 +59,7 @@ re-uploads the APKs to the existing release instead of failing.
 
 ### Added
 - Marking a recurring task done now shows its next occurrence date in the snackbar.
+- Search supports nested brackets, `.( … )` negation, `AND`, `it.` keyword types, date comparisons, and Orgzly sort keys.
 
 ### Changed
 - Editor suggestion strip restyled with outlined chips; Capture's Save now fits inside it, aligned with the Read/Edit toggle.

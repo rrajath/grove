@@ -470,17 +470,20 @@ private fun AdvancedToggle(active: Boolean, onClick: () -> Unit) {
 
 /** One line per operator, shown from the (i) button (see [AdvancedPanel]). */
 private val OPERATOR_LEGEND = listOf(
-    "space" to "AND: every term must match",
-    "OR" to "starts a new AND-group: either side can match",
-    ". prefix" to "NOT: excludes rather than requires",
-    "o.PROP" to "sort by PROP (priority, scheduled, deadline, active, created, title, notebook)",
+    "space / AND" to "AND: every term must match",
+    "OR" to "either side can match (binds looser than AND)",
+    "( … )" to "group terms; nest as deep as needed",
+    ". prefix" to "NOT: excludes rather than requires; .( … ) negates a group",
+    "o.PROP" to "sort by PROP (b, t, s, d, e, c, cr, p, st); .o.PROP reverses",
     "t.TAG / tn.TAG" to "tag anywhere in the heading / on this heading only",
     "i.STATE" to "TODO keyword (i.none = no keyword)",
+    "it.TYPE" to "keyword type: it.todo, it.done, it.none",
     "b.NOTEBOOK" to "restrict to one notebook",
     "p.PRIORITY" to "priority letter (A/B/C)",
     "s./d." to "scheduled/deadline within a period (today, tomorrow, 3d, 1w, overdue, nodate…)",
     "a." to "bare active timestamp (event) within a period (same tokens as s./d.)",
     "c./cr." to "closed/created within a period (same period tokens as s./d.)",
+    "s.OP.DAY" to "compare a date: eq, ne, lt, le, gt, ge (s.le.today, c.ge.-1w)",
 )
 
 @Composable

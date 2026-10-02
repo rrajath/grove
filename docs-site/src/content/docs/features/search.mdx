@@ -20,22 +20,57 @@ Opening Search with an empty query shows:
 
 ## Query syntax
 
-Free-text terms combine with `AND`/`OR`/`NOT`, plus facet prefixes:
+Terms combine like this:
+
+- A space (or `AND`) means AND: every term must match.
+- `OR` means either side can match. It binds looser than AND, so `s.today i.todo OR p.A` reads as `(s.today i.todo) OR p.A`.
+- A leading `.` negates a term: `.t.work` excludes anything tagged `work`.
+- Brackets group terms and can nest as deep as you need: `i.todo (s.today OR d.today)`.
+- `.( … )` negates a whole group: `.(t.work OR t.home)` excludes both tags.
+
+`AND` and `OR` must be uppercase; lowercase `and`/`or` are searched as words. Brackets always group, so they can't be searched for as text. Unbalanced brackets are forgiven: a missing `)` closes at the end of the query, and a stray `)` is ignored.
+
+Facet prefixes:
 
 | Prefix | Matches |
 |---|---|
-| `i.` | TODO state (`i.todo`, `i.done`) |
+| `i.` | TODO keyword (`i.todo`, `i.next`; `i.none` = no keyword) |
+| `it.` | keyword type: `it.todo` (any not-done keyword), `it.done` (any done keyword), `it.none` |
 | `b.` | notebook |
-| `t.` | tag |
-| `tn.` | tag, negated |
+| `t.` | tag, including inherited tags |
+| `tn.` | tag on the heading itself only |
 | `p.` | priority |
-| `s.` | scheduled date/range |
-| `d.` | deadline date/range |
+| `s.` | scheduled within a period |
+| `d.` | deadline within a period |
 | `a.` | bare active `<date>` event (`a.today`, `a.7d`, `a.overdue`, `.a.none`) |
-| `c.` | created date |
-| `cr.` | created range |
-| `o.` | sort directive |
+| `c.` | closed within a period |
+| `cr.` | created within a period |
+| `o.` | sort (see below) |
 | `ad.N` | agenda-mode grouping |
+
+Periods are `today`, `tomorrow`, `yesterday`, `overdue`, `nodate`, or a relative window like `3d`, `2w`, `1m`.
+
+### Comparing dates
+
+Any date prefix also takes a comparison operator followed by a single day: `eq`, `ne`, `lt`, `le`, `gt`, `ge`. For example, `s.le.today` is scheduled today or earlier, and `c.eq.yesterday` is closed yesterday. A relative day counts forward for `s.`/`d.`/`a.` and backward for `c.`/`cr.` (so `c.ge.1w` means closed in the last week). An explicit sign overrides that: `s.lt.-2d`.
+
+### Sorting
+
+`o.PROP` sorts the results; `.o.PROP` reverses the order. Several sort keys apply in order. Headings without the property always go last.
+
+| Property | Order by |
+|---|---|
+| `b` `book` `notebook` | notebook name |
+| `t` `title` | title |
+| `s` `sched` `scheduled` | scheduled time |
+| `d` `dead` `deadline` | deadline time |
+| `e` `event` | event time (`o.event` uses a heading's oldest event, `.o.event` its most recent) |
+| `c` `close` `closed` | closed time |
+| `cr` `created` | created time |
+| `p` `pri` `prio` `priority` | priority |
+| `st` `state` | TODO keyword, in the order set in Settings |
+
+Putting it together: `b.shopping t.tigros (it.todo OR (it.done c.eq.today)) o.p o.st o.t` lists open items in the shopping notebook tagged `tigros`, plus anything checked off today, sorted by priority, then state, then title.
 
 As you type, matches highlight inline and results group by notebook under collapsible, sticky-header sections (file name on top, folder and match count beneath). A free-text term is also matched against notebook **file names** (the full vault-relative path, so `work` finds `work/planning.org`): a file whose name matches floats above every content-only result as a tappable row that opens its outline, even when nothing inside that file matched the query.
 

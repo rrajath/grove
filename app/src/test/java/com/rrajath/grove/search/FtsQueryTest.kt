@@ -103,7 +103,22 @@ class FtsQueryTest {
     fun `FTS operators in a term are matched as text`() {
         assertEquals("(\"a*b\")", expressionFor("a*b"))
         assertEquals("(\"NOT\")", expressionFor("NOT"))
-        assertEquals("(\"(paren)\")", expressionFor("(paren)"))
+        // Typed brackets now group (see QueryParser), so a bracketed term can
+        // only reach FTS when built directly; it must still stay quoted text.
+        assertEquals("(\"(paren)\")", FtsQuery.matchExpression(textQuery("(paren)")))
+    }
+
+    @Test
+    fun `nested groups narrow through their flattened form`() {
+        assertEquals(
+            "(\"milk\" AND \"eggs\") OR (\"milk\" AND \"bread\")",
+            expressionFor("milk (eggs OR bread)"),
+        )
+    }
+
+    @Test
+    fun `a query too large to flatten does not narrow`() {
+        assertNull(expressionFor((1..7).joinToString(" ") { "(xx$it OR yy$it)" }))
     }
 
     @Test

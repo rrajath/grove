@@ -659,7 +659,7 @@ class SearchViewModel(
 
         withContext(dispatchers.default) {
             val today = LocalDate.now()
-            val textMatched = textQuery?.let { QueryMatcher.filter(notes, it, today) } ?: notes
+            val textMatched = textQuery?.let { QueryMatcher.filter(notes, it, today, keywordsFlow.value.all) } ?: notes
             val terms = textQuery?.textTerms ?: emptyList()
             val filtered = textMatched.filter { matchesFilters(it, filters, today) }
 

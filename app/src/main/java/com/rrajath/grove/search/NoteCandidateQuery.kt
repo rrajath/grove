@@ -124,6 +124,11 @@ object NoteCandidateQuery {
             if (condition.state.equals("none", ignoreCase = true)) "keyword IS NULL" to emptyList()
             else condition.state.ifAscii { "keyword = ? COLLATE NOCASE" to listOf(it) }
 
+        // Done-ness isn't pushed down: "has a keyword" is a superset of both.
+        is Condition.StateType ->
+            if (condition.type == Condition.StateType.Type.NONE) "keyword IS NULL" to emptyList()
+            else "keyword IS NOT NULL" to emptyList()
+
         is Condition.Priority ->
             condition.priority.ifAscii { "priority = ? COLLATE NOCASE" to listOf(it) }
 

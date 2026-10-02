@@ -37,6 +37,8 @@ data class NoteMeta(
     val createdDate: LocalDate? get() = createdTs?.date
     val scheduledTime: LocalTime? get() = scheduledTs?.time
     val deadlineTime: LocalTime? get() = deadlineTs?.time
+    val closedTime: LocalTime? get() = closedTs?.time
+    val createdTime: LocalTime? get() = createdTs?.time
 
     /** Every parsed bare active timestamp in the note's body. */
     val activeTimestamps: List<OrgTimestamp> by lazy(LazyThreadSafetyMode.PUBLICATION) {
@@ -63,19 +65,24 @@ object QueryMatcher {
 
     fun matches(note: NoteMeta, query: SearchQuery, today: LocalDate): Boolean {
         if (!matchesAgendaWindow(note, query, today)) return false
-        if (query.groups.isEmpty()) return true
-        return query.groups.any { group -> group.all { term -> matchesTerm(note, term, today) } }
+        val expr = query.expr ?: return true
+        return expr.matches { term -> matchesTerm(note, term, today) }
     }
 
     /**
      * The AND-groups [note] satisfies (empty when it doesn't match at all). A
      * query with no groups counts as one empty group, so a filter-only search
      * still reports why each note matched. Search uses this to decide which of
-     * a note's lines to show as snippets.
+     * a note's lines to show as snippets. A query too large to flatten
+     * ([SearchQuery.isFlatteningSkipped]) also reports one empty group on a
+     * match, so its notes show as headings without text snippets.
      */
     fun satisfiedGroups(note: NoteMeta, query: SearchQuery, today: LocalDate): List<List<Term>> {
         if (!matchesAgendaWindow(note, query, today)) return emptyList()
-        if (query.groups.isEmpty()) return listOf(emptyList())
+        if (query.expr == null) return listOf(emptyList())
+        if (query.isFlatteningSkipped) {
+            return if (matches(note, query, today)) listOf(emptyList()) else emptyList()
+        }
         return query.groups.filter { group -> group.all { term -> matchesTerm(note, term, today) } }
     }
 
@@ -92,8 +99,13 @@ object QueryMatcher {
         return withinFuture(note.scheduledDate, period, today) || withinFuture(note.deadlineDate, period, today)
     }
 
-    fun filter(notes: List<NoteMeta>, query: SearchQuery, today: LocalDate): List<NoteMeta> =
-        sort(notes.filter { matches(it, query, today) }, query)
+    /** [stateOrder] is the configured keyword sequence (active then done), used by `o.state`. */
+    fun filter(
+        notes: List<NoteMeta>,
+        query: SearchQuery,
+        today: LocalDate,
+        stateOrder: List<String> = emptyList(),
+    ): List<NoteMeta> = sort(notes.filter { matches(it, query, today) }, query, stateOrder)
 
     private fun matchesTerm(note: NoteMeta, term: Term, today: LocalDate): Boolean {
         val result = when (val c = term.condition) {
@@ -103,6 +115,12 @@ object QueryMatcher {
             is Condition.State ->
                 if (c.state.equals("none", true)) note.keyword == null
                 else note.keyword?.equals(c.state, ignoreCase = true) == true
+
+            is Condition.StateType -> when (c.type) {
+                Condition.StateType.Type.TODO -> note.keyword != null && !note.isDoneKeyword
+                Condition.StateType.Type.DONE -> note.keyword != null && note.isDoneKeyword
+                Condition.StateType.Type.NONE -> note.keyword == null
+            }
 
             is Condition.Notebook ->
                 note.fileName.removeSuffix(".org").equals(c.name.removeSuffix(".org"), true)
@@ -129,6 +147,7 @@ object QueryMatcher {
      *  "yesterday" match that exact day instead of a window, and "overdue"
      *  matches anything strictly before today. */
     private fun withinFuture(date: LocalDate?, period: Period, today: LocalDate): Boolean {
+        compared(date, period, today, past = false)?.let { return it }
         if (period.isNoDate) return date == null
         if (date == null) return false
         if (period.isOverdue) return date.isBefore(today)
@@ -144,6 +163,10 @@ object QueryMatcher {
      *  explicit, only the agenda hides overdue events. */
     private fun anyActiveWithin(note: NoteMeta, period: Period, today: LocalDate): Boolean {
         val dates = note.activeDates
+        period.op?.let { op ->
+            val target = period.compareTarget(today, past = false) ?: return false
+            return dates.any { op.test(it, target) }
+        }
         if (period.isNoDate) return dates.isEmpty()
         if (dates.isEmpty()) return false
         if (period.isOverdue) {
@@ -157,6 +180,7 @@ object QueryMatcher {
     /** c./cr.: timestamp within [pastPivot, today] for a relative window;
      *  single-day tokens and "overdue" behave the same as for s./d. above. */
     private fun withinPast(date: LocalDate?, period: Period, today: LocalDate): Boolean {
+        compared(date, period, today, past = true)?.let { return it }
         if (period.isNoDate) return date == null
         if (date == null) return false
         if (period.isOverdue) return date.isBefore(today)
@@ -165,29 +189,29 @@ object QueryMatcher {
         return !date.isBefore(pivot) && !date.isAfter(today)
     }
 
+    /** `s.le.3d`-style comparison: null when [period] has no operator, false
+     *  when the timestamp is missing or the token names no single day. */
+    private fun compared(date: LocalDate?, period: Period, today: LocalDate, past: Boolean): Boolean? {
+        val op = period.op ?: return null
+        val target = period.compareTarget(today, past) ?: return false
+        return date != null && op.test(date, target)
+    }
+
     // --- ranking ---
 
     /**
-     * `o.PROP` sorts when present; otherwise PRD §11 ranking:
-     * exact title > title contains > body match, recency as tiebreaker.
+     * `o.PROP` sorts when present (Orgzly's property set, `.o.PROP` reversed);
+     * otherwise PRD §11 ranking: exact title > title contains > body match,
+     * recency as tiebreaker. Notes missing the sorted property go last in
+     * either direction. `o.state` follows [stateOrder], the configured keyword
+     * sequence; an unconfigured keyword sorts after every configured one.
      */
-    fun sort(notes: List<NoteMeta>, query: SearchQuery): List<NoteMeta> {
+    fun sort(notes: List<NoteMeta>, query: SearchQuery, stateOrder: List<String> = emptyList()): List<NoteMeta> {
         if (query.sortBy.isNotEmpty()) {
-            var comparator: Comparator<NoteMeta>? = null
-            for (key in query.sortBy) {
-                val next: Comparator<NoteMeta> = when (key) {
-                    "priority", "p" -> compareBy { it.priority ?: "Z" }
-                    "scheduled", "s" -> compareBy { it.scheduledDate ?: LocalDate.MAX }
-                    "deadline", "d" -> compareBy { it.deadlineDate ?: LocalDate.MAX }
-                    "active", "a" -> compareBy { it.activeDates.minOrNull() ?: LocalDate.MAX }
-                    "created", "cr" -> compareBy { it.createdDate ?: LocalDate.MAX }
-                    "title" -> compareBy { it.title.lowercase() }
-                    "notebook", "b" -> compareBy { it.fileName.lowercase() }
-                    else -> continue
-                }
-                comparator = comparator?.then(next) ?: next
-            }
-            if (comparator != null) return notes.sortedWith(comparator)
+            val comparator = query.sortBy
+                .map { comparatorFor(it, stateOrder) }
+                .reduce { acc, next -> acc.then(next) }
+            return notes.sortedWith(comparator)
         }
         val terms = query.textTerms
         if (terms.isEmpty()) return notes
@@ -201,5 +225,42 @@ object QueryMatcher {
             }.thenByDescending { it.lastModified }
         )
     }
+
+    private fun comparatorFor(key: SortKey, stateOrder: List<String>): Comparator<NoteMeta> {
+        val desc = key.descending
+        return when (key.field) {
+            SortField.NOTEBOOK -> nullsLast(desc) { it.fileName.lowercase() }
+            SortField.TITLE -> nullsLast(desc) { it.title.lowercase() }
+            SortField.SCHEDULED -> nullsLast(desc) { it.scheduledDate?.atTime(it.scheduledTime ?: LocalTime.MIN) }
+            SortField.DEADLINE -> nullsLast(desc) { it.deadlineDate?.atTime(it.deadlineTime ?: LocalTime.MIN) }
+            SortField.CLOSED -> nullsLast(desc) { it.closedDate?.atTime(it.closedTime ?: LocalTime.MIN) }
+            SortField.CREATED -> nullsLast(desc) { it.createdDate?.atTime(it.createdTime ?: LocalTime.MIN) }
+            // Orgzly: ascending uses a note's oldest event, descending its most recent.
+            SortField.EVENT -> nullsLast(desc) { note ->
+                val times = note.activeTimestamps.map { it.date.atTime(it.time ?: LocalTime.MIN) }
+                if (desc) times.maxOrNull() else times.minOrNull()
+            }
+            SortField.PRIORITY -> nullsLast(desc) { it.priority?.uppercase() }
+            SortField.STATE -> nullsLast(desc) { note ->
+                note.keyword?.let { keyword ->
+                    stateOrder.indexOfFirst { it.equals(keyword, ignoreCase = true) }
+                        .takeIf { it >= 0 } ?: stateOrder.size
+                }
+            }
+        }
+    }
+
+    private fun <T : Comparable<T>> nullsLast(descending: Boolean, selector: (NoteMeta) -> T?): Comparator<NoteMeta> =
+        Comparator { a, b ->
+            val x = selector(a)
+            val y = selector(b)
+            when {
+                x == null && y == null -> 0
+                x == null -> 1
+                y == null -> -1
+                descending -> y.compareTo(x)
+                else -> x.compareTo(y)
+            }
+        }
 
 }
