@@ -17,7 +17,6 @@ import androidx.compose.ui.unit.sp
 import com.rrajath.grove.settings.GroveSettings
 import com.rrajath.grove.settings.ReminderLeadTime
 import com.rrajath.grove.ui.components.DropdownPicker
-import com.rrajath.grove.ui.components.ReminderPermissionBanner
 import com.rrajath.grove.ui.components.SimpleTimePicker
 import com.rrajath.grove.ui.newbadge.MarkNewFeatureSeen
 import com.rrajath.grove.ui.newbadge.NewAnchors
@@ -39,7 +38,6 @@ fun SettingsRemindersScreen(
     onSetNotifyUntimedTasks: (Boolean) -> Unit,
     onSetDefaultReminderTime: (LocalTime) -> Unit,
     onSetReminderLeadTime: (ReminderLeadTime) -> Unit,
-    reminderPendingCount: Int,
 ) {
     val c = MaterialTheme.grove
     var showReminderTimePicker by remember { mutableStateOf(false) }
@@ -49,7 +47,9 @@ fun SettingsRemindersScreen(
     MarkNewFeatureSeen(NewAnchors.SETTINGS_REMINDERS_UNTIMED)
 
     SettingsPageScaffold(title = "Reminders", onBack = onBack) {
-        ReminderPermissionBanner(pendingCount = reminderPendingCount, modifier = Modifier.padding(bottom = 10.dp))
+        // Replaces ReminderPermissionBanner on this screen: the rows cover both
+        // permissions, and only while off. Nothing is armed with reminders off.
+        if (settings.remindersEnabled) ReminderAccessSection()
         SettingsGroup {
             ToggleRow(
                 label = "Enable reminders",

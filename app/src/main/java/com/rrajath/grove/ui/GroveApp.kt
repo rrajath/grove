@@ -1069,7 +1069,6 @@ private fun GroveNavigation(
                     onSetNotifyUntimedTasks = viewModel::setNotifyUntimedTasks,
                     onSetDefaultReminderTime = viewModel::setDefaultReminderTime,
                     onSetReminderLeadTime = viewModel::setReminderLeadTime,
-                    reminderPendingCount = viewModel.reminderPendingCount.collectAsStateWithLifecycle().value,
                 )
             }
             composable(Routes.SETTINGS_SHARING) {

@@ -444,10 +444,6 @@ class AppViewModel(
     fun setAgendaWidgetFontSize(fontSize: FontSizePreference) =
         viewModelScope.launch { settingsRepository.setAgendaWidgetFontSize(fontSize) }
 
-    /** Count of reminders waiting on POST_NOTIFICATIONS/exact-alarm access (Settings › Reminders banner). */
-    val reminderPendingCount: StateFlow<Int> = database.reminderDao().pendingCountFlow(System.currentTimeMillis())
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
-
     /** Write the current preferences as a JSON document to the user-picked [uri]. */
     fun exportSettings(uri: android.net.Uri) = viewModelScope.launch {
         val current = settingsRepository.settings.first()

@@ -48,7 +48,12 @@ By default, a SCHEDULED, DEADLINE, or active timestamp that lands on a day with 
 
 ## Permissions
 
-A dismissible banner ([`ReminderPermissionBanner`](/features/reminders)) requests notification and exact-alarm permissions only when Grove first actually needs them (not proactively at first launch), so you're not asked for permissions before you've turned reminders on.
+Reminders depend on two kinds of access, and Grove asks for neither before you've turned reminders on:
+
+- **Notifications.** Without them no reminder can appear. If a reminder is waiting on this permission, a banner on the Notebooks screen offers to grant it.
+- **Alarms & reminders (exact timing).** Android 12 and later gate exact alarms behind this setting, and Android 14 and later leave it off for new installs. Without it, reminders still fire, but Android may delay them by up to an hour.
+
+While reminders are on and either kind of access is off, Settings → Reminders shows an **Exact timing** or **Notifications** row with an **Allow** button that takes you to the right system screen. The row disappears once access is granted. Granting or revoking exact timing re-arms every upcoming reminder straight away, so existing reminders switch to the new timing without needing to be edited.
 
 ## Surviving a reboot
 
@@ -56,7 +61,7 @@ A boot receiver re-arms all scheduled alarms after the device restarts, and fire
 
 ## Settings
 
-Settings → Reminders covers: the enable/disable toggle, the "Notify me" lead time for timed reminders, the "Notify for tasks without a time" toggle, the Morning Brief (daily digest) toggle, the default reminder time (used by the digest and by any timestamp without an explicit time), and the permission banner.
+Settings → Reminders covers: the enable/disable toggle, the "Notify me" lead time for timed reminders, the "Notify for tasks without a time" toggle, the Morning Brief (daily digest) toggle, the default reminder time (used by the digest and by any timestamp without an explicit time), and, only while access is missing, the Exact timing and Notifications rows.
 
 ## Related
 
