@@ -106,6 +106,7 @@ import com.rrajath.grove.ui.editor.EditorToolbar
 import com.rrajath.grove.ui.editor.MetadataSheet
 import com.rrajath.grove.ui.editor.RoamNodeSuggestionStrip
 import com.rrajath.grove.ui.editor.SuggestionSlot
+import com.rrajath.grove.ui.editor.SuggestionSlotHeight
 import com.rrajath.grove.ui.editor.WordAtCursor
 import com.rrajath.grove.ui.editor.scrollAwareTopInset
 import com.rrajath.grove.ui.editor.filterAutoLinkSuggestions
@@ -635,6 +636,11 @@ fun CaptureEditorScreen(
                     modifier = Modifier.padding(horizontal = 18.dp, vertical = 6.dp),
                 )
             }
+            // The suggestion slot: there for every capture kind whenever the keyboard
+            // is up, chips or not and whichever providers are on (the Roam ones only
+            // ever fill it for a Roam capture).
+            val slotShown = roamAppendState !is RoamAppendState.Checking &&
+                (imeVisible || roamNodeSuggestionActive)
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 if (readMode) {
                     if (bodyOnly) {
@@ -686,7 +692,13 @@ fun CaptureEditorScreen(
                                     .weight(1f)
                                     // Scrolls away like Read mode's top contentPadding.
                                     .scrollAwareTopInset(scrollState, 20.dp)
-                                    .padding(start = 20.dp, end = 20.dp, bottom = 80.dp)
+                                    // Clears the floating Save button; while the
+                                    // suggestion strip shows (Save inside it), exactly
+                                    // the strip, so no gap opens above its hairline.
+                                    .padding(
+                                        start = 20.dp, end = 20.dp,
+                                        bottom = if (slotShown) SuggestionSlotHeight else 80.dp,
+                                    )
                                     .testTag("capture_body_field")
                                     .focusRequester(focusRequester),
                             )
@@ -717,12 +729,8 @@ fun CaptureEditorScreen(
                         )
                     }
                 }
-                // The suggestion slot: there for every capture kind whenever the keyboard
-                // is up, chips or not and whichever providers are on (the Roam ones only
-                // ever fill it for a Roam capture). It floats over the field's own 80dp
-                // bottom clearance, so it never pushes the field around or covers text.
-                val slotShown = roamAppendState !is RoamAppendState.Checking &&
-                    (imeVisible || roamNodeSuggestionActive)
+                // The slot floats over the field's bottom clearance (one strip tall while
+                // it shows), so it never covers text.
                 // Bottom bar: the strip sits flush on the toolbar with Save at its end;
                 // without it, Save floats bottom-right on its own (above the keyboard
                 // while it's up, since the column is ime-padded).
@@ -766,7 +774,7 @@ fun CaptureEditorScreen(
                             } else if (roamNodeSuggestionActive) {
                                 // Unlike link chips, not tied to the keyboard: a long-press
                                 // selection is often made with it down, and the strip sits in
-                                // the field's own 80dp bottom clearance either way.
+                                // the field's bottom clearance either way.
                                 val (selectedText, selectedRange) = roamNodeSelection!!
                                 RoamNodeSuggestionStrip(
                                     templates = roamNodeTemplates,

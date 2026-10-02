@@ -492,8 +492,14 @@ fun EditNoteScreen(
                             .scrollAwareTopInset(scrollState, 18.dp)
                             // Extra bottom room so the last lines scroll clear of the
                             // floating EditorMenuFab (54dp + 16dp inset) instead of
-                            // sitting under it. Mirrors CaptureEditorScreen's field.
-                            .padding(start = 18.dp, end = 18.dp, bottom = 80.dp)
+                            // sitting under it. With the keyboard up the FAB lives in
+                            // the suggestion strip, so the room shrinks to exactly the
+                            // strip and the text runs right down to its hairline.
+                            // Mirrors CaptureEditorScreen's field.
+                            .padding(
+                                start = 18.dp, end = 18.dp,
+                                bottom = if (imeVisible) SuggestionSlotHeight else 80.dp,
+                            )
                             .focusRequester(focusRequester)
                             .testTag("edit_note_field"),
                     )
@@ -524,8 +530,8 @@ fun EditNoteScreen(
                     )
                     // Suggestions only while typing: with the keyboard down they'd just cover the note.
                     // The slot is there whenever the keyboard is up, chips or not and whichever
-                    // providers are on. It floats over the field's own 80dp bottom clearance (so
-                    // it never pushes the field's height around or covers text). Sits flush on
+                    // providers are on. It floats over the field's bottom clearance, which is
+                    // exactly one strip tall while it shows, so it never covers text. Sits flush on
                     // the formatting toolbar like CaptureEditorScreen's strip: cancels this
                     // row's 16dp bottom padding.
                     if (imeVisible) SuggestionSlot(
