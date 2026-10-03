@@ -203,6 +203,19 @@ class SettingsSerializationTest {
     }
 
     @Test
+    fun `exact-alarm device flags are never exported or overwritten on import`() {
+        val source = sample.copy(exactAlarmAccessLastKnown = true, exactAlarmPromptHandled = true)
+        val json = SettingsSerialization.export(source)
+        assertTrue("device-local flags must not be exported", !json.contains("exactAlarm"))
+
+        val base = GroveSettings(exactAlarmAccessLastKnown = false, exactAlarmPromptHandled = false)
+        val restored = SettingsSerialization.import(json, base)
+        // Device-specific: exact-alarm access and whether this device was asked are per install.
+        assertEquals(false, restored.exactAlarmAccessLastKnown)
+        assertEquals(false, restored.exactAlarmPromptHandled)
+    }
+
+    @Test
     fun `exported document is human-readable json`() {
         val json = SettingsSerialization.export(sample)
         assertTrue(json.contains("\"theme\": \"dark\""))
