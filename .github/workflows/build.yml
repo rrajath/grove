@@ -317,8 +317,11 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
+      # Bracket the supported range: minSdk (23) runs every pre-N/pre-O
+      # fallback branch, targetSdk (36) runs the current-device behavior.
+      # Levels in between take the same branches as 36, so they add little.
       matrix:
-        api-level: [34, 35]
+        api-level: [23, 36]
     steps:
       - uses: actions/checkout@v4
 

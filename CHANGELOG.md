@@ -80,6 +80,7 @@ re-uploads the APKs to the existing release instead of failing.
 - Linked References is now called Backlinks, and no longer shows on single headings opened from the outline.
 - Releases are cut locally with scripts/release.sh, so F-Droid can reproduce the published APK.
 - versionCode is now stored in gradle.properties so F-Droid can detect new releases automatically.
+- Nightly UI tests now run on API 23 and 36 emulators (minSdk and targetSdk) instead of 34 and 35.
 
 ### Fixed
 - Search result date pills now show the scheduled or deadline time, e.g. "today 23:00".
