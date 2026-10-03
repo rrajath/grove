@@ -147,8 +147,12 @@ class ReadNoteScreenTest {
     fun aLargeSubtreeScrollsWithoutCrashing() {
         content(NoteRef("large-subtree.org", lineOf(OrgFixtures.LARGE_SUBTREE, "Everything")))
 
-        composeRule.waitUntil(timeoutMillis = 5_000) {
-            composeRule.onAllNodesWithTag("read_note_screen").fetchSemanticsNodes().isNotEmpty()
+        // Wait for the list, not "read_note_screen": that root Box is already
+        // there while the document is Loading, and the load runs on real
+        // dispatchers Compose's idle sync doesn't track, so a slow emulator
+        // could swipe before the LazyColumn exists.
+        composeRule.waitUntil(timeoutMillis = 10_000) {
+            composeRule.onAllNodesWithTag("read_note_scroll").fetchSemanticsNodes().isNotEmpty()
         }
         repeat(3) {
             composeRule.onNodeWithTag("read_note_scroll").performTouchInput { swipeUp() }
