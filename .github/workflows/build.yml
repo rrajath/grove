@@ -235,7 +235,9 @@ jobs:
       # GitHub Release it lands in. Local Gradle builds keep AGP's default
       # app-<variant>.apk names. The release APK is app-release-unsigned.apk
       # when no keystore secret is set; it gets the same name either way.
-      - name: Rename APKs
+      # The AAB (release path only) is named grove-<versionName>-release.aab
+      # (e.g. grove-1.2.3-release.aab), using VERSION with no "v" prefix.
+      - name: Rename APKs and AAB
         run: |
           set -euo pipefail
           for VARIANT in debug release; do
@@ -249,6 +251,16 @@ jobs:
             mv "${APKS[0]}" "$DIR/grove-$RELEASE_TAG-$VARIANT.apk"
           done
           ls app/build/outputs/apk/*/*.apk
+          BUNDLE_DIR="app/build/outputs/bundle/release"
+          if [ -d "$BUNDLE_DIR" ]; then
+            AABS=("$BUNDLE_DIR"/*.aab)
+            if [ "${#AABS[@]}" -ne 1 ]; then
+              echo "::error::Expected exactly one release AAB, found: ${AABS[*]}"
+              exit 1
+            fi
+            mv "${AABS[0]}" "$BUNDLE_DIR/grove-$VERSION-release.aab"
+            ls "$BUNDLE_DIR"/*.aab
+          fi
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
@@ -296,7 +308,8 @@ jobs:
           TAG="$RELEASE_TAG"
           TITLE="$RELEASE_TAG"
           NOTES="$(printf '%s\n\n_Commit: %s_' "$RELEASE_NOTES" "${GITHUB_SHA:0:7}")"
-          # APKs were renamed to grove-<RELEASE_TAG>-<variant>.apk by "Rename APKs" above.
+          # APKs were renamed to grove-<RELEASE_TAG>-<variant>.apk and the AAB to
+          # grove-<VERSION>-release.aab by "Rename APKs and AAB" above.
           # The AAB is attached too so a signed one is available to upload to Play Console
           # without a separate local build.
           ASSETS=$(ls app/build/outputs/apk/debug/*.apk app/build/outputs/apk/release/*.apk app/build/outputs/bundle/release/*.aab)
