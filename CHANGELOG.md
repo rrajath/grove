@@ -81,6 +81,7 @@ re-uploads the APKs to the existing release instead of failing.
 - Releases are cut locally with scripts/release.sh, so F-Droid can reproduce the published APK.
 - versionCode is now stored in gradle.properties so F-Droid can detect new releases automatically.
 - Nightly UI tests now run on API 23 and 36 emulators (minSdk and targetSdk) instead of 34 and 35.
+- Maestro end-to-end flows now run on API 23 and 36 emulators in CI.
 
 ### Fixed
 - Appearance UI test no longer fails on Android 6, where the app-icon sync row is hidden.

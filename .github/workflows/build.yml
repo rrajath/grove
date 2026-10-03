@@ -401,6 +401,11 @@ jobs:
   e2e-maestro:
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      # Same bracket as ui-tests: minSdk (23) and targetSdk (36).
+      matrix:
+        api-level: [23, 36]
     steps:
       - uses: actions/checkout@v4
 
@@ -431,10 +436,10 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
-      - name: Run Maestro flows on API 34
+      - name: Run Maestro flows on API ${{ matrix.api-level }}
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 34
+          api-level: ${{ matrix.api-level }}
           arch: x86_64
           # Plain AOSP image (no Gboard) — the flows' hideKeyboard steps assume
           # the AOSP keyboard, not Gboard's first-run popup / floating toolbar.
@@ -442,15 +447,15 @@ jobs:
           disable-animations: true
           script: >-
             adb install -r app/build/outputs/apk/debug/app-debug.apk &&
-            maestro test .maestro/flows --format junit --output maestro-report.xml
+            maestro test .maestro/flows --format junit --output maestro-report-api${{ matrix.api-level }}.xml
 
       - name: Upload Maestro report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: maestro-report
+          name: maestro-report-api${{ matrix.api-level }}
           path: |
-            maestro-report.xml
+            maestro-report-api${{ matrix.api-level }}.xml
             ~/.maestro/tests/**
           if-no-files-found: warn
 

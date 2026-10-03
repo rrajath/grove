@@ -168,7 +168,7 @@ maestro test --include-tags e2e .maestro
 ```
 
 Use an emulator, not the physical device that carries the real vault. Create
-the AVD from a plain **AOSP** system image (`system-images;android-34;default;…`),
+the AVD from a plain **AOSP** system image (`system-images;android-36;default;…`),
 not a Google APIs / Play Store image. The Play images ship Gboard, whose
 first-run "glide typing" popup and floating toolbar break input and back
 navigation; the AOSP image (`com.android.inputmethod.latin`) has neither, and
@@ -182,7 +182,7 @@ or a `back`, so a stray IME can't hide the next target or absorb the first
 ## CI
 
 `e2e-maestro` job in `.github/workflows/build.yml` — manual "Run workflow" only
-(`workflow_dispatch`). Boots an API 34 emulator, installs the debug APK, runs
+(`workflow_dispatch`). Boots API 23 and API 36 emulators (a matrix), installs the debug APK, runs
 `maestro test .maestro/flows`. A Maestro Cloud variant is noted in a comment
 there.
 
