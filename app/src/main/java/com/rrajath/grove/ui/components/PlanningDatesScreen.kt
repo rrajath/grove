@@ -1,10 +1,12 @@
 package com.rrajath.grove.ui.components
 
+import android.os.Build
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -69,6 +71,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLayoutResult
@@ -380,6 +383,14 @@ fun PlanningDatesScreen(
         }
         Surface(Modifier.fillMaxSize(), color = c.bg) {
             Column(Modifier.fillMaxSize().safeDrawingPadding().imePadding()) {
+                // Before Android 9 a new window gives initial focus to its first
+                // focusable view even in touch mode: here the shorthand field, so
+                // the keyboard opened on its own over the tab row. This blank
+                // target ahead of it takes that focus instead (same fix as
+                // MetadataSheet); API 28+ never assigns it.
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) {
+                    Box(Modifier.clearAndSetSemantics {}.focusable())
+                }
 
                 // ---- header ----------------------------------------------------
                 Row(

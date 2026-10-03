@@ -84,6 +84,7 @@ re-uploads the APKs to the existing release instead of failing.
 - Maestro end-to-end flows now run on API 24 and 36 emulators in CI.
 
 ### Fixed
+- On Android 6 to 8.1, the dates picker no longer opens with the keyboard covering its tabs.
 - The note metadata sheet now opens fully, so its action row is never hidden behind the navigation bar.
 - On Android 6 to 8.1, the note metadata sheet no longer opens with the keyboard covering its actions.
 - Appearance UI test no longer fails on Android 6, where the app-icon sync row is hidden.
