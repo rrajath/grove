@@ -1,0 +1,46 @@
+# Tap an external link that no real app on the emulator handles (mailto:).
+# What the OS does with it depends on the image: newer AOSP images have no
+# handler, so Grove shows its own "Couldn't open" toast; older ones (API 24)
+# route it to com.android.fallback's "Unsupported action" dialog instead, and
+# Grove never sees a failure. Either is correct handoff behavior, so accept
+# both and end back on the hub. Params: LINK (visible link label), TOAST
+# (regex expected in Grove's toast when there is no handler).
+appId: com.rrajath.grove.debug
+---
+- scrollUntilVisible:
+    element:
+      text: "${LINK}"
+    direction: DOWN
+    timeout: 20000
+    centerElement: true
+- tapOn:
+    text: "${LINK}"
+- evalScript: ${output.mailtoToast = false; output.mailtoFallback = false}
+# No handler: Grove's toast. Checked first and without waitForAnimationToEnd,
+# which would wait out the toast's whole fade in/out. Optional because on the
+# fallback path it never appears; the assertTrue below keeps it required
+# whenever the fallback dialog didn't show instead.
+- extendedWaitUntil:
+    visible:
+      text: "${TOAST}"
+    timeout: 5000
+    optional: true
+- runFlow:
+    when:
+      visible:
+        text: "${TOAST}"
+    commands:
+      - evalScript: ${output.mailtoToast = true}
+# Fallback dialog: dismiss it.
+- runFlow:
+    when:
+      visible:
+        text: "Unsupported action"
+    commands:
+      - evalScript: ${output.mailtoFallback = true}
+      - back
+- assertTrue: ${output.mailtoToast || output.mailtoFallback}
+- extendedWaitUntil:
+    visible:
+      id: "read_note_screen"
+    timeout: 10000

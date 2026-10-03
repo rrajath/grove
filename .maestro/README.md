@@ -182,7 +182,7 @@ or a `back`, so a stray IME can't hide the next target or absorb the first
 ## CI
 
 `e2e-maestro` job in `.github/workflows/build.yml` — manual "Run workflow" only
-(`workflow_dispatch`). Boots API 23 and API 36 emulators (a matrix), installs the debug APK, runs
+(`workflow_dispatch`). Boots API 24 and API 36 emulators (a matrix; Maestro's driver needs API 24+), installs the debug APK, runs
 `maestro test .maestro/flows`. A Maestro Cloud variant is noted in a comment
 there.
 
@@ -231,3 +231,20 @@ there.
     If the `from`-anchored form doesn't fire the gesture, fall back to a
     percent-coordinate `swipe` like `trigger-sync.yaml` uses.
   - Flow 12 (pin/unpin) is text-only, no swipe — lower risk than the other five.
+
+## CI hardening (2026-10-03)
+
+- `e2e-maestro` runs on API 24 + 36 with `profile: pixel_6` (a tall screen like
+  the Pixel_9a AVD; the runner's default AVD is short and pushes rows below the
+  fold). Maestro's on-device driver needs API 24+ (`minSdkVersion 24`, adb
+  `shell_v2`), so minSdk 23 can't run these flows.
+- `scripts/ci-settle-emulator.sh` runs first: waits for the launcher to take
+  focus, lets post-boot work quiet down, and dismisses system dialogs.
+- `MAESTRO_DRIVER_STARTUP_TIMEOUT=180000` for slow runner emulators.
+- Each level uploads its JUnit report plus `--test-output-dir` and
+  `--debug-output` (failure screenshots, per-command JSON).
+- Flow 05's L22 `mailto:` step accepts either outcome: Grove's "Couldn't open"
+  toast (no handler, newer images) or the OS fallback "Unsupported action"
+  dialog (`com.android.fallback`, older images such as API 24).
+- To reproduce locally, use an AOSP `default` image AVD with the `pixel_6`
+  device (e.g. `Grove_Maestro_API_24`) and pass `--device <serial>`.

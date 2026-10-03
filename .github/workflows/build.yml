@@ -403,9 +403,10 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      # Same bracket as ui-tests: minSdk (23) and targetSdk (36).
+      # Maestro's on-device driver needs API 24+ (minSdk 24, adb shell_v2), so
+      # this brackets at 24 rather than minSdk 23; ui-tests still covers 23.
       matrix:
-        api-level: [23, 36]
+        api-level: [24, 36]
     steps:
       - uses: actions/checkout@v4
 
@@ -438,17 +439,33 @@ jobs:
 
       - name: Run Maestro flows on API ${{ matrix.api-level }}
         uses: reactivecircus/android-emulator-runner@v2
+        env:
+          # Maestro's on-device driver can take well over its default to start
+          # on a software-rendered runner emulator (milliseconds).
+          MAESTRO_DRIVER_STARTUP_TIMEOUT: 180000
         with:
           api-level: ${{ matrix.api-level }}
           arch: x86_64
           # Plain AOSP image (no Gboard) — the flows' hideKeyboard steps assume
           # the AOSP keyboard, not Gboard's first-run popup / floating toolbar.
           target: default
+          # A tall phone, like the Pixel_9a AVD the flows are verified on. The
+          # runner's default AVD is much shorter, which pushes rows below the
+          # fold and breaks taps/asserts that pass locally.
+          profile: pixel_6
           disable-animations: true
+          # One compound command (each `script` line is its own `sh -c`), so the
+          # maestro exit status survives to the end of the step.
           script: >-
+            .maestro/scripts/ci-settle-emulator.sh &&
             adb install -r app/build/outputs/apk/debug/app-debug.apk &&
-            maestro test .maestro/flows --format junit --output maestro-report-api${{ matrix.api-level }}.xml
+            maestro test .maestro/flows
+            --format junit --output maestro-report-api${{ matrix.api-level }}.xml
+            --test-output-dir maestro-artifacts-api${{ matrix.api-level }}
+            --debug-output maestro-debug-api${{ matrix.api-level }} --flatten-debug-output
 
+      # Screenshots, per-command logs and the failing step's view hierarchy, so a
+      # CI-only failure can be diagnosed without re-running it locally.
       - name: Upload Maestro report
         if: always()
         uses: actions/upload-artifact@v4
@@ -456,6 +473,8 @@ jobs:
           name: maestro-report-api${{ matrix.api-level }}
           path: |
             maestro-report-api${{ matrix.api-level }}.xml
+            maestro-artifacts-api${{ matrix.api-level }}/**
+            maestro-debug-api${{ matrix.api-level }}/**
             ~/.maestro/tests/**
           if-no-files-found: warn
 

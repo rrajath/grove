@@ -112,9 +112,10 @@ tags:
 - runFlow:
     file: ../subflows/follow-link-to-external.yaml
     env: { LINK: "https://example.net/l21plain", URL: ".*example.net.*" }
-# L22 [[mailto:...]]  no handler on the emulator -> "Couldn't open" toast
+# L22 [[mailto:...]]  no real handler: "Couldn't open" toast, or the OS
+# fallback "Unsupported action" dialog on older images (API 24)
 - runFlow:
-    file: ../subflows/follow-link-to-toast.yaml
+    file: ../subflows/follow-link-to-unhandled-external.yaml
     env: { LINK: "L22 external mailto", TOAST: ".*Couldn.t open.*" }
 
 # --- Unresolved -> "Couldn't find" toast, no navigation ------------------
