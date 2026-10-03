@@ -69,6 +69,7 @@ re-uploads the APKs to the existing release instead of failing.
 
 ### Changed
 - Release AABs built by CI are now named `grove-<versionName>-release.aab`.
+- README now shows build, release, F-Droid, downloads, license, platform, stack, activity, and docs badges.
 - Date filters follow Orgzly defaults: `s.today` now includes overdue. Saved searches are migrated to keep their meaning.
 - Plain search text also matches a heading's own tags; filter-only searches sort by notebook, priority, then date.
 - Editor suggestion strip restyled with outlined chips; Capture's Save now fits inside it, aligned with the Read/Edit toggle.

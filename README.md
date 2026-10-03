@@ -1,5 +1,19 @@
 # Grove
 
+<p align="center">
+  <a href="https://github.com/rrajath/grove/actions/workflows/build.yml?query=branch%3Amain+event%3Apush"><img src="https://img.shields.io/github/actions/workflow/status/rrajath/grove/build.yml?branch=main&event=push&label=build&style=for-the-badge" alt="Build status" /></a>
+  <a href="https://github.com/rrajath/grove/releases/latest"><img src="https://img.shields.io/github/v/release/rrajath/grove?style=for-the-badge" alt="Latest release" /></a>
+  <a href="https://f-droid.org/packages/com.rrajath.grove/"><img src="https://img.shields.io/f-droid/v/com.rrajath.grove?style=for-the-badge&logo=fdroid&logoColor=white" alt="F-Droid version" /></a>
+  <a href="https://github.com/rrajath/grove/releases"><img src="https://img.shields.io/github/downloads/rrajath/grove/total?style=for-the-badge" alt="Total downloads" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/rrajath/grove?style=for-the-badge" alt="License: Apache 2.0" /></a>
+  <br />
+  <img src="https://img.shields.io/badge/API-23%2B-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="Minimum Android API 23" />
+  <img src="https://img.shields.io/badge/Kotlin-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white" alt="Kotlin" />
+  <img src="https://img.shields.io/badge/Jetpack%20Compose-4285F4?style=for-the-badge&logo=jetpackcompose&logoColor=white" alt="Jetpack Compose" />
+  <a href="https://github.com/rrajath/grove/commits/main"><img src="https://img.shields.io/github/last-commit/rrajath/grove?style=for-the-badge" alt="Last commit" /></a>
+  <a href="https://grove.rrajath.com"><img src="https://img.shields.io/badge/docs-grove.rrajath.com-0A7E3E?style=for-the-badge&logo=readthedocs&logoColor=white" alt="Documentation" /></a>
+</p>
+
 **A native Android Org-mode note-taking app: a first-class mobile companion for Emacs org-mode users.**
 
 Grove edits plain `.org` files in a folder you choose. There is no account, no proprietary database, and no export step: the files on disk *are* your notes, byte-for-byte, and they sync to your laptop with whatever tool you already trust (Syncthing is the recommended pairing). If you stop using Grove tomorrow, your notes are exactly where they always were.
