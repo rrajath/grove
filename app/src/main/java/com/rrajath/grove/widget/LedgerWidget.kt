@@ -252,6 +252,10 @@ private fun LedgerContent(
     }
 }
 
+/** Deep link to the in-app Agenda screen. */
+private fun agendaIntent(context: Context) =
+    Intent(Intent.ACTION_VIEW, AGENDA_URI).setClass(context, MainActivity::class.java)
+
 /** Scales a base widget text size (sp) by the user's Font size lever (Settings § Agenda › Widget). */
 private fun sp(base: Float, scale: Float) = (base * scale).sp
 
@@ -269,19 +273,28 @@ private fun HeaderRow(
         modifier = GlanceModifier.fillMaxWidth().padding(horizontal = 13.dp, vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        // The app icon opens the app as-is; the title block deep-links to the
+        // Agenda screen, like [MoreRow].
         Row(
-            modifier = GlanceModifier
-                .defaultWeight()
-                .clickable(actionStartActivity(Intent(context, MainActivity::class.java))),
+            modifier = GlanceModifier.defaultWeight(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Image(
                 provider = ImageProvider(iconRes),
-                contentDescription = null,
-                modifier = GlanceModifier.size(22.dp).cornerRadius(7.dp),
+                contentDescription = "Open Grove",
+                modifier = GlanceModifier
+                    .size(22.dp)
+                    .cornerRadius(7.dp)
+                    .clickable(actionStartActivity(Intent(context, MainActivity::class.java))),
             )
-            Spacer(modifier = GlanceModifier.width(10.dp))
-            Column(modifier = GlanceModifier.defaultWeight()) {
+            // Start padding instead of a Spacer so the 10dp gap is part of the
+            // title's tap target rather than a dead zone.
+            Column(
+                modifier = GlanceModifier
+                    .defaultWeight()
+                    .padding(start = 10.dp)
+                    .clickable(actionStartActivity(agendaIntent(context))),
+            ) {
                 Text(
                     "Agenda",
                     style = TextStyle(color = ColorProvider(colors.ink), fontSize = sp(13.5f, fontScale), fontWeight = FontWeight.Medium),
@@ -345,12 +358,11 @@ private fun SectionHeader(colors: GroveColors, section: LedgerBuckets.Section, f
  */
 @Composable
 private fun MoreRow(context: Context, colors: GroveColors, hidden: Int, fontScale: Float) {
-    val openIntent = Intent(Intent.ACTION_VIEW, AGENDA_URI).setClass(context, MainActivity::class.java)
     Box(
         modifier = GlanceModifier
             .fillMaxWidth()
             .padding(horizontal = 13.dp, vertical = 9.dp)
-            .clickable(actionStartActivity(openIntent)),
+            .clickable(actionStartActivity(agendaIntent(context))),
         contentAlignment = Alignment.Center,
     ) {
         Text(

@@ -72,6 +72,7 @@ re-uploads the APKs to the existing release instead of failing.
 - Plain search text also matches a heading's own tags; filter-only searches sort by notebook, priority, then date.
 - Editor suggestion strip restyled with outlined chips; Capture's Save now fits inside it, aligned with the Read/Edit toggle.
 - While typing a note, the menu button smoothly shrinks into the suggestion strip, like Capture's Save.
+- Agenda widget: tapping the "Agenda" title opens the Agenda screen; the app icon opens the app.
 - Swipe cells: Schedule now sits at the edge with Reveal beside it; Agenda's Schedule swipe gains Reveal.
 - Long swipes on Search and Agenda rows fade the other cell and flood the chosen action's colour.
 - Search result swipe rows now have rounded corners, matching Agenda.
