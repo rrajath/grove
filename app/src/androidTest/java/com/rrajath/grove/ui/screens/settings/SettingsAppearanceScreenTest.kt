@@ -1,5 +1,6 @@
 package com.rrajath.grove.ui.screens.settings
 
+import android.os.Build
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
@@ -11,6 +12,7 @@ import com.rrajath.grove.settings.GroveSettings
 import com.rrajath.grove.settings.ThemePreference
 import com.rrajath.grove.ui.support.setGroveContent
 import org.junit.Assert.assertEquals
+import org.junit.Assume.assumeTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -73,8 +75,11 @@ class SettingsAppearanceScreenTest {
         composeRule.waitUntil(timeoutMillis = 3_000) { picked == FontSizePreference.SMALL }
     }
 
+    // The row only exists on API 26+ (themed launcher icons need <adaptive-icon>),
+    // so each of these two tests runs on one side of that line and skips on the other.
     @Test
     fun togglingSyncAppIconReportsTheNewValue() {
+        assumeTrue(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
         var enabled: Boolean? = null
         content(
             settings = GroveSettings(syncAppIconWithTheme = false),
@@ -84,5 +89,13 @@ class SettingsAppearanceScreenTest {
         composeRule.onNodeWithText("Sync App Icon with Theme").performClick()
         composeRule.waitUntil(timeoutMillis = 3_000) { enabled != null }
         assertEquals(true, enabled)
+    }
+
+    @Test
+    fun syncAppIconRowIsHiddenBelowApi26() {
+        assumeTrue(Build.VERSION.SDK_INT < Build.VERSION_CODES.O)
+        content()
+        composeRule.onNodeWithText("Theme").assertIsDisplayed()
+        composeRule.onNodeWithText("Sync App Icon with Theme").assertDoesNotExist()
     }
 }

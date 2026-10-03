@@ -83,6 +83,7 @@ re-uploads the APKs to the existing release instead of failing.
 - Nightly UI tests now run on API 23 and 36 emulators (minSdk and targetSdk) instead of 34 and 35.
 
 ### Fixed
+- Appearance UI test no longer fails on Android 6, where the app-icon sync row is hidden.
 - Fixed flaky Search unit tests that could check results before saved searches finished loading.
 - Fixed a flaky Read-mode UI test that could swipe before the note finished loading.
 - Search result date pills now show the scheduled or deadline time, e.g. "today 23:00".
