@@ -18,6 +18,7 @@ import com.rrajath.grove.vault.Vault
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -79,6 +80,25 @@ class SearchViewModelIntegrationTest {
         db.close()
     }
 
+    /**
+     * [search] plus a wait until the VM can run a query. Searches only run once
+     * it has its facets, and those wait on [SearchRepository.savedSearches]: a
+     * real DataStore that emits from a real IO thread, which [advanceUntilIdle]
+     * can't see. Without this, a slow runner (CI) leaves the query unrun and the
+     * test reads zero results. `catalog` is set only once both have arrived.
+     */
+    private fun TestScope.readySearch(): SearchViewModel {
+        val vm = search()
+        val deadline = System.currentTimeMillis() + 5_000
+        advanceUntilIdle()
+        while (vm.state.value.catalog.notebooks.isEmpty()) {
+            check(System.currentTimeMillis() < deadline) { "SearchViewModel never received its facets" }
+            Thread.sleep(5)
+            advanceUntilIdle()
+        }
+        return vm
+    }
+
     /** Line index of the first headline whose title starts with [prefix], in [file]. */
     private fun headlineLine(file: String, prefix: String): Int {
         val doc = OrgParser.parse(OrgFixtures.all.getValue(file))
@@ -89,8 +109,7 @@ class SearchViewModelIntegrationTest {
     fun `a query matches the note whose body contains the term`() = runTest {
         TestVaultSeeder.index(db, store)
         advanceUntilIdle()
-        val vm = search()
-        advanceUntilIdle()
+        val vm = readySearch()
 
         vm.onQueryChange("photosynthesis")
         advanceTimeBy(400) // clear the 300ms debounce
@@ -118,8 +137,7 @@ class SearchViewModelIntegrationTest {
     fun `a query matching a heading title shows the heading row`() = runTest {
         TestVaultSeeder.index(db, store)
         advanceUntilIdle()
-        val vm = search()
-        advanceUntilIdle()
+        val vm = readySearch()
 
         vm.onQueryChange("leaves")
         advanceTimeBy(400)
@@ -134,8 +152,7 @@ class SearchViewModelIntegrationTest {
     fun `words that only meet across lines drop the note`() = runTest {
         TestVaultSeeder.index(db, store)
         advanceUntilIdle()
-        val vm = search()
-        advanceUntilIdle()
+        val vm = readySearch()
 
         // "leaves" is in the title, "photosynthesis" in the body: no single line has both.
         vm.onQueryChange("leaves photosynthesis")
@@ -149,8 +166,7 @@ class SearchViewModelIntegrationTest {
     fun `clearing the query returns to the blank state`() = runTest {
         TestVaultSeeder.index(db, store)
         advanceUntilIdle()
-        val vm = search()
-        advanceUntilIdle()
+        val vm = readySearch()
 
         vm.onQueryChange("photosynthesis")
         advanceTimeBy(400)
@@ -169,8 +185,7 @@ class SearchViewModelIntegrationTest {
     fun `a query does not run until the debounce window elapses`() = runTest {
         TestVaultSeeder.index(db, store)
         advanceUntilIdle()
-        val vm = search()
-        advanceUntilIdle()
+        val vm = readySearch()
 
         vm.onQueryChange("photosynthesis")
         advanceTimeBy(250) // still inside the 300ms debounce
@@ -185,8 +200,7 @@ class SearchViewModelIntegrationTest {
     fun `a state filter narrows results to matching headings`() = runTest {
         TestVaultSeeder.index(db, store)
         advanceUntilIdle()
-        val vm = search()
-        advanceUntilIdle()
+        val vm = readySearch()
 
         vm.applyQuickFilter(SearchFilters(states = setOf("TODO")))
         advanceUntilIdle()
@@ -201,8 +215,7 @@ class SearchViewModelIntegrationTest {
     fun `applyQuickQuery replaces the query and filters and runs immediately`() = runTest {
         TestVaultSeeder.index(db, store)
         advanceUntilIdle()
-        val vm = search()
-        advanceUntilIdle()
+        val vm = readySearch()
 
         vm.applyQuickFilter(SearchFilters(states = setOf("TODO")))
         advanceUntilIdle()
@@ -220,8 +233,7 @@ class SearchViewModelIntegrationTest {
     fun `an active-date preset counts as a filter and mirrors an a token into the query`() = runTest {
         TestVaultSeeder.index(db, store)
         advanceUntilIdle()
-        val vm = search()
-        advanceUntilIdle()
+        val vm = readySearch()
 
         vm.setActivePreset(DatePreset.TODAY)
         advanceUntilIdle()
@@ -240,8 +252,7 @@ class SearchViewModelIntegrationTest {
     fun `setState writes the new keyword to the file and requests a sync`() = runTest {
         TestVaultSeeder.index(db, store)
         advanceUntilIdle()
-        val vm = search()
-        advanceUntilIdle()
+        val vm = readySearch()
 
         val line = headlineLine("projects.org", "Tag the release")
         vm.setState("projects.org", line, "DONE")
@@ -255,8 +266,7 @@ class SearchViewModelIntegrationTest {
     fun `markDone sets the first done keyword and offers undo`() = runTest {
         TestVaultSeeder.index(db, store)
         advanceUntilIdle()
-        val vm = search()
-        advanceUntilIdle()
+        val vm = readySearch()
 
         val line = headlineLine("projects.org", "Tag the release")
         vm.markDone("projects.org", line)
@@ -274,8 +284,7 @@ class SearchViewModelIntegrationTest {
     fun `markDone leaves a done heading alone`() = runTest {
         TestVaultSeeder.index(db, store)
         advanceUntilIdle()
-        val vm = search()
-        advanceUntilIdle()
+        val vm = readySearch()
         val before = store.read("projects.org")
 
         vm.markDone("projects.org", headlineLine("projects.org", "Cut the changelog"))
@@ -302,8 +311,7 @@ class SearchViewModelIntegrationTest {
         )
         TestVaultSeeder.index(db, store)
         advanceUntilIdle()
-        val vm = search()
-        advanceUntilIdle()
+        val vm = readySearch()
 
         runQuery(vm, "b.plans ad.3")
 
@@ -337,8 +345,7 @@ class SearchViewModelIntegrationTest {
         )
         TestVaultSeeder.index(db, store)
         advanceUntilIdle()
-        val vm = search()
-        advanceUntilIdle()
+        val vm = readySearch()
 
         runQuery(vm, "b.timed")
 
@@ -363,8 +370,7 @@ class SearchViewModelIntegrationTest {
         keywords.value = OrgKeywords.parse("IN-PROGRESS TODO | CANCELLED DONE")
         TestVaultSeeder.index(db, store)
         advanceUntilIdle()
-        val vm = search()
-        advanceUntilIdle()
+        val vm = readySearch()
 
         runQuery(vm, "b.projects o.st")
 
@@ -379,8 +385,7 @@ class SearchViewModelIntegrationTest {
     fun `reversed state sort with it filters through the whole pipeline`() = runTest {
         TestVaultSeeder.index(db, store)
         advanceUntilIdle()
-        val vm = search()
-        advanceUntilIdle()
+        val vm = readySearch()
 
         runQuery(vm, "b.projects (it.done OR i.IN-PROGRESS) .o.st")
 
@@ -393,8 +398,7 @@ class SearchViewModelIntegrationTest {
     fun `a nested query shows the snippet for the branch that matched`() = runTest {
         TestVaultSeeder.index(db, store)
         advanceUntilIdle()
-        val vm = search()
-        advanceUntilIdle()
+        val vm = readySearch()
 
         runQuery(vm, "b.reading-list (photosynthesis OR nomatchanywhere)")
 
@@ -410,8 +414,7 @@ class SearchViewModelIntegrationTest {
     fun `a negated group excludes matching notes`() = runTest {
         TestVaultSeeder.index(db, store)
         advanceUntilIdle()
-        val vm = search()
-        advanceUntilIdle()
+        val vm = readySearch()
 
         runQuery(vm, "b.projects .(it.done OR i.TODO)")
 
