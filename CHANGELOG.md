@@ -65,6 +65,7 @@ re-uploads the APKs to the existing release instead of failing.
 - `ad.N` searches now show results grouped by day, including events, like Orgzly's agenda.
 - Search results: long swipe right marks a task done; a Reveal cell shows it in its notebook.
 - Settings › Reminders now flags missing exact-alarm or notification access, with an Allow button to fix it.
+- A one-time prompt asks for Alarms & reminders access so reminders arrive on time.
 
 ### Changed
 - Date filters follow Orgzly defaults: `s.today` now includes overdue. Saved searches are migrated to keep their meaning.

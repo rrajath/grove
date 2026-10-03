@@ -96,6 +96,11 @@ data class GroveSettings(
      * re-armed. Device-specific, like [onboardingDone]: not exported.
      */
     val exactAlarmAccessLastKnown: Boolean? = null,
+    /**
+     * True once the one-time "Get reminders on time" dialog was answered (Allow or Not now);
+     * it never shows again after that. Device-specific, like [onboardingDone]: not exported.
+     */
+    val exactAlarmPromptHandled: Boolean = false,
     /** Persisted SAF tree URI of the sync folder; null until the user picks one. */
     val vaultTreeUri: String? = null,
     val syncMode: SyncMode = SyncMode.ON_OPEN_CLOSE,
@@ -317,6 +322,7 @@ class SettingsRepository(
         val newBadgeBaseline = intPreferencesKey("new_badge_baseline")
         val seenNewFeatures = stringPreferencesKey("seen_new_features")
         val exactAlarmAccessLastKnown = booleanPreferencesKey("exact_alarm_access_last_known")
+        val exactAlarmPromptHandled = booleanPreferencesKey("exact_alarm_prompt_handled")
         val vaultTreeUri = stringPreferencesKey("vault_tree_uri")
         val syncMode = stringPreferencesKey("sync_mode")
         val periodicSyncMinutes = intPreferencesKey("periodic_sync_minutes")
@@ -420,6 +426,7 @@ class SettingsRepository(
             newBadgeBaseline = prefs[Keys.newBadgeBaseline],
             seenNewFeatures = decodeStringSet(prefs[Keys.seenNewFeatures]),
             exactAlarmAccessLastKnown = prefs[Keys.exactAlarmAccessLastKnown],
+            exactAlarmPromptHandled = prefs[Keys.exactAlarmPromptHandled] ?: false,
             vaultTreeUri = prefs[Keys.vaultTreeUri],
             syncMode = SyncMode.fromStorage(prefs[Keys.syncMode]),
             periodicSyncMinutes = prefs[Keys.periodicSyncMinutes] ?: 30,
@@ -680,6 +687,10 @@ class SettingsRepository(
 
     suspend fun setExactAlarmAccessLastKnown(granted: Boolean) {
         context.settingsDataStore.edit { it[Keys.exactAlarmAccessLastKnown] = granted }
+    }
+
+    suspend fun markExactAlarmPromptHandled() {
+        context.settingsDataStore.edit { it[Keys.exactAlarmPromptHandled] = true }
     }
 
     /**

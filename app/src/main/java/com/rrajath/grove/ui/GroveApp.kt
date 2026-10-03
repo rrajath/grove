@@ -60,6 +60,8 @@ import com.rrajath.grove.ui.nav.navEnterTransition
 import com.rrajath.grove.ui.nav.navExitTransition
 import com.rrajath.grove.ui.nav.navPopEnterTransition
 import com.rrajath.grove.ui.nav.navPopExitTransition
+import com.rrajath.grove.ui.reminders.ExactAlarmPromptDialog
+import com.rrajath.grove.ui.reminders.ReminderAccessIntents
 import com.rrajath.grove.ui.reminders.ReminderResolveScreen
 import com.rrajath.grove.ui.screens.ConflictScreen
 import com.rrajath.grove.ui.screens.GroveDrawerContent
@@ -1157,5 +1159,25 @@ private fun GroveNavigation(
     val whatsNew by viewModel.whatsNew.collectAsStateWithLifecycle()
     if (whatsNew.isNotEmpty()) {
         com.rrajath.grove.ui.screens.WhatsNewDialog(versions = whatsNew, onDismiss = viewModel::dismissWhatsNew)
+    }
+
+    // One-time exact-alarm prompt: checked on every resume, and again once onboarding
+    // finishes or What's New closes, so it queues behind those instead of stacking.
+    androidx.lifecycle.compose.LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        viewModel.checkExactAlarmPrompt()
+    }
+    LaunchedEffect(settings.onboardingDone, whatsNew.isEmpty()) {
+        if (whatsNew.isEmpty()) viewModel.checkExactAlarmPrompt()
+    }
+    val exactAlarmPrompt by viewModel.exactAlarmPrompt.collectAsStateWithLifecycle()
+    if (exactAlarmPrompt && whatsNew.isEmpty()) {
+        val context = androidx.compose.ui.platform.LocalContext.current
+        ExactAlarmPromptDialog(
+            onAllow = {
+                viewModel.onExactAlarmPromptAllow()
+                ReminderAccessIntents.openExactAlarmSettings(context)
+            },
+            onNotNow = viewModel::onExactAlarmPromptNotNow,
+        )
     }
 }

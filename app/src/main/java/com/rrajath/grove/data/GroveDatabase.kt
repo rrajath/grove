@@ -573,6 +573,10 @@ interface ReminderDao {
     @Query("SELECT COUNT(*) FROM reminders WHERE pendingPermission = 1 AND triggerAtMillis > :now")
     fun pendingCountFlow(now: Long): Flow<Int>
 
+    /** Upcoming reminders of any kind; gates the one-time exact-alarm prompt. */
+    @Query("SELECT COUNT(*) FROM reminders WHERE triggerAtMillis > :now")
+    suspend fun futureCount(now: Long): Int
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(reminder: ReminderEntity)
 

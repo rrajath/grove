@@ -35,6 +35,7 @@ class ReminderReconcilerTest {
             rows.values.filter { !it.pendingPermission && it.firedAt == null && it.triggerAtMillis <= now }
         override fun pendingCountFlow(now: Long): Flow<Int> =
             flowOf(rows.values.count { it.pendingPermission && it.triggerAtMillis > now })
+        override suspend fun futureCount(now: Long) = rows.values.count { it.triggerAtMillis > now }
         override suspend fun upsert(reminder: ReminderEntity) { rows[reminder.key] = reminder }
         override suspend fun markFired(key: String, firedAt: Long) {
             rows[key]?.let { rows[key] = it.copy(firedAt = firedAt) }

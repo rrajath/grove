@@ -2,4 +2,6 @@
     <string name="app_name">Grove</string>
     <string name="widget_description">One-tap capture into your org notes</string>
     <string name="ledger_widget_description">Agenda ledger: overdue and upcoming tasks grouped by day</string>
+    <!-- %1$s is the app name (R.string.app_name), never hardcoded. -->
+    <string name="exact_alarm_prompt_body">Android can delay %1$s\'s reminders by up to an hour unless %1$s is allowed to set alarms. On the next screen, turn on Alarms &amp; reminders for %1$s.</string>
 </resources>

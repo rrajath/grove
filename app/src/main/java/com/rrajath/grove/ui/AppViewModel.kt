@@ -1,5 +1,6 @@
 package com.rrajath.grove.ui
 
+import androidx.core.app.NotificationManagerCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -12,6 +13,8 @@ import com.rrajath.grove.capture.SharedPayload
 import com.rrajath.grove.data.FavoriteNote
 import com.rrajath.grove.data.FavoritesRepository
 import com.rrajath.grove.data.GroveDatabase
+import com.rrajath.grove.reminders.AlarmScheduler
+import com.rrajath.grove.reminders.ExactAlarmPrompt
 import com.rrajath.grove.search.SavedSearch
 import com.rrajath.grove.search.SearchRepository
 import com.rrajath.grove.settings.AgendaSwipeAction
@@ -213,6 +216,42 @@ class AppViewModel(
 
     fun dismissWhatsNew() = markWhatsNewSeen()
 
+    private val _exactAlarmPrompt = MutableStateFlow(false)
+    /** The one-time "Get reminders on time" dialog; see [ExactAlarmPrompt] for when. */
+    val exactAlarmPrompt: StateFlow<Boolean> = _exactAlarmPrompt
+
+    /** Called on every ON_RESUME (and when What's New closes, so the two never stack). */
+    fun checkExactAlarmPrompt() = viewModelScope.launch(dispatchers.io) {
+        val s = settingsRepository.settings.first()
+        _exactAlarmPrompt.value = ExactAlarmPrompt.shouldShow(
+            onboardingDone = s.onboardingDone,
+            promptHandled = s.exactAlarmPromptHandled,
+            remindersEnabled = s.remindersEnabled,
+            morningBriefEnabled = s.morningBriefEnabled,
+            hasFutureReminder = database.reminderDao().futureCount(System.currentTimeMillis()) > 0,
+            notificationsEnabled = NotificationManagerCompat.from(app).areNotificationsEnabled(),
+            canScheduleExact = AlarmScheduler.canScheduleExactAlarms(app),
+        )
+    }
+
+    /** "Allow": never ask again; the caller opens the system page (needs an Activity context). */
+    fun onExactAlarmPromptAllow() {
+        _exactAlarmPrompt.value = false
+        viewModelScope.launch { settingsRepository.markExactAlarmPromptHandled() }
+    }
+
+    /** "Not now" (or back): never ask again, but say where to turn it on later. */
+    fun onExactAlarmPromptNotNow() {
+        _exactAlarmPrompt.value = false
+        viewModelScope.launch {
+            settingsRepository.markExactAlarmPromptHandled()
+            toast(
+                "You can turn this on later in Settings › Reminders › Exact timing.",
+                android.widget.Toast.LENGTH_LONG,
+            )
+        }
+    }
+
     /**
      * Full shipped-release history for Settings › About › What's New, loaded once from the
      * bundled CHANGELOG.md asset. Empty until [loadWhatsNewHistory] has run.
@@ -310,8 +349,11 @@ class AppViewModel(
         viewModelScope.launch { ShareIntake.consumeShare(app, payload) }
     }
 
-    private suspend fun toast(message: String) = withContext(dispatchers.main) {
-        android.widget.Toast.makeText(app, message, android.widget.Toast.LENGTH_SHORT).show()
+    private suspend fun toast(
+        message: String,
+        duration: Int = android.widget.Toast.LENGTH_SHORT,
+    ) = withContext(dispatchers.main) {
+        android.widget.Toast.makeText(app, message, duration).show()
     }
 
     fun setOutlineToggle(toggle: OutlineToggle, enabled: Boolean) =
