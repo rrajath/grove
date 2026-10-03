@@ -6,13 +6,15 @@ description: System notifications for SCHEDULED, DEADLINE, and event timestamps,
 import ThemeShot from '../../../components/ThemeShot.astro';
 import settingsRemindersLight from '../assets/light/settings-reminders.png';
 import settingsRemindersDark from '../assets/dark/settings-reminders.png';
+import settingsRemindersExactLight from '../assets/light/settings-reminders-exact-timing.png';
+import settingsRemindersExactDark from '../assets/dark/settings-reminders-exact-timing.png';
 
 Grove can notify you when a heading's SCHEDULED or DEADLINE timestamp arrives, without you needing to have the app open or even check Agenda proactively.
 
 <ThemeShot
   light={settingsRemindersLight}
   dark={settingsRemindersDark}
-  alt="Reminders settings with Enable reminders on, a Notify me time-of-event picker, a Morning Brief toggle, and Send reminder at set to 9:00 AM"
+  alt="Reminders settings with Enable reminders on, a Notify me time-of-event picker, a Notify for tasks without a time toggle, a Morning Brief toggle, and Send reminder at set to 9:00 AM"
   widths={[340, 680]}
   sizes="340px"
 />
@@ -54,6 +56,14 @@ Reminders depend on two kinds of access, and Grove asks for neither before you'v
 - **Alarms & reminders (exact timing).** Android 12 and later gate exact alarms behind this setting, and Android 14 and later leave it off for new installs. Without it, reminders still fire, but Android may delay them by up to an hour.
 
 While reminders are on and access is missing, Settings → Reminders shows a row with an **Allow** button that takes you to the right system screen: **Notifications** first, then **Exact timing** once notifications are allowed (exact timing has no effect while notifications are off). The row disappears once access is granted. Granting or revoking exact timing re-arms every upcoming reminder straight away, so existing reminders switch to the new timing without needing to be edited.
+
+<ThemeShot
+  light={settingsRemindersExactLight}
+  dark={settingsRemindersExactDark}
+  alt="Reminders settings with an Exact timing row at the top explaining that Android may delay reminders by up to an hour, and an Allow button"
+  widths={[340, 680]}
+  sizes="340px"
+/>
 
 If reminders are on, notifications are allowed, and exact timing is off, Grove asks once with a **Get reminders on time** dialog. **Allow** opens the Alarms & reminders screen; **Not now** dismisses it for good and points you to Settings → Reminders → Exact timing for later.
 
