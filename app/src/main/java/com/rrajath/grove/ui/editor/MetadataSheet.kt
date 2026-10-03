@@ -1,8 +1,10 @@
 package com.rrajath.grove.ui.editor
 
+import android.os.Build
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -33,6 +35,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntRect
@@ -99,6 +102,14 @@ fun MetadataSheet(
                 .padding(horizontal = 22.dp)
                 .padding(bottom = 30.dp),
         ) {
+            // Before Android 9 a new window gives initial focus to its first
+            // focusable view even in touch mode. Here that's the Tags field, so
+            // the sheet opened with the keyboard up, covering the action row.
+            // This blank target ahead of it takes that focus instead; API 28+
+            // never assigns it, so the target isn't needed there.
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) {
+                Box(Modifier.clearAndSetSemantics {}.focusable())
+            }
             SheetLabel("State")
             // FlowRow, not Row: vaults can define arbitrarily many TODO keywords,
             // which must wrap onto more lines instead of squeezing each other.

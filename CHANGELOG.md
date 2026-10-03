@@ -84,6 +84,7 @@ re-uploads the APKs to the existing release instead of failing.
 - Maestro end-to-end flows now run on API 24 and 36 emulators in CI.
 
 ### Fixed
+- On Android 6 to 8.1, the note metadata sheet no longer opens with the keyboard covering its actions.
 - Appearance UI test no longer fails on Android 6, where the app-icon sync row is hidden.
 - Fixed flaky Search unit tests that could check results before saved searches finished loading.
 - Fixed a flaky Read-mode UI test that could swipe before the note finished loading.
