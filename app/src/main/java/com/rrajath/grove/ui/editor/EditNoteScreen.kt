@@ -56,6 +56,7 @@ import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -382,7 +383,12 @@ fun EditNoteScreen(
         }
     }
     val blockTrigger by rememberBlockTrigger(textState)
-    val highlight = remember(c, state.keywords) { OrgSyntaxHighlight(c, state.keywords) }
+    val highlight = remember(c, state.keywords) {
+        OrgSyntaxHighlight(c, state.keywords, trailingBlankLines = EditorBottomMarginLines)
+    }
+    // Written from the field's onTextLayout; read only by KeepCursorClearOfBottom's flow.
+    var textLayout by remember { mutableStateOf<TextLayoutResult?>(null) }
+    KeepCursorClearOfBottom(textState, scrollState, { textLayout }, EditorBottomMarginLines)
 
     // Idle auto-save (Settings § Notes → Auto-save notes) runs inside
     // EditorViewModel now, so it isn't a per-keystroke Compose effect here.
@@ -484,6 +490,7 @@ fun EditNoteScreen(
                             lineHeight = 1.85.em, color = c.ink,
                         ),
                         cursorBrush = SolidColor(c.accent),
+                        onTextLayout = { getResult -> textLayout = getResult() },
                         scrollState = scrollState,
                         modifier = Modifier
                             .fillMaxSize()

@@ -14,13 +14,17 @@ import com.rrajath.grove.ui.theme.starColor
 
 /**
  * Highlight-only syntax colouring for the raw org editor (design spec §6).
- * Applied as an [OutputTransformation]: it only ever adds [SpanStyle] spans and
- * never inserts or removes characters, so presented offsets map 1:1 onto the
- * underlying text and cursor math stays trivial.
+ * Applied as an [OutputTransformation]: it only adds [SpanStyle] spans, plus
+ * [trailingBlankLines] display-only newlines after the end of the text (never
+ * saved), so every offset into the underlying text maps 1:1 onto the presented
+ * text and cursor math stays trivial. The blank lines give the field's own scroll
+ * range room to lift the last line off the bottom edge ([KeepCursorClearOfBottom]);
+ * a tap on them places the cursor at the end of the real text.
  */
 class OrgSyntaxHighlight(
     private val colors: GroveColors,
     private val keywords: OrgKeywords,
+    private val trailingBlankLines: Int = 0,
 ) : OutputTransformation {
 
     /** Span styles relative to the start of one line: cacheable across edits. */
@@ -43,6 +47,7 @@ class OrgSyntaxHighlight(
             lineStart += line.length + 1
         }
         lineCache = next
+        if (trailingBlankLines > 0) append("\n".repeat(trailingBlankLines))
     }
 
     private fun styleLine(line: String): List<LineSpan> {

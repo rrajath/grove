@@ -61,6 +61,7 @@ import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
@@ -102,7 +103,9 @@ import com.rrajath.grove.ui.editor.AutoSaveTimestamp
 import com.rrajath.grove.ui.editor.BlockTemplateSuggestionStrip
 import com.rrajath.grove.ui.editor.applyBlockTemplate
 import com.rrajath.grove.ui.editor.rememberBlockTrigger
+import com.rrajath.grove.ui.editor.EditorBottomMarginLines
 import com.rrajath.grove.ui.editor.EditorToolbar
+import com.rrajath.grove.ui.editor.KeepCursorClearOfBottom
 import com.rrajath.grove.ui.editor.MetadataSheet
 import com.rrajath.grove.ui.editor.RoamNodeSuggestionStrip
 import com.rrajath.grove.ui.editor.SuggestionSlot
@@ -376,6 +379,9 @@ fun CaptureEditorScreen(
         if (roamAppendState !is RoamAppendState.Checking) focusRequester.requestFocus()
     }
     val scrollState = rememberScrollState()
+    // Written from the field's onTextLayout; read only by KeepCursorClearOfBottom's flow.
+    var textLayout by remember { mutableStateOf<TextLayoutResult?>(null) }
+    KeepCursorClearOfBottom(textState, scrollState, { textLayout }, EditorBottomMarginLines)
 
     var showDiscardDialog by remember { mutableStateOf(false) }
     var showEmptyHeadingAlert by remember { mutableStateOf(false) }
@@ -678,7 +684,9 @@ fun CaptureEditorScreen(
                             BasicTextField(
                                 state = textState,
                                 inputTransformation = remember(keywords) { orgInputTransformation(keywords) },
-                                outputTransformation = remember(c, keywords) { OrgSyntaxHighlight(c, keywords) },
+                                outputTransformation = remember(c, keywords) {
+                                    OrgSyntaxHighlight(c, keywords, trailingBlankLines = EditorBottomMarginLines)
+                                },
                                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                                 lineLimits = TextFieldLineLimits.MultiLine(),
                                 textStyle = TextStyle(
@@ -686,6 +694,7 @@ fun CaptureEditorScreen(
                                     lineHeight = 1.9.em, color = c.ink,
                                 ),
                                 cursorBrush = SolidColor(c.accent),
+                                onTextLayout = { getResult -> textLayout = getResult() },
                                 scrollState = scrollState,
                                 modifier = Modifier
                                     .fillMaxWidth()

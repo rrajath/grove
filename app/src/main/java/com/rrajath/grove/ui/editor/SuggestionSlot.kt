@@ -1,5 +1,6 @@
 package com.rrajath.grove.ui.editor
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -50,10 +51,13 @@ internal fun SuggestionSlot(
     val line = MaterialTheme.grove.line
     // A hairline across the top marks the slot off from the text above it, so a tap
     // there (especially while it's empty) doesn't read as a tap on the text field.
+    // Opaque, so text the field slides down near its top (scrollAwareTopInset)
+    // passes behind the slot instead of showing through it.
     Row(
         modifier
             .fillMaxWidth()
             .heightIn(min = SuggestionSlotHeight)
+            .background(MaterialTheme.grove.bg)
             .drawBehind { drawLine(line, Offset.Zero, Offset(size.width, 0f), strokeWidth = 2f) }
             .padding(end = if (trailing != null) 16.dp else 0.dp),
         verticalAlignment = Alignment.CenterVertically,
