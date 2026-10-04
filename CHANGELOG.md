@@ -68,7 +68,6 @@ re-uploads the APKs to the existing release instead of failing.
 - A one-time prompt asks for Alarms & reminders access so reminders arrive on time.
 
 ### Changed
-- Release AABs built by CI are now named `grove-<versionName>-release.aab`.
 - README now shows build, release, F-Droid, downloads, license, platform, stack, activity, and docs badges.
 - Refreshed README and store screenshots; README now states the correct minimum Android version (6.0).
 - Date filters follow Orgzly defaults: `s.today` now includes overdue. Saved searches are migrated to keep their meaning.
@@ -77,27 +76,16 @@ re-uploads the APKs to the existing release instead of failing.
 - While typing a note, the menu button smoothly shrinks into the suggestion strip, like Capture's Save.
 - Agenda widget: tapping the "Agenda" title opens the Agenda screen; the app icon opens the app.
 - Swipe cells: Schedule now sits at the edge with Reveal beside it; Agenda's Schedule swipe gains Reveal.
-- Long swipes on Search and Agenda rows fade the other cell and flood the chosen action's colour.
+- Long swipes on Search and Agenda rows fade the other cell and flood the chosen action's color.
 - Search result swipe rows now have rounded corners, matching Agenda.
-- The Backlinks bar now slides up when the keyboard closes instead of popping in.
-- Linked References is now called Backlinks, and no longer shows on single headings opened from the outline.
-- Releases are cut locally with scripts/release.sh, so F-Droid can reproduce the published APK.
-- versionCode is now stored in gradle.properties so F-Droid can detect new releases automatically.
-- Nightly UI tests now run on API 23 and 36 emulators (minSdk and targetSdk) instead of 34 and 35.
-- Maestro end-to-end flows now run on API 24 and 36 emulators in CI.
 
 ### Fixed
 - Flinging up in the capture or note editor no longer snaps back to the cursor near the top.
 - Editors keep the line you're typing two lines above the suggestion strip, which now hides text scrolling under it.
 - The daily note editor also keeps the line you're typing two lines above the suggestion strip.
-- On Android 6 to 8.1, the dates picker no longer opens with the keyboard covering its tabs.
+- On Android 6 to 8.1, the dates picker and the note metadata sheet no longer opens with the keyboard covering its tabs.
 - The note metadata sheet now opens fully, so its action row is never hidden behind the navigation bar.
-- On Android 6 to 8.1, the note metadata sheet no longer opens with the keyboard covering its actions.
-- Appearance UI test no longer fails on Android 6, where the app-icon sync row is hidden.
-- Fixed flaky Search unit tests that could check results before saved searches finished loading.
-- Fixed a flaky Read-mode UI test that could swipe before the note finished loading.
 - Search result date pills now show the scheduled or deadline time, e.g. "today 23:00".
-- In the file editor, the Backlinks bar now reaches the bottom edge of the screen, matching Read mode.
 - The note and Capture editors no longer leave a blank gap above the suggestion strip.
 - Search's Operators card now has matching top and bottom padding.
 - Reminders switch to exact timing once Alarms & reminders access is granted, instead of staying up to an hour late.
