@@ -57,6 +57,8 @@ re-uploads the APKs to the existing release instead of failing.
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-10-04
+
 ### Added
 - Marking a recurring task done now shows its next occurrence date in the snackbar.
 - Search supports nested brackets, `.( … )` negation, `AND`, `it.` keyword types, date comparisons, and Orgzly sort keys.
