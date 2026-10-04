@@ -92,6 +92,8 @@ fun SwipeRevealRow(
     onTap: () -> Unit,
     onLongPress: () -> Unit,
     modifier: Modifier = Modifier,
+    /** Clip applied to the foreground card and the action panels (e.g. rounded row ends). */
+    shape: Shape = RectangleShape,
     content: @Composable () -> Unit,
 ) {
     val c = MaterialTheme.grove
@@ -140,15 +142,16 @@ fun SwipeRevealRow(
 
     Box(modifier.clipToBounds()) {
         if (showLeftPanel) {
-            ActionPanel(leftActions, anchorEnd = false, onAction = ::close)
+            ActionPanel(leftActions, anchorEnd = false, onAction = ::close, shape = shape)
         }
         if (showRightPanel) {
-            ActionPanel(rightActions, anchorEnd = true, onAction = ::close)
+            ActionPanel(rightActions, anchorEnd = true, onAction = ::close, shape = shape)
         }
         Box(
             Modifier
                 .fillMaxWidth()
                 .graphicsLayer { translationX = offset.value }
+                .clip(shape)
                 .background(c.bg)
                 .combinedClickable(
                     onClick = { if (isOpen) close() else onTap() },

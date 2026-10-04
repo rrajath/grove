@@ -763,6 +763,8 @@ fun OutlineScreen(
                                 onTap = { onOpenNote(NoteRef(notebookId, h.lineIndex)) },
                                 onLongPress = { viewModel.setFocus(h.lineIndex) },
                                 modifier = if (isFocusedRow) Modifier.zIndex(1f) else Modifier,
+                                // Search's result-row radius, so the action panels get rounded ends too.
+                                shape = RoundedCornerShape(12.dp),
                             ) {
                                 OutlineNode(
                                     doc = doc,

@@ -78,6 +78,7 @@ re-uploads the APKs to the existing release instead of failing.
 - Swipe cells: Schedule now sits at the edge with Reveal beside it; Agenda's Schedule swipe gains Reveal.
 - Long swipes on Search and Agenda rows fade the other cell and flood the chosen action's color.
 - Search result swipe rows now have rounded corners, matching Agenda.
+- Outline swipe rows now have rounded corners, matching Search results.
 
 ### Fixed
 - Flinging up in the capture or note editor no longer snaps back to the cursor near the top.
