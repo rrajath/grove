@@ -50,6 +50,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -542,6 +543,10 @@ internal fun WholeFileEditorBody(
     /** Whether the suggestion slot is on screen; Dailies hides its floating date pills
      *  while it is, since with the keyboard down they'd sit on top of the strip. */
     onSuggestionSlotShownChange: (Boolean) -> Unit = {},
+    /** Lines kept between the cursor and the field's bottom edge while typing
+     *  ([KeepCursorClearOfBottom]); pass the same count as [highlight]'s
+     *  `trailingBlankLines`. 0 leaves the field's own cursor tracking alone. */
+    bottomMarginLines: Int = 0,
 ) {
     val c = MaterialTheme.grove
     val context = LocalContext.current
@@ -570,6 +575,11 @@ internal fun WholeFileEditorBody(
     // the keyboard, so a long-press selection is often made without it, and the
     // docked strip covers nothing there.
     val suggestionSlotShown = (imeVisible && suggestionSlotEnabled) || roamNodeSuggestionActive
+    // Written from the field's onTextLayout; read only by KeepCursorClearOfBottom's flow.
+    var textLayout by remember { mutableStateOf<TextLayoutResult?>(null) }
+    if (bottomMarginLines > 0) {
+        KeepCursorClearOfBottom(textState, scrollState, { textLayout }, bottomMarginLines)
+    }
     DisposableEffect(suggestionSlotShown) {
         onSuggestionSlotShownChange(suggestionSlotShown)
         onDispose { onSuggestionSlotShownChange(false) }
@@ -591,6 +601,7 @@ internal fun WholeFileEditorBody(
                         lineHeight = 1.85.em, color = c.ink,
                     ),
                     cursorBrush = SolidColor(c.accent),
+                    onTextLayout = { getResult -> textLayout = getResult() },
                     scrollState = scrollState,
                     modifier = Modifier
                         .fillMaxSize()

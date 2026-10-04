@@ -89,6 +89,7 @@ re-uploads the APKs to the existing release instead of failing.
 ### Fixed
 - Flinging up in the capture or note editor no longer snaps back to the cursor near the top.
 - Editors keep the line you're typing two lines above the suggestion strip, which now hides text scrolling under it.
+- The daily note editor also keeps the line you're typing two lines above the suggestion strip.
 - On Android 6 to 8.1, the dates picker no longer opens with the keyboard covering its tabs.
 - The note metadata sheet now opens fully, so its action row is never hidden behind the navigation bar.
 - On Android 6 to 8.1, the note metadata sheet no longer opens with the keyboard covering its actions.

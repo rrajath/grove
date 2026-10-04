@@ -66,6 +66,7 @@ import com.rrajath.grove.ui.editor.applyToolbarLink
 import com.rrajath.grove.ui.editor.insertAtCursor
 import com.rrajath.grove.ui.editor.resolveLinkPick
 import com.rrajath.grove.ui.vault.headlineAtLine
+import com.rrajath.grove.ui.editor.EditorBottomMarginLines
 import com.rrajath.grove.ui.editor.EditorViewModel
 import com.rrajath.grove.ui.editor.OrgSyntaxHighlight
 import com.rrajath.grove.ui.editor.WholeFileEditorBody
@@ -487,7 +488,7 @@ fun DailyNoteScreen(
                     val focusRequester = remember { FocusRequester() }
                     val scrollState = rememberScrollState()
                     val highlight = remember(c, editState.keywords) {
-                        OrgSyntaxHighlight(c, editState.keywords)
+                        OrgSyntaxHighlight(c, editState.keywords, trailingBlankLines = EditorBottomMarginLines)
                     }
                     // Link suggestions while typing: same mechanism as EditNoteScreen /
                     // EditRegionScreen -- an index loaded once, and a trigger word
@@ -586,6 +587,7 @@ fun DailyNoteScreen(
                         autoLinkIndex = autoLinkIndex,
                         createOrLinkRoamNode = editorViewModel::createOrLinkRoamNode,
                         onSuggestionSlotShownChange = { editorStripShown = it },
+                        bottomMarginLines = EditorBottomMarginLines,
                     )
 
                     // Toolbar long-press pickers, as in EditNoteScreen: the file/heading
