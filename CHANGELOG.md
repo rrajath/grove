@@ -87,6 +87,7 @@ re-uploads the APKs to the existing release instead of failing.
 - Maestro end-to-end flows now run on API 24 and 36 emulators in CI.
 
 ### Fixed
+- Flinging up in the capture or note editor no longer snaps back to the cursor near the top.
 - On Android 6 to 8.1, the dates picker no longer opens with the keyboard covering its tabs.
 - The note metadata sheet now opens fully, so its action row is never hidden behind the navigation bar.
 - On Android 6 to 8.1, the note metadata sheet no longer opens with the keyboard covering its actions.
